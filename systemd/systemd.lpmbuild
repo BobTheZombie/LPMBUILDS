@@ -1,0 +1,39 @@
+name = "systemd"
+version = "256"
+summary = "System and service manager"
+url = "https://www.freedesktop.org/wiki/Software/systemd/"
+release = "1"
+arch = "x86_64"
+
+requires = ['glibc', 'util-linux', 'pam']
+provides = ['systemd']
+conflicts = []
+obsoletes = []
+
+prepare() { mkdir -p build; }
+build() {
+    meson setup build \
+        --prefix=/usr \
+        --sysconfdir=/etc \
+        --localstatedir=/var \
+        -Ddefault-hierarchy=unified
+    ninja -C build
+}
+install() {
+    ninja -C build install DESTDIR="$PKGDIR"
+
+    # Enable networkd + resolved
+    mkdir -p "$PKGDIR/etc/systemd/system/multi-user.target.wants"
+    ln -sf /usr/lib/systemd/system/systemd-networkd.service "$PKGDIR/etc/systemd/system/multi-user.target.wants/systemd-networkd.service"
+    ln -sf /usr/lib/systemd/system/systemd-resolved.service "$PKGDIR/etc/systemd/system/multi-user.target.wants/systemd-resolved.service"
+
+    # Default wired DHCP config
+    install -Dm644 /dev/stdin "$PKGDIR/etc/systemd/network/20-wired.network" <<'EOF'
+[Match]
+Name=en*
+
+[Network]
+DHCP=yes
+EOF
+}
+

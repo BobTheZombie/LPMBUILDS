@@ -1,0 +1,16 @@
+name = "perl"
+version = "5.40.0"
+summary = "Practical Extraction and Reporting Language"
+url = "https://www.perl.org/"
+release = "1"
+arch = "x86_64"
+
+requires = ['glibc', 'gdbm']
+provides = ['perl']
+conflicts = []
+obsoletes = []
+
+prepare() { :; }
+build() { ./configure --prefix=/usr || true; make -j"$(nproc)" || true; }
+install() { make DESTDIR="$PKGDIR" install || true; }
+

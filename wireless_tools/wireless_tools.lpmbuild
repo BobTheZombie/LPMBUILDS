@@ -1,0 +1,16 @@
+name = "wireless_tools"
+version = "30.pre9"
+summary = "Tools for manipulating wireless extensions"
+url = "https://hewlettpackard.github.io/wireless-tools/"
+release = "1"
+arch = "x86_64"
+
+requires = ['glibc']
+provides = ['wireless_tools']
+conflicts = []
+obsoletes = []
+
+prepare() { :; }
+build() { make -j"$(nproc)"; }
+install() { make PREFIX=/usr DESTDIR="$PKGDIR" install; }
+

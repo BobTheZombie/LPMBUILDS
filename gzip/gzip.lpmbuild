@@ -1,0 +1,16 @@
+name = "gzip"
+version = "1.13"
+summary = "GNU compression utility"
+url = "https://www.gnu.org/software/gzip/"
+release = "1"
+arch = "x86_64"
+
+requires = ['glibc']
+provides = ['gzip']
+conflicts = []
+obsoletes = []
+
+prepare() { :; }
+build() { ./configure --prefix=/usr || true; make -j"$(nproc)" || true; }
+install() { make DESTDIR="$PKGDIR" install || true; }
+

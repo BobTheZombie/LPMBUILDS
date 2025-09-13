@@ -1,0 +1,16 @@
+name = "tar"
+version = "1.35"
+summary = "GNU tar"
+url = "https://www.gnu.org/software/tar/"
+release = "1"
+arch = "x86_64"
+
+requires = ['glibc', 'xz']
+provides = ['tar']
+conflicts = []
+obsoletes = []
+
+prepare() { :; }
+build() { ./configure --prefix=/usr || true; make -j"$(nproc)" || true; }
+install() { make DESTDIR="$PKGDIR" install || true; }
+

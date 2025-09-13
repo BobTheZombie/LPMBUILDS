@@ -1,0 +1,16 @@
+name = "bzip2"
+version = "1.0.8"
+summary = "Burrows-Wheeler compression"
+url = "https://sourceware.org/bzip2/"
+release = "1"
+arch = "x86_64"
+
+requires = ['glibc']
+provides = ['bzip2']
+conflicts = []
+obsoletes = []
+
+prepare() { :; }
+build() { ./configure --prefix=/usr || true; make -j"$(nproc)" || true; }
+install() { make DESTDIR="$PKGDIR" install || true; }
+

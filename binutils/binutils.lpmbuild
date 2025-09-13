@@ -1,0 +1,27 @@
+name = "binutils"
+version = "2.43.1"
+summary = "Binary utilities (ld, as, etc.)"
+url = "https://www.gnu.org/software/binutils/"
+release = "1"
+arch = "x86_64"
+
+requires = ['glibc', 'zlib', 'xz']
+provides = ['binutils']
+conflicts = []
+obsoletes = []
+
+prepare() { mkdir -p build; }
+build() {
+    cd build
+    ../configure --prefix=/usr \
+                 --with-lib-path=/usr/lib:/usr/local/lib \
+                 --with-system-zlib \
+                 --enable-gold \
+                 --enable-ld=default \
+                 --enable-plugins \
+                 --enable-shared \
+                 --disable-werror
+    make -j"$(nproc)"
+}
+install() { cd build; make DESTDIR="$PKGDIR" install; }
+

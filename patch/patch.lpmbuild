@@ -1,0 +1,16 @@
+name = "patch"
+version = "2.7.6"
+summary = "Apply unified diffs"
+url = "https://www.gnu.org/software/patch/"
+release = "1"
+arch = "x86_64"
+
+requires = ['glibc']
+provides = ['patch']
+conflicts = []
+obsoletes = []
+
+prepare() { :; }
+build() { ./configure --prefix=/usr || true; make -j"$(nproc)" || true; }
+install() { make DESTDIR="$PKGDIR" install || true; }
+

@@ -1,0 +1,16 @@
+name = "xz"
+version = "5.6.2"
+summary = "XZ compression utilities"
+url = "https://tukaani.org/xz/"
+release = "1"
+arch = "x86_64"
+
+requires = ['glibc']
+provides = ['xz']
+conflicts = []
+obsoletes = []
+
+prepare() { :; }
+build() { ./configure --prefix=/usr || true; make -j"$(nproc)" || true; }
+install() { make DESTDIR="$PKGDIR" install || true; }
+

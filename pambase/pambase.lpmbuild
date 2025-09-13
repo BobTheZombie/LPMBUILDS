@@ -1,0 +1,16 @@
+name = "pambase"
+version = "202502"
+summary = "Default PAM configuration files"
+url = "https://archlinux.org/packages/core/x86_64/pambase/"
+release = "1"
+arch = "x86_64"
+
+requires = ['pam']
+provides = ['pambase']
+conflicts = []
+obsoletes = []
+
+prepare() { :; }
+build() { ./configure --prefix=/usr || true; make -j"$(nproc)" || true; }
+install() { make DESTDIR="$PKGDIR" install || true; }
+

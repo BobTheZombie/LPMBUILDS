@@ -1,0 +1,16 @@
+name = "zlib"
+version = "1.3.1"
+summary = "Compression library"
+url = "https://zlib.net/"
+release = "1"
+arch = "x86_64"
+
+requires = ['glibc']
+provides = ['zlib']
+conflicts = []
+obsoletes = []
+
+prepare() { :; }
+build() { ./configure --prefix=/usr || true; make -j"$(nproc)" || true; }
+install() { make DESTDIR="$PKGDIR" install || true; }
+

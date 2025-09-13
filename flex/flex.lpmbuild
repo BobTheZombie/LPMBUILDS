@@ -1,0 +1,16 @@
+name = "flex"
+version = "2.6.4"
+summary = "Fast lexical analyzer generator"
+url = "https://github.com/westes/flex"
+release = "1"
+arch = "x86_64"
+
+requires = ['glibc', 'm4']
+provides = ['flex']
+conflicts = []
+obsoletes = []
+
+prepare() { :; }
+build() { ./configure --prefix=/usr || true; make -j"$(nproc)" || true; }
+install() { make DESTDIR="$PKGDIR" install || true; }
+

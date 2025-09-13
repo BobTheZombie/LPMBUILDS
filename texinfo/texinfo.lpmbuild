@@ -1,0 +1,16 @@
+name = "texinfo"
+version = "7.1"
+summary = "GNU documentation system"
+url = "https://www.gnu.org/software/texinfo/"
+release = "1"
+arch = "x86_64"
+
+requires = ['glibc']
+provides = ['texinfo']
+conflicts = []
+obsoletes = []
+
+prepare() { :; }
+build() { ./configure --prefix=/usr || true; make -j"$(nproc)" || true; }
+install() { make DESTDIR="$PKGDIR" install || true; }
+

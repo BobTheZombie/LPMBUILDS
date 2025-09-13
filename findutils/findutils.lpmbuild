@@ -1,0 +1,16 @@
+name = "findutils"
+version = "4.10.0"
+summary = "GNU find, xargs, locate"
+url = "https://www.gnu.org/software/findutils/"
+release = "1"
+arch = "x86_64"
+
+requires = ['glibc']
+provides = ['findutils']
+conflicts = []
+obsoletes = []
+
+prepare() { :; }
+build() { ./configure --prefix=/usr || true; make -j"$(nproc)" || true; }
+install() { make DESTDIR="$PKGDIR" install || true; }
+

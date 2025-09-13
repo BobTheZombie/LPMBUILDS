@@ -1,0 +1,16 @@
+name = "libgpg-error"
+version = "1.49"
+summary = "Common error codes for GnuPG"
+url = "https://gnupg.org/software/libgpg-error/"
+release = "1"
+arch = "x86_64"
+
+requires = ['glibc']
+provides = ['libgpg-error']
+conflicts = []
+obsoletes = []
+
+prepare() { :; }
+build() { ./configure --prefix=/usr || true; make -j"$(nproc)" || true; }
+install() { make DESTDIR="$PKGDIR" install || true; }
+

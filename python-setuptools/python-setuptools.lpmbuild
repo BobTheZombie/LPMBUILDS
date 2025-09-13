@@ -1,0 +1,16 @@
+name = "python-setuptools"
+version = "75.1.0"
+summary = "Build and distribute Python packages"
+url = "https://github.com/pypa/setuptools"
+release = "1"
+arch = "x86_64"
+
+requires = ['python']
+provides = ['python-setuptools']
+conflicts = []
+obsoletes = []
+
+prepare() { :; }
+build() { ./configure --prefix=/usr || true; make -j"$(nproc)" || true; }
+install() { make DESTDIR="$PKGDIR" install || true; }
+

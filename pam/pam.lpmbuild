@@ -1,0 +1,16 @@
+name = "pam"
+version = "1.6.1"
+summary = "Linux-PAM: Pluggable Authentication Modules"
+url = "https://github.com/linux-pam/linux-pam"
+release = "1"
+arch = "x86_64"
+
+requires = ['glibc', 'libxcrypt']
+provides = ['pam']
+conflicts = []
+obsoletes = []
+
+prepare() { :; }
+build() { ./configure --prefix=/usr || true; make -j"$(nproc)" || true; }
+install() { make DESTDIR="$PKGDIR" install || true; }
+

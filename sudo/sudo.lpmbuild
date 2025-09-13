@@ -1,0 +1,28 @@
+name = "sudo"
+version = "1.9.15p5"
+summary = "Give certain users the ability to run some commands as root"
+url = "https://www.sudo.ws/"
+release = "1"
+arch = "x86_64"
+
+requires = ['glibc', 'pam']
+provides = ['sudo']
+conflicts = []
+obsoletes = []
+
+prepare() { :; }
+build() {
+    ./configure --prefix=/usr \
+                --libexecdir=/usr/lib \
+                --with-pam \
+                --with-env-editor \
+                --with-all-insults
+    make -j"$(nproc)"
+}
+install() {
+    make DESTDIR="$PKGDIR" install
+    install -d -m 755 "$PKGDIR/etc/sudoers.d"
+    echo "%wheel ALL=(ALL) ALL" > "$PKGDIR/etc/sudoers.d/10-wheel"
+    chmod 440 "$PKGDIR/etc/sudoers.d/10-wheel"
+}
+

@@ -1,0 +1,16 @@
+name = "openssl"
+version = "3.3.2"
+summary = "SSL/TLS toolkit"
+url = "https://www.openssl.org/"
+release = "1"
+arch = "x86_64"
+
+requires = ['glibc', 'zlib', 'perl']
+provides = ['openssl']
+conflicts = []
+obsoletes = []
+
+prepare() { ./config --prefix=/usr --openssldir=/etc/ssl --libdir=lib; }
+build() { make -j"$(nproc)"; }
+install() { make DESTDIR="$PKGDIR" install; }
+

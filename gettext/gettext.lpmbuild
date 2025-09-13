@@ -1,0 +1,16 @@
+name = "gettext"
+version = "0.22.5"
+summary = "GNU i18n utilities"
+url = "https://www.gnu.org/software/gettext/"
+release = "1"
+arch = "x86_64"
+
+requires = ['glibc']
+provides = ['gettext']
+conflicts = []
+obsoletes = []
+
+prepare() { :; }
+build() { ./configure --prefix=/usr || true; make -j"$(nproc)" || true; }
+install() { make DESTDIR="$PKGDIR" install || true; }
+

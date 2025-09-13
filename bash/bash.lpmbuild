@@ -1,0 +1,16 @@
+name = "bash"
+version = "5.2"
+summary = "GNU Bourne Again shell"
+url = "https://www.gnu.org/software/bash/"
+release = "1"
+arch = "x86_64"
+
+requires = ['glibc', 'readline', 'ncurses']
+provides = ['bash']
+conflicts = []
+obsoletes = []
+
+prepare() { :; }
+build() { ./configure --prefix=/usr || true; make -j"$(nproc)" || true; }
+install() { make DESTDIR="$PKGDIR" install || true; }
+

@@ -1,0 +1,16 @@
+name = "file"
+version = "5.45"
+summary = "File type identification"
+url = "https://astron.com/pub/file/"
+release = "1"
+arch = "x86_64"
+
+requires = ['glibc']
+provides = ['file']
+conflicts = []
+obsoletes = []
+
+prepare() { :; }
+build() { ./configure --prefix=/usr || true; make -j"$(nproc)" || true; }
+install() { make DESTDIR="$PKGDIR" install || true; }
+

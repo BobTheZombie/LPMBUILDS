@@ -1,0 +1,20 @@
+name = "dbus"
+version = "1.14.10"
+summary = "Message bus system"
+url = "https://dbus.freedesktop.org/"
+release = "1"
+arch = "x86_64"
+
+requires = ['glibc', 'systemd']
+provides = ['dbus']
+conflicts = []
+obsoletes = []
+
+prepare() { mkdir -p build; }
+build() {
+    cd build
+    ../configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var --libexecdir=/usr/lib
+    make -j"$(nproc)"
+}
+install() { cd build; make DESTDIR="$PKGDIR" install; }
+

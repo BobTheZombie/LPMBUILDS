@@ -1,0 +1,27 @@
+name = "networkmanager"
+version = "1.48.2"
+summary = "Network connection manager and user applications"
+url = "https://networkmanager.dev/"
+release = "1"
+arch = "x86_64"
+
+requires = ['glibc', 'systemd', 'dbus', 'wpa_supplicant', 'dhcpcd']
+provides = ['networkmanager']
+conflicts = []
+obsoletes = []
+
+prepare() { mkdir -p build; }
+build() {
+    cd build
+    ../configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var --libexecdir=/usr/lib --with-udev-dir=/usr/lib/udev
+    make -j"$(nproc)"
+}
+install() {
+    cd build
+    make DESTDIR="$PKGDIR" install
+
+    # Enable NetworkManager
+    mkdir -p "$PKGDIR/etc/systemd/system/multi-user.target.wants"
+    ln -sf /usr/lib/systemd/system/NetworkManager.service "$PKGDIR/etc/systemd/system/multi-user.target.wants/NetworkManager.service"
+}
+

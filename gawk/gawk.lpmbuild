@@ -1,0 +1,16 @@
+name = "gawk"
+version = "5.3.0"
+summary = "GNU awk"
+url = "https://www.gnu.org/software/gawk/"
+release = "1"
+arch = "x86_64"
+
+requires = ['glibc']
+provides = ['gawk']
+conflicts = []
+obsoletes = []
+
+prepare() { :; }
+build() { ./configure --prefix=/usr || true; make -j"$(nproc)" || true; }
+install() { make DESTDIR="$PKGDIR" install || true; }
+

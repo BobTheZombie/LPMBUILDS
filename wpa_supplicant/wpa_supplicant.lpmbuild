@@ -1,0 +1,29 @@
+name = "wpa_supplicant"
+version = "2.10"
+summary = "WPA supplicant for wireless networking"
+url = "https://w1.fi/wpa_supplicant/"
+release = "1"
+arch = "x86_64"
+
+requires = ['glibc', 'openssl', 'dbus']
+provides = ['wpa_supplicant']
+conflicts = []
+obsoletes = []
+
+prepare() { :; }
+build() { make -j"$(nproc)" BINDIR=/usr/bin LIBDIR=/usr/lib; }
+install() {
+    make DESTDIR="$PKGDIR" install BINDIR=/usr/bin LIBDIR=/usr/lib
+
+    # Provide placeholder config
+    install -Dm600 /dev/stdin "$PKGDIR/etc/wpa_supplicant/wpa_supplicant.conf" <<'EOF'
+ctrl_interface=/run/wpa_supplicant
+update_config=1
+
+network={
+    ssid="YourSSID"
+    psk="YourPassphrase"
+}
+EOF
+}
+

@@ -1,0 +1,16 @@
+name = "libffi"
+version = "3.4.6"
+summary = "Foreign Function Interface library"
+url = "https://sourceware.org/libffi/"
+release = "1"
+arch = "x86_64"
+
+requires = ['glibc']
+provides = ['libffi']
+conflicts = []
+obsoletes = []
+
+prepare() { :; }
+build() { ./configure --prefix=/usr || true; make -j"$(nproc)" || true; }
+install() { make DESTDIR="$PKGDIR" install || true; }
+

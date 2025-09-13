@@ -1,0 +1,16 @@
+name = "coreutils"
+version = "9.4"
+summary = "GNU core utilities"
+url = "https://www.gnu.org/software/coreutils/"
+release = "1"
+arch = "x86_64"
+
+requires = ['glibc']
+provides = ['coreutils']
+conflicts = []
+obsoletes = []
+
+prepare() { :; }
+build() { ./configure --prefix=/usr || true; make -j"$(nproc)" || true; }
+install() { make DESTDIR="$PKGDIR" install || true; }
+

@@ -1,0 +1,16 @@
+name = "less"
+version = "661"
+summary = "Pager program"
+url = "https://www.greenwoodsoftware.com/less/"
+release = "1"
+arch = "x86_64"
+
+requires = ['ncurses']
+provides = ['less']
+conflicts = []
+obsoletes = []
+
+prepare() { :; }
+build() { ./configure --prefix=/usr || true; make -j"$(nproc)" || true; }
+install() { make DESTDIR="$PKGDIR" install || true; }
+

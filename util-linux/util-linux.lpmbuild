@@ -1,0 +1,16 @@
+name = "util-linux"
+version = "2.40"
+summary = "Miscellaneous system utilities"
+url = "https://github.com/util-linux/util-linux"
+release = "1"
+arch = "x86_64"
+
+requires = ['glibc']
+provides = ['util-linux']
+conflicts = []
+obsoletes = []
+
+prepare() { :; }
+build() { ./configure --prefix=/usr || true; make -j"$(nproc)" || true; }
+install() { make DESTDIR="$PKGDIR" install || true; }
+

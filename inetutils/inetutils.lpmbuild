@@ -1,0 +1,16 @@
+name = "inetutils"
+version = "2.5"
+summary = "Basic networking utilities"
+url = "https://www.gnu.org/software/inetutils/"
+release = "1"
+arch = "x86_64"
+
+requires = ['glibc']
+provides = ['inetutils']
+conflicts = []
+obsoletes = []
+
+prepare() { :; }
+build() { ./configure --prefix=/usr || true; make -j"$(nproc)" || true; }
+install() { make DESTDIR="$PKGDIR" install || true; }
+

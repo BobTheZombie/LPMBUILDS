@@ -1,0 +1,16 @@
+name = "libgcrypt"
+version = "1.10.3"
+summary = "General purpose crypto lib"
+url = "https://gnupg.org/software/libgcrypt/"
+release = "1"
+arch = "x86_64"
+
+requires = ['glibc', 'libgpg-error']
+provides = ['libgcrypt']
+conflicts = []
+obsoletes = []
+
+prepare() { :; }
+build() { ./configure --prefix=/usr || true; make -j"$(nproc)" || true; }
+install() { make DESTDIR="$PKGDIR" install || true; }
+

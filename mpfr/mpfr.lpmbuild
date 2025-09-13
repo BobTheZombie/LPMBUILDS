@@ -1,0 +1,16 @@
+name = "mpfr"
+version = "4.2.1"
+summary = "Multiple-precision floating-point"
+url = "https://www.mpfr.org/"
+release = "1"
+arch = "x86_64"
+
+requires = ['glibc', 'gmp']
+provides = ['mpfr']
+conflicts = []
+obsoletes = []
+
+prepare() { :; }
+build() { ./configure --prefix=/usr || true; make -j"$(nproc)" || true; }
+install() { make DESTDIR="$PKGDIR" install || true; }
+

@@ -1,0 +1,20 @@
+name = "iw"
+version = "5.19"
+summary = "nl80211 based CLI for wireless devices"
+url = "https://wireless.wiki.kernel.org/en/users/Documentation/iw"
+release = "1"
+arch = "x86_64"
+
+requires = ['glibc', 'libnl']
+provides = ['iw']
+conflicts = []
+obsoletes = []
+
+prepare() { :; }
+build() {
+    make -j"$(nproc)" NL80211_INC=/usr/include/libnl3 NL80211_LIBS="-lnl-3 -lnl-genl-3"
+}
+install() {
+    make DESTDIR="$PKGDIR" install
+}
+

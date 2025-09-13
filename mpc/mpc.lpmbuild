@@ -1,0 +1,16 @@
+name = "mpc"
+version = "1.3.1"
+summary = "C library for complex arithmetic"
+url = "http://www.multiprecision.org/"
+release = "1"
+arch = "x86_64"
+
+requires = ['glibc', 'gmp', 'mpfr']
+provides = ['mpc']
+conflicts = []
+obsoletes = []
+
+prepare() { :; }
+build() { ./configure --prefix=/usr || true; make -j"$(nproc)" || true; }
+install() { make DESTDIR="$PKGDIR" install || true; }
+

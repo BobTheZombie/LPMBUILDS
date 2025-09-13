@@ -1,0 +1,72 @@
+# Arch-style lpmbuild
+# Uses $pkgdir=/tmp/pkg-$NAME injected by lpm.py (DESTDIR also points to the same)
+# Minimal generic build helpers. Customize per-package as needed.
+NAME="kmod"
+VERSION="32"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Linux kernel module handling"
+URL="https://www.kernel.org/pub/linux/utils/kernel/kmod/kmod-32.tar.xz"
+LICENSE="LGPL-2.1-or-later"
+REQUIRES=("glibc" "zlib" "xz" "zstd")
+PROVIDES=("kmod" "libkmod")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  test -n "https://www.kernel.org/pub/linux/utils/kernel/kmod/kmod-32.tar.xz" && tarball="$(basename "https://www.kernel.org/pub/linux/utils/kernel/kmod/kmod-32.tar.xz")" || tarball=""
+  if [ -n "$tarball" ] && [ -f "$tarball" ]; then
+    case "$tarball" in
+      *.tar.xz|*.txz) tar -xf "$tarball" ;;
+      *.tar.gz|*.tgz) tar -xzf "$tarball" ;;
+      *.tar.zst)      tar --zstd -xf "$tarball" ;;
+      *.zip)          unzip -q "$tarball" ;;
+      *) : ;;
+    esac
+  fi
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  # Try to find a single top-level source dir to build in
+  topdir="$(ls -1d */ 2>/dev/null | head -n1 || true)"
+  [ -n "$topdir" ] && cd "$topdir" || true
+
+  if [ -f configure ]; then
+    ./configure --prefix=/usr
+    make -j"$(nproc)"
+  elif [ -f meson.build ]; then
+    meson setup build --prefix=/usr
+    meson compile -C build
+  elif [ -f CMakeLists.txt ]; then
+    cmake -B build -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release
+    cmake --build build -j"$(nproc)"
+  else
+    # Fallback: may be a header-only/data pkg
+    : 
+  fi
+}
+
+install() {
+  set -euxo pipefail
+  install -d "$pkgdir"
+  cd "$SRCROOT"
+  topdir="$(ls -1d */ 2>/dev/null | head -n1 || true)"
+  [ -n "$topdir" ] && cd "$topdir" || true
+
+  if [ -f Makefile ] || [ -f GNUmakefile ]; then
+    make DESTDIR="$pkgdir" install
+  elif [ -d build ] && [ -f meson.build ]; then
+    meson install -C build --destdir "$pkgdir"
+  elif [ -d build ] && [ -f CMakeLists.txt ]; then
+    cmake --install build --config Release --prefix /usr --component default
+  else
+    # Fallback: nothing to install
+    : 
+  fi
+}

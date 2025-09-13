@@ -1,0 +1,16 @@
+name = "procps-ng"
+version = "4.0.4"
+summary = "Process monitoring utilities"
+url = "https://gitlab.com/procps-ng/procps"
+release = "1"
+arch = "x86_64"
+
+requires = ['glibc', 'ncurses']
+provides = ['procps-ng']
+conflicts = []
+obsoletes = []
+
+prepare() { :; }
+build() { ./configure --prefix=/usr || true; make -j"$(nproc)" || true; }
+install() { make DESTDIR="$PKGDIR" install || true; }
+
