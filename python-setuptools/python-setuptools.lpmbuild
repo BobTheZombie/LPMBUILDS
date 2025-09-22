@@ -1,16 +1,34 @@
-name = "python-setuptools"
-version = "75.1.0"
-summary = "Build and distribute Python packages"
-url = "https://github.com/pypa/setuptools"
-release = "1"
-arch = "x86_64"
+# LPM build script for python-setuptools
+NAME="python-setuptools"
+VERSION="75.1.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Build and distribute Python packages"
+URL="https://github.com/pypa/setuptools"
+LICENSE=""
+SOURCE=()
+REQUIRES=("python")
+PROVIDES=("python-setuptools")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
 
-requires = ['python']
-provides = ['python-setuptools']
-conflicts = []
-obsoletes = []
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  :
+}
 
-prepare() { :; }
-build() { ./configure --prefix=/usr || true; make -j"$(nproc)" || true; }
-install() { make DESTDIR="$PKGDIR" install || true; }
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  ./configure --prefix=/usr
+  make -j"$(nproc)"
+}
 
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  make DESTDIR="$pkgdir" install
+}

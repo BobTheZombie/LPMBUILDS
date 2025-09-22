@@ -1,16 +1,34 @@
-name = "mpc"
-version = "1.3.1"
-summary = "C library for complex arithmetic"
-url = "http://www.multiprecision.org/"
-release = "1"
-arch = "x86_64"
+# LPM build script for mpc
+NAME="mpc"
+VERSION="1.3.1"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="C library for complex arithmetic"
+URL="http://www.multiprecision.org/"
+LICENSE=""
+SOURCE=()
+REQUIRES=("glibc" "gmp" "mpfr")
+PROVIDES=("mpc")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
 
-requires = ['glibc', 'gmp', 'mpfr']
-provides = ['mpc']
-conflicts = []
-obsoletes = []
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  :
+}
 
-prepare() { :; }
-build() { ./configure --prefix=/usr || true; make -j"$(nproc)" || true; }
-install() { make DESTDIR="$PKGDIR" install || true; }
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  ./configure --prefix=/usr
+  make -j"$(nproc)"
+}
 
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  make DESTDIR="$pkgdir" install
+}

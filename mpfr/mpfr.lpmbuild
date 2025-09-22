@@ -1,16 +1,34 @@
-name = "mpfr"
-version = "4.2.1"
-summary = "Multiple-precision floating-point"
-url = "https://www.mpfr.org/"
-release = "1"
-arch = "x86_64"
+# LPM build script for mpfr
+NAME="mpfr"
+VERSION="4.2.1"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Multiple-precision floating-point"
+URL="https://www.mpfr.org/"
+LICENSE=""
+SOURCE=()
+REQUIRES=("glibc" "gmp")
+PROVIDES=("mpfr")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
 
-requires = ['glibc', 'gmp']
-provides = ['mpfr']
-conflicts = []
-obsoletes = []
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  :
+}
 
-prepare() { :; }
-build() { ./configure --prefix=/usr || true; make -j"$(nproc)" || true; }
-install() { make DESTDIR="$PKGDIR" install || true; }
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  ./configure --prefix=/usr
+  make -j"$(nproc)"
+}
 
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  make DESTDIR="$pkgdir" install
+}

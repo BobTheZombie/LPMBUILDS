@@ -1,16 +1,34 @@
-name = "python-wheel"
-version = "0.44.0"
-summary = "Built-package format for Python"
-url = "https://github.com/pypa/wheel"
-release = "1"
-arch = "x86_64"
+# LPM build script for python-wheel
+NAME="python-wheel"
+VERSION="0.44.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Built-package format for Python"
+URL="https://github.com/pypa/wheel"
+LICENSE=""
+SOURCE=()
+REQUIRES=("python" "python-setuptools")
+PROVIDES=("python-wheel")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
 
-requires = ['python', 'python-setuptools']
-provides = ['python-wheel']
-conflicts = []
-obsoletes = []
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  :
+}
 
-prepare() { :; }
-build() { ./configure --prefix=/usr || true; make -j"$(nproc)" || true; }
-install() { make DESTDIR="$PKGDIR" install || true; }
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  ./configure --prefix=/usr
+  make -j"$(nproc)"
+}
 
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  make DESTDIR="$pkgdir" install
+}

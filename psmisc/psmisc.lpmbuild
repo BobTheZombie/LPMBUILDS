@@ -1,16 +1,34 @@
-name = "psmisc"
-version = "23.6"
-summary = "Small utilities for process management"
-url = "https://gitlab.com/psmisc/psmisc"
-release = "1"
-arch = "x86_64"
+# LPM build script for psmisc
+NAME="psmisc"
+VERSION="23.6"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Small utilities for process management"
+URL="https://gitlab.com/psmisc/psmisc"
+LICENSE=""
+SOURCE=()
+REQUIRES=("glibc")
+PROVIDES=("psmisc")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
 
-requires = ['glibc']
-provides = ['psmisc']
-conflicts = []
-obsoletes = []
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  :
+}
 
-prepare() { :; }
-build() { ./configure --prefix=/usr || true; make -j"$(nproc)" || true; }
-install() { make DESTDIR="$PKGDIR" install || true; }
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  ./configure --prefix=/usr
+  make -j"$(nproc)"
+}
 
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  make DESTDIR="$pkgdir" install
+}

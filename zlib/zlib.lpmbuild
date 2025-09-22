@@ -1,16 +1,34 @@
-name = "zlib"
-version = "1.3.1"
-summary = "Compression library"
-url = "https://zlib.net/"
-release = "1"
-arch = "x86_64"
+# LPM build script for zlib
+NAME="zlib"
+VERSION="1.3.1"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Compression library"
+URL="https://zlib.net/"
+LICENSE=""
+SOURCE=()
+REQUIRES=("glibc")
+PROVIDES=("zlib")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
 
-requires = ['glibc']
-provides = ['zlib']
-conflicts = []
-obsoletes = []
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  :
+}
 
-prepare() { :; }
-build() { ./configure --prefix=/usr || true; make -j"$(nproc)" || true; }
-install() { make DESTDIR="$PKGDIR" install || true; }
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  ./configure --prefix=/usr
+  make -j"$(nproc)"
+}
 
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  make DESTDIR="$pkgdir" install
+}

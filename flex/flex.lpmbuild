@@ -1,16 +1,34 @@
-name = "flex"
-version = "2.6.4"
-summary = "Fast lexical analyzer generator"
-url = "https://github.com/westes/flex"
-release = "1"
-arch = "x86_64"
+# LPM build script for flex
+NAME="flex"
+VERSION="2.6.4"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Fast lexical analyzer generator"
+URL="https://github.com/westes/flex"
+LICENSE=""
+SOURCE=()
+REQUIRES=("glibc" "m4")
+PROVIDES=("flex")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
 
-requires = ['glibc', 'm4']
-provides = ['flex']
-conflicts = []
-obsoletes = []
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  :
+}
 
-prepare() { :; }
-build() { ./configure --prefix=/usr || true; make -j"$(nproc)" || true; }
-install() { make DESTDIR="$PKGDIR" install || true; }
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  ./configure --prefix=/usr
+  make -j"$(nproc)"
+}
 
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  make DESTDIR="$pkgdir" install
+}

@@ -1,16 +1,34 @@
-name = "procps-ng"
-version = "4.0.4"
-summary = "Process monitoring utilities"
-url = "https://gitlab.com/procps-ng/procps"
-release = "1"
-arch = "x86_64"
+# LPM build script for procps-ng
+NAME="procps-ng"
+VERSION="4.0.4"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Process monitoring utilities"
+URL="https://gitlab.com/procps-ng/procps"
+LICENSE=""
+SOURCE=()
+REQUIRES=("glibc" "ncurses")
+PROVIDES=("procps-ng")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
 
-requires = ['glibc', 'ncurses']
-provides = ['procps-ng']
-conflicts = []
-obsoletes = []
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  :
+}
 
-prepare() { :; }
-build() { ./configure --prefix=/usr || true; make -j"$(nproc)" || true; }
-install() { make DESTDIR="$PKGDIR" install || true; }
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  ./configure --prefix=/usr
+  make -j"$(nproc)"
+}
 
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  make DESTDIR="$pkgdir" install
+}

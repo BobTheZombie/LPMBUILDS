@@ -1,16 +1,34 @@
-name = "libgpg-error"
-version = "1.49"
-summary = "Common error codes for GnuPG"
-url = "https://gnupg.org/software/libgpg-error/"
-release = "1"
-arch = "x86_64"
+# LPM build script for libgpg-error
+NAME="libgpg-error"
+VERSION="1.49"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Common error codes for GnuPG"
+URL="https://gnupg.org/software/libgpg-error/"
+LICENSE=""
+SOURCE=()
+REQUIRES=("glibc")
+PROVIDES=("libgpg-error")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
 
-requires = ['glibc']
-provides = ['libgpg-error']
-conflicts = []
-obsoletes = []
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  :
+}
 
-prepare() { :; }
-build() { ./configure --prefix=/usr || true; make -j"$(nproc)" || true; }
-install() { make DESTDIR="$PKGDIR" install || true; }
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  ./configure --prefix=/usr
+  make -j"$(nproc)"
+}
 
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  make DESTDIR="$pkgdir" install
+}

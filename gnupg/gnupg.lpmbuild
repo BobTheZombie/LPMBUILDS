@@ -1,16 +1,34 @@
-name = "gnupg"
-version = "2.4.5"
-summary = "GNU Privacy Guard"
-url = "https://gnupg.org/"
-release = "1"
-arch = "x86_64"
+# LPM build script for gnupg
+NAME="gnupg"
+VERSION="2.4.5"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="GNU Privacy Guard"
+URL="https://gnupg.org/"
+LICENSE=""
+SOURCE=()
+REQUIRES=("glibc" "libgcrypt")
+PROVIDES=("gnupg")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
 
-requires = ['glibc', 'libgcrypt']
-provides = ['gnupg']
-conflicts = []
-obsoletes = []
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  :
+}
 
-prepare() { :; }
-build() { ./configure --prefix=/usr || true; make -j"$(nproc)" || true; }
-install() { make DESTDIR="$PKGDIR" install || true; }
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  ./configure --prefix=/usr
+  make -j"$(nproc)"
+}
 
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  make DESTDIR="$pkgdir" install
+}

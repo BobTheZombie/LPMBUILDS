@@ -1,16 +1,34 @@
-name = "gawk"
-version = "5.3.0"
-summary = "GNU awk"
-url = "https://www.gnu.org/software/gawk/"
-release = "1"
-arch = "x86_64"
+# LPM build script for gawk
+NAME="gawk"
+VERSION="5.3.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="GNU awk"
+URL="https://www.gnu.org/software/gawk/"
+LICENSE=""
+SOURCE=()
+REQUIRES=("glibc")
+PROVIDES=("gawk")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
 
-requires = ['glibc']
-provides = ['gawk']
-conflicts = []
-obsoletes = []
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  :
+}
 
-prepare() { :; }
-build() { ./configure --prefix=/usr || true; make -j"$(nproc)" || true; }
-install() { make DESTDIR="$PKGDIR" install || true; }
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  ./configure --prefix=/usr
+  make -j"$(nproc)"
+}
 
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  make DESTDIR="$pkgdir" install
+}

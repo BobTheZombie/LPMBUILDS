@@ -1,16 +1,34 @@
-name = "patch"
-version = "2.7.6"
-summary = "Apply unified diffs"
-url = "https://www.gnu.org/software/patch/"
-release = "1"
-arch = "x86_64"
+# LPM build script for patch
+NAME="patch"
+VERSION="2.7.6"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Apply unified diffs"
+URL="https://www.gnu.org/software/patch/"
+LICENSE=""
+SOURCE=()
+REQUIRES=("glibc")
+PROVIDES=("patch")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
 
-requires = ['glibc']
-provides = ['patch']
-conflicts = []
-obsoletes = []
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  :
+}
 
-prepare() { :; }
-build() { ./configure --prefix=/usr || true; make -j"$(nproc)" || true; }
-install() { make DESTDIR="$PKGDIR" install || true; }
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  ./configure --prefix=/usr
+  make -j"$(nproc)"
+}
 
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  make DESTDIR="$pkgdir" install
+}
