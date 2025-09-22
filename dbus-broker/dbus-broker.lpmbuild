@@ -1,13 +1,12 @@
-# Arch-style lpmbuild
-# Uses $pkgdir=/tmp/pkg-$NAME injected by lpm.py (DESTDIR also points to the same)
-# Minimal generic build helpers. Customize per-package as needed.
+# LPM build script for dbus-broker
 NAME="dbus-broker"
 VERSION="36"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="Linux D-Bus message broker"
-URL="https://github.com/bus1/dbus-broker/releases/download/v36/dbus-broker-36.tar.xz"
+URL="https://github.com/bus1/dbus-broker"
 LICENSE="Apache-2.0"
+SOURCE=("https://github.com/bus1/dbus-broker/releases/download/v${VERSION}/dbus-broker-${VERSION}.tar.xz")
 REQUIRES=("glibc" "systemd" "libcap")
 PROVIDES=("dbus-daemon" "dbus-broker")
 CONFLICTS=()
@@ -18,83 +17,20 @@ SUGGESTS=()
 prepare() {
   set -euxo pipefail
   cd "$SRCROOT"
-  test -n "https://github.com/bus1/dbus-broker/releases/download/v36/dbus-broker-36.tar.xz" && tarball="$(basename "https://github.com/bus1/dbus-broker/releases/download/v36/dbus-broker-36.tar.xz")" || tarball=""
-  if [ -n "$tarball" ] && [ -f "$tarball" ]; then
-    case "$tarball" in
-      *.tar.xz|*.txz) tar -xf "$tarball" ;;
-      *.tar.gz|*.tgz) tar -xzf "$tarball" ;;
-      *.tar.zst)      tar --zstd -xf "$tarball" ;;
-      *.zip)          unzip -q "$tarball" ;;
-      *) : ;;
-    esac
-  fi
+  rm -rf "${NAME}-${VERSION}"
+  tar -xf "dbus-broker-${VERSION}.tar.xz"
 }
 
 build() {
   set -euxo pipefail
-  cd "$SRCROOT"
-  # Try to find a single top-level source dir to build in
-  topdir="$(ls -1d */ 2>/dev/null | head -n1 || true)"
-  [ -n "$topdir" ] && cd "$topdir" || true
-
-  if [ -f configure ]; then
-    ./configure --prefix=/usr
-    make -j"$(nproc)"
-  elif [ -f meson.build ]; then
-    meson setup build --prefix=/usr
-    meson compile -C build
-  elif [ -f CMakeLists.txt ]; then
-    cmake -B build -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release
-    cmake --build build -j"$(nproc)"
-  else
-    # Fallback: may be a header-only/data pkg
-    : 
-  fi
-}
-
-install() {
-  set -euxo pipefail
-  install -d "$pkgdir"
-  cd "$SRCROOT"
-  topdir="$(ls -1d */ 2>/dev/null | head -n1 || true)"
-  [ -n "$topdir" ] && cd "$topdir" || true
-
-  if [ -f Makefile ] || [ -f GNUmakefile ]; then
-    make DESTDIR="$pkgdir" install
-  elif [ -d build ] && [ -f meson.build ]; then
-    meson install -C build --destdir "$pkgdir"
-  elif [ -d build ] && [ -f CMakeLists.txt ]; then
-    cmake --install build --config Release --prefix /usr --component default
-  else
-    # Fallback: nothing to install
-    : 
-  fi
-}
-
-build() {
-  set -euxo pipefail
-  cd "$SRCROOT"/dbus-broker-*
-  meson setup build --prefix=/usr
+  cd "$SRCROOT/${NAME}-${VERSION}"
+  meson setup build --prefix=/usr --sysconfdir=/etc --buildtype=release
   meson compile -C build
 }
-install() {
+
+staging() {
   set -euxo pipefail
-  cd "$SRCROOT"/dbus-broker-*
+  cd "$SRCROOT/${NAME}-${VERSION}"
   meson install -C build --destdir "$pkgdir"
-  install -d "$pkgdir/usr/lib/systemd/system"
-  cat > "$pkgdir/usr/lib/systemd/system/dbus-broker.service" <<'EOF'
-[Unit]
-Description=D-Bus System Message Bus (dbus-broker)
-Documentation=man:dbus-broker(1)
-After=systemd-sysusers.service
-ConditionPathIsDirectory=/usr
-
-[Service]
-Type=notify
-ExecStart=/usr/bin/dbus-broker-launch --scope system --audit
-Restart=on-failure
-
-[Install]
-WantedBy=basic.target
-EOF
+  install -Dm644 "scripts/systemd/dbus-broker.service" "$pkgdir/usr/lib/systemd/system/dbus-broker.service"
 }

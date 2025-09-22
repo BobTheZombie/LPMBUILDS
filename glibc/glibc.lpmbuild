@@ -1,25 +1,41 @@
-name = "glibc"
-version = "2.40"
-summary = "GNU C Library"
-url = "https://www.gnu.org/software/libc/"
-release = "1"
-arch = "x86_64"
+# LPM build script for glibc
+NAME="glibc"
+VERSION="2.40"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="GNU C Library"
+URL="https://www.gnu.org/software/libc/"
+LICENSE=""
+SOURCE=()
+REQUIRES=("filesystem")
+PROVIDES=("glibc")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
 
-requires = ['filesystem']
-provides = ['glibc']
-conflicts = []
-obsoletes = []
-
-prepare() { mkdir -p build; }
-build() {
-    cd build
-    ../configure --prefix=/usr \
-                 --libdir=/usr/lib \
-                 --enable-kernel=3.2 \
-                 --enable-stack-protector=strong \
-                 --with-headers=/usr/include \
-                 --enable-systemtap
-    make -j"$(nproc)"
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  mkdir -p build
 }
-install() { cd build; make DESTDIR="$PKGDIR" install; }
 
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  cd build
+  ../configure --prefix=/usr \
+  --libdir=/usr/lib \
+  --enable-kernel=3.2 \
+  --enable-stack-protector=strong \
+  --with-headers=/usr/include \
+  --enable-systemtap
+  make -j"$(nproc)"
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  cd build
+  make DESTDIR="$pkgdir" install
+}

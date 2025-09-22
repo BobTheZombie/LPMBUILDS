@@ -1,27 +1,40 @@
-name = "networkmanager"
-version = "1.48.2"
-summary = "Network connection manager and user applications"
-url = "https://networkmanager.dev/"
-release = "1"
-arch = "x86_64"
+# LPM build script for networkmanager
+NAME="networkmanager"
+VERSION="1.48.2"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Network connection manager and user applications"
+URL="https://networkmanager.dev/"
+LICENSE=""
+SOURCE=()
+REQUIRES=("glibc" "systemd" "dbus" "wpa_supplicant" "dhcpcd")
+PROVIDES=("networkmanager")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
 
-requires = ['glibc', 'systemd', 'dbus', 'wpa_supplicant', 'dhcpcd']
-provides = ['networkmanager']
-conflicts = []
-obsoletes = []
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  mkdir -p build
+}
 
-prepare() { mkdir -p build; }
 build() {
-    cd build
-    ../configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var --libexecdir=/usr/lib --with-udev-dir=/usr/lib/udev
-    make -j"$(nproc)"
-}
-install() {
-    cd build
-    make DESTDIR="$PKGDIR" install
-
-    # Enable NetworkManager
-    mkdir -p "$PKGDIR/etc/systemd/system/multi-user.target.wants"
-    ln -sf /usr/lib/systemd/system/NetworkManager.service "$PKGDIR/etc/systemd/system/multi-user.target.wants/NetworkManager.service"
+  set -euxo pipefail
+  cd "$SRCROOT"
+  cd build
+  ../configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var --libexecdir=/usr/lib --with-udev-dir=/usr/lib/udev
+  make -j"$(nproc)"
 }
 
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  cd build
+  make DESTDIR="$pkgdir" install
+
+  # Enable NetworkManager
+  mkdir -p "$pkgdir/etc/systemd/system/multi-user.target.wants"
+  ln -sf /usr/lib/systemd/system/NetworkManager.service "$pkgdir/etc/systemd/system/multi-user.target.wants/NetworkManager.service"
+}

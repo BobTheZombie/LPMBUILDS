@@ -1,16 +1,34 @@
-name = "shadow"
-version = "4.15"
-summary = "Password and account management tools"
-url = "https://github.com/shadow-maint/shadow"
-release = "1"
-arch = "x86_64"
+# LPM build script for shadow
+NAME="shadow"
+VERSION="4.15"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Password and account management tools"
+URL="https://github.com/shadow-maint/shadow"
+LICENSE=""
+SOURCE=()
+REQUIRES=("glibc" "pam" "libxcrypt")
+PROVIDES=("shadow")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
 
-requires = ['glibc', 'pam', 'libxcrypt']
-provides = ['shadow']
-conflicts = []
-obsoletes = []
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  :
+}
 
-prepare() { :; }
-build() { ./configure --prefix=/usr || true; make -j"$(nproc)" || true; }
-install() { make DESTDIR="$PKGDIR" install || true; }
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  ./configure --prefix=/usr
+  make -j"$(nproc)"
+}
 
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  make DESTDIR="$pkgdir" install
+}

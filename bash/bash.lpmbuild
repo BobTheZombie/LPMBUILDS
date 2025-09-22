@@ -1,16 +1,71 @@
-name = "bash"
-version = "5.2"
-summary = "GNU Bourne Again shell"
-url = "https://www.gnu.org/software/bash/"
-release = "1"
-arch = "x86_64"
+# LPM build script for bash
+NAME="bash"
+VERSION="5.2.32"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="GNU Bourne Again shell"
+URL="https://www.gnu.org/software/bash/"
+LICENSE="GPL-3.0-or-later"
+SOURCE=(
+  "https://ftp.gnu.org/gnu/bash/bash-${VERSION}.tar.gz"
+  "system.bashrc"
+  "system.bash_logout"
+  "dot.bashrc"
+  "dot.bash_profile"
+  "dot.bash_logout"
+)
+REQUIRES=(
+  "glibc"
+  "ncurses"
+  "readline"
+)
+PROVIDES=("sh")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
 
-requires = ['glibc', 'readline', 'ncurses']
-provides = ['bash']
-conflicts = []
-obsoletes = []
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT"
 
-prepare() { :; }
-build() { ./configure --prefix=/usr || true; make -j"$(nproc)" || true; }
-install() { make DESTDIR="$PKGDIR" install || true; }
+  tarball="bash-${VERSION}.tar.gz"
+  if [ -f "$tarball" ]; then
+    rm -rf "${NAME}-${VERSION}"
+    case "$tarball" in
+      *.tar.gz|*.tgz) tar -xzf "$tarball" ;;
+      *.tar.xz|*.txz) tar -xf "$tarball" ;;
+      *.tar.zst) tar --zstd -xf "$tarball" ;;
+      *.zip) unzip -q "$tarball" ;;
+      *) tar -xf "$tarball" ;;
+    esac
+  fi
+}
 
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/${NAME}-${VERSION}"
+
+  ./configure \
+    --prefix=/usr \
+    --docdir="/usr/share/doc/${NAME}" \
+    --without-bash-malloc
+  make -j"$(nproc)"
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+
+  make -C "${NAME}-${VERSION}" DESTDIR="$pkgdir" install
+
+  install -d "$pkgdir/usr/bin"
+  ln -sf bash "$pkgdir/usr/bin/sh"
+  ln -sf bash "$pkgdir/usr/bin/rbash"
+
+  install -Dm644 "$SRCROOT/system.bashrc" "$pkgdir/etc/bash.bashrc"
+  install -Dm644 "$SRCROOT/system.bash_logout" "$pkgdir/etc/bash.bash_logout"
+  install -Dm644 "$SRCROOT/dot.bashrc" "$pkgdir/etc/skel/.bashrc"
+  install -Dm644 "$SRCROOT/dot.bash_profile" "$pkgdir/etc/skel/.bash_profile"
+  install -Dm644 "$SRCROOT/dot.bash_logout" "$pkgdir/etc/skel/.bash_logout"
+}

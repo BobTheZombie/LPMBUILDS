@@ -1,16 +1,34 @@
-name = "gdbm"
-version = "1.24"
-summary = "GNU dbm key-value store"
-url = "https://www.gnu.org/software/gdbm/"
-release = "1"
-arch = "x86_64"
+# LPM build script for gdbm
+NAME="gdbm"
+VERSION="1.24"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="GNU dbm key-value store"
+URL="https://www.gnu.org/software/gdbm/"
+LICENSE=""
+SOURCE=()
+REQUIRES=("glibc")
+PROVIDES=("gdbm")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
 
-requires = ['glibc']
-provides = ['gdbm']
-conflicts = []
-obsoletes = []
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  :
+}
 
-prepare() { :; }
-build() { ./configure --prefix=/usr || true; make -j"$(nproc)" || true; }
-install() { make DESTDIR="$PKGDIR" install || true; }
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  ./configure --prefix=/usr
+  make -j"$(nproc)"
+}
 
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  make DESTDIR="$pkgdir" install
+}

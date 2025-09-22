@@ -1,13 +1,12 @@
-# Arch-style lpmbuild
-# Uses $pkgdir=/tmp/pkg-$NAME injected by lpm.py (DESTDIR also points to the same)
-# Minimal generic build helpers. Customize per-package as needed.
+# LPM build script for expat
 NAME="expat"
 VERSION="2.6.2"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="XML parser library"
-URL="https://github.com/libexpat/libexpat/releases/download/R_2_6_2/expat-2.6.2.tar.xz"
+URL="https://libexpat.github.io/"
 LICENSE="MIT"
+SOURCE=("https://github.com/libexpat/libexpat/releases/download/R_${VERSION//./_}/expat-${VERSION}.tar.xz")
 REQUIRES=("glibc")
 PROVIDES=("expat" "libexpat")
 CONFLICTS=()
@@ -18,55 +17,19 @@ SUGGESTS=()
 prepare() {
   set -euxo pipefail
   cd "$SRCROOT"
-  test -n "https://github.com/libexpat/libexpat/releases/download/R_2_6_2/expat-2.6.2.tar.xz" && tarball="$(basename "https://github.com/libexpat/libexpat/releases/download/R_2_6_2/expat-2.6.2.tar.xz")" || tarball=""
-  if [ -n "$tarball" ] && [ -f "$tarball" ]; then
-    case "$tarball" in
-      *.tar.xz|*.txz) tar -xf "$tarball" ;;
-      *.tar.gz|*.tgz) tar -xzf "$tarball" ;;
-      *.tar.zst)      tar --zstd -xf "$tarball" ;;
-      *.zip)          unzip -q "$tarball" ;;
-      *) : ;;
-    esac
-  fi
+  rm -rf "${NAME}-${VERSION}"
+  tar -xf "expat-${VERSION}.tar.xz"
 }
 
 build() {
   set -euxo pipefail
-  cd "$SRCROOT"
-  # Try to find a single top-level source dir to build in
-  topdir="$(ls -1d */ 2>/dev/null | head -n1 || true)"
-  [ -n "$topdir" ] && cd "$topdir" || true
-
-  if [ -f configure ]; then
-    ./configure --prefix=/usr
-    make -j"$(nproc)"
-  elif [ -f meson.build ]; then
-    meson setup build --prefix=/usr
-    meson compile -C build
-  elif [ -f CMakeLists.txt ]; then
-    cmake -B build -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release
-    cmake --build build -j"$(nproc)"
-  else
-    # Fallback: may be a header-only/data pkg
-    : 
-  fi
+  cd "$SRCROOT/${NAME}-${VERSION}"
+  ./configure --prefix=/usr --disable-static
+  make -j"$(nproc)"
 }
 
-install() {
+staging() {
   set -euxo pipefail
-  install -d "$pkgdir"
-  cd "$SRCROOT"
-  topdir="$(ls -1d */ 2>/dev/null | head -n1 || true)"
-  [ -n "$topdir" ] && cd "$topdir" || true
-
-  if [ -f Makefile ] || [ -f GNUmakefile ]; then
-    make DESTDIR="$pkgdir" install
-  elif [ -d build ] && [ -f meson.build ]; then
-    meson install -C build --destdir "$pkgdir"
-  elif [ -d build ] && [ -f CMakeLists.txt ]; then
-    cmake --install build --config Release --prefix /usr --component default
-  else
-    # Fallback: nothing to install
-    : 
-  fi
+  cd "$SRCROOT/${NAME}-${VERSION}"
+  make DESTDIR="$pkgdir" install
 }

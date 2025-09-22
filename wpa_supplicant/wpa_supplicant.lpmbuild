@@ -1,29 +1,44 @@
-name = "wpa_supplicant"
-version = "2.10"
-summary = "WPA supplicant for wireless networking"
-url = "https://w1.fi/wpa_supplicant/"
-release = "1"
-arch = "x86_64"
+# LPM build script for wpa_supplicant
+NAME="wpa_supplicant"
+VERSION="2.10"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="WPA supplicant for wireless networking"
+URL="https://w1.fi/wpa_supplicant/"
+LICENSE=""
+SOURCE=()
+REQUIRES=("glibc" "openssl" "dbus")
+PROVIDES=("wpa_supplicant")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
 
-requires = ['glibc', 'openssl', 'dbus']
-provides = ['wpa_supplicant']
-conflicts = []
-obsoletes = []
-
-prepare() { :; }
-build() { make -j"$(nproc)" BINDIR=/usr/bin LIBDIR=/usr/lib; }
-install() {
-    make DESTDIR="$PKGDIR" install BINDIR=/usr/bin LIBDIR=/usr/lib
-
-    # Provide placeholder config
-    install -Dm600 /dev/stdin "$PKGDIR/etc/wpa_supplicant/wpa_supplicant.conf" <<'EOF'
-ctrl_interface=/run/wpa_supplicant
-update_config=1
-
-network={
-    ssid="YourSSID"
-    psk="YourPassphrase"
-}
-EOF
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  :
 }
 
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  make -j"$(nproc)" BINDIR=/usr/bin LIBDIR=/usr/lib
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  make DESTDIR="$pkgdir" install BINDIR=/usr/bin LIBDIR=/usr/lib
+
+  # Provide placeholder config
+  install -Dm600 /dev/stdin "$pkgdir/etc/wpa_supplicant/wpa_supplicant.conf" <<'EOF'
+  ctrl_interface=/run/wpa_supplicant
+  update_config=1
+
+  network={
+  ssid="YourSSID"
+  psk="YourPassphrase"
+  }
+  EOF
+}

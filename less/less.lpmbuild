@@ -1,16 +1,34 @@
-name = "less"
-version = "661"
-summary = "Pager program"
-url = "https://www.greenwoodsoftware.com/less/"
-release = "1"
-arch = "x86_64"
+# LPM build script for less
+NAME="less"
+VERSION="661"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Pager program"
+URL="https://www.greenwoodsoftware.com/less/"
+LICENSE=""
+SOURCE=()
+REQUIRES=("ncurses")
+PROVIDES=("less")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
 
-requires = ['ncurses']
-provides = ['less']
-conflicts = []
-obsoletes = []
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  :
+}
 
-prepare() { :; }
-build() { ./configure --prefix=/usr || true; make -j"$(nproc)" || true; }
-install() { make DESTDIR="$PKGDIR" install || true; }
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  ./configure --prefix=/usr
+  make -j"$(nproc)"
+}
 
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  make DESTDIR="$pkgdir" install
+}

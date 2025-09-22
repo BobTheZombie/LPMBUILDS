@@ -1,16 +1,34 @@
-name = "bison"
-version = "3.8.2"
-summary = "Parser generator"
-url = "https://www.gnu.org/software/bison/"
-release = "1"
-arch = "x86_64"
+# LPM build script for bison
+NAME="bison"
+VERSION="3.8.2"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Parser generator"
+URL="https://www.gnu.org/software/bison/"
+LICENSE=""
+SOURCE=()
+REQUIRES=("glibc" "m4")
+PROVIDES=("bison")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
 
-requires = ['glibc', 'm4']
-provides = ['bison']
-conflicts = []
-obsoletes = []
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  :
+}
 
-prepare() { :; }
-build() { ./configure --prefix=/usr || true; make -j"$(nproc)" || true; }
-install() { make DESTDIR="$PKGDIR" install || true; }
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  ./configure --prefix=/usr
+  make -j"$(nproc)"
+}
 
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  make DESTDIR="$pkgdir" install
+}

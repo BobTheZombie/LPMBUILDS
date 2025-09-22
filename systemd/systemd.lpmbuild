@@ -1,39 +1,52 @@
-name = "systemd"
-version = "256"
-summary = "System and service manager"
-url = "https://www.freedesktop.org/wiki/Software/systemd/"
-release = "1"
-arch = "x86_64"
+# LPM build script for systemd
+NAME="systemd"
+VERSION="256"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="System and service manager"
+URL="https://www.freedesktop.org/wiki/Software/systemd/"
+LICENSE=""
+SOURCE=()
+REQUIRES=("glibc" "util-linux" "pam")
+PROVIDES=("systemd")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
 
-requires = ['glibc', 'util-linux', 'pam']
-provides = ['systemd']
-conflicts = []
-obsoletes = []
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  mkdir -p build
+}
 
-prepare() { mkdir -p build; }
 build() {
-    meson setup build \
-        --prefix=/usr \
-        --sysconfdir=/etc \
-        --localstatedir=/var \
-        -Ddefault-hierarchy=unified
-    ninja -C build
-}
-install() {
-    ninja -C build install DESTDIR="$PKGDIR"
-
-    # Enable networkd + resolved
-    mkdir -p "$PKGDIR/etc/systemd/system/multi-user.target.wants"
-    ln -sf /usr/lib/systemd/system/systemd-networkd.service "$PKGDIR/etc/systemd/system/multi-user.target.wants/systemd-networkd.service"
-    ln -sf /usr/lib/systemd/system/systemd-resolved.service "$PKGDIR/etc/systemd/system/multi-user.target.wants/systemd-resolved.service"
-
-    # Default wired DHCP config
-    install -Dm644 /dev/stdin "$PKGDIR/etc/systemd/network/20-wired.network" <<'EOF'
-[Match]
-Name=en*
-
-[Network]
-DHCP=yes
-EOF
+  set -euxo pipefail
+  cd "$SRCROOT"
+  meson setup build \
+  --prefix=/usr \
+  --sysconfdir=/etc \
+  --localstatedir=/var \
+  -Ddefault-hierarchy=unified
+  ninja -C build
 }
 
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  ninja -C build install DESTDIR="$pkgdir"
+
+  # Enable networkd + resolved
+  mkdir -p "$pkgdir/etc/systemd/system/multi-user.target.wants"
+  ln -sf /usr/lib/systemd/system/systemd-networkd.service "$pkgdir/etc/systemd/system/multi-user.target.wants/systemd-networkd.service"
+  ln -sf /usr/lib/systemd/system/systemd-resolved.service "$pkgdir/etc/systemd/system/multi-user.target.wants/systemd-resolved.service"
+
+  # Default wired DHCP config
+  install -Dm644 /dev/stdin "$pkgdir/etc/systemd/network/20-wired.network" <<'EOF'
+  [Match]
+  Name=en*
+
+  [Network]
+  DHCP=yes
+  EOF
+}

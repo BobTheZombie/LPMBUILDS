@@ -1,16 +1,33 @@
-name = "wireless_tools"
-version = "30.pre9"
-summary = "Tools for manipulating wireless extensions"
-url = "https://hewlettpackard.github.io/wireless-tools/"
-release = "1"
-arch = "x86_64"
+# LPM build script for wireless_tools
+NAME="wireless_tools"
+VERSION="30.pre9"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Tools for manipulating wireless extensions"
+URL="https://hewlettpackard.github.io/wireless-tools/"
+LICENSE=""
+SOURCE=()
+REQUIRES=("glibc")
+PROVIDES=("wireless_tools")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
 
-requires = ['glibc']
-provides = ['wireless_tools']
-conflicts = []
-obsoletes = []
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  :
+}
 
-prepare() { :; }
-build() { make -j"$(nproc)"; }
-install() { make PREFIX=/usr DESTDIR="$PKGDIR" install; }
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  make -j"$(nproc)"
+}
 
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  make PREFIX=/usr DESTDIR="$pkgdir" install
+}

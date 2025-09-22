@@ -1,24 +1,39 @@
-name = "python"
-version = "3.12.5"
-summary = "Python programming language"
-url = "https://www.python.org/"
-release = "1"
-arch = "x86_64"
+# LPM build script for python
+NAME="python"
+VERSION="3.12.5"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Python programming language"
+URL="https://www.python.org/"
+LICENSE=""
+SOURCE=()
+REQUIRES=("glibc" "openssl" "libffi" "zlib" "bzip2" "xz" "sqlite" "readline" "ncurses")
+PROVIDES=("python")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
 
-requires = ['glibc', 'openssl', 'libffi', 'zlib', 'bzip2', 'xz', 'sqlite', 'readline', 'ncurses']
-provides = ['python']
-conflicts = []
-obsoletes = []
-
-prepare() { :; }
-build() {
-    ./configure --prefix=/usr \
-                --enable-shared \
-                --with-ensurepip=install \
-                --with-system-expat \
-                --with-system-ffi \
-                --enable-optimizations
-    make -j"$(nproc)"
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  :
 }
-install() { make DESTDIR="$PKGDIR" install; }
 
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  ./configure --prefix=/usr \
+  --enable-shared \
+  --with-ensurepip=install \
+  --with-system-expat \
+  --with-system-ffi \
+  --enable-optimizations
+  make -j"$(nproc)"
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  make DESTDIR="$pkgdir" install
+}

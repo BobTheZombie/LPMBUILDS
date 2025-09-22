@@ -1,16 +1,34 @@
-name = "curl"
-version = "8.10.0"
-summary = "URL retrieval utility"
-url = "https://curl.se/"
-release = "1"
-arch = "x86_64"
+# LPM build script for curl
+NAME="curl"
+VERSION="8.10.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="URL retrieval utility"
+URL="https://curl.se/"
+LICENSE=""
+SOURCE=()
+REQUIRES=("glibc" "openssl" "zlib" "zstd" "ca-certificates")
+PROVIDES=("curl")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
 
-requires = ['glibc', 'openssl', 'zlib', 'zstd', 'ca-certificates']
-provides = ['curl']
-conflicts = []
-obsoletes = []
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  :
+}
 
-prepare() { :; }
-build() { ./configure --prefix=/usr || true; make -j"$(nproc)" || true; }
-install() { make DESTDIR="$PKGDIR" install || true; }
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  ./configure --prefix=/usr
+  make -j"$(nproc)"
+}
 
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  make DESTDIR="$pkgdir" install
+}

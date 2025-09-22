@@ -1,16 +1,34 @@
-name = "sqlite"
-version = "3.46.0"
-summary = "SQLite embedded DB"
-url = "https://sqlite.org/"
-release = "1"
-arch = "x86_64"
+# LPM build script for sqlite
+NAME="sqlite"
+VERSION="3.46.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="SQLite embedded DB"
+URL="https://sqlite.org/"
+LICENSE=""
+SOURCE=()
+REQUIRES=("glibc" "readline" "zlib")
+PROVIDES=("sqlite")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
 
-requires = ['glibc', 'readline', 'zlib']
-provides = ['sqlite']
-conflicts = []
-obsoletes = []
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  :
+}
 
-prepare() { :; }
-build() { ./configure --prefix=/usr || true; make -j"$(nproc)" || true; }
-install() { make DESTDIR="$PKGDIR" install || true; }
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  ./configure --prefix=/usr
+  make -j"$(nproc)"
+}
 
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  make DESTDIR="$pkgdir" install
+}

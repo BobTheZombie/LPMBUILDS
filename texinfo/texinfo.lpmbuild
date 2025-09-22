@@ -1,16 +1,34 @@
-name = "texinfo"
-version = "7.1"
-summary = "GNU documentation system"
-url = "https://www.gnu.org/software/texinfo/"
-release = "1"
-arch = "x86_64"
+# LPM build script for texinfo
+NAME="texinfo"
+VERSION="7.1"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="GNU documentation system"
+URL="https://www.gnu.org/software/texinfo/"
+LICENSE=""
+SOURCE=()
+REQUIRES=("glibc")
+PROVIDES=("texinfo")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
 
-requires = ['glibc']
-provides = ['texinfo']
-conflicts = []
-obsoletes = []
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  :
+}
 
-prepare() { :; }
-build() { ./configure --prefix=/usr || true; make -j"$(nproc)" || true; }
-install() { make DESTDIR="$PKGDIR" install || true; }
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  ./configure --prefix=/usr
+  make -j"$(nproc)"
+}
 
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  make DESTDIR="$pkgdir" install
+}

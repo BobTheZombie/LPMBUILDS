@@ -1,16 +1,34 @@
-name = "gettext"
-version = "0.22.5"
-summary = "GNU i18n utilities"
-url = "https://www.gnu.org/software/gettext/"
-release = "1"
-arch = "x86_64"
+# LPM build script for gettext
+NAME="gettext"
+VERSION="0.22.5"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="GNU i18n utilities"
+URL="https://www.gnu.org/software/gettext/"
+LICENSE=""
+SOURCE=()
+REQUIRES=("glibc")
+PROVIDES=("gettext")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
 
-requires = ['glibc']
-provides = ['gettext']
-conflicts = []
-obsoletes = []
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  :
+}
 
-prepare() { :; }
-build() { ./configure --prefix=/usr || true; make -j"$(nproc)" || true; }
-install() { make DESTDIR="$PKGDIR" install || true; }
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  ./configure --prefix=/usr
+  make -j"$(nproc)"
+}
 
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  make DESTDIR="$pkgdir" install
+}

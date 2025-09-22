@@ -1,32 +1,49 @@
-name = "gcc"
-version = "14.2.0"
-summary = "GNU Compiler Collection"
-url = "https://gcc.gnu.org/"
-release = "1"
-arch = "x86_64"
+# LPM build script for gcc
+NAME="gcc"
+VERSION="14.2.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="GNU Compiler Collection"
+URL="https://gcc.gnu.org/"
+LICENSE=""
+SOURCE=()
+REQUIRES=("glibc" "linux-headers" "binutils" "zlib" "gmp" "mpfr" "mpc" "isl" "make")
+PROVIDES=("gcc")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
 
-requires = ['glibc', 'linux-headers', 'binutils', 'zlib', 'gmp', 'mpfr', 'mpc', 'isl', 'make']
-provides = ['gcc']
-conflicts = []
-obsoletes = []
-
-prepare() { mkdir -p build; }
-build() {
-    cd build
-    ../configure --prefix=/usr \
-                 --libdir=/usr/lib \
-                 --libexecdir=/usr/lib \
-                 --with-system-zlib \
-                 --enable-languages=c,c++,fortran \
-                 --enable-shared \
-                 --enable-threads=posix \
-                 --enable-checking=release \
-                 --enable-__cxa_atexit \
-                 --disable-multilib \
-                 --disable-werror \
-                 --with-pkgversion="Arch Linux" \
-                 --with-bugurl=https://bugs.archlinux.org/
-    make -j"$(nproc)"
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  mkdir -p build
 }
-install() { cd build; make DESTDIR="$PKGDIR" install; ln -sf gcc "$PKGDIR/usr/bin/cc"; }
 
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  cd build
+  ../configure --prefix=/usr \
+  --libdir=/usr/lib \
+  --libexecdir=/usr/lib \
+  --with-system-zlib \
+  --enable-languages=c,c++,fortran \
+  --enable-shared \
+  --enable-threads=posix \
+  --enable-checking=release \
+  --enable-__cxa_atexit \
+  --disable-multilib \
+  --disable-werror \
+  --with-pkgversion="Arch Linux" \
+  --with-bugurl=https://bugs.archlinux.org/
+  make -j"$(nproc)"
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  cd build
+  make DESTDIR="$pkgdir" install
+  ln -sf gcc "$pkgdir/usr/bin/cc"
+}
