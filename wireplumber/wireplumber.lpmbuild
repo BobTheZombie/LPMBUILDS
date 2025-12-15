@@ -1,0 +1,31 @@
+# LPM build script for wireplumber
+NAME="wireplumber"
+VERSION="0.5.5"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Session and policy manager for PipeWire"
+URL="https://pipewire.pages.freedesktop.org/wireplumber/"
+LICENSE="MIT"
+SOURCE=("https://gitlab.freedesktop.org/pipewire/wireplumber/-/archive/${VERSION}/wireplumber-${VERSION}.tar.gz")
+CHECKSUMS=("49075cd5c2f4820839a9e69d4a22386bc280c62b92c153af9be39ca439d45a09")
+REQUIRES=("glibc" "pipewire" "lua" "json-glib" "glib2" "systemd")
+PROVIDES=("wireplumber")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() { set -euxo pipefail; cd "$SRCROOT"; }
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  meson setup build --prefix=/usr --buildtype=release -Dsystemd=enabled -Dsession-managers=default
+  ninja -C build
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  DESTDIR="$pkgdir" ninja -C build install
+}

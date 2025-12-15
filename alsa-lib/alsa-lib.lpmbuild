@@ -1,0 +1,31 @@
+# LPM build script for alsa-lib
+NAME="alsa-lib"
+VERSION="1.2.12"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Advanced Linux Sound Architecture library"
+URL="https://www.alsa-project.org/"
+LICENSE="LGPL-2.1-or-later"
+SOURCE=("https://www.alsa-project.org/files/pub/lib/alsa-lib-${VERSION}.tar.bz2")
+CHECKSUMS=("4868cd908627279da5a634f468701625be8cc251d84262c7e5b6a218391ad0d2")
+REQUIRES=("glibc")
+PROVIDES=("alsa-lib")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() { set -euxo pipefail; cd "$SRCROOT"; }
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  ./configure --prefix=/usr --sysconfdir=/etc --disable-static
+  make -j"$(nproc)"
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  make DESTDIR="$pkgdir" install
+}

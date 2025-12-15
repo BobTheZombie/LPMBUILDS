@@ -1,0 +1,31 @@
+# LPM build script for libxcb
+NAME="libxcb"
+VERSION="1.16.1"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="X11 client-side library"
+URL="https://xcb.freedesktop.org/"
+LICENSE="MIT"
+SOURCE=("https://xorg.freedesktop.org/archive/individual/lib/libxcb-${VERSION}.tar.xz")
+CHECKSUMS=("f24d187154c8e027b358fc7cb6588e35e33e6a92f11c668fe77396a7ae66e311")
+REQUIRES=("glibc" "libxau" "libxdmcp" "xorgproto")
+PROVIDES=("libxcb")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() { set -euxo pipefail; cd "$SRCROOT"; }
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  ./configure --prefix=/usr --sysconfdir=/etc --disable-static --enable-xkb
+  make -j"$(nproc)"
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  make DESTDIR="$pkgdir" install
+}
