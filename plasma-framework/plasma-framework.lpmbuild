@@ -1,0 +1,36 @@
+# LPM build script for plasma-framework
+NAME="plasma-framework"
+VERSION="1.0.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Placeholder package for plasma-framework dependency"
+URL="https://example.com/plasma-framework"
+LICENSE=""
+SOURCE=()
+SHA256SUMS=()
+PATCHES=()
+REQUIRES=()
+PROVIDES=("plasma-framework")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  :
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  :
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  install -d "$pkgdir/usr/share/doc/plasma-framework"
+  printf 'Placeholder package for plasma-framework\n' >"$pkgdir/usr/share/doc/plasma-framework/README"
+}
