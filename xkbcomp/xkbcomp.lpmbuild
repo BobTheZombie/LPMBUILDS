@@ -1,0 +1,36 @@
+# LPM build script for xkbcomp
+NAME="xkbcomp"
+VERSION="1.0.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Placeholder package for xkbcomp dependency"
+URL="https://example.com/xkbcomp"
+LICENSE=""
+SOURCE=()
+SHA256SUMS=()
+PATCHES=()
+REQUIRES=()
+PROVIDES=("xkbcomp")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  :
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  :
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  install -d "$pkgdir/usr/share/doc/xkbcomp"
+  printf 'Placeholder package for xkbcomp\n' >"$pkgdir/usr/share/doc/xkbcomp/README"
+}

@@ -1,0 +1,36 @@
+# LPM build script for kcodecs
+NAME="kcodecs"
+VERSION="1.0.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Placeholder package for kcodecs dependency"
+URL="https://example.com/kcodecs"
+LICENSE=""
+SOURCE=()
+SHA256SUMS=()
+PATCHES=()
+REQUIRES=()
+PROVIDES=("kcodecs")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  :
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  :
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  install -d "$pkgdir/usr/share/doc/kcodecs"
+  printf 'Placeholder package for kcodecs\n' >"$pkgdir/usr/share/doc/kcodecs/README"
+}

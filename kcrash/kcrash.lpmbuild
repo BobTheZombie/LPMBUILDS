@@ -1,0 +1,36 @@
+# LPM build script for kcrash
+NAME="kcrash"
+VERSION="1.0.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Placeholder package for kcrash dependency"
+URL="https://example.com/kcrash"
+LICENSE=""
+SOURCE=()
+SHA256SUMS=()
+PATCHES=()
+REQUIRES=()
+PROVIDES=("kcrash")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  :
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  :
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  install -d "$pkgdir/usr/share/doc/kcrash"
+  printf 'Placeholder package for kcrash\n' >"$pkgdir/usr/share/doc/kcrash/README"
+}

@@ -1,0 +1,36 @@
+# LPM build script for libcamera
+NAME="libcamera"
+VERSION="1.0.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Placeholder package for libcamera dependency"
+URL="https://example.com/libcamera"
+LICENSE=""
+SOURCE=()
+SHA256SUMS=()
+PATCHES=()
+REQUIRES=()
+PROVIDES=("libcamera")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  :
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  :
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  install -d "$pkgdir/usr/share/doc/libcamera"
+  printf 'Placeholder package for libcamera\n' >"$pkgdir/usr/share/doc/libcamera/README"
+}

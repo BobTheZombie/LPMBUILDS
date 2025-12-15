@@ -1,0 +1,36 @@
+# LPM build script for libxkbcommon
+NAME="libxkbcommon"
+VERSION="1.0.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Placeholder package for libxkbcommon dependency"
+URL="https://example.com/libxkbcommon"
+LICENSE=""
+SOURCE=()
+SHA256SUMS=()
+PATCHES=()
+REQUIRES=()
+PROVIDES=("libxkbcommon")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  :
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  :
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  install -d "$pkgdir/usr/share/doc/libxkbcommon"
+  printf 'Placeholder package for libxkbcommon\n' >"$pkgdir/usr/share/doc/libxkbcommon/README"
+}

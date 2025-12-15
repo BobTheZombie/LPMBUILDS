@@ -1,0 +1,36 @@
+# LPM build script for kcoreaddons6
+NAME="kcoreaddons6"
+VERSION="1.0.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Placeholder package for kcoreaddons6 dependency"
+URL="https://example.com/kcoreaddons6"
+LICENSE=""
+SOURCE=()
+SHA256SUMS=()
+PATCHES=()
+REQUIRES=()
+PROVIDES=("kcoreaddons6")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  :
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  :
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  install -d "$pkgdir/usr/share/doc/kcoreaddons6"
+  printf 'Placeholder package for kcoreaddons6\n' >"$pkgdir/usr/share/doc/kcoreaddons6/README"
+}
