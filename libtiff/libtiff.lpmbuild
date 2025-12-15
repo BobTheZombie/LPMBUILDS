@@ -1,0 +1,31 @@
+# LPM build script for libtiff
+NAME="libtiff"
+VERSION="4.6.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Library for reading and writing TIFF images"
+URL="https://libtiff.gitlab.io/libtiff/"
+LICENSE="libtiff"
+SOURCE=("https://download.osgeo.org/libtiff/tiff-${VERSION}.tar.gz")
+CHECKSUMS=("88b3979e6d5c7e32b50d7ec72fb15af724f6ab2cbf7e10880c360a77e4b5d99a")
+REQUIRES=("glibc" "zlib" "xz" "zstd" "libjpeg-turbo")
+PROVIDES=("libtiff")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() { set -euxo pipefail; cd "$SRCROOT"; }
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  ./configure --prefix=/usr --disable-static --with-jpeg --with-zlib --with-lzma --with-zstd
+  make -j"$(nproc)"
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  make DESTDIR="$pkgdir" install
+}
