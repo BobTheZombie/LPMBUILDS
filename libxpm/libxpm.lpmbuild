@@ -1,15 +1,15 @@
-# LPM build script for libxrandr
-NAME="libxrandr"
-VERSION="1.5.4"
+# LPM build script for libxpm
+NAME="libxpm"
+VERSION="3.5.17"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="X11 RandR extension library"
+SUMMARY="X11 pixmap library"
 URL="https://www.x.org/"
 LICENSE="MIT"
-SOURCE=("https://xorg.freedesktop.org/archive/individual/lib/libXrandr-${VERSION}.tar.xz")
-CHECKSUMS=("1ad5b065375f4a85915aa60611cc6407c060492a214d7f9daf214be752c3b4d3")
-REQUIRES=("glibc" "libx11" "libxext" "libxrender" "xorgproto")
-PROVIDES=("libxrandr")
+SOURCE=("https://xorg.freedesktop.org/archive/individual/lib/libXpm-${VERSION}.tar.xz")
+CHECKSUMS=("64b31f81019e7d388c822b0b28af8d51c4622b83f1f0cb6fa3fc95e271226e43")
+REQUIRES=("glibc" "libx11" "libxext" "libxt" "libsm" "xorgproto")
+PROVIDES=("libxpm")
 CONFLICTS=()
 OBSOLETES=()
 RECOMMENDS=()

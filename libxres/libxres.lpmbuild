@@ -1,15 +1,15 @@
-# LPM build script for libxrandr
-NAME="libxrandr"
-VERSION="1.5.4"
+# LPM build script for libxres
+NAME="libxres"
+VERSION="1.2.2"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="X11 RandR extension library"
+SUMMARY="X11 Resource usage library"
 URL="https://www.x.org/"
 LICENSE="MIT"
-SOURCE=("https://xorg.freedesktop.org/archive/individual/lib/libXrandr-${VERSION}.tar.xz")
-CHECKSUMS=("1ad5b065375f4a85915aa60611cc6407c060492a214d7f9daf214be752c3b4d3")
-REQUIRES=("glibc" "libx11" "libxext" "libxrender" "xorgproto")
-PROVIDES=("libxrandr")
+SOURCE=("https://xorg.freedesktop.org/archive/individual/lib/libXres-${VERSION}.tar.xz")
+CHECKSUMS=("9a7446f3484b9b7538ac5ee30d2c1ce9e5b7fbbaf1440e02f6cca186a1fa745f")
+REQUIRES=("glibc" "libx11" "xorgproto")
+PROVIDES=("libxres")
 CONFLICTS=()
 OBSOLETES=()
 RECOMMENDS=()

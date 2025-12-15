@@ -1,0 +1,31 @@
+# LPM build script for libsndfile
+NAME="libsndfile"
+VERSION="1.2.2"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="C library for reading and writing files containing sampled sound"
+URL="https://libsndfile.github.io/libsndfile/"
+LICENSE="LGPL-2.1-or-later"
+SOURCE=("https://github.com/libsndfile/libsndfile/releases/download/${VERSION}/libsndfile-${VERSION}.tar.xz")
+CHECKSUMS=("3799ca9924d3125038880367bf1468e53a1b7e3686a934f098b7e1d286cdb80e")
+REQUIRES=("glibc" "libogg" "libvorbis" "flac")
+PROVIDES=("libsndfile")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() { set -euxo pipefail; cd "$SRCROOT"; }
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  ./configure --prefix=/usr --sysconfdir=/etc --disable-static
+  make -j"$(nproc)"
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  make DESTDIR="$pkgdir" install
+}

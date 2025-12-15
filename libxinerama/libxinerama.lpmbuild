@@ -1,15 +1,15 @@
-# LPM build script for libxrandr
-NAME="libxrandr"
-VERSION="1.5.4"
+# LPM build script for libxinerama
+NAME="libxinerama"
+VERSION="1.1.5"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="X11 RandR extension library"
+SUMMARY="X11 Xinerama extension library"
 URL="https://www.x.org/"
 LICENSE="MIT"
-SOURCE=("https://xorg.freedesktop.org/archive/individual/lib/libXrandr-${VERSION}.tar.xz")
-CHECKSUMS=("1ad5b065375f4a85915aa60611cc6407c060492a214d7f9daf214be752c3b4d3")
-REQUIRES=("glibc" "libx11" "libxext" "libxrender" "xorgproto")
-PROVIDES=("libxrandr")
+SOURCE=("https://xorg.freedesktop.org/archive/individual/lib/libXinerama-${VERSION}.tar.xz")
+CHECKSUMS=("5094d1f0fcc1828cb1696d0d39d9e866ae32520c54d01f618f1a3c1e30c2085c")
+REQUIRES=("glibc" "libx11" "libxext" "xorgproto")
+PROVIDES=("libxinerama")
 CONFLICTS=()
 OBSOLETES=()
 RECOMMENDS=()
