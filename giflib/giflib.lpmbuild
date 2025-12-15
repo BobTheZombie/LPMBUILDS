@@ -1,0 +1,30 @@
+# LPM build script for giflib
+NAME="giflib"
+VERSION="5.2.1"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="GIF image library"
+URL="http://giflib.sourceforge.net/"
+LICENSE="MIT"
+SOURCE=("https://downloads.sourceforge.net/project/giflib/giflib-${VERSION}.tar.gz")
+CHECKSUMS=("31da5562f44c5f15d63340a09a4fd62b48c45620cd302f77a6d9acf0077879bd")
+REQUIRES=("glibc")
+PROVIDES=("giflib")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() { set -euxo pipefail; cd "$SRCROOT"; }
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  make -j"$(nproc)"
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  make PREFIX=/usr DESTDIR="$pkgdir" install
+}

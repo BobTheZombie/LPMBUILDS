@@ -1,8 +1,12 @@
 zlib
+libpng
 xz
 zstd
+libjpeg-turbo
 bzip2
 glibc
+libtiff
+giflib
 gmp
 mpfr
 mpc

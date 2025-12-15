@@ -1,0 +1,36 @@
+# LPM build script for libjpeg-turbo
+NAME="libjpeg-turbo"
+VERSION="3.0.2"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="JPEG image codec with SIMD acceleration"
+URL="https://libjpeg-turbo.org/"
+LICENSE="BSD"
+SOURCE=("https://github.com/libjpeg-turbo/libjpeg-turbo/archive/refs/tags/${VERSION}.tar.gz")
+CHECKSUMS=("29f2197345aafe1dcaadc8b055e4cbec9f35aad2a318d61ea081f835af2eebe9")
+REQUIRES=("glibc")
+PROVIDES=("libjpeg-turbo" "libjpeg" "libturbojpeg")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() { set -euxo pipefail; cd "$SRCROOT"; }
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  cmake -B build -S . \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DENABLE_SHARED=ON \
+    -DENABLE_STATIC=OFF \
+    -DWITH_SIMD=OFF
+  cmake --build build -j"$(nproc)"
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  DESTDIR="$pkgdir" cmake --install build
+}

@@ -1,0 +1,31 @@
+# LPM build script for libpng
+NAME="libpng"
+VERSION="1.6.43"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Reference library for PNG format"
+URL="https://libpng.sourceforge.io/"
+LICENSE="libpng"
+SOURCE=("https://download.sourceforge.net/libpng/libpng-${VERSION}.tar.xz")
+CHECKSUMS=("6a5ca0652392a2d7c9db2ae5b40210843c0bbc081cbd410825ab00cc59f14a6c")
+REQUIRES=("glibc" "zlib")
+PROVIDES=("libpng")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() { set -euxo pipefail; cd "$SRCROOT"; }
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  ./configure --prefix=/usr --disable-static
+  make -j"$(nproc)"
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  make DESTDIR="$pkgdir" install
+}
