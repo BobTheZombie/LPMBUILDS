@@ -1,0 +1,29 @@
+# LPM build script for qt5-declarative
+NAME="qt5-declarative"
+VERSION="5.15.12"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Qt 5 QML and Quick modules"
+URL="https://www.qt.io/"
+LICENSE=""
+SOURCE=("https://download.qt.io/official_releases/qt/5.15/5.15.12/submodules/qtdeclarative-everywhere-src-5.15.12.tar.xz")
+SHA256SUMS=("SKIP")
+PATCHES=()
+BUILD_REQUIRES=("qt5-base" "mesa" "wayland" "libxkbcommon" "pkgconf")
+REQUIRES=("qt5-base" "mesa" "wayland" "glibc")
+PROVIDES=("qt5-declarative")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() { set -euxo pipefail; cd "$SRCROOT"; :; }
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  qmake
+  make -j"$(nproc)"
+}
+
+staging() { set -euxo pipefail; cd "$SRCROOT"; make INSTALL_ROOT="$pkgdir" install; }

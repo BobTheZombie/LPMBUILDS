@@ -1,0 +1,24 @@
+# LPM build script for KDE Frameworks 6 Tier 3 meta-package
+NAME="kf6-tier3"
+VERSION="6.3.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Tier 3 KDE Frameworks 6 collection"
+URL="https://invent.kde.org/frameworks"
+LICENSE=""
+SOURCE=()
+SHA256SUMS=()
+PATCHES=()
+BUILD_REQUIRES=("kf6-tier2" "extra-cmake-modules")
+REQUIRES=("kf6-tier2" "kconfigwidgets6" "kiconthemes6" "kio6" "knewstuff6" "kparts6" "kxmlgui6" "kpackage6")
+PROVIDES=("kf6-tier3")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() { set -euxo pipefail; cd "$SRCROOT"; :; }
+
+build() { set -euxo pipefail; cd "$SRCROOT"; :; }
+
+staging() { set -euxo pipefail; cd "$SRCROOT"; :; }

@@ -1,0 +1,29 @@
+# LPM build script for KWin
+NAME="kwin"
+VERSION="6.1.2"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="KDE Plasma window manager and compositor"
+URL="https://invent.kde.org/plasma/kwin"
+LICENSE=""
+SOURCE=("https://download.kde.org/stable/plasma/6.1.2/kwin-6.1.2.tar.xz")
+SHA256SUMS=("SKIP")
+PATCHES=()
+BUILD_REQUIRES=("qt6-base" "qt6-declarative" "qt6-wayland" "kf6-tier3" "pipewire" "wayland" "wayland-protocols" "mesa" "xorg-server" "systemd")
+REQUIRES=("qt6-base" "qt6-declarative" "qt6-wayland" "kf6-tier3" "pipewire" "mesa" "wayland" "libx11" "libxcb" "systemd")
+PROVIDES=("kwin")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() { set -euxo pipefail; cd "$SRCROOT"; mkdir -p build; }
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/build"
+  cmake .. -G Ninja -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release
+  ninja
+}
+
+staging() { set -euxo pipefail; cd "$SRCROOT/build"; ninja install DESTDIR="$pkgdir"; }

@@ -1,0 +1,24 @@
+# LPM build script for KDE Frameworks 6 Tier 1 meta-package
+NAME="kf6-tier1"
+VERSION="6.3.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Tier 1 KDE Frameworks 6 collection"
+URL="https://invent.kde.org/frameworks"
+LICENSE=""
+SOURCE=()
+SHA256SUMS=()
+PATCHES=()
+BUILD_REQUIRES=("qt6-base" "qt6-declarative" "qt6-svg" "qt6-tools" "extra-cmake-modules")
+REQUIRES=("qt6-base" "qt6-declarative" "qt6-svg" "qt6-tools" "kconfig6" "kcoreaddons6" "kwidgetsaddons6" "karchive6" "kcodecs6" "ki18n6" "kitemviews6")
+PROVIDES=("kf6-tier1")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() { set -euxo pipefail; cd "$SRCROOT"; :; }
+
+build() { set -euxo pipefail; cd "$SRCROOT"; :; }
+
+staging() { set -euxo pipefail; cd "$SRCROOT"; :; }

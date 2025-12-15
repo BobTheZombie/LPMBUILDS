@@ -1,0 +1,24 @@
+# LPM build script for qt5-tools
+NAME="qt5-tools"
+VERSION="5.15.12"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Qt 5 developer tools"
+URL="https://www.qt.io/"
+LICENSE=""
+SOURCE=("https://download.qt.io/official_releases/qt/5.15/5.15.12/submodules/qttools-everywhere-src-5.15.12.tar.xz")
+SHA256SUMS=("SKIP")
+PATCHES=()
+BUILD_REQUIRES=("qt5-base" "qt5-declarative" "qt5-svg" "python" "pkgconf")
+REQUIRES=("qt5-base" "qt5-declarative" "qt5-svg")
+PROVIDES=("qt5-tools")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() { set -euxo pipefail; cd "$SRCROOT"; :; }
+
+build() { set -euxo pipefail; cd "$SRCROOT"; qmake; make -j"$(nproc)"; }
+
+staging() { set -euxo pipefail; cd "$SRCROOT"; make INSTALL_ROOT="$pkgdir" install; }

@@ -1,0 +1,29 @@
+# LPM build script for sddm
+NAME="sddm"
+VERSION="0.21.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="QML based X11 and Wayland display manager"
+URL="https://github.com/sddm/sddm"
+LICENSE=""
+SOURCE=("https://github.com/sddm/sddm/archive/refs/tags/v0.21.0.tar.gz")
+SHA256SUMS=("SKIP")
+PATCHES=()
+BUILD_REQUIRES=("qt6-base" "qt6-declarative" "qt6-svg" "qt6-tools" "qt6-wayland" "cmake" "ninja" "systemd" "pam" "elogind")
+REQUIRES=("qt6-base" "qt6-declarative" "qt6-svg" "qt6-wayland" "systemd" "pam")
+PROVIDES=("sddm")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() { set -euxo pipefail; cd "$SRCROOT"; mkdir -p build; }
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/build"
+  cmake .. -G Ninja -DCMAKE_INSTALL_PREFIX=/usr -DENABLE_WAYLAND=ON
+  ninja
+}
+
+staging() { set -euxo pipefail; cd "$SRCROOT/build"; ninja install DESTDIR="$pkgdir"; }

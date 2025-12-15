@@ -1,0 +1,24 @@
+# LPM build script for KDE Frameworks 6 Tier 2 meta-package
+NAME="kf6-tier2"
+VERSION="6.3.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Tier 2 KDE Frameworks 6 collection"
+URL="https://invent.kde.org/frameworks"
+LICENSE=""
+SOURCE=()
+SHA256SUMS=()
+PATCHES=()
+BUILD_REQUIRES=("kf6-tier1" "extra-cmake-modules")
+REQUIRES=("kf6-tier1" "kauth6" "kcompletion6" "kcrash6" "kdbusaddons6" "kdoctools6" "kguiaddons6" "knotifications6" "kservice6" "solid6")
+PROVIDES=("kf6-tier2")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() { set -euxo pipefail; cd "$SRCROOT"; :; }
+
+build() { set -euxo pipefail; cd "$SRCROOT"; :; }
+
+staging() { set -euxo pipefail; cd "$SRCROOT"; :; }

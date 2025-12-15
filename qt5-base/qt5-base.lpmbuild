@@ -1,0 +1,38 @@
+# LPM build script for qt5-base
+NAME="qt5-base"
+VERSION="5.15.12"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Qt 5 base toolkit"
+URL="https://www.qt.io/"
+LICENSE=""
+SOURCE=("https://download.qt.io/official_releases/qt/5.15/5.15.12/submodules/qtbase-everywhere-src-5.15.12.tar.xz")
+SHA256SUMS=("SKIP")
+PATCHES=()
+BUILD_REQUIRES=("perl" "python" "pkgconf" "mesa" "wayland" "libxkbcommon" "openssl" "libx11" "libxcb" "xorg-server")
+REQUIRES=("glibc" "mesa" "wayland" "libx11" "libxcb" "dbus")
+PROVIDES=("qt5-base")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  :
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  ./configure -prefix /usr -opensource -confirm-license -nomake tests -nomake examples \
+    -qt-zlib -qt-libpng -qt-libjpeg -qt-pcre -system-sqlite -dbus-linked
+  make -j"$(nproc)"
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  make INSTALL_ROOT="$pkgdir" install
+}

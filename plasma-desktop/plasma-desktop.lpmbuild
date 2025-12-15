@@ -1,0 +1,24 @@
+# LPM build script for plasma-desktop
+NAME="plasma-desktop"
+VERSION="6.1.2"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="KDE Plasma desktop components"
+URL="https://invent.kde.org/plasma/plasma-desktop"
+LICENSE=""
+SOURCE=("https://download.kde.org/stable/plasma/6.1.2/plasma-desktop-6.1.2.tar.xz")
+SHA256SUMS=("SKIP")
+PATCHES=()
+BUILD_REQUIRES=("plasma-workspace" "kf6-tier3" "qt6-declarative" "qt6-wayland" "networkmanager" "xorg-server")
+REQUIRES=("plasma-workspace" "kf6-tier3" "qt6-declarative" "qt6-wayland" "networkmanager" "xorg-server")
+PROVIDES=("plasma-desktop")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() { set -euxo pipefail; cd "$SRCROOT"; mkdir -p build; }
+
+build() { set -euxo pipefail; cd "$SRCROOT/build"; cmake .. -G Ninja -DCMAKE_INSTALL_PREFIX=/usr; ninja; }
+
+staging() { set -euxo pipefail; cd "$SRCROOT/build"; ninja install DESTDIR="$pkgdir"; }

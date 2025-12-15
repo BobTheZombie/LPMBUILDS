@@ -1,0 +1,24 @@
+# LPM build script for KDE Frameworks 5 Tier 2 meta-package
+NAME="kf5-tier2"
+VERSION="5.116.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Tier 2 KDE Frameworks 5 collection"
+URL="https://invent.kde.org/frameworks"
+LICENSE=""
+SOURCE=()
+SHA256SUMS=()
+PATCHES=()
+BUILD_REQUIRES=("kf5-tier1" "extra-cmake-modules")
+REQUIRES=("kf5-tier1" "kauth" "kcompletion" "kcrash" "kdbusaddons" "kdoctools" "kguiaddons" "knotifications" "kservice" "solid")
+PROVIDES=("kf5-tier2")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() { set -euxo pipefail; cd "$SRCROOT"; :; }
+
+build() { set -euxo pipefail; cd "$SRCROOT"; :; }
+
+staging() { set -euxo pipefail; cd "$SRCROOT"; :; }
