@@ -1,0 +1,34 @@
+# LPM build script for libinput
+NAME="libinput"
+VERSION="1.25.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Input device handling library"
+URL="https://www.freedesktop.org/wiki/Software/libinput/"
+LICENSE="MIT"
+SOURCE=("https://gitlab.freedesktop.org/libinput/libinput/-/archive/${VERSION}/libinput-${VERSION}.tar.gz")
+CHECKSUMS=("f7e8425f185cadba5761d0a1dae6be041750d351163ffa04adc5b9a79a13c0ec")
+REQUIRES=("glibc" "libevdev" "mtdev" "udev" "eudev")
+PROVIDES=("libinput")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=("wayland" "xorg-server")
+SUGGESTS=()
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  meson setup build --prefix=/usr --buildtype=release -Dtests=false -Ddebug-gui=false
+  ninja -C build
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  DESTDIR="$pkgdir" ninja -C build install
+}

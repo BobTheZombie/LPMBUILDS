@@ -1,0 +1,36 @@
+# LPM build script for pipewire
+NAME="pipewire"
+VERSION="1.2.1"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Server and user space API to deal with multimedia pipelines"
+URL="https://pipewire.org/"
+LICENSE="LGPL-2.1-or-later"
+SOURCE=("https://gitlab.freedesktop.org/pipewire/pipewire/-/archive/${VERSION}/pipewire-${VERSION}.tar.gz")
+CHECKSUMS=("ee26d1e906a930b283d759628de978dc2514522d68f9566f89b1497b2b534f76")
+REQUIRES=("glibc" "systemd" "dbus" "alsa-lib" "libpipewire" "libcamera" "bluez" "libudev" "ffmpeg" "libva")
+PROVIDES=("pipewire")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=("wireplumber")
+SUGGESTS=()
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  meson setup build --prefix=/usr --buildtype=release \
+    -Dalsa=enabled -Djack=enabled -Ddbus=enabled -Dsystemd=enabled -Dvulkan=enabled \
+    -Dgstreamer=enabled -Dlibcamera=enabled
+  ninja -C build
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  DESTDIR="$pkgdir" ninja -C build install
+}

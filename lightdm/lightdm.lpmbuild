@@ -1,0 +1,34 @@
+# LPM build script for lightdm
+NAME="lightdm"
+VERSION="1.32.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Lightweight display manager"
+URL="https://github.com/canonical/lightdm"
+LICENSE="GPL-3.0-or-later"
+SOURCE=("https://github.com/canonical/lightdm/releases/download/${VERSION}/lightdm-${VERSION}.tar.xz")
+CHECKSUMS=("12f5ab432748f0387c7cf8b94430495a558a035a4f8465e5181af6faff133e4b")
+REQUIRES=("glibc" "pam" "libx11" "libxcb" "libxext" "libxcb" "libxdmcp" "systemd")
+PROVIDES=("lightdm")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=("lightdm-gtk-greeter" "xorg-server")
+SUGGESTS=()
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  ./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var --disable-tests --with-greeter-user=lightdm --with-user-session=lightdm
+  make -j"$(nproc)"
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  make DESTDIR="$pkgdir" install
+}

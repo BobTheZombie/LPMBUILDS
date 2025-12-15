@@ -1,0 +1,34 @@
+# LPM build script for xorgproto
+NAME="xorgproto"
+VERSION="2024.1"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Combined X.Org X11 Protocol headers"
+URL="https://www.x.org/"
+LICENSE="MIT"
+SOURCE=("https://xorg.freedesktop.org/archive/individual/proto/xorgproto-${VERSION}.tar.xz")
+CHECKSUMS=("372225fd40815b8423547f5d890c5debc72e88b91088fbfb13158c20495ccb59")
+REQUIRES=("glibc")
+PROVIDES=("xorgproto")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  ./configure --prefix=/usr
+  make -j"$(nproc)"
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  make DESTDIR="$pkgdir" install
+}

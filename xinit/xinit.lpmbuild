@@ -1,0 +1,31 @@
+# LPM build script for xinit
+NAME="xinit"
+VERSION="1.4.2"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="X.Org initialisation program"
+URL="https://www.x.org/"
+LICENSE="MIT"
+SOURCE=("https://www.x.org/releases/individual/app/xinit-${VERSION}.tar.xz")
+CHECKSUMS=("b7d8dc8d22ef9f15985a10b606ee4f2aad6828befa437359934647e88d331f23")
+REQUIRES=("glibc" "xorg-server" "xorgproto" "libx11" "libxext" "libxrandr")
+PROVIDES=("xinit")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() { set -euxo pipefail; cd "$SRCROOT"; }
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  ./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var
+  make -j"$(nproc)"
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  make DESTDIR="$pkgdir" install
+}

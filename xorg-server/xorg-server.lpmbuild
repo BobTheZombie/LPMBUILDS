@@ -1,0 +1,36 @@
+# LPM build script for xorg-server
+NAME="xorg-server"
+VERSION="21.1.13"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Xorg X server"
+URL="https://www.x.org/"
+LICENSE="MIT"
+SOURCE=("https://xorg.freedesktop.org/archive/individual/xserver/xorg-server-${VERSION}.tar.xz")
+CHECKSUMS=("b45a02d5943f72236a360d3cc97e75134aa4f63039ff88c04686b508a3dc740c")
+REQUIRES=("glibc" "xorgproto" "libx11" "libxext" "libxau" "libxdmcp" "libxcb" "mesa" "libdrm" "pixman" "libxfont2" "libxkbfile" "xkbcomp" "libinput")
+PROVIDES=("xorg-server")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=("xinit")
+SUGGESTS=()
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  ./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var \
+    --enable-glamor --enable-install-setuid --enable-suid-wrapper \
+    --enable-xwayland --with-os-vendor=LPM
+  make -j"$(nproc)"
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  make DESTDIR="$pkgdir" install
+}

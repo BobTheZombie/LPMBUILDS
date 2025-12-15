@@ -1,0 +1,36 @@
+# LPM build script for mesa
+NAME="mesa"
+VERSION="24.2.1"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Open-source implementation of the OpenGL and Vulkan graphics APIs"
+URL="https://www.mesa3d.org/"
+LICENSE="MIT"
+SOURCE=("https://archive.mesa3d.org/mesa-${VERSION}.tar.xz")
+CHECKSUMS=("fc9a495f3a9af906838be89367564e10ef335e058f88965ad49ccc3e9a3b420b")
+REQUIRES=("glibc" "libdrm" "wayland" "wayland-protocols" "libx11" "libxext" "libxcb" "libxdamage" "libxfixes" "expat" "llvm" "libva" "vulkan-loader")
+PROVIDES=("mesa")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=("vulkan-loader")
+SUGGESTS=()
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  meson setup build --prefix=/usr --buildtype=release \
+    -Dgallium-drivers=auto -Dvulkan-drivers=auto -Dplatforms=x11,wayland \
+    -Dglx=dri -Degl=enabled -Dosmesa=true -Dshared-llvm=enabled
+  ninja -C build
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  DESTDIR="$pkgdir" ninja -C build install
+}

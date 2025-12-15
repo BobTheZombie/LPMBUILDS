@@ -1,0 +1,31 @@
+# LPM build script for libxext
+NAME="libxext"
+VERSION="1.3.6"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="X11 miscellaneous extensions library"
+URL="https://www.x.org/"
+LICENSE="MIT"
+SOURCE=("https://xorg.freedesktop.org/archive/individual/lib/libXext-${VERSION}.tar.xz")
+CHECKSUMS=("edb59fa23994e405fdc5b400afdf5820ae6160b94f35e3dc3da4457a16e89753")
+REQUIRES=("glibc" "xorgproto" "libx11")
+PROVIDES=("libxext")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() { set -euxo pipefail; cd "$SRCROOT"; }
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  ./configure --prefix=/usr --sysconfdir=/etc --disable-static
+  make -j"$(nproc)"
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  make DESTDIR="$pkgdir" install
+}

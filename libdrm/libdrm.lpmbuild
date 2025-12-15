@@ -1,0 +1,34 @@
+# LPM build script for libdrm
+NAME="libdrm"
+VERSION="2.4.122"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Userspace interface to kernel DRM services"
+URL="https://dri.freedesktop.org/"
+LICENSE="MIT"
+SOURCE=("https://dri.freedesktop.org/libdrm/libdrm-${VERSION}.tar.xz")
+CHECKSUMS=("d9f5079b777dffca9300ccc56b10a93588cdfbc9dde2fae111940dfb6292f251")
+REQUIRES=("glibc" "libpciaccess" "wayland" "wayland-protocols")
+PROVIDES=("libdrm")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  meson setup build --prefix=/usr --buildtype=release -Dudev=true -Dvalgrind=false -Dlibkms=true
+  ninja -C build
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  DESTDIR="$pkgdir" ninja -C build install
+}

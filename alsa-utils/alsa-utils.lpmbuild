@@ -1,0 +1,31 @@
+# LPM build script for alsa-utils
+NAME="alsa-utils"
+VERSION="1.2.12"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Utilities for the ALSA sound architecture"
+URL="https://www.alsa-project.org/"
+LICENSE="GPL-2.0-or-later"
+SOURCE=("https://www.alsa-project.org/files/pub/utils/alsa-utils-${VERSION}.tar.bz2")
+CHECKSUMS=("98bc6677d0c0074006679051822324a0ab0879aea558a8f68b511780d30cd924")
+REQUIRES=("glibc" "alsa-lib" "ncurses" "systemd" "xmlto" "docbook-xml")
+PROVIDES=("alsa-utils")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() { set -euxo pipefail; cd "$SRCROOT"; }
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  ./configure --prefix=/usr --sysconfdir=/etc --disable-alsa-ucm-tests --with-udev-rules-dir=/usr/lib/udev/rules.d
+  make -j"$(nproc)"
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  make DESTDIR="$pkgdir" install
+}
