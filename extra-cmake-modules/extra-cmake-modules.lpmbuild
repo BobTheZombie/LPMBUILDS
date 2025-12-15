@@ -1,0 +1,36 @@
+# LPM build script for extra-cmake-modules
+NAME="extra-cmake-modules"
+VERSION="1.0.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Placeholder package for extra-cmake-modules dependency"
+URL="https://example.com/extra-cmake-modules"
+LICENSE=""
+SOURCE=()
+SHA256SUMS=()
+PATCHES=()
+REQUIRES=()
+PROVIDES=("extra-cmake-modules")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  :
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  :
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  install -d "$pkgdir/usr/share/doc/extra-cmake-modules"
+  printf 'Placeholder package for extra-cmake-modules\n' >"$pkgdir/usr/share/doc/extra-cmake-modules/README"
+}
