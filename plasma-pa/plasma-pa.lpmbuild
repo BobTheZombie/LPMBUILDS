@@ -1,0 +1,24 @@
+# LPM build script for plasma-pa
+NAME="plasma-pa"
+VERSION="6.1.2"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Plasma PulseAudio/pipewire volume applet"
+URL="https://invent.kde.org/plasma/plasma-pa"
+LICENSE=""
+SOURCE=("https://download.kde.org/stable/plasma/6.1.2/plasma-pa-6.1.2.tar.xz")
+SHA256SUMS=("SKIP")
+PATCHES=()
+BUILD_REQUIRES=("plasma-workspace" "kf6-tier3" "pipewire" "qt6-declarative")
+REQUIRES=("plasma-workspace" "pipewire" "qt6-declarative" "kf6-tier3")
+PROVIDES=("plasma-pa")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() { set -euxo pipefail; cd "$SRCROOT"; mkdir -p build; }
+
+build() { set -euxo pipefail; cd "$SRCROOT/build"; cmake .. -G Ninja -DCMAKE_INSTALL_PREFIX=/usr; ninja; }
+
+staging() { set -euxo pipefail; cd "$SRCROOT/build"; ninja install DESTDIR="$pkgdir"; }

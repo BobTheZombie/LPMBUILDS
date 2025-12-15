@@ -1,0 +1,24 @@
+# LPM build script for plasma-workspace
+NAME="plasma-workspace"
+VERSION="6.1.2"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="KDE Plasma workspace components"
+URL="https://invent.kde.org/plasma/plasma-workspace"
+LICENSE=""
+SOURCE=("https://download.kde.org/stable/plasma/6.1.2/plasma-workspace-6.1.2.tar.xz")
+SHA256SUMS=("SKIP")
+PATCHES=()
+BUILD_REQUIRES=("qt6-base" "qt6-declarative" "qt6-wayland" "qt6-svg" "kf6-tier3" "plasma-framework" "kio" "systemd" "networkmanager" "pipewire" "wayland" "wayland-protocols")
+REQUIRES=("qt6-base" "qt6-declarative" "qt6-wayland" "qt6-svg" "kf6-tier3" "networkmanager" "pipewire" "systemd" "wayland" "xorg-server" "kwin")
+PROVIDES=("plasma-workspace")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() { set -euxo pipefail; cd "$SRCROOT"; mkdir -p build; }
+
+build() { set -euxo pipefail; cd "$SRCROOT/build"; cmake .. -G Ninja -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release; ninja; }
+
+staging() { set -euxo pipefail; cd "$SRCROOT/build"; ninja install DESTDIR="$pkgdir"; }

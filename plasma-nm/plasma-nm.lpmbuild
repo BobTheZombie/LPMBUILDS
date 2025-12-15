@@ -1,0 +1,24 @@
+# LPM build script for plasma-nm
+NAME="plasma-nm"
+VERSION="6.1.2"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Plasma network management applets"
+URL="https://invent.kde.org/plasma/plasma-nm"
+LICENSE=""
+SOURCE=("https://download.kde.org/stable/plasma/6.1.2/plasma-nm-6.1.2.tar.xz")
+SHA256SUMS=("SKIP")
+PATCHES=()
+BUILD_REQUIRES=("plasma-workspace" "kf6-tier3" "qt6-declarative" "networkmanager" "libnm" "qt6-wayland")
+REQUIRES=("plasma-workspace" "networkmanager" "qt6-declarative" "qt6-wayland" "kf6-tier3")
+PROVIDES=("plasma-nm")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() { set -euxo pipefail; cd "$SRCROOT"; mkdir -p build; }
+
+build() { set -euxo pipefail; cd "$SRCROOT/build"; cmake .. -G Ninja -DCMAKE_INSTALL_PREFIX=/usr; ninja; }
+
+staging() { set -euxo pipefail; cd "$SRCROOT/build"; ninja install DESTDIR="$pkgdir"; }

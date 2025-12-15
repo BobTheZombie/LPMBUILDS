@@ -1,0 +1,24 @@
+# LPM build script for plasma-meta
+NAME="plasma-meta"
+VERSION="6.1.2"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Meta package for a complete KDE Plasma desktop"
+URL="https://kde.org/plasma-desktop"
+LICENSE=""
+SOURCE=()
+SHA256SUMS=()
+PATCHES=()
+BUILD_REQUIRES=("plasma-desktop" "plasma-pa" "plasma-nm" "sddm")
+REQUIRES=("plasma-desktop" "plasma-pa" "plasma-nm" "kwin" "plasma-workspace" "sddm")
+PROVIDES=("plasma-meta")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() { set -euxo pipefail; cd "$SRCROOT"; :; }
+
+build() { set -euxo pipefail; cd "$SRCROOT"; :; }
+
+staging() { set -euxo pipefail; cd "$SRCROOT"; :; }

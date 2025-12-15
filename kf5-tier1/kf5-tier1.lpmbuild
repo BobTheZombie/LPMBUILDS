@@ -1,0 +1,24 @@
+# LPM build script for KDE Frameworks 5 Tier 1 meta-package
+NAME="kf5-tier1"
+VERSION="5.116.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Tier 1 KDE Frameworks 5 collection"
+URL="https://invent.kde.org/frameworks"
+LICENSE=""
+SOURCE=()
+SHA256SUMS=()
+PATCHES=()
+BUILD_REQUIRES=("qt5-base" "qt5-declarative" "qt5-svg" "qt5-tools" "extra-cmake-modules")
+REQUIRES=("qt5-base" "qt5-declarative" "qt5-svg" "qt5-tools" "kconfig" "kcoreaddons" "kwidgetsaddons" "karchive" "kcodecs" "ki18n" "kitemviews")
+PROVIDES=("kf5-tier1")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() { set -euxo pipefail; cd "$SRCROOT"; :; }
+
+build() { set -euxo pipefail; cd "$SRCROOT"; :; }
+
+staging() { set -euxo pipefail; cd "$SRCROOT"; :; }
