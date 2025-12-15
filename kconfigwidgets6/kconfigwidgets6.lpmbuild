@@ -1,0 +1,36 @@
+# LPM build script for kconfigwidgets6
+NAME="kconfigwidgets6"
+VERSION="1.0.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Placeholder package for kconfigwidgets6 dependency"
+URL="https://example.com/kconfigwidgets6"
+LICENSE=""
+SOURCE=()
+SHA256SUMS=()
+PATCHES=()
+REQUIRES=()
+PROVIDES=("kconfigwidgets6")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  :
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  :
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  install -d "$pkgdir/usr/share/doc/kconfigwidgets6"
+  printf 'Placeholder package for kconfigwidgets6\n' >"$pkgdir/usr/share/doc/kconfigwidgets6/README"
+}

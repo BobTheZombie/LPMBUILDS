@@ -1,0 +1,36 @@
+# LPM build script for kdbusaddons
+NAME="kdbusaddons"
+VERSION="1.0.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Placeholder package for kdbusaddons dependency"
+URL="https://example.com/kdbusaddons"
+LICENSE=""
+SOURCE=()
+SHA256SUMS=()
+PATCHES=()
+REQUIRES=()
+PROVIDES=("kdbusaddons")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  :
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  :
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  install -d "$pkgdir/usr/share/doc/kdbusaddons"
+  printf 'Placeholder package for kdbusaddons\n' >"$pkgdir/usr/share/doc/kdbusaddons/README"
+}

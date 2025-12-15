@@ -1,0 +1,36 @@
+# LPM build script for kguiaddons
+NAME="kguiaddons"
+VERSION="1.0.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Placeholder package for kguiaddons dependency"
+URL="https://example.com/kguiaddons"
+LICENSE=""
+SOURCE=()
+SHA256SUMS=()
+PATCHES=()
+REQUIRES=()
+PROVIDES=("kguiaddons")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  :
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  :
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  install -d "$pkgdir/usr/share/doc/kguiaddons"
+  printf 'Placeholder package for kguiaddons\n' >"$pkgdir/usr/share/doc/kguiaddons/README"
+}
