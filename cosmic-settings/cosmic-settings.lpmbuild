@@ -1,0 +1,50 @@
+# LPM build script for cosmic-settings
+NAME="cosmic-settings"
+VERSION="epoch-1.0.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Settings application for configuring the COSMIC desktop"
+URL="https://github.com/pop-os/cosmic-settings"
+LICENSE=""
+SOURCE=("https://github.com/pop-os/cosmic-settings/archive/refs/tags/${VERSION}.tar.gz")
+SHA256SUMS=("SKIP")
+PATCHES=()
+BUILD_REQUIRES=(
+    "rust"
+    "cargo"
+    "pkgconf"
+    "clang"
+    "gtk4"
+    "libadwaita"
+    "wayland-protocols"
+    "accountsservice"
+    "networkmanager"
+)
+REQUIRES=("gtk4" "libadwaita" "wayland-protocols" "accountsservice" "networkmanager")
+PROVIDES=("cosmic-settings")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT"
+    for patch in "${PATCHES[@]}"; do
+        patch -p1 <"$SRCROOT/$patch"
+    done
+    cargo fetch --locked
+    cargo vendor vendor
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT"
+    CARGO_TARGET_DIR="$SRCROOT/target" cargo build --frozen --locked --release
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT"
+    install -Dm755 "$SRCROOT/target/release/cosmic-settings" "$pkgdir/usr/bin/cosmic-settings"
+}
