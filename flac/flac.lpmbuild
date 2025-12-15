@@ -1,0 +1,31 @@
+# LPM build script for flac
+NAME="flac"
+VERSION="1.4.3"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Free Lossless Audio Codec library and tools"
+URL="https://xiph.org/flac/"
+LICENSE="BSD"
+SOURCE=("https://downloads.xiph.org/releases/flac/flac-${VERSION}.tar.xz")
+CHECKSUMS=("6c58e69cd22348f441b861092b825e591d0b822e106de6eb0ee4d05d27205b70")
+REQUIRES=("glibc" "libogg")
+PROVIDES=("flac")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() { set -euxo pipefail; cd "$SRCROOT"; }
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  ./configure --prefix=/usr --sysconfdir=/etc --disable-static
+  make -j"$(nproc)"
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+  make DESTDIR="$pkgdir" install
+}

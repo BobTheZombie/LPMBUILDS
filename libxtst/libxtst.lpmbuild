@@ -1,15 +1,15 @@
-# LPM build script for libxrandr
-NAME="libxrandr"
-VERSION="1.5.4"
+# LPM build script for libxtst
+NAME="libxtst"
+VERSION="1.2.4"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="X11 RandR extension library"
+SUMMARY="X11 Testing -- Record extension library"
 URL="https://www.x.org/"
 LICENSE="MIT"
-SOURCE=("https://xorg.freedesktop.org/archive/individual/lib/libXrandr-${VERSION}.tar.xz")
-CHECKSUMS=("1ad5b065375f4a85915aa60611cc6407c060492a214d7f9daf214be752c3b4d3")
-REQUIRES=("glibc" "libx11" "libxext" "libxrender" "xorgproto")
-PROVIDES=("libxrandr")
+SOURCE=("https://xorg.freedesktop.org/archive/individual/lib/libXtst-${VERSION}.tar.xz")
+CHECKSUMS=("84f5f30b9254b4ffee14b5b0940e2622153b0d3aed8286a3c5b7eeb340ca33c8")
+REQUIRES=("glibc" "libx11" "libxext" "xorgproto")
+PROVIDES=("libxtst")
 CONFLICTS=()
 OBSOLETES=()
 RECOMMENDS=()
