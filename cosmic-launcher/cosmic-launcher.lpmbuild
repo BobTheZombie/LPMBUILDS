@@ -1,0 +1,49 @@
+# LPM build script for cosmic-launcher
+NAME="cosmic-launcher"
+VERSION="epoch-1.0.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Application launcher for the COSMIC desktop"
+URL="https://github.com/pop-os/cosmic-launcher"
+LICENSE=""
+SOURCE=("https://github.com/pop-os/cosmic-launcher/archive/refs/tags/${VERSION}.tar.gz")
+SHA256SUMS=("SKIP")
+PATCHES=()
+BUILD_REQUIRES=(
+    "rust"
+    "cargo"
+    "pkgconf"
+    "clang"
+    "gtk4"
+    "libadwaita"
+    "wayland-protocols"
+    "libxkbcommon"
+)
+REQUIRES=("gtk4" "libadwaita" "wayland-protocols" "libxkbcommon")
+PROVIDES=("cosmic-launcher")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT"
+    for patch in "${PATCHES[@]}"; do
+        patch -p1 <"$SRCROOT/$patch"
+    done
+    cargo fetch --locked
+    cargo vendor vendor
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT"
+    CARGO_TARGET_DIR="$SRCROOT/target" cargo build --frozen --locked --release
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT"
+    install -Dm755 "$SRCROOT/target/release/cosmic-launcher" "$pkgdir/usr/bin/cosmic-launcher"
+}

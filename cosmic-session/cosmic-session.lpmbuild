@@ -1,0 +1,32 @@
+# LPM build script for cosmic-session meta package
+NAME="cosmic-session"
+VERSION="1.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Meta package installing the full COSMIC desktop session"
+URL="https://github.com/pop-os"
+LICENSE=""
+SOURCE=()
+SHA256SUMS=()
+PATCHES=()
+BUILD_REQUIRES=("cosmic-comp" "cosmic-panel" "cosmic-settings" "cosmic-launcher" "cosmic-greeter")
+REQUIRES=(
+    "cosmic-comp"
+    "cosmic-panel"
+    "cosmic-settings"
+    "cosmic-launcher"
+    "cosmic-greeter"
+    "pipewire"
+    "wlroots"
+)
+PROVIDES=("cosmic-session")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() { set -euxo pipefail; cd "$SRCROOT"; :; }
+
+build() { set -euxo pipefail; cd "$SRCROOT"; :; }
+
+staging() { set -euxo pipefail; cd "$SRCROOT"; :; }

@@ -1,0 +1,49 @@
+# LPM build script for cosmic-panel
+NAME="cosmic-panel"
+VERSION="epoch-1.0.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Panel and dock for the COSMIC desktop"
+URL="https://github.com/pop-os/cosmic-panel"
+LICENSE=""
+SOURCE=("https://github.com/pop-os/cosmic-panel/archive/refs/tags/${VERSION}.tar.gz")
+SHA256SUMS=("SKIP")
+PATCHES=()
+BUILD_REQUIRES=(
+    "rust"
+    "cargo"
+    "pkgconf"
+    "clang"
+    "gtk4"
+    "libadwaita"
+    "wayland-protocols"
+    "libxkbcommon"
+)
+REQUIRES=("gtk4" "libadwaita" "wayland-protocols" "libxkbcommon")
+PROVIDES=("cosmic-panel")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT"
+    for patch in "${PATCHES[@]}"; do
+        patch -p1 <"$SRCROOT/$patch"
+    done
+    cargo fetch --locked
+    cargo vendor vendor
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT"
+    CARGO_TARGET_DIR="$SRCROOT/target" cargo build --frozen --locked --release
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT"
+    install -Dm755 "$SRCROOT/target/release/cosmic-panel" "$pkgdir/usr/bin/cosmic-panel"
+}
