@@ -5,8 +5,9 @@ RELEASE="1"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="XZ compression utilities"
 URL="https://tukaani.org/xz/"
-LICENSE=""
-SOURCE=()
+LICENSE="GPL-2.0-or-later AND LGPL-2.1-or-later AND 0BSD"
+SOURCE=("https://tukaani.org/xz/xz-${VERSION}.tar.xz")
+SHA256SUMS=("a9db3bb3d64e248a0fae963f8fb6ba851a26ba1822e504dc0efd18a80c626caf")
 REQUIRES=("glibc")
 PROVIDES=("xz")
 CONFLICTS=()
@@ -17,18 +18,19 @@ SUGGESTS=()
 prepare() {
   set -euxo pipefail
   cd "$SRCROOT"
-  :
+  rm -rf "${NAME}-${VERSION}"
+  tar -xf "xz-${VERSION}.tar.xz"
 }
 
 build() {
   set -euxo pipefail
-  cd "$SRCROOT"
+  cd "$SRCROOT/${NAME}-${VERSION}"
   ./configure --prefix=/usr
   make -j"$(nproc)"
 }
 
 staging() {
   set -euxo pipefail
-  cd "$SRCROOT"
+  cd "$SRCROOT/${NAME}-${VERSION}"
   make DESTDIR="$pkgdir" install
 }

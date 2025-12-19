@@ -1,13 +1,14 @@
 # LPM build script for filesystem
 NAME="filesystem"
-VERSION="2025.09.12"
+VERSION="2025.10.12"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="Base filesystem hierarchy"
 URL="https://archlinux.org/packages/core/x86_64/filesystem/"
-LICENSE=""
-SOURCE=()
-REQUIRES=()
+LICENSE="0BSD"
+SOURCE=("https://gitlab.archlinux.org/archlinux/packaging/packages/${NAME}/-/archive/${VERSION}-1/${NAME}-${VERSION}-1.tar.gz")
+SHA256SUMS=("99a8948e88d882a9676e8e787419b1dc003a9e5c7f26cf5e46e4723a97fe05bf")
+REQUIRES=("iana-etc")
 PROVIDES=("filesystem")
 CONFLICTS=()
 OBSOLETES=()
@@ -17,18 +18,23 @@ SUGGESTS=()
 prepare() {
   set -euxo pipefail
   cd "$SRCROOT"
-  :
+  rm -rf "${NAME}-${VERSION}-1"
+  tar -xf "${NAME}-${VERSION}-1.tar.gz"
 }
 
 build() {
   set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+  cd "$SRCROOT/${NAME}-${VERSION}-1"
+  :
 }
 
 staging() {
   set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+  cd "$SRCROOT/${NAME}-${VERSION}-1"
+  pkgdir="$pkgdir" srcdir="$PWD" bash -euxo pipefail -c '
+    pkgdir="$1"
+    srcdir="$2"
+    source PKGBUILD
+    package
+  ' _ "$pkgdir" "$PWD"
 }

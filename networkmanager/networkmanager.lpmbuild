@@ -5,9 +5,10 @@ RELEASE="1"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="Network connection manager and user applications"
 URL="https://networkmanager.dev/"
-LICENSE=""
-SOURCE=()
-REQUIRES=("glibc" "systemd" "dbus" "wpa_supplicant" "dhcpcd")
+LICENSE="GPL-2.0-or-later AND LGPL-2.1-or-later"
+SOURCE=("https://download.gnome.org/sources/NetworkManager/${VERSION%.*}/NetworkManager-${VERSION}.tar.xz")
+SHA256SUMS=("3d9071cc62964ddf0e31f5d06f0603e17568b8c95114ae277703581add5a86a1")
+REQUIRES=("glibc" "glib2" "systemd" "dbus" "libudev" "wpa_supplicant" "dhcpcd" "polkit")
 PROVIDES=("networkmanager")
 CONFLICTS=()
 OBSOLETES=()
@@ -17,22 +18,23 @@ SUGGESTS=()
 prepare() {
   set -euxo pipefail
   cd "$SRCROOT"
+  rm -rf "NetworkManager-${VERSION}" "build"
+  tar -xf "NetworkManager-${VERSION}.tar.xz"
   mkdir -p build
 }
 
 build() {
   set -euxo pipefail
-  cd "$SRCROOT"
-  cd build
-  ../configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var --libexecdir=/usr/lib --with-udev-dir=/usr/lib/udev
-  make -j"$(nproc)"
+  cd "$SRCROOT/NetworkManager-${VERSION}"
+  meson setup "$SRCROOT/build" --prefix=/usr --sysconfdir=/etc --localstatedir=/var --libexecdir=/usr/lib --buildtype=release \
+    -Dsystemdsystemunitdir=/usr/lib/systemd/system -Dudev_dir=/usr/lib/udev -Dpolkit=yes
+  meson compile -C "$SRCROOT/build"
 }
 
 staging() {
   set -euxo pipefail
-  cd "$SRCROOT"
-  cd build
-  make DESTDIR="$pkgdir" install
+  cd "$SRCROOT/build"
+  meson install --destdir "$pkgdir"
 
   # Enable NetworkManager
   mkdir -p "$pkgdir/etc/systemd/system/multi-user.target.wants"
