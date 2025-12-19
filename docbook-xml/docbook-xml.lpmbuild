@@ -1,16 +1,16 @@
 # LPM build script for docbook-xml
 NAME="docbook-xml"
-VERSION="1.0.0"
+VERSION="4.5"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Placeholder package for docbook-xml dependency"
-URL="https://example.com/docbook-xml"
-LICENSE=""
-SOURCE=()
-SHA256SUMS=()
+SUMMARY="DocBook XML DTD 4.5"
+URL="https://docbook.org/"
+LICENSE="custom"
+SOURCE=("https://docbook.org/xml/4.5/docbook-xml-4.5.zip")
+SHA256SUMS=("4e4e037a2b83c98c6c94818390d4bdd3f6e10f6ec62dd79188594e26190dc7b4")
 PATCHES=()
-REQUIRES=()
-PROVIDES=("docbook-xml")
+REQUIRES=("libxml2")
+PROVIDES=("docbook-xml" "docbook-xml-4.5")
 CONFLICTS=()
 OBSOLETES=()
 RECOMMENDS=()
@@ -19,18 +19,31 @@ SUGGESTS=()
 prepare() {
   set -euxo pipefail
   cd "$SRCROOT"
-  :
+
+  rm -rf docbook-xml-4.5
+  mkdir docbook-xml-4.5
+  unzip -q "${SOURCE[0]##*/}" -d docbook-xml-4.5
 }
 
 build() {
   set -euxo pipefail
-  cd "$SRCROOT"
-  :
+  cd "$SRCROOT/docbook-xml-4.5"
 }
 
 staging() {
   set -euxo pipefail
-  cd "$SRCROOT"
-  install -d "$pkgdir/usr/share/doc/docbook-xml"
-  printf 'Placeholder package for docbook-xml\n' >"$pkgdir/usr/share/doc/docbook-xml/README"
+  cd "$SRCROOT/docbook-xml-4.5"
+
+  local dest="$pkgdir/usr/share/xml/docbook/xml-dtd-4.5"
+  install -d "$dest" "$pkgdir/etc/xml"
+
+  install -m644 ChangeLog README docbook.cat catalog.xml \
+    calstblx.dtd dbcentx.mod dbgenent.mod dbhierx.mod dbnotnx.mod \
+    dbpoolx.mod docbookx.dtd htmltblx.mod soextblx.dtd "$dest"
+
+  xmlcatalog --create "$pkgdir/etc/xml/catalog"
+  xmlcatalog --noout --add "delegatePublic" "-//OASIS//DTD DocBook XML V4.5//EN" \
+    "file:///usr/share/xml/docbook/xml-dtd-4.5/catalog.xml" "$pkgdir/etc/xml/catalog"
+  xmlcatalog --noout --add "delegateSystem" "http://www.oasis-open.org/docbook/xml/4.5/" \
+    "file:///usr/share/xml/docbook/xml-dtd-4.5/catalog.xml" "$pkgdir/etc/xml/catalog"
 }
