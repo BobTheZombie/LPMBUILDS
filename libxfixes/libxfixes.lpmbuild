@@ -1,15 +1,15 @@
 # LPM build script for libxfixes
 NAME="libxfixes"
-VERSION="1.0.0"
+VERSION="6.0.1"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Placeholder package for libxfixes dependency"
-URL="https://example.com/libxfixes"
-LICENSE=""
-SOURCE=()
-SHA256SUMS=()
+SUMMARY="X Fixes extension client library"
+URL="https://www.x.org"
+LICENSE="MIT"
+SOURCE=("https://www.x.org/releases/individual/lib/libXfixes-${VERSION}.tar.xz")
+SHA256SUMS=("b695f93cd2499421ab02d22744458e650ccc88c1d4c8130d60200213abc02d58")
 PATCHES=()
-REQUIRES=()
+REQUIRES=("libx11" "libxext" "xorgproto")
 PROVIDES=("libxfixes")
 CONFLICTS=()
 OBSOLETES=()
@@ -19,18 +19,18 @@ SUGGESTS=()
 prepare() {
   set -euxo pipefail
   cd "$SRCROOT"
-  :
+  tar -xf "${SOURCE[0]##*/}"
 }
 
 build() {
   set -euxo pipefail
-  cd "$SRCROOT"
-  :
+  cd "$SRCROOT/libXfixes-${VERSION}"
+  ./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var
+  make
 }
 
 staging() {
   set -euxo pipefail
-  cd "$SRCROOT"
-  install -d "$pkgdir/usr/share/doc/libxfixes"
-  printf 'Placeholder package for libxfixes\n' >"$pkgdir/usr/share/doc/libxfixes/README"
+  cd "$SRCROOT/libXfixes-${VERSION}"
+  make DESTDIR="$pkgdir" install
 }
