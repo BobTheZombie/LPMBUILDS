@@ -1,0 +1,34 @@
+# LPM build script for xorg-libs
+NAME="xorg-libs"
+VERSION="1.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Meta package for core Xorg libraries"
+URL="https://www.x.org/"
+LICENSE=""
+SOURCE=()
+SHA256SUMS=()
+PATCHES=()
+BUILD_REQUIRES=(
+  "xorgproto" "libx11" "libxau" "libxdmcp" "libxcb" "libxext" "libxfixes"
+  "libxrender" "libxrandr" "libxcursor" "libxi" "libxinerama" "libxdamage"
+  "libxcomposite" "libxres" "libxxf86vm" "libxpm" "libxscrnsaver" "libxmu"
+  "libsm" "libice" "libxt" "libxtst" "libxfont2" "libxkbfile" "libxkbcommon"
+)
+REQUIRES=(
+  "xorgproto" "libx11" "libxau" "libxdmcp" "libxcb" "libxext" "libxfixes"
+  "libxrender" "libxrandr" "libxcursor" "libxi" "libxinerama" "libxdamage"
+  "libxcomposite" "libxres" "libxxf86vm" "libxpm" "libxscrnsaver" "libxmu"
+  "libsm" "libice" "libxt" "libxtst" "libxfont2" "libxkbfile" "libxkbcommon"
+)
+PROVIDES=("xorg-libs")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() { set -euxo pipefail; cd "$SRCROOT"; :; }
+
+build() { set -euxo pipefail; cd "$SRCROOT"; :; }
+
+staging() { set -euxo pipefail; cd "$SRCROOT"; :; }

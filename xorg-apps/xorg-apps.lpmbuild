@@ -1,0 +1,24 @@
+# LPM build script for xorg-apps
+NAME="xorg-apps"
+VERSION="1.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Meta package for essential Xorg userland applications"
+URL="https://www.x.org/"
+LICENSE=""
+SOURCE=()
+SHA256SUMS=()
+PATCHES=()
+BUILD_REQUIRES=("xinit" "xkbcomp")
+REQUIRES=("xinit" "xkbcomp")
+PROVIDES=("xorg-apps")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() { set -euxo pipefail; cd "$SRCROOT"; :; }
+
+build() { set -euxo pipefail; cd "$SRCROOT"; :; }
+
+staging() { set -euxo pipefail; cd "$SRCROOT"; :; }

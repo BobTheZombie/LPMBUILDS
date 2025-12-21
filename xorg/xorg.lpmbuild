@@ -1,0 +1,24 @@
+# LPM build script for xorg
+NAME="xorg"
+VERSION="1.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Meta package for a complete Xorg stack"
+URL="https://www.x.org/"
+LICENSE=""
+SOURCE=()
+SHA256SUMS=()
+PATCHES=()
+BUILD_REQUIRES=("xorg-server" "xorg-libs" "xorg-apps")
+REQUIRES=("xorg-server" "xorg-libs" "xorg-apps")
+PROVIDES=("xorg")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=("mesa")
+SUGGESTS=()
+
+prepare() { set -euxo pipefail; cd "$SRCROOT"; :; }
+
+build() { set -euxo pipefail; cd "$SRCROOT"; :; }
+
+staging() { set -euxo pipefail; cd "$SRCROOT"; :; }
