@@ -1,34 +1,38 @@
-# LPM build script for curl
 NAME="curl"
-VERSION="8.10.0"
+VERSION="8.9.1"
 RELEASE="1"
-ARCH="${ARCH:-x86_64}"
-SUMMARY="URL retrieval utility"
+ARCH="x86_64"
+SUMMARY="Command-line tool for transferring data with URLs"
 URL="https://curl.se/"
-LICENSE=""
-SOURCE=()
-REQUIRES=("glibc" "openssl" "zlib" "zstd" "ca-certificates")
-PROVIDES=("curl")
+SOURCE=("https://curl.se/download/curl-${VERSION}.tar.xz")
+LICENSE=("curl")
+
+REQUIRES=("glibc" "openssl" "zlib" "nghttp2" "libidn2" "ca-certificates")
+PROVIDES=("curl" "libcurl")
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+    cd "$SRCROOT/curl-${VERSION}"
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+    set -euxo pipefail
+    cd "$SRCROOT/curl-${VERSION}"
+    ./configure \
+        --prefix=/usr \
+        --libdir=/usr/lib \
+        --with-ssl \
+        --enable-ipv6 \
+        --enable-unix-sockets \
+        --with-nghttp2
+    make -j"$(nproc)"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euxo pipefail
+    cd "$SRCROOT/curl-${VERSION}"
+    make DESTDIR="$pkgdir" install
 }
+

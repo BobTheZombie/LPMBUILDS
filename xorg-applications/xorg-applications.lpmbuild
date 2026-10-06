@@ -1,0 +1,95 @@
+#!/bin/bash
+# Meta package for the X.Org Applications suite
+# This package installs no binaries itself; it just depends on all X.Org apps.
+
+NAME="xorg-applications"
+VERSION="1.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Meta package for the X.Org Applications suite"
+URL="https://www.x.org/"
+LICENSE="MIT"
+
+# All the applications we packaged as separate lpmbuilds.
+# Extend this list if you add more Xorg apps later (xconsole, xload, xsm, etc.).
+REQUIRES=(
+  "xclock"
+  "xeyes"
+  "xev"
+  "xinput"
+  "xkbcomp"
+  "xkbutils"
+  "xkbevd"
+  "xmodmap"
+  "xprop"
+  "xrandr"
+  "xrdb"
+  "xset"
+  "xsetroot"
+  "xwininfo"
+
+  "xbitmaps"
+  "iceauth"
+  "mkfontscale"
+  "sessreg"
+  "setxkbmap"
+  "smproxy"
+  "xauth"
+  "xcmsdb"
+  "xcursorgen"
+  "xdpyinfo"
+  "xdriinfo"
+  "xgamma"
+  "xhost"
+  "xkill"
+  "xlsatoms"
+  "xlsclients"
+  "xmessage"
+  "xpr"
+  "xrefresh"
+  "xvinfo"
+  "xwd"
+  "xwud"
+)
+
+PROVIDES=(
+  "xorg-applications"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() {
+    # Meta package: nothing to prepare
+    true
+}
+
+build() {
+    # Meta package: nothing to build
+    true
+}
+
+check() {
+    # Meta package: nothing to test
+    true
+}
+
+staging() {
+    # Drop a small README so the package isn’t completely empty
+    mkdir -p "$pkgdir/usr/share/doc/$NAME"
+    cat > "$pkgdir/usr/share/doc/$NAME/README" << 'EOF'
+xorg-applications meta package
+# Package definitions
+
+This package does not contain binaries. It simply depends on the full
+X.Org applications suite so installing xorg-applications will pull in:
+
+  - xclock, xeyes, xev, xinput, xkbcomp, xkbutils, xkbevd, xmodmap
+  - xprop, xrandr, xrdb, xset, xsetroot, xwininfo
+  - xbitmaps, iceauth, mkfontscale, sessreg, setxkbmap, smproxy, xauth
+  - xcmsdb, xcursorgen, xdpyinfo, xdriinfo, xgamma, xhost, xkill
+  - xlsatoms, xlsclients, xmessage, xpr, xrefresh, xvinfo, xwd, xwud
+
+Extend REQUIRES in this lpmbuild if you add more Xorg apps.
+EOF
+}

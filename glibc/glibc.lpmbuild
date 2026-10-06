@@ -1,41 +1,51 @@
-# LPM build script for glibc
+#!/bin/bash
+# LFS 13.1-systemd baseline; see docs/lfs-13.1.md for patch provenance.
 NAME="glibc"
-VERSION="2.40"
+VERSION="2.44"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="GNU C Library"
-URL="https://www.gnu.org/software/libc/"
-LICENSE=""
-SOURCE=()
-REQUIRES=("filesystem")
+URL="https://ftpmirror.gnu.org/glibc/glibc-2.44.tar.xz"
+LICENSE=("LGPL-2.1-or-later" "GPL-2.0-or-later")
+SOURCE=("https://ftpmirror.gnu.org/glibc/glibc-2.44.tar.xz" "glibc-fhs-1.patch" "glibc-2.44-upstream_fixes-1.patch")
+SHA256SUMS=("37f600f2bef3c5e8300147059568b2a2e40a7ad6ccc65ce942556d49429cc667" "643552db030e2f2d7ffde4f558e0f5f83d3fabf34a2e0e56ebdb49750ac27b0d" "500567ff0a22e295bfe3b55e9b397796f71a19f01e1ff7fb29c9189482ee1809")
+PATCHES=()
+REQUIRES=("linux-headers")
+BUILD_REQUIRES=("gcc" "make" "pkgconf" "binutils" "linux-headers" "gawk" "bison" "python" "texinfo")
 PROVIDES=("glibc")
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
+
+_srcdir="glibc-2.44"
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  mkdir -p build
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    patch --batch --forward -Np1 -i "$SRCROOT/glibc-fhs-1.patch"
+    patch --batch --forward -Np1 -i "$SRCROOT/glibc-2.44-upstream_fixes-1.patch"
+    # Prevent install-time execution against the build host.
+    sed -i '/test-installation/s@$(PERL)@echo not running@' Makefile
+    mkdir -p build
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  cd build
-  ../configure --prefix=/usr \
-  --libdir=/usr/lib \
-  --enable-kernel=3.2 \
-  --enable-stack-protector=strong \
-  --with-headers=/usr/include \
-  --enable-systemtap
-  make -j"$(nproc)"
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir/build"
+    ../configure --prefix=/usr --sbindir=/usr/bin --disable-werror --disable-nscd --enable-stack-protector=strong --enable-kernel=5.10 libc_cv_slibdir=/usr/lib
+    make -j"${JOBS:-$(nproc)}"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  cd build
-  make DESTDIR="$pkgdir" install
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir/build"
+    make DESTDIR="$pkgdir" install
+    install -dm755 "$pkgdir/etc/ld.so.conf.d" "$pkgdir/usr/lib/locale"
+    printf '/usr/local/lib\ninclude /etc/ld.so.conf.d/*.conf\n' > "$pkgdir/etc/ld.so.conf"
+    # Use the matching staged loader when generating the initial locale.
+    I18NPATH="$pkgdir/usr/share/i18n" ./elf/ld.so --library-path .:elf:locale:iconv:localedata \
+        ./locale/localedef --prefix="$pkgdir" --no-archive \
+        -i en_US -f UTF-8 en_US.UTF-8
+
+    rm -f "$pkgdir/usr/share/info/dir"
+    find "$pkgdir/usr/lib" -name "*.la" -delete 2>/dev/null || true
 }

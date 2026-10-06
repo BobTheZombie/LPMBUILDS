@@ -1,34 +1,40 @@
-# LPM build script for libcap
+#!/bin/bash
+# LFS 13.1-systemd baseline; see docs/lfs-13.1.md for patch provenance.
 NAME="libcap"
-VERSION="2.70"
+VERSION="2.78"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="POSIX capabilities library"
-URL="https://sites.google.com/site/fullycapable/"
-LICENSE="BSD-3-Clause"
-SOURCE=("https://www.kernel.org/pub/linux/libs/security/linux-privs/libcap2/libcap-${VERSION}.tar.xz")
+URL="https://www.kernel.org/pub/linux/libs/security/linux-privs/libcap2/libcap-2.78.tar.xz"
+LICENSE=("BSD-3-Clause" "GPL-2.0-only")
+SOURCE=("https://www.kernel.org/pub/linux/libs/security/linux-privs/libcap2/libcap-2.78.tar.xz")
+SHA256SUMS=("0d621e562fd932ccf67b9660fb018e468a683d7b827541df27813228c996bb11")
+PATCHES=()
 REQUIRES=("glibc")
+BUILD_REQUIRES=("gcc" "make" "pkgconf")
 PROVIDES=("libcap")
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
+
+_srcdir="libcap-2.78"
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  rm -rf "${NAME}-${VERSION}"
-  tar -xf "libcap-${VERSION}.tar.xz"
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    :
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT/${NAME}-${VERSION}"
-  make -j"$(nproc)" prefix=/usr lib=lib
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    make -j"${JOBS:-$(nproc)}" prefix=/usr lib=lib sbin=bin
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT/${NAME}-${VERSION}"
-  make DESTDIR="$pkgdir" prefix=/usr lib=lib RAISE_SETFCAP=no install
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    make DESTDIR="$pkgdir" prefix=/usr lib=lib sbin=bin RAISE_SETFCAP=no install
+
+    rm -f "$pkgdir/usr/share/info/dir"
+    find "$pkgdir/usr/lib" -name "*.la" -delete 2>/dev/null || true
 }

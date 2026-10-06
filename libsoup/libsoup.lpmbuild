@@ -1,0 +1,93 @@
+#!/bin/bash
+# LPM build script for libsoup (Soup 3)
+# HTTP client/server library for GNOME
+
+NAME="libsoup"
+VERSION="3.6.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="HTTP client/server library for GNOME (Soup 3)"
+URL="https://gitlab.gnome.org/GNOME/libsoup"
+LICENSE=("LGPL-2.1-or-later")
+
+SOURCE=(
+  "https://download.gnome.org/sources/libsoup/${VERSION%.*}/libsoup-${VERSION}.tar.xz"
+)
+
+REQUIRES=(
+  "glibc"
+  "glib2"
+  "libxml2"
+  "sqlite"
+  "openssl"
+  "zlib"
+  "brotli"
+  "nghttp2"
+  "vala"
+
+  # Build deps
+  "meson"
+  "ninja"
+  "pkg-config"
+  "gcc"
+)
+
+PROVIDES=(
+  "libsoup"
+  "libsoup-3.0"
+  "libsoup-3.0.so"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="libsoup-${VERSION}"
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    meson setup build \
+        --prefix=/usr \
+        --libdir=lib \
+        --buildtype=release \
+        -Dintrospection=enabled \
+        -Dsysprof=disabled \
+        -Dvapi=disabled \
+        -Dtests=false 
+
+    meson compile -C build
+}
+
+check() {
+    true
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    DESTDIR="$pkgdir" meson install -C build
+
+    # License
+    if [ -f COPYING ]; then
+        install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+    fi
+
+    # Strip ELF binaries/libs
+    if command -v strip >/dev/null 2>&1; then
+        find "$pkgdir/usr" -type f -exec sh -c '
+            case "$(file -b "$1")" in
+              *ELF*shared\ object*|*ELF*executable*)
+                  strip --strip-unneeded "$1" 2>/dev/null || true
+              ;;
+            esac
+        ' _ {} \;
+    fi
+}
+

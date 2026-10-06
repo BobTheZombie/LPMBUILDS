@@ -1,0 +1,10 @@
+NAME="FoundryOS"
+PRETTY_NAME="FoundryOS Linux"
+ID=foundryos 
+ID_LIKE=linux
+BUILD_ID=rolling
+ANSI_COLOR="1;31"
+HOME_URL="https://gitlab.com/lpm-org/packages"
+SUPPORT_URL="https://gitlab.com/lpm-org/packages"
+BUG_REPORT_URL="https://gitlab.com/lpm-org/packages/-/issues"
+LOGO=foundryos

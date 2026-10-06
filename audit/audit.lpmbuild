@@ -1,0 +1,106 @@
+#!/bin/bash
+# LPM build script for audit userspace (auditd + libaudit)
+
+NAME="audit"
+VERSION="4.1.2"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="User-space utilities and libraries for the Linux Audit framework"
+URL="https://github.com/linux-audit/audit-userspace/"
+LICENSE=("LGPL-2.1-or-later" "GPL-2.0-or-later")
+
+# Use the release tarball with a predictable filename
+SOURCE=(
+  "https://github.com/linux-audit/audit-userspace/archive/refs/tags/v${VERSION}.tar.gz"
+)
+
+REQUIRES=(
+  "glibc"
+  "libcap-ng"
+  "systemd"
+)
+
+PROVIDES=(
+  "audit"
+  "auditd"
+  "libaudit"
+  "libaudit.so"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="audit-${VERSION}"
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT"
+
+    cd "$_srcdir"
+
+    # Only needed if you're on a Git snapshot; for release tarballs
+    # it's usually not required, but it's safe.
+    autoreconf -v --install
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    ./configure \
+        --prefix=/usr \
+        --sysconfdir=/etc \
+        --libdir=/usr/lib \
+        --libexecdir=/usr/lib/audit \
+        --sbindir=/usr/sbin \
+        --runstatedir=/run \
+        --enable-systemd=yes \
+        --with-libcap-ng=yes \
+        --with-python3=yes
+
+    make -j"$(nproc)"
+}
+
+check() {
+    # Full test suite is optional; skip for now
+    true
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    make DESTDIR="$pkgdir" install
+
+    # Runtime directories
+    install -vdm755 "$pkgdir/etc/audit/rules.d"
+    install -vdm755 "$pkgdir/etc/audisp"
+    install -vdm700 "$pkgdir/var/log/audit"
+
+    # Factory defaults snapshot (optional but nice)
+    install -vdm755 "$pkgdir/usr/share/factory"
+    cp -a "$pkgdir/etc" "$pkgdir/usr/share/factory/"
+
+    # tmpfiles integration if shipped
+    if [ -f "init.d/audit.tmpfiles" ]; then
+        install -vDm644 init.d/audit.tmpfiles \
+            "$pkgdir/usr/lib/tmpfiles.d/audit.conf"
+    fi
+
+    # License (COPYING name may vary; adjust if needed)
+    if [ -f COPYING ]; then
+        install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+    fi
+
+    # Strip ELF binaries / libs
+    if command -v strip >/dev/null 2>&1; then
+        find "$pkgdir/usr" -type f -exec sh -c '
+            case "$(file -b "$1")" in
+              *ELF*executable*|*ELF*shared\ object*)
+                strip --strip-unneeded "$1" 2>/dev/null || true
+              ;;
+            esac
+        ' _ {} \;
+    fi
+}
+

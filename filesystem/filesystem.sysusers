@@ -1,0 +1,37 @@
+# RyzenOS base system users and groups
+#
+# Fixed IDs are used for traditional Unix system accounts/groups.
+# Explicit UID:GID mappings prevent accidental primary-group mismatches.
+
+# Core system groups
+
+g root     0     -
+g bin      1     -
+g daemon   2     -
+g sys      3     -
+g adm      4     -
+g tty      5     -
+g disk     6     -
+g lp       7     -
+g mem      8     -
+g kmem     9     -
+g wheel    10    -
+g ftp      11    -
+g mail     12    -
+g log      19    -
+g audio    63    -
+g optical  93    -
+g floppy   94    -
+g storage  95    -
+g scanner  96    -
+g power    98    -
+g nobody   65534 -
+
+# Core system users
+
+u root   0:0           "Super User"         /root           /usr/bin/bash
+u bin    1:1           "Legacy bin user"    /               /usr/bin/nologin
+u daemon 2:2           "Legacy daemon user" /               /usr/bin/nologin
+u mail   8:12          "Mail user"          /var/spool/mail /usr/bin/nologin
+u ftp    14:11         "FTP user"           /srv/ftp        /usr/bin/nologin
+u nobody 65534:65534   "Nobody"             /               /usr/bin/nologin

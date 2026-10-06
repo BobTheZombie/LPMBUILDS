@@ -1,34 +1,46 @@
-# LPM build script for ncurses
+#!/bin/bash
+# LFS 13.1-systemd baseline; see docs/lfs-13.1.md for patch provenance.
 NAME="ncurses"
-VERSION="6.5"
+VERSION="6.6"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="Text-based UI library"
-URL="https://invisible-island.net/ncurses/"
-LICENSE=""
-SOURCE=()
+URL="https://invisible-mirror.net/archives/ncurses/ncurses-6.6.tar.gz"
+LICENSE=("MIT")
+SOURCE=("https://invisible-mirror.net/archives/ncurses/ncurses-6.6.tar.gz")
+SHA256SUMS=("355b4cbbed880b0381a04c46617b7656e362585d52e9cf84a67e2009b749ff11")
+PATCHES=()
 REQUIRES=("glibc")
+BUILD_REQUIRES=("gcc" "make" "pkgconf")
 PROVIDES=("ncurses")
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
+
+_srcdir="ncurses-6.6"
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    :
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    ./configure --prefix=/usr --mandir=/usr/share/man --with-shared --without-debug --without-normal --with-cxx-shared --enable-widec --enable-pc-files --with-pkg-config-libdir=/usr/lib/pkgconfig
+    make -j"${JOBS:-$(nproc)}"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    make DESTDIR="$pkgdir" install
+    sed -i 's/^#if.*XOPEN.*$/#if 1/' "$pkgdir/usr/include/curses.h"
+    for lib in ncurses form panel menu; do
+        ln -sf "lib${lib}w.so" "$pkgdir/usr/lib/lib${lib}.so"
+        ln -sf "${lib}w.pc" "$pkgdir/usr/lib/pkgconfig/${lib}.pc"
+    done
+    ln -sf libncursesw.so "$pkgdir/usr/lib/libcurses.so"
+    rm -f "$pkgdir/usr/share/info/dir"
+    find "$pkgdir/usr/lib" -name "*.la" -delete 2>/dev/null || true
 }

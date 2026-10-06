@@ -1,0 +1,55 @@
+#!/bin/bash
+# LPM build script for font-adobe-100dpi
+
+NAME="font-adobe-100dpi"
+VERSION="1.0.4"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Adobe 100dpi bitmap fonts for X.Org"
+URL="https://www.x.org/"
+LICENSE="MIT"
+
+SOURCE=(
+  "https://www.x.org/releases/individual/font/font-adobe-100dpi-${VERSION}.tar.xz"
+)
+
+REQUIRES=(
+  "glibc"
+  "font-util"
+  "encodings"
+)
+
+PROVIDES=("font-adobe-100dpi")
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="font-adobe-100dpi-${VERSION}"
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT"
+    tar xf "font-adobe-100dpi-${VERSION}.tar.xz"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    ./configure --prefix=/usr
+    make -j"$(nproc)"
+}
+
+check() {
+    true
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    DESTDIR="$pkgdir" make install
+
+    if [ -f COPYING ]; then
+        install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+    fi
+}

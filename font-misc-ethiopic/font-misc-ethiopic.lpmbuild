@@ -1,0 +1,55 @@
+#!/bin/bash
+# LPM build script for font-misc-ethiopic
+
+NAME="font-misc-ethiopic"
+VERSION="1.0.5"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Miscellaneous Ethiopic fonts for X.Org"
+URL="https://www.x.org/"
+LICENSE="MIT"
+
+SOURCE=(
+  "https://www.x.org/releases/individual/font/font-misc-ethiopic-${VERSION}.tar.xz"
+)
+
+REQUIRES=(
+  "glibc"
+  "font-util"
+  "encodings"
+)
+
+PROVIDES=("font-misc-ethiopic")
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="font-misc-ethiopic-${VERSION}"
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT"
+    tar xf "font-misc-ethiopic-${VERSION}.tar.xz"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    ./configure --prefix=/usr
+    make -j"$(nproc)"
+}
+
+check() {
+    true
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    DESTDIR="$pkgdir" make install
+
+    if [ -f COPYING ]; then
+        install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+    fi
+}

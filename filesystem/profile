@@ -1,0 +1,56 @@
+# /etc/profile - RyzenOS global shell profile
+
+# PATH helper functions
+
+pathremove() {
+  local IFS=':'
+  local NEWPATH=""
+  local DIR
+  local REMOVE="$1"
+  local PATHVAR="${2:-PATH}"
+
+  for DIR in ${!PATHVAR}; do
+    if [ "$DIR" != "$REMOVE" ]; then
+      if [ -z "$NEWPATH" ]; then
+        NEWPATH="$DIR"
+      else
+        NEWPATH="$NEWPATH:$DIR"
+      fi
+    fi
+  done
+
+  export "$PATHVAR=$NEWPATH"
+}
+
+pathprepend() {
+  local DIR="$1"
+  local PATHVAR="${2:-PATH}"
+
+  [ -d "$DIR" ] || return 0
+
+  pathremove "$DIR" "$PATHVAR"
+  export "$PATHVAR=$DIR:${!PATHVAR}"
+}
+
+pathappend() {
+  local DIR="$1"
+  local PATHVAR="${2:-PATH}"
+
+  [ -d "$DIR" ] || return 0
+
+  pathremove "$DIR" "$PATHVAR"
+  export "$PATHVAR=${!PATHVAR}:$DIR"
+}
+
+# Base PATH
+export PATH="/usr/local/bin:/usr/bin"
+
+# Source profile.d snippets
+if [ -d /etc/profile.d ]; then
+  for profile_script in /etc/profile.d/*.sh; do
+    [ -r "$profile_script" ] && . "$profile_script"
+  done
+  unset profile_script
+fi
+
+umask 022

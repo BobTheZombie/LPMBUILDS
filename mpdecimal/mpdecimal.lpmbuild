@@ -1,0 +1,42 @@
+#!/bin/bash
+# LFS 13.1-systemd baseline; see docs/lfs-13.1.md for patch provenance.
+NAME="mpdecimal"
+VERSION="4.0.1"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="mpdecimal"
+URL="https://www.bytereef.org/software/mpdecimal/releases/mpdecimal-4.0.1.tar.gz"
+LICENSE=("BSD-2-Clause")
+SOURCE=("https://www.bytereef.org/software/mpdecimal/releases/mpdecimal-4.0.1.tar.gz")
+SHA256SUMS=("96d33abb4bb0070c7be0fed4246cd38416188325f820468214471938545b1ac8")
+PATCHES=()
+REQUIRES=("glibc")
+BUILD_REQUIRES=("gcc" "make" "pkgconf")
+PROVIDES=("mpdecimal")
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="mpdecimal-4.0.1"
+
+prepare() {
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    :
+}
+
+build() {
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    ./configure --prefix=/usr --disable-static
+    make -j"${JOBS:-$(nproc)}"
+}
+
+staging() {
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    make DESTDIR="$pkgdir" install
+
+    rm -f "$pkgdir/usr/share/info/dir"
+    find "$pkgdir/usr/lib" -name "*.la" -delete 2>/dev/null || true
+}
+

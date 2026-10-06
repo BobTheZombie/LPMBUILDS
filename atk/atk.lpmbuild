@@ -1,0 +1,57 @@
+# LPM build script for atk
+NAME="atk"
+VERSION="2.38.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="GNOME Accessibility Toolkit (ATK) interfaces"
+URL="https://wiki.gnome.org/Projects/ATK"
+LICENSE="LGPL-2.1-or-later"
+
+SOURCE=(
+  "https://download.gnome.org/sources/atk/${VERSION%.*}/atk-${VERSION}.tar.xz"
+)
+
+# Fill this in once you run your hasher (sha256sum atk-*.tar.xz)
+CHECKSUMS=(
+  "PUT_SHA256_HERE"
+)
+
+# Runtime deps (minimal)
+REQUIRES=(
+  "glibc"
+  "glib2"
+)
+
+# Optional (enable introspection if you ship it)
+# REQUIRES+=("gobject-introspection")
+
+PROVIDES=("atk" "libatk-1.0.so")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$NAME-$VERSION"
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$NAME-$VERSION"
+
+  meson setup build --wipe \
+    --prefix=/usr \
+    --libdir=lib \
+    --buildtype=release \
+    -Dstrip=true \
+    -Dintrospection=true
+
+  ninja -C build
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$NAME-$VERSION"
+  DESTDIR="$pkgdir" ninja -C build install
+}

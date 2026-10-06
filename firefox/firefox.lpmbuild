@@ -1,0 +1,523 @@
+NAME="firefox"
+VERSION="156.0"
+RELEASE="2"
+ARCH="x86_64"
+
+SUMMARY="Fast, Private & Safe Web Browser"
+URL="https://www.firefox.com/"
+LICENSE=("MPL-2.0")
+
+SOURCE=(
+    "https://archive.mozilla.org/pub/firefox/releases/${VERSION}/source/firefox-${VERSION}.source.tar.xz"
+    "firefox-symbolic.svg"
+    "firefox.desktop"
+    "org.mozilla.firefox.metainfo.xml"
+)
+
+SHA256SUMS=(
+    "SKIP"
+    "SKIP"
+    "SKIP"
+    "SKIP"
+)
+
+PATCHES=()
+
+REQUIRES=(
+    "alsa-lib"
+    "at-spi2-core"
+    "bash"
+    "cairo"
+    "dbus"
+    "ffmpeg"
+    "fontconfig"
+    "freetype"
+    "gdk-pixbuf2"
+    "glib2"
+    "glibc"
+    "gtk3"
+    "hicolor-icon-theme"
+    "libgcc"
+    "libpulse"
+    "libstdc++"
+    "libX11"
+    "libxcb"
+    "libXcomposite"
+    "libXdamage"
+    "libXext"
+    "libXfixes"
+    "libXrandr"
+    "libxss"
+    "libXt"
+    "mime-types"
+    "mozilla-nspr"
+    "mozilla-nss"
+    "pango"
+    "ttf-font"
+)
+
+BUILD_REQUIRES=(
+    "cbindgen"
+    "clang"
+    "diffutils"
+    "imake"
+    "jack2"
+    "lld"
+    "llvm"
+    "mesa"
+    "nasm"
+    "nodejs"
+    "python"
+    "rust"
+    "unzip"
+    "wasi-compiler-rt"
+    "wasi-libc"
+    "wasi-libc++"
+    "wasi-libc++abi"
+    "yasm"
+    "zip"
+)
+
+PROVIDES=(
+    "firefox"
+    "web-browser"
+    "www-browser"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    WASI_SYSROOT="/usr/share/wasi-sysroot"
+    RESOURCE_DIR="$(clang --print-resource-dir)"
+
+    cd "$SRCDIR"
+
+    #
+    # Validate the native LLVM toolchain.
+    #
+
+    test "$(clang -dumpversion | cut -d. -f1)" = "20"
+    test "$(llvm-config --version | cut -d. -f1)" = "20"
+
+    #
+    # Validate the complete WASI toolchain required by Firefox RLBox.
+    #
+
+    test -d "$WASI_SYSROOT"
+
+    test -f \
+        "$WASI_SYSROOT/include/c++/v1/iostream"
+
+    test -f \
+        "$WASI_SYSROOT/include/c++/v1/vector"
+
+    test -f \
+        "$WASI_SYSROOT/lib/wasm32-wasip1/libc.a"
+
+    test -f \
+        "$WASI_SYSROOT/lib/wasm32-wasip1/libc++.a"
+
+    test -f \
+        "$WASI_SYSROOT/lib/wasm32-wasip1/libc++abi.a"
+
+    test -f \
+        "$RESOURCE_DIR/lib/wasm32-unknown-wasip1/libclang_rt.builtins.a"
+
+    #
+    # Verify that Clang can actually compile and link a WASI C++ program.
+    #
+
+    WASI_TESTDIR="$SRCROOT/firefox-wasi-test"
+
+    rm -rf "$WASI_TESTDIR"
+    mkdir -p "$WASI_TESTDIR"
+
+    cat > "$WASI_TESTDIR/test.cpp" <<'EOF'
+#include <vector>
+
+int main() {
+    std::vector<int> values{1, 2, 3};
+    return values.size() == 3 ? 0 : 1;
+}
+EOF
+
+    clang++ \
+        --target=wasm32-wasip1 \
+        --sysroot="$WASI_SYSROOT" \
+        -stdlib=libc++ \
+        -rtlib=compiler-rt \
+        -unwindlib=none \
+        -fno-exceptions \
+        "$WASI_TESTDIR/test.cpp" \
+        -lc++abi \
+        -o "$WASI_TESTDIR/test.wasm"
+
+    test -s "$WASI_TESTDIR/test.wasm"
+
+    rm -rf "$WASI_TESTDIR"
+
+    #
+    # Prepare an isolated Mozilla build-state directory.
+    #
+
+    mkdir -p "$SRCROOT/mozbuild"
+
+    #
+    # Clean previous build attempts.
+    #
+
+    rm -rf obj
+    rm -f .mozconfig
+    rm -f "$SRCROOT/mozconfig"
+
+    #
+    # Base Firefox configuration.
+    #
+    # PGO is intentionally disabled. Firefox is built once using ThinLTO
+    # rather than performing an instrumented build and second optimized build.
+    #
+
+    cat > "$SRCROOT/mozconfig" <<EOF
+ac_add_options --enable-application=browser
+mk_add_options MOZ_OBJDIR=${SRCROOT}/${NAME}-${VERSION}/obj
+
+ac_add_options --prefix=/usr
+
+# ----------------------------------------------------------
+# Release build
+# ----------------------------------------------------------
+
+ac_add_options --enable-release
+ac_add_options --enable-hardening
+ac_add_options --enable-optimize
+ac_add_options --enable-rust-simd
+
+# LLVM linker and ThinLTO
+ac_add_options --enable-linker=lld
+ac_add_options --enable-lto=thin
+ac_add_options --enable-install-strip
+
+# Firefox RLBox sandboxed libraries require the WASI sysroot.
+ac_add_options --with-wasi-sysroot=/usr/share/wasi-sysroot
+
+# ----------------------------------------------------------
+# Mozilla branding
+# ----------------------------------------------------------
+
+ac_add_options --enable-official-branding
+ac_add_options --enable-update-channel=release
+
+# LPM owns Firefox upgrades.
+ac_add_options --disable-updater
+
+# ----------------------------------------------------------
+# LPM Linux
+# ----------------------------------------------------------
+
+ac_add_options --with-distribution-id=org.lpm-linux
+ac_add_options --with-unsigned-addon-scopes=app,system
+ac_add_options --allow-addon-sideload
+
+export MOZILLA_OFFICIAL=1
+export MOZ_APP_REMOTINGNAME=firefox
+
+# ----------------------------------------------------------
+# System libraries
+# ----------------------------------------------------------
+
+ac_add_options --with-system-nspr
+ac_add_options --with-system-nss
+
+# ----------------------------------------------------------
+# Audio
+# ----------------------------------------------------------
+
+ac_add_options --enable-alsa
+ac_add_options --enable-jack
+
+# ----------------------------------------------------------
+# Firefox features
+# ----------------------------------------------------------
+
+ac_add_options --enable-crashreporter
+
+# Do not build Mozilla's test suite.
+ac_add_options --disable-tests
+EOF
+}
+
+build() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+
+    cd "$SRCDIR"
+
+    export MACH_BUILD_PYTHON_NATIVE_PACKAGE_SOURCE=pip
+    export MOZBUILD_STATE_PATH="$SRCROOT/mozbuild"
+    export MOZ_NOSPAM=1
+
+    #
+    # Reproducible build timestamp.
+    #
+
+    if [ -n "${SOURCE_DATE_EPOCH:-}" ]; then
+        export MOZ_BUILD_DATE="$(
+            date -u \
+                -d "@${SOURCE_DATE_EPOCH}" \
+                +%Y%m%d%H%M%S
+        )"
+    else
+        export MOZ_BUILD_DATE="$(
+            date -u +%Y%m%d%H%M%S
+        )"
+    fi
+
+    #
+    # Firefox currently requires _FORTIFY_SOURCE=2 rather than level 3.
+    #
+
+    CFLAGS="${CFLAGS:-}"
+    CXXFLAGS="${CXXFLAGS:-}"
+
+    CFLAGS="${CFLAGS//-D_FORTIFY_SOURCE=3/-D_FORTIFY_SOURCE=2}"
+    CXXFLAGS="${CXXFLAGS//-D_FORTIFY_SOURCE=3/-D_FORTIFY_SOURCE=2}"
+
+    #
+    # Do not force the native exception setting globally. Firefox's own
+    # build system controls exception support for individual components.
+    #
+
+    CFLAGS="${CFLAGS//-fexceptions/}"
+    CXXFLAGS="${CXXFLAGS//-fexceptions/}"
+
+    export CFLAGS
+    export CXXFLAGS
+
+    cp "$SRCROOT/mozconfig" .mozconfig
+
+    echo "=============================================="
+    echo " Firefox ${VERSION} - LPM Linux"
+    echo "=============================================="
+    echo " PGO:      disabled"
+    echo " LTO:      ThinLTO"
+    echo " Linker:   LLD"
+    echo " WASI:     wasm32-wasip1"
+    echo " Build:    single pass"
+    echo "=============================================="
+
+    ./mach build --priority normal
+}
+
+check() {
+    #
+    # Firefox's full test suite is inappropriate for a normal distribution
+    # package build.
+    #
+
+    true
+}
+
+staging() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+
+    cd "$SRCDIR"
+
+    #
+    # Install Firefox.
+    #
+
+    DESTDIR="$pkgdir" \
+        ./mach install
+
+    appdir="$pkgdir/usr/lib/firefox"
+
+    test -d "$appdir"
+    test -x "$appdir/firefox"
+    test -x "$appdir/firefox-bin"
+
+    #
+    # firefox-bin must remain Mozilla's real executable. Replacing it with
+    # a link to /usr/bin/firefox would create an infinite launcher loop.
+    #
+
+    test ! -L "$appdir/firefox-bin"
+
+    touch "$appdir/is-packaged-app"
+
+    #
+    # Distribution preferences.
+    #
+
+    install -Dvm644 /dev/stdin \
+        "$appdir/browser/defaults/preferences/vendor.js" <<'EOF'
+// Use the LANG environment variable to choose the locale.
+pref("intl.locale.requested", "");
+
+// Use system-provided dictionaries.
+pref("spellchecker.dictionary_path", "/usr/share/hunspell");
+
+// Do not prompt for the default browser.
+pref("browser.shell.checkDefaultBrowser", false);
+
+// Do not disable distribution extensions.
+pref("extensions.autoDisableScopes", 11);
+
+// Enable GNOME/Budgie Shell search integration.
+pref("browser.gnome-search-provider.enabled", true);
+EOF
+
+    #
+    # LPM Linux distribution metadata.
+    #
+
+    install -Dvm644 /dev/stdin \
+        "$appdir/distribution/distribution.ini" <<EOF
+[Global]
+id=lpm-linux
+version=1.0
+about=Mozilla Firefox for LPM Linux
+
+[Preferences]
+app.distributor=lpm-linux
+app.distributor.channel=firefox
+app.partner.lpm-linux=lpm-linux
+EOF
+
+    #
+    # Firefox icons.
+    #
+
+    theme="official"
+
+    for i in 16 22 24 32 48 64 128 256; do
+        icon="browser/branding/${theme}/default${i}.png"
+
+        if [ -f "$icon" ]; then
+            install -Dvm644 \
+                "$icon" \
+                "$pkgdir/usr/share/icons/hicolor/${i}x${i}/apps/firefox.png"
+        fi
+    done
+
+    if [ -f \
+        "browser/branding/${theme}/content/about-logo.png" ]; then
+        install -Dvm644 \
+            "browser/branding/${theme}/content/about-logo.png" \
+            "$pkgdir/usr/share/icons/hicolor/192x192/apps/firefox.png"
+    fi
+
+    if [ -f \
+        "browser/branding/${theme}/content/about-logo@2x.png" ]; then
+        install -Dvm644 \
+            "browser/branding/${theme}/content/about-logo@2x.png" \
+            "$pkgdir/usr/share/icons/hicolor/384x384/apps/firefox.png"
+    fi
+
+    if [ -f \
+        "browser/branding/${theme}/content/about-logo.svg" ]; then
+        install -Dvm644 \
+            "browser/branding/${theme}/content/about-logo.svg" \
+            "$pkgdir/usr/share/icons/hicolor/scalable/apps/firefox.svg"
+    fi
+
+    #
+    # Symbolic icon.
+    #
+
+    if [ -f "$SRCROOT/firefox-symbolic.svg" ]; then
+        install -Dvm644 \
+            "$SRCROOT/firefox-symbolic.svg" \
+            "$pkgdir/usr/share/icons/hicolor/symbolic/apps/firefox-symbolic.svg"
+    fi
+
+    #
+    # Desktop file.
+    #
+
+    install -Dvm644 \
+        "$SRCROOT/firefox.desktop" \
+        "$pkgdir/usr/share/applications/firefox.desktop"
+
+    #
+    # AppStream metadata.
+    #
+
+    if [ -f "$SRCROOT/org.mozilla.firefox.metainfo.xml" ]; then
+        install -Dvm644 \
+            "$SRCROOT/org.mozilla.firefox.metainfo.xml" \
+            "$pkgdir/usr/share/metainfo/org.mozilla.firefox.metainfo.xml"
+    fi
+
+    #
+    # Public Firefox launcher.
+    #
+
+    install -Dvm755 /dev/stdin \
+        "$pkgdir/usr/bin/firefox" <<'EOF'
+#!/bin/sh
+exec /usr/lib/firefox/firefox "$@"
+EOF
+
+    #
+    # System certificate store.
+    #
+    # When Firefox installs a private libnss3, replace only libnssckbi with
+    # the system trust module. With --with-system-nss this block will
+    # normally not be needed.
+    #
+
+    if [ -e "$appdir/libnss3.so" ]; then
+        rm -f "$appdir/libnssckbi.so"
+
+        ln -s ../libnssckbi.so \
+            "$appdir/libnssckbi.so"
+    fi
+
+    #
+    # GNOME/Budgie search provider.
+    #
+
+    install -Dvm644 /dev/stdin \
+        "$pkgdir/usr/share/gnome-shell/search-providers/firefox.search-provider.ini" <<'EOF'
+[Shell Search Provider]
+DesktopId=firefox.desktop
+BusName=org.mozilla.firefox.SearchProvider
+ObjectPath=/org/mozilla/firefox/SearchProvider
+Version=2
+EOF
+
+    #
+    # Final package sanity checks.
+    #
+
+    test -x "$pkgdir/usr/bin/firefox"
+    test -x "$appdir/firefox"
+    test -x "$appdir/firefox-bin"
+    test ! -L "$appdir/firefox-bin"
+
+    test -f \
+        "$appdir/browser/defaults/preferences/vendor.js"
+
+    test -f \
+        "$appdir/distribution/distribution.ini"
+
+    test -f \
+        "$pkgdir/usr/share/applications/firefox.desktop"
+
+    test -f \
+        "$pkgdir/usr/share/gnome-shell/search-providers/firefox.search-provider.ini"
+
+    echo "=============================================="
+    echo " Firefox ${VERSION} staging complete"
+    echo " PGO:  disabled"
+    echo " LTO:  ThinLTO"
+    echo " WASI: wasm32-wasip1"
+    echo "=============================================="
+}

@@ -1,0 +1,36 @@
+NAME="fribidi"
+VERSION="1.0.13"
+RELEASE="1"
+ARCH="x86_64"
+SUMMARY="Free Implementation of the Unicode Bidirectional Algorithm"
+URL="https://github.com/fribidi/fribidi"
+SOURCE=("https://github.com/fribidi/fribidi/releases/download/v${VERSION}/fribidi-${VERSION}.tar.xz")
+LICENSE=("LGPL-2.1-or-later")
+
+REQUIRES=("glibc")
+PROVIDES=("fribidi" "libfribidi.so")
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/fribidi-${VERSION}"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/fribidi-${VERSION}"
+    meson setup build \
+        --prefix=/usr \
+        --libdir=lib \
+        -Ddocs=false \
+        -Dtests=false
+    ninja -C build -j"$(nproc)"
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/fribidi-${VERSION}"
+    DESTDIR="$pkgdir" ninja -C build install
+}
+

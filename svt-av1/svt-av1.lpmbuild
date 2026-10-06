@@ -1,0 +1,148 @@
+NAME="svt-av1"
+VERSION="3.1.2"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+
+SUMMARY="Scalable Video Technology for AV1 encoder"
+URL="https://gitlab.com/AOMediaCodec/SVT-AV1"
+LICENSE=("BSD-3-Clause")
+
+SOURCE=(
+    "https://gitlab.com/AOMediaCodec/SVT-AV1/-/archive/v${VERSION}/SVT-AV1-v${VERSION}.tar.gz"
+)
+
+SHA256SUMS=("SKIP")
+PATCHES=()
+
+REQUIRES=(
+    "glibc"
+    "libgcc"
+    "libstdc++"
+)
+
+BUILD_REQUIRES=(
+    "cmake"
+    "ninja"
+    "pkgconf"
+    "nasm"
+)
+
+PROVIDES=(
+    "svt-av1"
+    "libSvtAv1Enc"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    BUILDDIR="$SRCROOT/${NAME}-${VERSION}-build"
+
+    cd "$SRCDIR"
+
+    rm -rf "$BUILDDIR"
+}
+
+build() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    BUILDDIR="$SRCROOT/${NAME}-${VERSION}-build"
+
+    cmake \
+        -S "$SRCDIR" \
+        -B "$BUILDDIR" \
+        -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+        -DBUILD_SHARED_LIBS=ON \
+        -DBUILD_TESTING=OFF \
+        -DBUILD_TESTS=OFF \
+        -DBUILD_APPS=ON
+
+    cmake \
+        --build "$BUILDDIR" \
+        -j"$(nproc)"
+}
+
+check() {
+    true
+}
+
+staging() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    BUILDDIR="$SRCROOT/${NAME}-${VERSION}-build"
+
+    DESTDIR="$pkgdir" \
+        cmake --install "$BUILDDIR"
+
+    #
+    # Shared encoder library
+    #
+
+    test -n "$(
+        find "$pkgdir/usr/lib" \
+            -name 'libSvtAv1Enc.so*' \
+            -print -quit
+    )"
+
+    #
+    # Public API
+    #
+
+    test -n "$(
+        find "$pkgdir/usr/include" \
+            -type f \
+            -name 'EbSvtAv1Enc.h' \
+            -print -quit
+    )"
+
+    #
+    # pkg-config metadata.
+    # This is what FFmpeg's --enable-libsvtav1 looks for.
+    #
+
+    test -f "$pkgdir/usr/lib/pkgconfig/SvtAv1Enc.pc"
+
+    #
+    # Encoder application
+    #
+
+    if [ -e "$pkgdir/usr/bin/SvtAv1EncApp" ]; then
+        test -x "$pkgdir/usr/bin/SvtAv1EncApp"
+    fi
+
+    #
+    # Shared-library package only.
+    #
+
+    find "$pkgdir/usr/lib" \
+        -type f \
+        \( -name 'libSvtAv1Enc.a' -o -name '*.la' \) \
+        -delete 2>/dev/null || true
+
+    #
+    # License
+    #
+
+    if [ -f "$SRCDIR/LICENSE-BSD2.md" ]; then
+        install -Dm644 \
+            "$SRCDIR/LICENSE-BSD2.md" \
+            "$pkgdir/usr/share/licenses/${NAME}/LICENSE-BSD2.md"
+    elif [ -f "$SRCDIR/LICENSE.md" ]; then
+        install -Dm644 \
+            "$SRCDIR/LICENSE.md" \
+            "$pkgdir/usr/share/licenses/${NAME}/LICENSE.md"
+    fi
+
+    echo "==> ${NAME} ${VERSION} staging complete"
+}

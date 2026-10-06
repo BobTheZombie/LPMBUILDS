@@ -1,31 +1,84 @@
+#!/bin/bash
 # LPM build script for libevdev
+# Wrapper library for evdev devices
+
 NAME="libevdev"
-VERSION="1.13.1"
+VERSION="1.13.2"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="Wrapper library for evdev devices"
 URL="https://www.freedesktop.org/wiki/Software/libevdev/"
 LICENSE="MIT"
-SOURCE=("https://www.freedesktop.org/software/libevdev/libevdev-${VERSION}.tar.xz")
-CHECKSUMS=("06a77bf2ac5c993305882bc1641017f5bec1592d6d1b64787bad492ab34f2f36")
-REQUIRES=("glibc")
-PROVIDES=("libevdev")
+
+SOURCE=(
+  "https://www.freedesktop.org/software/libevdev/libevdev-${VERSION}.tar.xz"
+)
+
+REQUIRES=(
+  "glibc"
+  "pkg-config"
+  "meson"
+  "ninja"
+)
+
+PROVIDES=(
+  "libevdev"
+  "libevdev.so"
+)
+
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
 
-prepare() { set -euxo pipefail; cd "$SRCROOT"; }
+_srcdir="libevdev-${VERSION}"
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT"
+
+    # Create build directory
+    mkdir -p "$_srcdir/build"
+}
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  meson setup build --prefix=/usr --buildtype=release
-  ninja -C build
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir/build"
+
+    : "${CC:=cc}"
+    : "${CXX:=c++}"
+
+    meson setup .. \
+        --prefix=/usr \
+        --libdir=lib \
+        --buildtype=release \
+        -Ddefault_library=shared \
+        -Dtests=disabled
+
+    ninja
+}
+
+check() {
+    # optional: ninja test
+    true
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  DESTDIR="$pkgdir" ninja -C build install
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir/build"
+
+    DESTDIR="$pkgdir" ninja install
+
+    if [ -f ../COPYING ]; then
+        install -Dm644 ../COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+    fi
+
+    if command -v strip >/dev/null 2>&1; then
+        find "$pkgdir/usr" -type f -exec sh -c '
+            case "$(file -b "$1")" in
+              *ELF*executable*|*ELF*shared\ object*)
+                  strip --strip-unneeded "$1" 2>/dev/null || true
+              ;;
+            esac
+        ' _ {} \;
+    fi
 }
+

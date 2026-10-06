@@ -1,34 +1,40 @@
-# LPM build script for zstd
+#!/bin/bash
+# LFS 13.1-systemd baseline; see docs/lfs-13.1.md for patch provenance.
 NAME="zstd"
-VERSION="1.5.6"
+VERSION="1.5.7"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="Zstandard compression"
-URL="https://facebook.github.io/zstd/"
-LICENSE=""
-SOURCE=()
-REQUIRES=("glibc" "zlib")
+URL="https://github.com/facebook/zstd/releases/download/v1.5.7/zstd-1.5.7.tar.gz"
+LICENSE=("GPL-3.0-or-later")
+SOURCE=("https://github.com/facebook/zstd/releases/download/v1.5.7/zstd-1.5.7.tar.gz")
+SHA256SUMS=("eb33e51f49a15e023950cd7825ca74a4a2b43db8354825ac24fc1b7ee09e6fa3")
+PATCHES=()
+REQUIRES=("glibc")
+BUILD_REQUIRES=("gcc" "make" "pkgconf")
 PROVIDES=("zstd")
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
+
+_srcdir="zstd-1.5.7"
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    :
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    make -j"${JOBS:-$(nproc)}" prefix=/usr
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    make DESTDIR="$pkgdir" prefix=/usr install
+
+    rm -f "$pkgdir/usr/share/info/dir"
+    find "$pkgdir/usr/lib" -name "*.la" -delete 2>/dev/null || true
 }

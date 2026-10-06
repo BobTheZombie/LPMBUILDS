@@ -1,0 +1,36 @@
+#!/bin/bash
+NAME="at-spi2-atk"
+VERSION="2.38.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="AT-SPI2 bridge for ATK accessibility"
+URL="https://download.gnome.org/sources/at-spi2-atk/2.38/at-spi2-atk-2.38.0.tar.xz"
+LICENSE=("LGPL-2.1-or-later")
+
+SOURCE=("https://download.gnome.org/sources/at-spi2-atk/2.38/at-spi2-atk-2.38.0.tar.xz")
+
+REQUIRES=("glibc" "glib2" "meson" "ninja" "pkg-config" "gcc")
+
+PROVIDES=("at-spi2-atk")
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="at-spi2-atk-${VERSION}"
+
+prepare() {
+ set -euxo pipefail
+ cd "$SRCROOT/$_srcdir"
+}
+
+build() {
+ set -euxo pipefail
+ cd "$SRCROOT/$_srcdir"
+ meson setup build --prefix=/usr --libdir=lib --buildtype=release
+ meson compile -C build
+}
+
+staging() {
+ set -euxo pipefail
+ cd "$SRCROOT/$_srcdir"
+ DESTDIR="$pkgdir" meson install -C build
+}

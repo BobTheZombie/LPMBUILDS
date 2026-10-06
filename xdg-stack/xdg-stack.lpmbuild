@@ -1,0 +1,52 @@
+#!/bin/bash
+# LPM meta package for core XDG portals and utilities
+
+NAME="xdg-stack"
+VERSION="1.0.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Meta package pulling in xdg-desktop-portal and XDG helper utilities"
+URL="https://www.freedesktop.org/wiki/Software/"
+
+SOURCE=()
+
+REQUIRES=(
+  "xdg-desktop-portal"
+  "xdg-desktop-portal-wlr"
+  "xdg-desktop-portal-gtk"
+  "xdg-desktop-portal-gnome"
+  "xdg-user-dirs"
+  "xdg-user-dirs-gtk"
+  "xdg-utils"
+)
+PROVIDES=("xdg-stack")
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() {
+    set -euxo pipefail
+    true
+}
+
+build() {
+    set -euxo pipefail
+    true
+}
+
+staging() {
+    set -euxo pipefail
+
+    mkdir -p "$pkgdir/usr/share/doc/$NAME"
+    cat > "$pkgdir/usr/share/doc/$NAME/README" <<'EOF'
+This is a meta package that installs:
+
+  - xdg-desktop-portal core service
+  - xdg-desktop-portal backends (wlr/gtk/gnome)
+  - xdg-user-dirs / xdg-user-dirs-gtk
+  - xdg-utils
+
+You typically only need one desktop portal backend (wlr, gtk, gnome)
+at runtime; adjust installed packages or system configuration to match
+your compositor / desktop environment.
+EOF
+}

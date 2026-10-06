@@ -1,34 +1,41 @@
-# LPM build script for gmp
+#!/bin/bash
+# LFS 13.1-systemd baseline; see docs/lfs-13.1.md for patch provenance.
 NAME="gmp"
 VERSION="6.3.0"
-RELEASE="1"
+RELEASE="2"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="GNU multiple precision arithmetic"
-URL="https://gmplib.org/"
-LICENSE=""
-SOURCE=()
+URL="https://ftpmirror.gnu.org/gmp/gmp-6.3.0.tar.xz"
+LICENSE=("GPL-3.0-or-later")
+SOURCE=("https://ftpmirror.gnu.org/gmp/gmp-6.3.0.tar.xz")
+SHA256SUMS=("a3c2b80201b89e68616f4ad30bc66aee4927c3ce50e33929ca819d5c43538898")
+PATCHES=()
 REQUIRES=("glibc")
+BUILD_REQUIRES=("gcc" "make" "pkgconf")
 PROVIDES=("gmp")
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
+
+_srcdir="gmp-6.3.0"
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    sed -i '/long long t1;/,+1s/()/(...)/' configure
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    ./configure --prefix=/usr --enable-cxx --disable-static
+    make -j"${JOBS:-$(nproc)}"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    make DESTDIR="$pkgdir" install
+
+    rm -f "$pkgdir/usr/share/info/dir"
+    find "$pkgdir/usr/lib" -name "*.la" -delete 2>/dev/null || true
 }

@@ -1,0 +1,32 @@
+NAME="which"
+VERSION="2.23"
+RELEASE="1"
+ARCH="x86_64"
+SUMMARY="Utility to locate executables in PATH"
+URL="https://ftp.gnu.org/gnu/which/"
+SOURCE=("https://ftp.wayne.edu/gnu/which/which-${VERSION}.tar.gz")
+LICENSE=("GPL-3.0-or-later")
+
+REQUIRES=("glibc")
+PROVIDES=("which")
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/which-${VERSION}"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/which-${VERSION}"
+    ./configure --prefix=/usr
+    make -j"$(nproc)"
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/which-${VERSION}"
+    make DESTDIR="$pkgdir" install
+}
+

@@ -1,0 +1,87 @@
+#!/bin/bash
+# LPM build script for libei/libeis
+
+NAME="libeis"
+VERSION="1.3.901"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Emulated input server and library"
+URL="https://gitlab.freedesktop.org/libinput/libei"
+LICENSE=("MIT")
+
+SOURCE=(
+  "https://gitlab.freedesktop.org/libinput/libei/-/archive/${VERSION}/libei-${VERSION}.tar.gz"
+)
+
+SHA256SUMS=("SKIP")
+
+REQUIRES=(
+  "glibc"
+  "libevdev"
+  "libudev"
+)
+
+BUILD_REQUIRES=(
+  "meson"
+  "ninja"
+  "pkgconf"
+  "python"
+  "check"
+  "doxygen"
+  "graphviz"
+  "libevdev"
+  "systemd"
+)
+
+PROVIDES=(
+  "libeis"
+  "libei"
+  "libeis.so"
+  "libei.so"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  rm -rf build
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  meson setup build \
+    --prefix=/usr \
+    --libdir=lib \
+    --buildtype=release \
+    -Ddefault_library=shared \
+    -Dtests=disabled
+
+  ninja -C build
+}
+
+check() {
+  true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  DESTDIR="$pkgdir" ninja -C build install
+
+  test -f "$pkgdir/usr/lib/libeis.so" ||   test -f "$pkgdir/usr/lib/libei.so"
+
+  for f in COPYING LICENSE; do
+    if [ -f "$f" ]; then
+      install -Dm644 "$f" \
+        "$pkgdir/usr/share/licenses/$NAME/$f"
+    fi
+  done
+}

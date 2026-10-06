@@ -1,0 +1,59 @@
+#!/bin/bash
+# Meta package for COSMIC Epoch desktop (git builds)
+
+NAME="cosmic-desktop"
+VERSION="1.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Meta package that installs the full COSMIC Epoch desktop from git"
+URL="https://github.com/pop-os/cosmic-epoch"
+LICENSE=("GPL-3.0-or-later")
+
+# No direct sources; this is a pure meta package
+SOURCE=()
+
+REQUIRES=(
+  "cosmic-applets"
+  "cosmic-applibrary"
+  "cosmic-bg"
+  "cosmic-comp"
+  "cosmic-edit"
+  "cosmic-files"
+  "cosmic-greeter"
+  "cosmic-icons"
+  "cosmic-idle"
+  "cosmic-initial-setup"
+  "cosmic-launcher"
+  "cosmic-notifications"
+  "cosmic-osd"
+  "cosmic-panel"
+  "cosmic-player"
+  "cosmic-randr"
+  "cosmic-screenshot"
+  "cosmic-session"
+  "cosmic-settings"
+  "cosmic-settings-daemon"
+  "cosmic-store"
+  "cosmic-term"
+  "cosmic-workspaces-epoch"
+  "pop-launcher"
+  "xdg-desktop-portal-cosmic"
+)
+
+PROVIDES=("cosmic-desktop")
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() {
+    true
+}
+
+build() {
+    true
+}
+
+staging() {
+    set -euxo pipefail
+    install -vdm755 "$pkgdir/usr/share/doc/$NAME"
+    echo "Meta package that pulls in COSMIC Epoch desktop components built from git." >"$pkgdir/usr/share/doc/$NAME/README"
+}

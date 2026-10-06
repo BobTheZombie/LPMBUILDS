@@ -1,0 +1,85 @@
+#!/bin/bash
+# LPM build script for gusb
+
+NAME="gusb"
+VERSION="0.4.9"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="GLib wrapper around libusb1"
+URL="https://github.com/hughsie/libgusb"
+LICENSE=("LGPL-2.1-or-later")
+
+SOURCE=(
+  "https://github.com/hughsie/libgusb/releases/download/${VERSION}/libgusb-${VERSION}.tar.xz"
+)
+
+SHA256SUMS=("SKIP")
+
+REQUIRES=(
+  "glibc"
+  "glib2"
+  "libusb"
+)
+
+BUILD_REQUIRES=(
+  "meson"
+  "ninja"
+  "pkgconf"
+  "glib2"
+  "libusb"
+  "gobject-introspection"
+  "vala"
+  "gtk-doc"
+)
+
+PROVIDES=(
+  "gusb"
+  "libgusb.so"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  rm -rf build
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  meson setup build \
+    --prefix=/usr \
+    --libdir=lib \
+    --buildtype=release \
+    -Ddefault_library=shared \
+    -Dintrospection=true \
+    -Dvapi=true \
+
+  meson compile -C build
+}
+
+check() {
+  true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  DESTDIR="$pkgdir" meson install -C build
+
+  test -f "$pkgdir/usr/lib/libgusb.so"
+
+  for f in COPYING LICENSE; do
+    if [ -f "$f" ]; then
+      install -Dm644 "$f" \
+        "$pkgdir/usr/share/licenses/$NAME/$f"
+    fi
+  done
+}

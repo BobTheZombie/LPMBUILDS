@@ -1,34 +1,41 @@
-# LPM build script for sqlite
+#!/bin/bash
+# LFS 13.1-systemd baseline; see docs/lfs-13.1.md for patch provenance.
 NAME="sqlite"
-VERSION="3.46.0"
+VERSION="3.53.4"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="SQLite embedded DB"
-URL="https://sqlite.org/"
-LICENSE=""
-SOURCE=()
+URL="https://sqlite.org/2026/sqlite-autoconf-3530400.tar.gz"
+LICENSE=("blessing")
+SOURCE=("https://sqlite.org/2026/sqlite-autoconf-3530400.tar.gz")
+SHA256SUMS=("0e9483900e92cd5de8fd48d16bf9200145a61f7fd5be542a5ac81d8a9516eb9c")
+PATCHES=()
 REQUIRES=("glibc" "readline" "zlib")
+BUILD_REQUIRES=("gcc" "make" "pkgconf")
 PROVIDES=("sqlite")
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
+
+_srcdir="sqlite-autoconf-3530400"
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    :
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    CPPFLAGS="${CPPFLAGS:-} -DSQLITE_ENABLE_COLUMN_METADATA=1 -DSQLITE_ENABLE_UNLOCK_NOTIFY=1 -DSQLITE_ENABLE_DBSTAT_VTAB=1 -DSQLITE_SECURE_DELETE=1" ./configure --prefix=/usr --disable-static --enable-fts4 --enable-fts5
+    make LDFLAGS.rpath="" -j"${JOBS:-$(nproc)}"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    make DESTDIR="$pkgdir" install
+
+    rm -f "$pkgdir/usr/share/info/dir"
+    find "$pkgdir/usr/lib" -name "*.la" -delete 2>/dev/null || true
 }

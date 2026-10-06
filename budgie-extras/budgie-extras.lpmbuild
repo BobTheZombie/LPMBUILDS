@@ -1,0 +1,60 @@
+#!/bin/bash
+# LPM build script for budgie-extras (optional but common with Budgie)
+# Notes:
+# - These are "git+" lpmbuilds (Arch-style) so you are not blocked by the lack of stable 10.10 tarball releases.
+# - If you want to pin to a specific tag/commit, change SOURCE to e.g.:
+#     SOURCE=("git+https://github.com/BuddiesOfBudgie/budgie-desktop.git#tag=10.10-preview.1")
+#   or:
+#     SOURCE=("git+https://github.com/BuddiesOfBudgie/budgie-desktop.git#commit=<sha>")
+# - If your LPM git fetcher uses a different fragment syntax, adjust accordingly.
+#
+
+NAME="budgie-extras"
+VERSION="10.10"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Additional applets and extras for Budgie desktop"
+URL="https://github.com/UbuntuBudgie/budgie-extras"
+LICENSE=("GPL-2.0-or-later")
+
+SOURCE=(
+  "git+https://github.com/UbuntuBudgie/budgie-extras.git"
+)
+
+REQUIRES=(
+  "glibc"
+  "glib2"
+  "gtk3"
+  "budgie-desktop"
+)
+
+PROVIDES=("budgie-extras")
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="budgie-extras"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+  mkdir -p build
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  meson setup build \
+    --prefix=/usr \
+    --libdir=lib \
+    --buildtype=release \
+    -Ddefault_library=shared
+
+  ninja -C build
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+  DESTDIR="$pkgdir" ninja -C build install
+}

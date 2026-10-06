@@ -1,6 +1,6 @@
 # LPM build script for libdrm
 NAME="libdrm"
-VERSION="2.4.122"
+VERSION="2.4.131"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="Userspace interface to kernel DRM services"
@@ -17,18 +17,18 @@ SUGGESTS=()
 
 prepare() {
   set -euxo pipefail
-  cd "$SRCROOT"
+  cd "$SRCROOT/$NAME-$VERSION"
 }
 
 build() {
   set -euxo pipefail
-  cd "$SRCROOT"
-  meson setup build --prefix=/usr --buildtype=release -Dudev=true -Dvalgrind=false -Dlibkms=true
+  cd "$SRCROOT/$NAME-$VERSION"
+  meson setup build --prefix=/usr --buildtype=release -Dudev=true -D valgrind=disabled
   ninja -C build
 }
 
 staging() {
   set -euxo pipefail
-  cd "$SRCROOT"
+  cd "$SRCROOT/$NAME-$VERSION"
   DESTDIR="$pkgdir" ninja -C build install
 }

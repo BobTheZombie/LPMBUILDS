@@ -1,34 +1,42 @@
-# LPM build script for tar
+#!/bin/bash
+# LFS 13.1-systemd baseline; see docs/lfs-13.1.md for patch provenance.
 NAME="tar"
 VERSION="1.35"
-RELEASE="1"
+RELEASE="2"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="GNU tar"
-URL="https://www.gnu.org/software/tar/"
-LICENSE=""
-SOURCE=()
-REQUIRES=("glibc" "xz")
+URL="https://ftpmirror.gnu.org/tar/tar-1.35.tar.xz"
+LICENSE=("GPL-3.0-or-later")
+SOURCE=("https://ftpmirror.gnu.org/tar/tar-1.35.tar.xz" "tar-1.35-acl_fix-1.patch")
+SHA256SUMS=("4d62ff37342ec7aed748535323930c7cf94acf71c3591882b26a7ea50f3edc16" "51cadccfcb2f29cfdb4ec18015360100aa167179a72ece040a6a8612aeec5081")
+PATCHES=()
+REQUIRES=("glibc")
+BUILD_REQUIRES=("gcc" "make" "pkgconf")
 PROVIDES=("tar")
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
+
+_srcdir="tar-1.35"
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    patch --batch --forward -Np1 -i "$SRCROOT/tar-1.35-acl_fix-1.patch"
+    :
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    ./configure --prefix=/usr
+    make -j"${JOBS:-$(nproc)}"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    make DESTDIR="$pkgdir" install
+
+    rm -f "$pkgdir/usr/share/info/dir"
+    find "$pkgdir/usr/lib" -name "*.la" -delete 2>/dev/null || true
 }

@@ -1,0 +1,41 @@
+#!/bin/bash
+# LFS 13.1-systemd baseline; see docs/lfs-13.1.md for patch provenance.
+NAME="python-flit-core"
+VERSION="4.0.2"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Flit-core"
+URL="https://pypi.org/packages/source/f/flit-core/flit_core-4.0.2.tar.gz"
+LICENSE=("BSD-3-Clause")
+SOURCE=("https://pypi.org/packages/source/f/flit-core/flit_core-4.0.2.tar.gz")
+SHA256SUMS=("b6929defd93884b584d7c87829e0e7b5c26ed6be17b0b873979019314aa841c8")
+PATCHES=()
+REQUIRES=("python")
+BUILD_REQUIRES=("python")
+PROVIDES=("python-flit-core")
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="flit_core-4.0.2"
+
+prepare() {
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    :
+}
+
+build() {
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    python3 -m flit_core.wheel
+}
+
+staging() {
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    python3 -m pip install --root="$pkgdir" --prefix=/usr --ignore-installed --no-deps --no-index --no-compile dist/*.whl
+
+    rm -f "$pkgdir/usr/share/info/dir"
+    find "$pkgdir/usr/lib" -name "*.la" -delete 2>/dev/null || true
+}
+

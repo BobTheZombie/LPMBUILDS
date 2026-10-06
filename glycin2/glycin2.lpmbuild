@@ -1,0 +1,83 @@
+#!/bin/bash
+# LPM build script for glycin-2
+# GNOME image decoding library (used by modern GTK software like Loupe)
+
+NAME="glycin2"
+VERSION="2.2.1"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Image decoding framework used by modern GNOME apps"
+URL="https://gitlab.gnome.org/GNOME/glycin"
+LICENSE=("LGPL-2.1-or-later")
+
+SOURCE=(
+  "https://download.gnome.org/sources/glycin/${VERSION%.*}/glycin-${VERSION}.tar.xz"
+)
+
+REQUIRES=(
+  "glibc"
+  "glib2"
+  "gtk4"
+  "gdk-pixbuf2"
+  "pango"
+  "cairo"
+
+  # Build deps
+  "meson"
+  "ninja"
+  "pkg-config"
+  "gcc"
+  "rust"
+  "cargo"
+)
+
+PROVIDES=(
+  "glycin-2"
+  "libglycin-2.so"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    meson setup build \
+        --prefix=/usr \
+        --libdir=lib \
+        --buildtype=release \
+        -Dtests=false
+
+    meson compile -C build
+}
+
+check() {
+    true
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    DESTDIR="$pkgdir" meson install -C build
+
+    # Strip ELF libs/binaries
+    if command -v strip >/dev/null 2>&1; then
+        find "$pkgdir/usr" -type f -exec sh -c '
+            case "$(file -b "$1")" in
+              *ELF*executable*|*ELF*shared\ object*)
+                  strip --strip-unneeded "$1" 2>/dev/null || true
+              ;;
+            esac
+        ' _ {} \;
+    fi
+}
+

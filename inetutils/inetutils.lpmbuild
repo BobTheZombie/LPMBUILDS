@@ -1,34 +1,41 @@
-# LPM build script for inetutils
+#!/bin/bash
+# LFS 13.1-systemd baseline; see docs/lfs-13.1.md for patch provenance.
 NAME="inetutils"
-VERSION="2.5"
+VERSION="2.8"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Basic networking utilities"
-URL="https://www.gnu.org/software/inetutils/"
-LICENSE=""
-SOURCE=()
-REQUIRES=("glibc")
+SUMMARY="Basic networking utilities (ping, ftp, telnet, etc.)"
+URL="https://ftpmirror.gnu.org/inetutils/inetutils-2.8.tar.gz"
+LICENSE=("GPL-3.0-or-later")
+SOURCE=("https://ftpmirror.gnu.org/inetutils/inetutils-2.8.tar.gz")
+SHA256SUMS=("57b3cf4f77555992881e5ba2a09a63b05aa2c56342a60ed4305b5f45938390b5")
+PATCHES=()
+REQUIRES=("glibc" "ncurses" "readline")
+BUILD_REQUIRES=("gcc" "make" "pkgconf")
 PROVIDES=("inetutils")
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
+
+_srcdir="inetutils-2.8"
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    :
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    ./configure --prefix=/usr --disable-logger --disable-whois --disable-talk --disable-servers --disable-ping --disable-ping6
+    make -j"${JOBS:-$(nproc)}"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    make DESTDIR="$pkgdir" install
+
+    rm -f "$pkgdir/usr/share/info/dir"
+    find "$pkgdir/usr/lib" -name "*.la" -delete 2>/dev/null || true
 }

@@ -1,0 +1,42 @@
+NAME="nettle"
+VERSION="3.10.1"
+RELEASE="1"
+ARCH="x86_64"
+SUMMARY="Low-level cryptographic library"
+URL="https://www.lysator.liu.se/~nisse/nettle/"
+SOURCE=("https://ftp.wayne.edu/gnu/nettle/nettle-${VERSION}.tar.gz")
+LICENSE=("GPL-2.0-or-later" "GPL-3.0-or-later")
+
+REQUIRES=("glibc" "gmp")
+PROVIDES=("nettle" "libnettle.so" "libhogweed.so")
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/nettle-${VERSION}"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/nettle-${VERSION}"
+    ./configure \
+        --prefix=/usr \
+        --libdir=/usr/lib \
+        --disable-static \
+        --enable-shared
+    make -j"$(nproc)"
+}
+
+check() {
+    set -euxo pipefail
+    cd "$SRCROOT/nettle-${VERSION}"
+    make check || true
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/nettle-${VERSION}"
+    make DESTDIR="$pkgdir" install
+}
+

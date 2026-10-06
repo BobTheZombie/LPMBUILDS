@@ -1,36 +1,41 @@
-# LPM build script for xz
+#!/bin/bash
+# LFS 13.1-systemd baseline; see docs/lfs-13.1.md for patch provenance.
 NAME="xz"
-VERSION="5.6.2"
+VERSION="5.8.3"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="XZ compression utilities"
-URL="https://tukaani.org/xz/"
+URL="https://github.com//tukaani-project/xz/releases/download/v5.8.3/xz-5.8.3.tar.xz"
 LICENSE="GPL-2.0-or-later AND LGPL-2.1-or-later AND 0BSD"
-SOURCE=("https://tukaani.org/xz/xz-${VERSION}.tar.xz")
-SHA256SUMS=("a9db3bb3d64e248a0fae963f8fb6ba851a26ba1822e504dc0efd18a80c626caf")
+SOURCE=("https://github.com//tukaani-project/xz/releases/download/v5.8.3/xz-5.8.3.tar.xz")
+SHA256SUMS=("fff1ffcf2b0da84d308a14de513a1aa23d4e9aa3464d17e64b9714bfdd0bbfb6")
+PATCHES=()
 REQUIRES=("glibc")
+BUILD_REQUIRES=("gcc" "make" "pkgconf")
 PROVIDES=("xz")
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
+
+_srcdir="xz-5.8.3"
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  rm -rf "${NAME}-${VERSION}"
-  tar -xf "xz-${VERSION}.tar.xz"
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    :
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT/${NAME}-${VERSION}"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    ./configure --prefix=/usr --disable-static
+    make -j"${JOBS:-$(nproc)}"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT/${NAME}-${VERSION}"
-  make DESTDIR="$pkgdir" install
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    make DESTDIR="$pkgdir" install
+
+    rm -f "$pkgdir/usr/share/info/dir"
+    find "$pkgdir/usr/lib" -name "*.la" -delete 2>/dev/null || true
 }

@@ -1,0 +1,58 @@
+#!/bin/bash
+
+NAME="geocode-glib"
+VERSION="3.26.4"
+RELEASE="4"
+ARCH="x86_64"
+SUMMARY="Helper library for geocoding services (common files)"
+URL="https://gitlab.gnome.org/GNOME/geocode-glib"
+LICENSE=("LGPL")
+
+SOURCE=(
+  "https://gitlab.gnome.org/GNOME/geocode-glib/-/archive/${VERSION}/geocode-glib-${VERSION}.tar.gz"
+)
+
+BUILD_REQUIRES=(
+  "git"
+  "gobject-introspection"
+  "gtk-doc"
+  "meson"
+)
+
+REQUIRES=(
+  "json-glib"
+)
+
+PROVIDES=("geocode-glib")
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/geocode-glib-${VERSION}"
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/geocode-glib-${VERSION}"
+
+  local meson_options=(
+    --prefix=/usr
+    --libdir=/usr/lib
+    -Denable-installed-tests=false
+    -Dsoup2=false
+    -Denable-gtk-doc=false
+  )
+
+  meson setup build "${meson_options[@]}"
+
+  meson compile -C build
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/geocode-glib-${VERSION}"
+  
+  meson install -C build --destdir "$pkgdir"
+}
+

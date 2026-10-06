@@ -1,0 +1,128 @@
+NAME="waf"
+VERSION="2.0.26"
+RELEASE="1"
+ARCH="any"
+
+SUMMARY="Python-based build system"
+URL="https://waf.io/"
+LICENSE=("BSD-3-Clause")
+
+SOURCE=(
+    "https://gitlab.com/ita1024/waf/-/archive/waf-${VERSION}/waf-waf-${VERSION}.tar.gz"
+)
+
+SHA256SUMS=("SKIP")
+PATCHES=()
+
+REQUIRES=(
+    "python"
+)
+
+BUILD_REQUIRES=(
+    "python"
+)
+
+PROVIDES=(
+    "waf"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+
+    cd "$SRCDIR"
+
+    test -f waf-light
+}
+
+build() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+
+    cd "$SRCDIR"
+
+    #
+    # Generate the standalone Waf executable.
+    #
+    python waf-light
+
+    test -f waf
+}
+
+check() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+
+    cd "$SRCDIR"
+
+    python waf --version
+}
+
+staging() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+
+    cd "$SRCDIR"
+
+    #
+    # Install the generated standalone Waf executable.
+    #
+
+    install -Dm755 \
+        waf \
+        "$pkgdir/usr/bin/waf"
+
+    #
+    # Documentation
+    #
+
+    install -dm755 \
+        "$pkgdir/usr/share/doc/${NAME}"
+
+    for doc in \
+        README.md \
+        ChangeLog \
+        DEVEL
+    do
+        if [ -f "$doc" ]; then
+            install -Dm644 \
+                "$doc" \
+                "$pkgdir/usr/share/doc/${NAME}/$doc"
+        fi
+    done
+
+    #
+    # License
+    #
+
+    install -dm755 \
+        "$pkgdir/usr/share/licenses/${NAME}"
+
+    for license in \
+        LICENSE \
+        COPYING
+    do
+        if [ -f "$license" ]; then
+            install -Dm644 \
+                "$license" \
+                "$pkgdir/usr/share/licenses/${NAME}/$license"
+        fi
+    done
+
+    #
+    # Sanity check.
+    #
+
+    test -x "$pkgdir/usr/bin/waf"
+
+    python "$pkgdir/usr/bin/waf" --version
+
+    echo "==> Waf ${VERSION} staging complete"
+}

@@ -1,34 +1,41 @@
-# LPM build script for libffi
+#!/bin/bash
+# LFS 13.1-systemd baseline; see docs/lfs-13.1.md for patch provenance.
 NAME="libffi"
-VERSION="3.4.6"
+VERSION="3.8.0"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="Foreign Function Interface library"
-URL="https://sourceware.org/libffi/"
-LICENSE=""
-SOURCE=()
+URL="https://github.com/libffi/libffi/releases/download/v3.8.0/libffi-3.8.0.tar.gz"
+LICENSE=("MIT")
+SOURCE=("https://github.com/libffi/libffi/releases/download/v3.8.0/libffi-3.8.0.tar.gz")
+SHA256SUMS=("7da3e2d9a171eb0a038f592ecad3ff2bb2550f3496d87b3b29ad0cf4430c0db4")
+PATCHES=()
 REQUIRES=("glibc")
+BUILD_REQUIRES=("gcc" "make" "pkgconf")
 PROVIDES=("libffi")
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
+
+_srcdir="libffi-3.8.0"
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    :
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    ./configure --prefix=/usr --disable-static
+    make -j"${JOBS:-$(nproc)}"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    make DESTDIR="$pkgdir" install
+
+    rm -f "$pkgdir/usr/share/info/dir"
+    find "$pkgdir/usr/lib" -name "*.la" -delete 2>/dev/null || true
 }

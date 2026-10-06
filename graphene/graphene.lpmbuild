@@ -1,0 +1,80 @@
+#!/bin/bash
+# LPM build script for graphene
+
+NAME="graphene"
+VERSION="1.10.8"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Thin layer of graphic data types"
+URL="https://ebassi.github.io/graphene/"
+LICENSE=("MIT")
+
+SOURCE=(
+  "https://download.gnome.org/sources/graphene/1.10/graphene-${VERSION}.tar.xz"
+)
+
+SHA256SUMS=("SKIP")
+
+REQUIRES=(
+  "glib2"
+)
+
+BUILD_REQUIRES=(
+  "meson"
+  "ninja"
+  "pkgconf"
+  "glib2"
+  "gobject-introspection"
+)
+
+PROVIDES=(
+  "graphene"
+  "libgraphene-1.0.so"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  rm -rf build
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  meson setup build \
+    --prefix=/usr \
+    --libdir=lib \
+    --buildtype=release \
+    -Ddefault_library=shared \
+    -Dgtk_doc=false \
+    -Dtests=false
+
+  ninja -C build
+}
+
+check() {
+  true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  DESTDIR="$pkgdir" ninja -C build install
+
+  test -f "$pkgdir/usr/lib/libgraphene-1.0.so"
+
+  for f in COPYING LICENSE; do
+    if [ -f "$f" ]; then
+      install -Dm644 "$f" \
+        "$pkgdir/usr/share/licenses/$NAME/$f"
+    fi
+  done
+}

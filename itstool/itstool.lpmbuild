@@ -1,0 +1,80 @@
+#!/bin/bash
+# LPM build script for itstool
+# XML/DocBook translation tool (used by gnome-desktop docs, yelp, etc.)
+
+NAME="itstool"
+VERSION="2.0.7"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Translate XML documents with PO files (ITS tool)"
+URL="https://github.com/itstool/itstool"
+LICENSE=("GPL-3.0-or-later")
+
+SOURCE=(
+  "git+https://github.com/itstool/itstool#tag=$VERSION"
+  "0001-Fix-the-crash-from-912099.patch"
+  "0002-Fix-insufficiently-quoted-regular-expressions.patch"
+  "0003-Fix-handling-of-untranslated-nodes.patch"
+
+)
+
+REQUIRES=(
+  "glibc"
+  "python"
+  "libxml2"
+  "libxslt"
+  "gettext"
+  "docbook-xml"
+  "docbook-xsl"
+)
+
+REQUIRES_PYTHON_DEPENDENCIES=(
+ #"lxml2"
+)
+
+PROVIDES=("itstool")
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() { 
+   set -euxo pipefail
+  cd "$SRCROOT/itstool"
+  # https://src.fedoraproject.org/rpms/itstool/blob/rawhide/f/itstool-2.0.5-fix-crash-wrong-encoding.patch
+  git apply -3 ../0001-Fix-the-crash-from-912099.patch
+
+  # Fix insufficiently quoted regular expressions / Python 3.12
+  ## https://github.com/itstool/itstool/pull/51
+  git apply -3 ../0002-Fix-insufficiently-quoted-regular-expressions.patch
+
+  # Fix handling of untranslated nodes
+  ## https://github.com/itstool/itstool/pull/47
+  git apply -3 ../0003-Fix-handling-of-untranslated-nodes.patch
+  
+  sed -i 's/re.sub(/re.sub(r/'         itstool.in &&
+  sed -i 's/re.compile(/re.compile(r/' itstool.in
+
+  autoreconf -fvi
+
+  }
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/itstool"
+
+  ./configure --prefix=/usr
+  make -j"$(nproc)"
+}
+
+check() { true; }
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/itstool"
+  make DESTDIR="$pkgdir" install
+
+  for f in COPYING LICENSE; do
+    if [ -f "$f" ]; then
+      install -Dm644 "$f" "$pkgdir/usr/share/licenses/$NAME/$f"
+    fi
+  done
+}

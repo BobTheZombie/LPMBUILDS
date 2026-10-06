@@ -1,0 +1,42 @@
+#!/bin/bash
+# LFS 13.1-systemd baseline; see docs/lfs-13.1.md for patch provenance.
+NAME="e2fsprogs"
+VERSION="1.47.4"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Ext2/3/4 filesystem utilities"
+URL="https://downloads.sourceforge.net/project/e2fsprogs/e2fsprogs/v1.47.4/e2fsprogs-1.47.4.tar.gz"
+LICENSE=("GPL-2.0-or-later")
+SOURCE=("https://downloads.sourceforge.net/project/e2fsprogs/e2fsprogs/v1.47.4/e2fsprogs-1.47.4.tar.gz")
+SHA256SUMS=("2cec05f39c20ee621f14926195664e66e6017190ac8e4bbdb16d86082e43c5da")
+PATCHES=()
+REQUIRES=("glibc" "util-linux-libs")
+BUILD_REQUIRES=("gcc" "make" "pkgconf")
+PROVIDES=("e2fsprogs" "libcom_err")
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="e2fsprogs-1.47.4"
+
+prepare() {
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    :
+    mkdir -p build
+}
+
+build() {
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir/build"
+    ../configure --prefix=/usr --sbindir=/usr/bin --sysconfdir=/etc --enable-elf-shlibs --disable-libblkid --disable-libuuid --disable-uuidd --disable-fsck
+    make -j"${JOBS:-$(nproc)}"
+}
+
+staging() {
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir/build"
+    make DESTDIR="$pkgdir" install
+
+    rm -f "$pkgdir/usr/share/info/dir"
+    find "$pkgdir/usr/lib" -name "*.la" -delete 2>/dev/null || true
+}

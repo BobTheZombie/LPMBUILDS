@@ -1,0 +1,41 @@
+#!/bin/bash
+# LFS 13.1-systemd baseline; see docs/lfs-13.1.md for patch provenance.
+NAME="libtool"
+VERSION="2.6.2"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="GNU libtool, a generic library support script"
+URL="https://ftpmirror.gnu.org/libtool/libtool-2.6.2.tar.xz"
+LICENSE=("GPL-2.0-or-later")
+SOURCE=("https://ftpmirror.gnu.org/libtool/libtool-2.6.2.tar.xz")
+SHA256SUMS=("2ef1067c16c97db930fd740cc9bc3d3ba9a583804ae5ac42cc3e8719e49e191e")
+PATCHES=()
+REQUIRES=("glibc" "bash" "gcc")
+BUILD_REQUIRES=("gcc" "make" "pkgconf")
+PROVIDES=("libtool")
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="libtool-2.6.2"
+
+prepare() {
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    :
+}
+
+build() {
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    ./configure --prefix=/usr --disable-static
+    make -j"${JOBS:-$(nproc)}"
+}
+
+staging() {
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    make DESTDIR="$pkgdir" install
+
+    rm -f "$pkgdir/usr/share/info/dir"
+    find "$pkgdir/usr/lib" -name "*.la" -delete 2>/dev/null || true
+}

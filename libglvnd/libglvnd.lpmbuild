@@ -1,0 +1,101 @@
+#!/bin/bash
+# LPM build script for libglvnd
+# Vendor-neutral OpenGL dispatch library
+
+NAME="libglvnd"
+VERSION="1.7.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Vendor-neutral OpenGL dispatch library"
+URL="https://gitlab.freedesktop.org/glvnd/libglvnd"
+LICENSE=("MIT")
+
+SOURCE=(
+  "https://gitlab.freedesktop.org/glvnd/libglvnd/-/archive/v${VERSION}/libglvnd-v${VERSION}.tar.gz"
+)
+
+REQUIRES=(
+  # Runtime
+  "glibc"
+  "libX11"
+  "libXext"
+  "libXau"
+  "libXdmcp"
+  "libxcb"
+
+  # Build
+  "pkg-config"
+  "gcc"
+  "meson"
+  "ninja"
+  "python"
+)
+
+PROVIDES=(
+  "libglvnd"
+  "libGL.so"
+  "libEGL.so"
+  "libGLESv1_CM.so"
+  "libGLESv2.so"
+  "libGLX.so"
+  "libOpenGL.so"
+)
+
+CONFLICTS=(
+  "mesa-libgl"
+)
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  meson setup build \
+    --prefix=/usr \
+    --libdir=lib \
+    --buildtype=release \
+    -Dx11=enabled \
+    -Degl=true \
+    -Dglx=enabled \
+    -Dgles1=true \
+    -Dgles2=true \
+    -Dheaders=true 
+
+  meson compile -C build
+}
+
+check() {
+  true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  DESTDIR="$pkgdir" meson install -C build
+
+  # License
+  if [ -f COPYING ]; then
+    install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+  fi
+
+  # Strip ELF binaries/libs
+  if command -v strip >/dev/null 2>&1; then
+    find "$pkgdir/usr/lib" -type f -exec sh -c '
+      case "$(file -b "$1")" in
+        *ELF*shared\ object*)
+          strip --strip-unneeded "$1" 2>/dev/null || true
+        ;;
+      esac
+    ' _ {} \;
+  fi
+}
+
+

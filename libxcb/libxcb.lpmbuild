@@ -8,24 +8,27 @@ URL="https://xcb.freedesktop.org/"
 LICENSE="MIT"
 SOURCE=("https://xorg.freedesktop.org/archive/individual/lib/libxcb-${VERSION}.tar.xz")
 CHECKSUMS=("f24d187154c8e027b358fc7cb6588e35e33e6a92f11c668fe77396a7ae66e311")
-REQUIRES=("glibc" "libxau" "libxdmcp" "xorgproto")
+REQUIRES=("glibc" "libXau" "libXdmcp" "xorgproto")
 PROVIDES=("libxcb")
 CONFLICTS=()
 OBSOLETES=()
 RECOMMENDS=()
 SUGGESTS=()
 
-prepare() { set -euxo pipefail; cd "$SRCROOT"; }
+prepare() { 
+  set -euxo pipefail
+  cd "$SRCROOT/$NAME-$VERSION"
+}
 
 build() {
   set -euxo pipefail
-  cd "$SRCROOT"
+  cd "$SRCROOT/$NAME-$VERSION"
   ./configure --prefix=/usr --sysconfdir=/etc --disable-static --enable-xkb
   make -j"$(nproc)"
 }
 
 staging() {
   set -euxo pipefail
-  cd "$SRCROOT"
+  cd "$SRCROOT/$NAME-$VERSION"
   make DESTDIR="$pkgdir" install
 }

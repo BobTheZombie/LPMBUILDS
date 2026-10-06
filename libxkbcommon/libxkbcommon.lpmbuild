@@ -1,36 +1,93 @@
+#!/bin/bash
 # LPM build script for libxkbcommon
+# Generic XKB keymap handling library (Xorg + Wayland)
+
 NAME="libxkbcommon"
-VERSION="1.0.0"
+VERSION="1.7.0"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Placeholder package for libxkbcommon dependency"
-URL="https://example.com/libxkbcommon"
-LICENSE=""
-SOURCE=()
-SHA256SUMS=()
-PATCHES=()
-REQUIRES=()
-PROVIDES=("libxkbcommon")
+SUMMARY="Generic XKB keymap handling library"
+URL="https://xkbcommon.org/"
+LICENSE="MIT"
+
+SOURCE=(
+  "https://xkbcommon.org/download/libxkbcommon-${VERSION}.tar.xz"
+)
+
+REQUIRES=(
+  "glibc"
+  "xkeyboard-config"   # XKB rules data
+  "xorgproto"
+  "libxcb"
+  "wayland"
+  "pkg-config"
+  "meson"
+  "ninja"
+)
+
+PROVIDES=(
+  "libxkbcommon"
+  "libxkbcommon.so"
+  "libxkbcommon-x11.so"
+)
+
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
+
+_srcdir="libxkbcommon-${VERSION}"
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+    cd "$SRCROOT"
+
+    # Build dir for Meson
+    mkdir -p "$_srcdir/build"
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir/build"
+
+    : "${CC:=cc}"
+    : "${CXX:=c++}"
+
+    meson setup .. \
+        --prefix=/usr \
+        --libdir=lib \
+        --buildtype=release \
+        -Ddefault_library=shared \
+        -Denable-docs=false \
+        -Denable-x11=true \
+        -Denable-wayland=true
+
+    ninja -j"$(nproc)"
+}
+
+check() {
+    # Upstream tests require Xvfb + full XKB data; skip for bootstrap
+    true
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  install -d "$pkgdir/usr/share/doc/libxkbcommon"
-  printf 'Placeholder package for libxkbcommon\n' >"$pkgdir/usr/share/doc/libxkbcommon/README"
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir/build"
+
+    DESTDIR="$pkgdir" ninja install
+
+    # License
+    if [ -f ../COPYING ]; then
+        install -Dm644 ../COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+    fi
+
+    # Strip ELF binaries/libs
+    if command -v strip >/dev/null 2>&1; then
+        find "$pkgdir/usr" -type f -exec sh -c '
+            case "$(file -b "$1")" in
+              *ELF*executable*|*ELF*shared\ object*)
+                  strip --strip-unneeded "$1" 2>/dev/null || true
+              ;;
+            esac
+        ' _ {} \;
+    fi
 }
+

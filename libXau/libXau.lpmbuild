@@ -1,0 +1,43 @@
+#!/bin/bash
+NAME="libXau"
+VERSION="1.0.12"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="libXau from X.Org"
+URL="https://www.x.org/"
+LICENSE="MIT"
+
+SOURCE=(
+  "https://www.x.org/archive/individual/lib/libXau-${VERSION}.tar.xz"
+)
+
+REQUIRES=(
+  "glibc"
+)
+
+PROVIDES=("libXau")
+CONFLICTS=()
+OBSOLETES=("libxau")
+
+_srcdir="$NAME-$VERSION"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$NAME-$VERSION"
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+  ./configure --prefix=/usr
+  make -j"$(nproc)"
+}
+
+check() { true; }
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+  DESTDIR="$pkgdir" make install
+  [ -f COPYING ] && install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+}

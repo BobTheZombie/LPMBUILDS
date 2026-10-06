@@ -1,0 +1,47 @@
+NAME="freetype"
+VERSION="2.13.2"
+RELEASE="1"
+ARCH="x86_64"
+SUMMARY="Font rendering engine"
+URL="https://freetype.org/"
+SOURCE=("https://download.savannah.gnu.org/releases/freetype/freetype-${VERSION}.tar.xz")
+LICENSE=("FTL" "GPL-2.0-or-later")
+
+REQUIRES=("glibc" "zlib" "bzip2" "libpng")
+PROVIDES=("freetype" "libfreetype.so")
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/freetype-${VERSION}"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/freetype-${VERSION}"
+    
+# Detect whether harfbuzz is already installed in the build root
+if pkg-config --exists harfbuzz; then
+    echo "Building freetype with harfbuzz support"
+    HARFBUZZ_OPTS="--with-harfbuzz"
+else
+    echo "Building freetype without harfbuzz (bootstrap)"
+    HARFBUZZ_OPTS="--without-harfbuzz"
+fi
+
+./configure \
+    --prefix=/usr \
+    --libdir=/usr/lib \
+    --enable-freetype-config \
+    ${HARFBUZZ_OPTS} \
+    --disable-static
+    make -j"$(nproc)"
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/freetype-${VERSION}"
+    make DESTDIR="$pkgdir" install
+}
+

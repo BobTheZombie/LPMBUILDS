@@ -1,0 +1,113 @@
+#!/bin/bash
+# LPM build script for seatd (seat management daemon + libseat)
+
+NAME="seatd"
+VERSION="0.9.1"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Seat management daemon and libseat for Wayland compositors"
+URL="https://sr.ht/~kennylevinsen/seatd"
+LICENSE=("MIT")
+
+SOURCE=(
+  "https://git.sr.ht/~kennylevinsen/seatd/archive/${VERSION}.tar.gz"
+)
+
+# Runtime deps
+REQUIRES=(
+  "glibc"
+  "libdrm"
+  "systemd"  
+)
+
+# Build deps
+REQUIRES+=(
+  "meson"
+  "ninja"
+  "pkg-config"
+  "gcc"
+)
+
+PROVIDES=(
+  "seatd"
+  "libseat"
+  "libseat.so"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="seatd-${VERSION}"
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+    # Meson project, no bootstrap needed for release tarballs
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    meson setup build \
+        --prefix=/usr \
+        --libdir=lib \
+        --buildtype=release \
+        -Dserver="enabled" \
+        -Dlibseat-logind="systemd"  \
+        -Dexamples="disabled"
+
+    meson compile -C build
+}
+
+check() {
+    # Tests are optional; skip for now
+    true
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    DESTDIR="$pkgdir" meson install -C build
+
+    # Runtime directory (not strictly required, but harmless)
+    install -vdm755 "$pkgdir/var/run/seatd" || true
+
+    # If meson didn't install a unit (depends on version), drop a sane default
+    if [ ! -f "$pkgdir/usr/lib/systemd/system/seatd.service" ]; then
+        install -vdm755 "$pkgdir/usr/lib/systemd/system"
+        cat > "$pkgdir/usr/lib/systemd/system/seatd.service" <<'EOF'
+[Unit]
+Description=Seat management daemon
+Documentation=man:seatd(1)
+After=systemd-logind.service
+Conflicts=systemd-logind.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/seatd -g seat
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+EOF
+    fi
+
+    # License
+    if [ -f LICENSE ]; then
+        install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$NAME/LICENSE"
+    fi
+
+    # Strip binaries and libs
+    if command -v strip >/dev/null 2>&1; then
+        find "$pkgdir/usr" -type f -exec sh -c '
+            case "$(file -b "$1")" in
+              *ELF*executable*|*ELF*shared\ object*)
+                  strip --strip-unneeded "$1" 2>/dev/null || true
+              ;;
+            esac
+        ' _ {} \;
+    fi
+}
+

@@ -1,0 +1,43 @@
+#!/bin/bash
+# LFS 13.1-systemd baseline; see docs/lfs-13.1.md for patch provenance.
+NAME="expect"
+VERSION="5.45.4"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Expect"
+URL="https://prdownloads.sourceforge.net/expect/expect5.45.4.tar.gz"
+LICENSE=("TCL")
+SOURCE=("https://prdownloads.sourceforge.net/expect/expect5.45.4.tar.gz" "expect-5.45.4-gcc15-1.patch")
+SHA256SUMS=("49a7da83b0bdd9f46d04a04deec19c7767bb9a323e40c4781f89caf760b92c34" "ab5fc0af9e2e0f80d7623c1a3a3dbeb1da3d8c9134276792199df401f9eb2cec")
+PATCHES=()
+REQUIRES=("glibc" "tcl")
+BUILD_REQUIRES=("gcc" "make" "pkgconf")
+PROVIDES=("expect")
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="expect5.45.4"
+
+prepare() {
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    patch --batch --forward -Np1 -i "$SRCROOT/expect-5.45.4-gcc15-1.patch"
+    :
+}
+
+build() {
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    ./configure --prefix=/usr --with-tcl=/usr/lib --enable-shared --disable-rpath --mandir=/usr/share/man --with-tclinclude=/usr/include
+    make -j"${JOBS:-$(nproc)}"
+}
+
+staging() {
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    make DESTDIR="$pkgdir" install
+    ln -sf expect5.45.4/libexpect5.45.4.so "$pkgdir/usr/lib/libexpect.so"
+    rm -f "$pkgdir/usr/share/info/dir"
+    find "$pkgdir/usr/lib" -name "*.la" -delete 2>/dev/null || true
+}
+

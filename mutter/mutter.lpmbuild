@@ -1,0 +1,135 @@
+#!/bin/bash
+# LPM build script for Mutter
+
+NAME="mutter"
+VERSION="48.3"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="GNOME Wayland/X11 window manager and compositor"
+URL="https://gitlab.gnome.org/GNOME/mutter"
+LICENSE=("GPL-2.0-or-later")
+
+SOURCE=(
+  "https://download.gnome.org/sources/mutter/48/mutter-${VERSION}.tar.xz"
+)
+
+SHA256SUMS=("SKIP")
+
+REQUIRES=(
+  "at-spi2-core"
+  "glibc"
+  "glib2"
+  "gtk4"
+  "graphene"
+  "libeis"
+  "libX11"
+  "libXcomposite"
+  "libXdamage"
+  "libXext"
+  "libXfixes"
+  "libXi"
+  "libXinerama"
+  "libxkbcommon"
+  "libxrandr"
+  "libXtst"
+  "mesa"
+  "wayland"
+  "wayland-protocols"
+  "gsettings-desktop-schemas"
+  "startup-notification"
+  "cairo"
+  "pango"
+)
+
+BUILD_REQUIRES=(
+  "check"
+  "doxygen"
+  "meson"
+  "ninja"
+  "pkgconf"
+  "gettext"
+  "glib2"
+  "gtk4"
+  "gobject-introspection"
+  "graphene"
+  "libX11"
+  "libXcomposite"
+  "libXdamage"
+  "libXext"
+  "libXfixes"
+  "libXi"
+  "libXinerama"
+  "libxkbcommon"
+  "libXrandr"
+  "libXtst"
+  "mesa"
+  "wayland"
+  "wayland-protocols"
+  "gsettings-desktop-schemas"
+)
+
+# Build right from Pypi SDIST
+REQUIRES_PYTHON_DEPENDENCIES=(
+  "argcomplete"
+)
+
+PROVIDES=(
+  "mutter"
+  "libmutter.so"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+  
+  sed -i '/#include <atk\/atk.h>/a\
+#ifndef ATK_LIVE_POLITE\
+#define ATK_LIVE_POLITE 1\
+#endif' src/core/workspace.c
+
+
+  rm -rf build
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  export XML_CATALOG_FILES=/etc/xml/catalog
+
+  meson setup build \
+    --prefix=/usr \
+    --libdir=lib \
+    --buildtype=release \
+    -Ddefault_library=shared \
+    -Dwayland=true \
+    -Dx11=true \
+    -Dtests=disabled \
+    -Dprofiler=false \
+    -Ddocs=false
+
+  ninja -C build
+}
+
+check() {
+  true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  DESTDIR="$pkgdir" ninja -C build install
+
+  for f in COPYING LICENSE; do
+    if [ -f "$f" ]; then
+      install -Dm644 "$f" \
+        "$pkgdir/usr/share/licenses/$NAME/$f"
+    fi
+  done
+}

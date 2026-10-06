@@ -1,0 +1,59 @@
+#!/bin/bash
+# Meta package for the XCB-Utils family
+
+NAME="xcb-utils"
+VERSION="0.4.1"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Meta package for XCB utility libraries"
+URL="https://xcb.freedesktop.org/"
+LICENSE="MIT"
+
+REQUIRES=(
+  "xcb-util"
+  "xcb-util-wm"
+  "xcb-util-image"
+  "xcb-util-keysyms"
+  "xcb-util-renderutil"
+  "xcb-util-cursor"
+  "xcb-util-errors"
+)
+
+PROVIDES=(
+  "xcb-utils"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() {
+    true
+}
+
+build() {
+    true
+}
+
+check() {
+    true
+}
+
+staging() {
+    mkdir -p "$pkgdir/usr/share/doc/$NAME"
+    cat > "$pkgdir/usr/share/doc/$NAME/README" << 'EOF'
+xcb-utils meta package
+# Package definitions
+
+This meta package pulls in the full XCB utility library set:
+
+  - xcb-util
+  - xcb-util-wm
+  - xcb-util-image
+  - xcb-util-keysyms
+  - xcb-util-renderutil
+  - xcb-util-cursor
+  - xcb-util-errors
+
+Install xcb-utils to get the entire XCB utility family.
+EOF
+}

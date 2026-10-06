@@ -1,0 +1,72 @@
+#!/bin/bash
+# LPM build script for speexdsp
+# DSP library extracted from Speex (used by PulseAudio, PipeWire, etc.)
+
+NAME="speexdsp"
+VERSION="1.2.1"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="DSP library from the Speex codec"
+URL="https://gitlab.xiph.org/xiph/speexdsp"
+LICENSE=("BSD")
+
+SOURCE=(
+  "https://downloads.xiph.org/releases/speex/speexdsp-${VERSION}.tar.gz"
+)
+
+REQUIRES=(
+  "glibc"
+
+  # Build
+  "gcc"
+  "make"
+  "pkg-config"
+)
+
+PROVIDES=(
+  "speexdsp"
+  "libspeexdsp.so"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="speexdsp-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  ./configure \
+    --prefix=/usr \
+    --libdir=/usr/lib \
+    --disable-static
+
+  make -j"$(nproc)"
+}
+
+check() {
+  true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  make DESTDIR="$pkgdir" install
+
+  # License
+  if [ -f COPYING ]; then
+    install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+  fi
+
+  # Strip shared library
+  if command -v strip >/dev/null 2>&1; then
+    find "$pkgdir/usr/lib" -type f -name '*.so*' -exec strip --strip-unneeded {} \; 2>/dev/null || true
+  fi
+}

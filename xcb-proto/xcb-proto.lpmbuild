@@ -1,0 +1,55 @@
+#!/bin/bash
+# LPM build script for xcb-proto
+
+NAME="xcb-proto"
+VERSION="1.17.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="XML-XCB protocol descriptions"
+URL="https://xcb.freedesktop.org/"
+LICENSE="MIT"
+
+SOURCE=(
+  "https://xcb.freedesktop.org/dist/xcb-proto-${VERSION}.tar.xz"
+)
+
+REQUIRES=(
+  "python"
+  "libxml2"
+)
+
+PROVIDES=("xcb-proto")
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="xcb-proto-${VERSION}"
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT"
+    tar xf "xcb-proto-${VERSION}.tar.xz"
+    mkdir -p "$SRCROOT/$_srcdir/build"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir/build"
+
+  ./configure --prefix=/usr
+  make
+
+}
+
+check() {
+    true
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir/build"
+
+     make DESTDIR="$pkgdir" install
+}
+
+
+

@@ -1,0 +1,104 @@
+#!/bin/bash
+# LPM build script for colord
+
+NAME="colord"
+VERSION="1.4.7"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="System daemon for managing color devices and profiles"
+URL="https://www.freedesktop.org/software/colord/"
+LICENSE=("GPL-2.0-or-later")
+
+SOURCE=(
+  "https://www.freedesktop.org/software/colord/releases/colord-${VERSION}.tar.xz"
+)
+
+SHA256SUMS=("SKIP")
+
+REQUIRES=(
+  "glibc"
+  "glib2"
+  "sqlite"
+  "lcms2"
+  "libgudev"
+  "polkit"
+)
+
+BUILD_REQUIRES=(
+  "meson"
+  "ninja"
+  "pkgconf"
+  "gettext"
+  "glib2"
+  "gusb"
+  "sqlite"
+  "lcms2"
+  "libgudev"
+  "polkit"
+  "bash"
+  "systemd"
+  "vala"
+  "docbook-xsl-ns"
+)
+
+PROVIDES=(
+  "colord"
+  "libcolord.so"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  rm -rf build
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  meson setup build \
+    --prefix=/usr \
+    --libdir=lib \
+    --buildtype=release \
+    -Ddaemon_user=colord \
+    -Dsystemd=true \
+    -Dvapi=true \
+    -Dbash_completion=true \
+    -Ddocs=false
+
+  meson compile -C build
+}
+
+check() {
+  true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  DESTDIR="$pkgdir" meson install -C build
+
+  test -f "$pkgdir/usr/lib/libcolord.so"
+  test -f "$pkgdir/usr/lib/systemd/system/colord.service"
+
+  # Runtime user
+  install -Dm644 /dev/null \
+    "$pkgdir/usr/lib/sysusers.d/colord.conf"
+
+  echo "u colord - \"Color management daemon\"" \
+    > "$pkgdir/usr/lib/sysusers.d/colord.conf"
+
+  for f in COPYING LICENSE; do
+    if [ -f "$f" ]; then
+      install -Dm644 "$f" \
+        "$pkgdir/usr/share/licenses/$NAME/$f"
+    fi
+  done
+}

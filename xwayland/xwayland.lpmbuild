@@ -1,0 +1,112 @@
+#!/bin/bash
+# LPM build script for Xwayland (standalone X.Org Xwayland server)
+
+NAME="xwayland"
+VERSION="24.1.9"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Xwayland X server to run X clients under Wayland compositors"
+URL="https://www.x.org/"
+LICENSE="MIT"
+
+SOURCE=(
+  "https://www.x.org/pub/individual/xserver/xwayland-${VERSION}.tar.xz"
+)
+
+# Runtime / build deps mapped to your Xorg stack
+REQUIRES=(
+  "glibc"
+  "xorgproto"
+  "libX11"
+  "libXext"
+  "libXfixes"
+  "libXdamage"
+  "libXrender"
+  "libxkbfile"
+  "libxcb"
+
+  "pixman"
+  "mesa"              # for GBM/EGL (adjust if you split mesa-gbm)
+  "libdrm"
+  "wayland"
+  "wayland-protocols"
+
+  # build tooling
+  "pkg-config"
+  "meson"
+  "ninja"
+)
+
+PROVIDES=(
+  "xwayland"
+  "Xwayland"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="xwayland-${VERSION}"
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT"
+
+    # Create build dir for meson
+    mkdir -p "$_srcdir/build"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir/build"
+
+    : "${CC:=cc}"
+    : "${CXX:=c++}"
+
+    meson setup .. \
+        --prefix=/usr \
+        --libdir=lib \
+        --buildtype=release \
+        -Ddefault_library=shared \
+        -Dipv6=true \
+    -Dxvfb=true \
+    -Dxdmcp=true \
+    -Dxcsecurity=true \
+    -Ddri3=true \
+    -Dglamor=true \
+    -Dxkb_dir=/usr/share/X11/xkb \
+    -Dxkb_output_dir=/var/lib/xkb
+    ninja
+}
+
+check() {
+    # Upstream has tests, but they require a Wayland/DRM-capable runtime env.
+    # For packaging / chroot bootstrap, skip.
+    true
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir/build"
+
+    DESTDIR="$pkgdir" ninja install
+
+    # License / docs
+    if [ -f ../COPYING ]; then
+        install -Dm644 ../COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+    fi
+    if [ -f ../README ] ; then
+        install -Dm644 ../README "$pkgdir/usr/share/doc/$NAME/README"
+    fi
+
+    # Strip ELF binaries/libs
+    if command -v strip >/dev/null 2>&1; then
+        find "$pkgdir/usr" -type f -exec sh -c '
+            case "$(file -b "$1")" in
+              *ELF*executable*|*ELF*shared\ object*)
+                  strip --strip-unneeded "$1" 2>/dev/null || true
+              ;;
+            esac
+        ' _ {} \;
+    fi
+}
+

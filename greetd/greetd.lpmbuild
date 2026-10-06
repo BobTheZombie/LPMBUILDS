@@ -1,0 +1,92 @@
+#!/bin/bash
+# LPM build script for greetd (Wayland/X11 login/display manager)
+
+NAME="greetd"
+VERSION="0.10.3"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="A minimal and flexible login manager daemon for Wayland and X"
+URL="https://github.com/apognu/greetd"
+LICENSE=("GPL-3.0-or-later")
+
+SOURCE=(
+  "https://github.com/kennylevinsen/greetd/archive/refs/tags/${VERSION}.tar.gz"
+  "greetd.pam"
+  "greetd.sysusers"
+  "greetd.tmpfiles"
+  "greetd.toml"
+)
+
+# Runtime deps
+REQUIRES=(
+  "glibc"
+  "pam"
+  "systemd"
+)
+
+# Build deps (if LPM doesn’t separate makedeps, keep them here)
+REQUIRES+=(
+  "rust"
+  "cargo"
+  "pkg-config"
+  "gcc"
+)
+
+PROVIDES=(
+  "greetd"
+  "agreety"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="greetd-${VERSION}"
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+    # No autoconf/meson here; cargo-only project
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    # Ensure we use release build and locked deps
+    : "${CARGO_HOME:=$HOME/.cargo}"
+    export CARGO_HOME
+
+    cargo build --release --all-features
+}
+
+check() {
+    # greetd has tests, but they aren't required for packaging
+    true
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+        install -Dm0755 -t "$pkgdir/usr/bin/" "target/release/$NAME"
+	install -Dm0644 -t "$pkgdir/usr/lib/systemd/system/" "$NAME.service"
+	install -Dm0644 "$SRCROOT/$NAME.toml" "$pkgdir/etc/greetd/config.toml"
+	install -Dm0644 "$SRCROOT/$NAME.pam" "$pkgdir/etc/pam.d/$NAME"
+	install -Dm0644 "$SRCROOT/$NAME.sysusers" "$pkgdir/usr/lib/sysusers.d/$NAME.conf"
+        install -Dm0644 "$SRCROOT/$NAME.tmpfiles" "$pkgdir/usr/lib/tmpfiles.d/$NAME.conf"
+
+
+ 
+
+    # Strip binaries
+    if command -v strip >/dev/null 2>&1; then
+        find "$pkgdir/usr/bin" -type f -exec sh -c '
+            case "$(file -b "$1")" in
+              *ELF*executable*)
+                  strip --strip-unneeded "$1" 2>/dev/null || true
+              ;;
+            esac
+        ' _ {} \;
+    fi
+}
+

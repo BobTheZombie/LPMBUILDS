@@ -1,0 +1,149 @@
+# LPM build script for libaom / AOMedia AV1
+
+NAME="libaom"
+VERSION="3.12.1"
+RELEASE="2"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Alliance for Open Media AV1 codec library"
+URL="https://aomedia.googlesource.com/aom/"
+LICENSE=("BSD-2-Clause")
+
+SOURCE=(
+    "https://storage.googleapis.com/aom-releases/libaom-${VERSION}.tar.gz"
+)
+
+SHA256SUMS=("SKIP")
+PATCHES=()
+
+REQUIRES=(
+    "glibc"
+    "libgcc"
+    "libstdc++"
+)
+
+BUILD_REQUIRES=(
+    "cmake"
+    "ninja"
+    "pkgconf"
+    "perl"
+    "python"
+    "nasm"
+)
+
+PROVIDES=(
+    "libaom"
+    "libaom.so"
+    "aom"
+    "aom.pc"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+    set -euxo pipefail
+
+    cd "$SRCROOT/libaom-${VERSION}"
+
+    # IMPORTANT:
+    # Do NOT remove ./build.
+    #
+    # AOM ships its own build infrastructure there:
+    #
+    #   build/cmake/aom_configure.cmake
+    #   build/cmake/aom_install.cmake
+    #   build/cmake/sanitizers.cmake
+    #   build/cmake/util.cmake
+    #
+    # Use a separate out-of-tree build directory.
+    rm -rf "$SRCROOT/libaom-build"
+}
+
+build() {
+    set -euxo pipefail
+
+    cd "$SRCROOT/libaom-${VERSION}"
+
+    cmake \
+        -S "$SRCROOT/libaom-${VERSION}" \
+        -B "$SRCROOT/libaom-build" \
+        -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DBUILD_SHARED_LIBS=ON \
+        -DENABLE_DOCS=OFF \
+        -DENABLE_EXAMPLES=OFF \
+        -DENABLE_TESTS=OFF \
+        -DENABLE_TOOLS=ON \
+        -DCONFIG_AV1_DECODER=1 \
+        -DCONFIG_AV1_ENCODER=1 \
+        -DCONFIG_PIC=1
+
+    cmake \
+        --build "$SRCROOT/libaom-build" \
+        -j"$(nproc)"
+}
+
+check() {
+    true
+}
+
+staging() {
+    set -euxo pipefail
+
+    cd "$SRCROOT/libaom-${VERSION}"
+
+    DESTDIR="$pkgdir" \
+        cmake --install "$SRCROOT/libaom-build"
+
+    #
+    # Shared library
+    #
+
+    test -n "$(
+        find "$pkgdir/usr/lib" \
+            -name 'libaom.so*' \
+            -print -quit
+    )"
+
+    #
+    # Public headers
+    #
+
+    test -f "$pkgdir/usr/include/aom/aom.h"
+    test -f "$pkgdir/usr/include/aom/aom_codec.h"
+    test -f "$pkgdir/usr/include/aom/aom_decoder.h"
+    test -f "$pkgdir/usr/include/aom/aom_encoder.h"
+
+    #
+    # pkg-config metadata
+    #
+
+    test -f "$pkgdir/usr/lib/pkgconfig/aom.pc"
+
+    #
+    # Tools
+    #
+
+    if [ -e "$pkgdir/usr/bin/aomenc" ]; then
+        test -x "$pkgdir/usr/bin/aomenc"
+    fi
+
+    if [ -e "$pkgdir/usr/bin/aomdec" ]; then
+        test -x "$pkgdir/usr/bin/aomdec"
+    fi
+
+    #
+    # License
+    #
+
+    if [ -f LICENSE ]; then
+        install -Dm644 LICENSE \
+            "$pkgdir/usr/share/licenses/libaom/LICENSE"
+    fi
+
+    echo "==> libaom ${VERSION} staging complete"
+}

@@ -1,31 +1,90 @@
+#!/bin/bash
 # LPM build script for libtiff
+
 NAME="libtiff"
-VERSION="4.6.0"
+VERSION="4.7.0"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Library for reading and writing TIFF images"
+SUMMARY="Library for manipulation of TIFF images"
 URL="https://libtiff.gitlab.io/libtiff/"
-LICENSE="libtiff"
-SOURCE=("https://download.osgeo.org/libtiff/tiff-${VERSION}.tar.gz")
-CHECKSUMS=("88b3979e6d5c7e32b50d7ec72fb15af724f6ab2cbf7e10880c360a77e4b5d99a")
-REQUIRES=("glibc" "zlib" "xz" "zstd" "libjpeg-turbo")
-PROVIDES=("libtiff")
+LICENSE=("BSD-2-Clause")
+
+SOURCE=(
+  "https://download.osgeo.org/libtiff/tiff-${VERSION}.tar.xz"
+)
+
+SHA256SUMS=("SKIP")
+
+REQUIRES=(
+  "glibc"
+  "libjpeg"
+  "xz"
+  "zlib"
+)
+
+BUILD_REQUIRES=(
+  "cmake"
+  "ninja"
+  "pkgconf"
+  "libjpeg"
+  "xz"
+  "zlib"
+)
+
+PROVIDES=(
+  "libtiff"
+  "libtiff.so"
+)
+
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
 
-prepare() { set -euxo pipefail; cd "$SRCROOT"; }
+_srcdir="tiff-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  rm -rf build
+  mkdir -p build
+}
 
 build() {
   set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr --disable-static --with-jpeg --with-zlib --with-lzma --with-zstd
-  make -j"$(nproc)"
+  cd "$SRCROOT/$_srcdir/build"
+
+  cmake .. -G Ninja \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DCMAKE_INSTALL_LIBDIR=lib \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DBUILD_SHARED_LIBS=ON \
+    -Dtiff-tools=ON \
+    -Dtiff-tests=OFF \
+    -Dtiff-docs=OFF \
+    -Djbig=OFF \
+    -Dlzma=ON \
+    -Dzlib=ON \
+    -Djpeg=ON
+
+  ninja
+}
+
+check() {
+  true
 }
 
 staging() {
   set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+  cd "$SRCROOT/$_srcdir/build"
+
+  DESTDIR="$pkgdir" ninja install
+
+  test -f "$pkgdir/usr/lib/libtiff.so"
+
+  for f in COPYING LICENSE.md; do
+    if [ -f "$SRCROOT/$_srcdir/$f" ]; then
+      install -Dm644 "$SRCROOT/$_srcdir/$f" \
+        "$pkgdir/usr/share/licenses/$NAME/$(basename "$f")"
+    fi
+  done
 }

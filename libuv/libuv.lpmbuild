@@ -1,0 +1,36 @@
+NAME="libuv"
+VERSION="1.51.0"
+RELEASE="1"
+ARCH="x86_64"
+SUMMARY="Multi-platform support library with a focus on asynchronous I/O"
+URL="https://libuv.org/"
+SOURCE=("https://dist.libuv.org/dist/v${VERSION}/libuv-v${VERSION}.tar.gz")
+LICENSE=("MIT")
+
+REQUIRES=("glibc" "gcc-libs" "autoconf" "automake" "libtool" "m4")
+PROVIDES=("libuv" "libuv.so")
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/libuv-$VERSION"
+    ./autogen.sh
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/libuv-$VERSION"
+    ./configure \
+        --prefix=/usr \
+        --libdir=/usr/lib \
+        --disable-static
+    make -j"$(nproc)"
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/libuv-$VERSION"
+    make DESTDIR="$pkgdir" install
+}
+

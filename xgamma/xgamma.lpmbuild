@@ -1,0 +1,43 @@
+#!/bin/bash
+# LPM build script for xgamma
+
+NAME="xgamma"
+VERSION="1.0.8"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Gamma correction utility for X"
+URL="https://www.x.org/"
+LICENSE="MIT"
+
+SOURCE=("https://www.x.org/archive//individual/app/${NAME}-${VERSION}.tar.xz")
+
+REQUIRES=(
+  "glibc"
+  "libX11"
+  "libXxf86vm"
+)
+
+PROVIDES=("xgamma")
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+  ./configure --prefix=/usr
+  make -j"$(nproc)"
+}
+
+check() { true; }
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+  DESTDIR="$pkgdir" make install
+}

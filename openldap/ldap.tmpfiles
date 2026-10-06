@@ -1,0 +1,2 @@
+d /var/lib/openldap-data 0750 ldap ldap -
+d /run/openldap 0755 ldap ldap -

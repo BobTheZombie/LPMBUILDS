@@ -1,29 +1,118 @@
+#!/bin/bash
 # LPM build script for qt6-base
+
 NAME="qt6-base"
 VERSION="6.7.2"
-RELEASE="1"
+RELEASE="2"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="Qt 6 base toolkit"
 URL="https://www.qt.io/"
-LICENSE=""
-SOURCE=("https://download.qt.io/official_releases/qt/6.7/6.7.2/submodules/qtbase-everywhere-src-6.7.2.tar.xz")
-SHA256SUMS=("SKIP")
-PATCHES=()
-BUILD_REQUIRES=("cmake" "ninja" "perl" "python" "pkgconf" "mesa" "wayland" "libxkbcommon" "openssl" "dbus" "libx11" "libxcb")
-REQUIRES=("glibc" "mesa" "wayland" "libxkbcommon" "dbus")
-PROVIDES=("qt6-base")
+LICENSE=("GPL-3.0-only" "LGPL-3.0-only" "GPL-2.0-only")
+
+SOURCE=(
+  "https://download.qt.io/archive/qt/6.7/${VERSION}/submodules/qtbase-everywhere-src-${VERSION}.tar.xz"
+)
+
+SHA256SUMS=(
+  "c5f22a5e10fb162895ded7de0963328e7307611c688487b5d152c9ee64767599"
+)
+
+BUILD_REQUIRES=(
+  "cmake"
+  "ninja"
+  "perl"
+  "python"
+  "pkgconf"
+  "mesa"
+  "wayland"
+  "wayland-protocols"
+  "libxkbcommon"
+  "openssl"
+  "dbus"
+  "libX11"
+  "libxcb"
+  "xcb-util"
+  "xcb-util-image"
+  "xcb-util-keysyms"
+  "xcb-util-renderutil"
+  "xcb-util-wm"
+  "xcb-util-cursor"
+  "xorgproto"
+  "libinput"
+  "mtdev"
+  "vulkan-headers"
+)
+
+REQUIRES=(
+  "glibc"
+  "mesa"
+  "wayland"
+  "libxkbcommon"
+  "openssl"
+  "dbus"
+  "libX11"
+  "libxcb"
+  "xcb-util-cursor"
+  "libinput"
+  "mtdev"
+)
+
+PROVIDES=(
+  "qt6-base"
+  "qmake6"
+  "moc6"
+  "rcc6"
+  "uic6"
+  "Qt6Core"
+  "Qt6Gui"
+  "Qt6Widgets"
+)
+
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
 
-prepare() { set -euxo pipefail; cd "$SRCROOT"; mkdir -p build; }
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  rm -rf build
+  mkdir -p build
+}
 
 build() {
   set -euxo pipefail
-  cd "$SRCROOT/build"
-  cmake .. -G Ninja -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release -DFEATURE_optimize_size=ON -DBUILD_SHARED_LIBS=ON
-  ninja
+  cd "$SRCROOT/$_srcdir/build"
+
+  ../configure \
+    -prefix /usr \
+    -libdir /usr/lib \
+    -release \
+    -opensource \
+    -confirm-license \
+    -nomake examples \
+    -nomake tests \
+    -system-zlib \
+    -system-libpng \
+    -system-libjpeg \
+    -system-freetype \
+    -openssl-linked \
+    -dbus-linked \
+    -xcb \
+    -opengl desktop
+
+  cmake --build . --parallel "$(nproc)"
 }
 
-staging() { set -euxo pipefail; cd "$SRCROOT/build"; ninja install DESTDIR="$pkgdir"; }
+check() {
+  true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir/build"
+
+  DESTDIR="$pkgdir" cmake --install .
+
+}

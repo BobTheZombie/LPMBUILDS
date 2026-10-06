@@ -1,0 +1,87 @@
+#!/bin/bash
+# LPM build script for libepoxy
+# GL dispatch library used by Xorg, Wayland, compositors, etc.
+
+NAME="libepoxy"
+VERSION="1.5.10"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Library for handling OpenGL function pointer management"
+URL="https://github.com/anholt/libepoxy"
+LICENSE="MIT"
+
+SOURCE=(
+  "https://github.com/anholt/libepoxy/archive/refs/tags/${VERSION}.tar.gz"
+)
+
+REQUIRES=(
+  "glibc"
+  "mesa"
+  "pkg-config"
+  "meson"
+  "ninja"
+)
+
+PROVIDES=(
+  "libepoxy"
+  "libepoxy.so"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="libepoxy-${VERSION}"
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT"
+    mkdir -p "$_srcdir/build"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir/build"
+
+    : "${CC:=cc}"
+    : "${CXX:=c++}"
+
+    meson setup .. \
+        --prefix=/usr \
+        --libdir=lib \
+        --buildtype=release \
+        -Ddefault_library=shared \
+        -Degl=yes \
+        -Dglx=yes \
+        -Dtests=false
+
+    ninja -j"$(nproc)"
+}
+
+check() {
+    # optional: ninja test
+    true
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir/build"
+
+    DESTDIR="$pkgdir" ninja install
+
+    # License
+    if [ -f ../COPYING ]; then
+        install -Dm644 ../COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+    fi
+
+    # Strip ELF
+    if command -v strip >/dev/null 2>&1; then
+        find "$pkgdir/usr" -type f -exec sh -c '
+            case "$(file -b "$1")" in
+              *ELF*executable*|*ELF*shared\ object*)
+                strip --strip-unneeded "$1" 2>/dev/null || true
+              ;;
+            esac
+        ' _ {} \;
+    fi
+}
+

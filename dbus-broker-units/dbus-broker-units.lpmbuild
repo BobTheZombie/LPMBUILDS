@@ -1,0 +1,61 @@
+#!/bin/bash
+# LPM build script for dbus-broker-units
+# Provides compatibility and activation units for dbus-broker
+
+NAME="dbus-broker-units"
+VERSION="1.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Systemd unit aliases mapping dbus.service and dbus.socket to dbus-broker"
+URL="https://github.com/bus1/dbus-broker"
+LICENSE="Apache-2.0"
+
+SOURCE=()
+
+REQUIRES=(
+  "systemd"
+  "dbus-broker"
+)
+
+PROVIDES=(
+  "dbus-units"
+)
+
+CONFLICTS=(
+  "legacy-dbus"
+)
+
+OBSOLETES=()
+
+prepare() {
+  true
+}
+
+build() {
+  true
+}
+
+staging() {
+    set -euxo pipefail
+
+    # System units
+    install -vdm755 "$pkgdir/usr/lib/systemd/system"
+
+    # Alias classic dbus units to dbus-broker
+    ln -svf dbus-broker.service "$pkgdir/usr/lib/systemd/system/dbus.service"
+    ln -svf dbus-broker.socket  "$pkgdir/usr/lib/systemd/system/dbus.socket"
+
+    # User session bus alias
+    install -vdm755 "$pkgdir/usr/lib/systemd/user"
+    ln -svf dbus-broker.service "$pkgdir/usr/lib/systemd/user/dbus.service"
+
+    # Preset to ensure broker is enabled
+    install -vdm755 "$pkgdir/usr/lib/systemd/system-preset"
+    echo "enable dbus-broker.service" > "$pkgdir/usr/lib/systemd/system-preset/90-dbus-broker.preset"
+
+    # Minimal doc
+    install -vdm755 "$pkgdir/usr/share/doc/$NAME"
+    echo "Provides systemd alias units mapping dbus.service and dbus.socket to dbus-broker." \
+      > "$pkgdir/usr/share/doc/$NAME/README"
+}
+

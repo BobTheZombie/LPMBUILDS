@@ -1,0 +1,45 @@
+#!/bin/bash
+NAME="libXrender"
+VERSION="0.9.11"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="libXrender from X.Org"
+URL="https://www.x.org/"
+LICENSE="MIT"
+
+SOURCE=(
+  "https://xorg.freedesktop.org/archive/individual/lib/libXrender-${VERSION}.tar.xz"
+)
+
+REQUIRES=(
+  "glibc"
+  "libX11"
+  "xorgproto"
+)
+
+PROVIDES=("libXrender")
+CONFLICTS=()
+OBSOLETES=("libexrender")
+
+_srcdir="$NAME-$VERSION"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+  ./configure --prefix=/usr
+  make -j"$(nproc)"
+}
+
+check() { true; }
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+  DESTDIR="$pkgdir" make install
+  [ -f COPYING ] && install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+}

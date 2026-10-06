@@ -1,24 +1,89 @@
+#!/bin/bash
 # LPM build script for qt6-wayland
+
 NAME="qt6-wayland"
 VERSION="6.7.2"
-RELEASE="1"
+RELEASE="2"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Qt 6 Wayland platform integration"
+SUMMARY="Qt 6 Wayland platform plugin and compositor APIs"
 URL="https://www.qt.io/"
-LICENSE=""
-SOURCE=("https://download.qt.io/official_releases/qt/6.7/6.7.2/submodules/qtwayland-everywhere-src-6.7.2.tar.xz")
+LICENSE=("GPL-3.0-only" "LGPL-3.0-only" "GPL-2.0-only")
+
+SOURCE=(
+  "https://download.qt.io/archive/qt/6.7/${VERSION}/submodules/qtwayland-everywhere-src-${VERSION}.tar.xz"
+)
+
 SHA256SUMS=("SKIP")
-PATCHES=()
-BUILD_REQUIRES=("qt6-base" "wayland" "wayland-protocols" "libxkbcommon" "cmake" "ninja" "pkgconf")
-REQUIRES=("qt6-base" "wayland" "libxkbcommon")
-PROVIDES=("qt6-wayland")
+
+REQUIRES=(
+  "glibc"
+  "qt6-base"
+  "qt6-declarative"
+  "wayland"
+  "libxkbcommon"
+  "mesa"
+)
+
+BUILD_REQUIRES=(
+  "cmake"
+  "ninja"
+  "perl"
+  "python"
+  "pkgconf"
+  "qt6-base"
+  "qt6-declarative"
+  "wayland"
+  "wayland-protocols"
+  "libxkbcommon"
+  "mesa"
+)
+
+PROVIDES=(
+  "qt6-wayland"
+  "Qt6WaylandClient"
+  "Qt6WaylandCompositor"
+)
+
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
 
-prepare() { set -euxo pipefail; cd "$SRCROOT"; mkdir -p build; }
+_srcdir="${NAME}-${VERSION}"
 
-build() { set -euxo pipefail; cd "$SRCROOT/build"; cmake .. -G Ninja -DCMAKE_INSTALL_PREFIX=/usr; ninja; }
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
 
-staging() { set -euxo pipefail; cd "$SRCROOT/build"; ninja install DESTDIR="$pkgdir"; }
+  rm -rf build
+  mkdir -p build
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir/build"
+
+   qt-configure-module .. -- \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DBUILD_SHARED_LIBS=ON \
+    -DQT_BUILD_EXAMPLES=OFF \
+    -DQT_BUILD_TESTS=OFF
+
+  ninja
+}
+
+check() {
+  true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir/build"
+
+  DESTDIR="$pkgdir" ninja install
+
+  for f in LICENSES/* LICENSE*; do
+    if [ -f "$SRCROOT/$_srcdir/$f" ]; then
+      install -Dm644 "$SRCROOT/$_srcdir/$f" \
+        "$pkgdir/usr/share/licenses/$NAME/$(basename "$f")"
+    fi
+  done
+}

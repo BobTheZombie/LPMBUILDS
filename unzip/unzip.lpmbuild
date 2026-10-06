@@ -1,0 +1,37 @@
+NAME="unzip"
+VERSION="6.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+
+SUMMARY="Info-ZIP unzip utility"
+URL=""
+LICENSE=("custom")
+
+SOURCE=(
+    "https://downloads.sourceforge.net/infozip/unzip${VERSION//./}.tar.gz"
+)
+SHA256SUMS=("SKIP")
+PATCHES=()
+
+REQUIRES=(
+    "glibc"
+)
+
+BUILD_REQUIRES=(
+    "make"
+)
+
+PROVIDES=(
+    "unzip"
+)
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() { set -euxo pipefail; cd "$SRCROOT/${NAME}-${VERSION}"; }
+build() { set -euxo pipefail; cd "$SRCROOT/${NAME}-${VERSION}"; make -f unix/Makefile generic; }
+check() { true; }
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    make -f unix/Makefile prefix="$pkgdir/usr" MANDIR="$pkgdir/usr/share/man/man1" install
+}

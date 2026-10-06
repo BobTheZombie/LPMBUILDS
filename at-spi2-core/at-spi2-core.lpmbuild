@@ -1,0 +1,36 @@
+#!/bin/bash
+NAME="at-spi2-core"
+VERSION="2.60.3"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Assistive Technology Service Provider Interface (core)"
+URL="https://download.gnome.org/sources/at-spi2-core"
+LICENSE=("LGPL-2.1-or-later")
+
+SOURCE=("git+https://gitlab.gnome.org/GNOME/at-spi2-core.git?signed#tag=${VERSION}")
+
+REQUIRES=("glibc" "glib2" "meson" "ninja" "pkg-config" "gcc")
+
+PROVIDES=("at-spi2-core")
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}"
+
+prepare() {
+ set -euxo pipefail
+ cd "$SRCROOT/$_srcdir"
+}
+
+build() {
+ set -euxo pipefail
+ cd "$SRCROOT/$_srcdir"
+ meson setup build --prefix=/usr --libdir=lib --buildtype=release
+ meson compile -C build
+}
+
+staging() {
+ set -euxo pipefail
+ cd "$SRCROOT/$_srcdir"
+ DESTDIR="$pkgdir" meson install -C build
+}

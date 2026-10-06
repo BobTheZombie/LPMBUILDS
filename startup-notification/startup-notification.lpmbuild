@@ -1,0 +1,78 @@
+#!/bin/bash
+# LPM build script for startup-notification
+
+NAME="startup-notification"
+VERSION="0.12"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Reference implementation of the freedesktop startup notification protocol"
+URL="https://www.freedesktop.org/wiki/Software/startup-notification/"
+LICENSE=("LGPL-2.0-or-later" "MIT")
+
+SOURCE=(
+  "https://www.freedesktop.org/software/startup-notification/releases/startup-notification-${VERSION}.tar.gz"
+)
+
+SHA256SUMS=(
+  "3c391f7e930c583095045cd2d10eb73a64f085c7fde9d260f2652c7cb3cfbe4a"
+)
+
+REQUIRES=(
+  "glibc"
+  "libX11"
+  "xcb-util"
+)
+
+BUILD_REQUIRES=(
+  "make"
+  "pkgconf"
+  "xorgproto"
+)
+
+PROVIDES=(
+  "startup-notification"
+  "libstartup-notification-1.so"
+  "libstartup-notification-1.0"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  ./configure \
+    --prefix=/usr \
+    --libdir=/usr/lib \
+    --disable-static
+
+  make -j"$(nproc)"
+}
+
+check() {
+  true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  make install DESTDIR="$pkgdir"
+
+  install -Dm644 doc/startup-notification.txt \
+    "$pkgdir/usr/share/doc/$NAME/startup-notification.txt"
+
+  for f in COPYING LICENSE; do
+    if [ -f "$f" ]; then
+      install -Dm644 "$f" "$pkgdir/usr/share/licenses/$NAME/$f"
+    fi
+  done
+}

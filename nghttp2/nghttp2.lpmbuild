@@ -1,0 +1,36 @@
+NAME="nghttp2"
+VERSION="1.63.0"
+RELEASE="1"
+ARCH="x86_64"
+SUMMARY="Implementation of HTTP/2 and associated tools"
+URL="https://nghttp2.org/"
+SOURCE=("https://github.com/nghttp2/nghttp2/releases/download/v${VERSION}/nghttp2-${VERSION}.tar.xz")
+LICENSE=("MIT")
+
+REQUIRES=("glibc" "openssl" "libxml2")
+PROVIDES=("nghttp2" "libnghttp2")
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/nghttp2-${VERSION}"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/nghttp2-${VERSION}"
+    ./configure \
+        --prefix=/usr \
+        --libdir=/usr/lib \
+        --enable-lib-only \
+        --disable-static
+    make -j"$(nproc)"
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/nghttp2-${VERSION}"
+    make DESTDIR="$pkgdir" install
+}
+

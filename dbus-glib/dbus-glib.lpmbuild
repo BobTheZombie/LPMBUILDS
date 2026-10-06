@@ -1,0 +1,68 @@
+#!/bin/bash
+
+NAME="dbus-glib"
+VERSION="0.112"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="GLib bindings for D-Bus"
+URL="https://dbus.freedesktop.org/"
+LICENSE=("AFL-2.1" "GPL-2.0-or-later")
+
+SOURCE=(
+  "https://dbus.freedesktop.org/releases/dbus-glib/dbus-glib-${VERSION}.tar.gz"
+)
+
+SHA256SUMS=("SKIP")
+
+REQUIRES=(
+  "glib2"
+  "dbus"
+  "expat"
+)
+
+BUILD_REQUIRES=(
+  "make"
+  "pkgconf"
+  "glib2"
+  "dbus"
+  "expat"
+)
+
+PROVIDES=(
+  "dbus-glib"
+  "libdbus-glib-1.so"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  ./configure \
+    --prefix=/usr \
+    --sysconfdir=/etc \
+    --libdir=/usr/lib \
+    --disable-static
+
+  make -j"$(nproc)"
+}
+
+check() { true; }
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  make DESTDIR="$pkgdir" install
+
+  test -f "$pkgdir/usr/lib/libdbus-glib-1.so"
+}

@@ -1,0 +1,55 @@
+#!/bin/bash
+# Meta package for Xorg input drivers
+
+NAME="xorg-input-drivers"
+VERSION="1.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Meta package pulling in common Xorg input drivers (evdev, libinput, synaptics, wacom)"
+URL="https://www.x.org/"
+LICENSE="MIT"
+
+REQUIRES=(
+  "libevdev"
+  "libinput"
+  "xf86-input-evdev"
+  "xorg-libinput"
+  "xf86-input-synaptics"
+  "xf86-input-wacom"
+)
+
+PROVIDES=(
+  "xorg-input-drivers"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() {
+    true
+}
+
+build() {
+    true
+}
+
+check() {
+    true
+}
+
+staging() {
+    mkdir -p "$pkgdir/usr/share/doc/$NAME"
+    cat > "$pkgdir/usr/share/doc/$NAME/README" << 'EOF'
+xorg-input-drivers meta package
+# Package definitions
+
+This meta package pulls in the common X.Org input stack:
+
+  - libevdev
+  - libinput
+  - xf86-input-evdev      (Xorg evdev driver)
+  - xorg-libinput         (xf86-input-libinput)
+  - xf86-input-synaptics  (Synaptics touchpad driver)
+  - xf86-input-wacom      (Wacom tablet driver)
+EOF
+}

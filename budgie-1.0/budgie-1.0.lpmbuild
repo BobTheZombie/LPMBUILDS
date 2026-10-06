@@ -1,0 +1,88 @@
+#!/bin/bash
+# LPM build script for budgie-1.0
+
+NAME="budgie-1.0"
+VERSION="10.10.2"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Budgie desktop core library and introspection data"
+URL="https://github.com/BuddiesOfBudgie/budgie-desktop"
+LICENSE=("GPL-2.0-or-later" "LGPL-2.1-or-later")
+
+SOURCE=(
+  "https://github.com/BuddiesOfBudgie/budgie-desktop/releases/download/v${VERSION}/budgie-desktop-v${VERSION}.tar.xz"
+)
+
+SHA256SUMS=("SKIP")
+
+REQUIRES=(
+  "glibc"
+  "glib2"
+  "gtk3"
+  "gobject-introspection"
+  "libpeas"
+)
+
+BUILD_REQUIRES=(
+  "meson"
+  "ninja"
+  "pkgconf"
+  "vala"
+  "gettext"
+  "glib2"
+  "gtk3"
+  "gobject-introspection"
+  "libpeas"
+)
+
+PROVIDES=(
+  "budgie-1.0"
+  "Budgie-1.0"
+  "Budgie-1.0.gir"
+  "budgie-1.0.pc"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  rm -rf build
+  mkdir -pv build
+
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir/build"
+
+  meson setup \
+    --prefix=/usr \
+    --libdir=lib \
+    --buildtype=release \
+    -Ddefault_library=shared
+    
+  ninja
+}
+
+check() {
+  true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir/build"
+
+  DESTDIR="$pkgdir" ninja install
+
+  for f in COPYING LICENSE; do
+    if [ -f "$f" ]; then
+      install -Dm644 "$f" \
+        "$pkgdir/usr/share/licenses/$NAME/$f"
+    fi
+  done
+}

@@ -1,0 +1,45 @@
+#!/bin/bash
+NAME="libXinerama"
+VERSION="1.1.5"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="libXinerama from X.Org"
+URL="https://www.x.org/"
+LICENSE="MIT"
+
+SOURCE=(
+  "https://www.x.org/releases/individual/lib/${NAME}-${VERSION}.tar.xz"
+)
+
+REQUIRES=(
+  "util-macros"
+  "libX11"
+  "libXext"
+  "xorgproto"
+)
+
+PROVIDES=("libXinerama")
+CONFLICTS=()
+OBSOLETES=("libxinerama")
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+  ./configure --prefix=/usr
+  make -j"$(nproc)"
+}
+
+check() { true; }
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+  DESTDIR="$pkgdir" make install
+  [ -f COPYING ] && install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+}

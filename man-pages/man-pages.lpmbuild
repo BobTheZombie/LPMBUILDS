@@ -1,0 +1,41 @@
+#!/bin/bash
+# LFS 13.1-systemd baseline; see docs/lfs-13.1.md for patch provenance.
+NAME="man-pages"
+VERSION="6.18"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Man-pages"
+URL="https://www.kernel.org/pub/linux/docs/man-pages/man-pages-6.18.tar.xz"
+LICENSE=("LicenseRef-man-pages")
+SOURCE=("https://www.kernel.org/pub/linux/docs/man-pages/man-pages-6.18.tar.xz")
+SHA256SUMS=("c934fadc8b59748c68227a34f6581d2ddf8282b73cdcd52546c8cd88b74b24d1")
+PATCHES=()
+REQUIRES=("glibc")
+BUILD_REQUIRES=("gcc" "make" "pkgconf")
+PROVIDES=("man-pages")
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="man-pages-6.18"
+
+prepare() {
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    :
+}
+
+build() {
+    set -euo pipefail
+    :
+}
+
+staging() {
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    rm -f man3/crypt*
+    make DESTDIR="$pkgdir" -R GIT=false prefix=/usr install
+
+    rm -f "$pkgdir/usr/share/info/dir"
+    find "$pkgdir/usr/lib" -name "*.la" -delete 2>/dev/null || true
+}
+

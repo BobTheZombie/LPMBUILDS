@@ -1,0 +1,41 @@
+#!/bin/bash
+# LFS 13.1-systemd baseline; see docs/lfs-13.1.md for patch provenance.
+NAME="python-packaging"
+VERSION="26.3"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Packaging"
+URL="https://files.pythonhosted.org/packages/source/p/packaging/packaging-26.3.tar.gz"
+LICENSE=("Apache-2.0" "BSD-2-Clause")
+SOURCE=("https://files.pythonhosted.org/packages/source/p/packaging/packaging-26.3.tar.gz")
+SHA256SUMS=("94edc256424af38762eb31306eed28beb9f0efc50a8837492c9d6fd6004aed79")
+PATCHES=()
+REQUIRES=("python")
+BUILD_REQUIRES=("python" "python-flit-core")
+PROVIDES=("python-packaging")
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="packaging-26.3"
+
+prepare() {
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    :
+}
+
+build() {
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    python3 -m pip wheel --no-cache-dir --no-build-isolation --no-deps --wheel-dir=dist .
+}
+
+staging() {
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    python3 -m pip install --root="$pkgdir" --prefix=/usr --ignore-installed --no-deps --no-index --no-compile dist/*.whl
+
+    rm -f "$pkgdir/usr/share/info/dir"
+    find "$pkgdir/usr/lib" -name "*.la" -delete 2>/dev/null || true
+}
+

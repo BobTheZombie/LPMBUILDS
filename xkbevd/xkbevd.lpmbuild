@@ -1,0 +1,43 @@
+#!/bin/bash
+# LPM build script for xkbevd
+
+NAME="xkbevd"
+VERSION="1.1.6"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="XKB event daemon"
+URL="https://www.x.org/"
+LICENSE="MIT"
+
+SOURCE=("https://www.x.org/archive//individual/app/${NAME}-${VERSION}.tar.xz")
+
+REQUIRES=(
+  "glibc"
+  "libX11"
+  "libxkbfile"
+)
+
+PROVIDES=("xkbevd")
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+  ./configure --prefix=/usr
+  make -j"$(nproc)"
+}
+
+check() { true; }
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+  DESTDIR="$pkgdir" make install
+}

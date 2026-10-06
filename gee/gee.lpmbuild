@@ -1,0 +1,71 @@
+#!/bin/bash
+# LPM build script for libgee (gee-0.8)
+# GObject-based collection library for GNOME
+
+NAME="gee"
+VERSION="0.20.8"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="GObject-based collection library (libgee)"
+URL="https://gitlab.gnome.org/GNOME/libgee"
+LICENSE=("LGPL-2.1-or-later")
+
+SOURCE=(
+  "https://download.gnome.org/sources/libgee/0.20/libgee-${VERSION}.tar.xz"
+)
+
+REQUIRES=(
+  "glib2"
+  "glibc"
+  "vala"
+)
+
+PROVIDES=(
+  "gee-0.8"
+  "libgee"
+  "libgee.so"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    ./configure --prefix=/usr --disable-static
+  make
+
+}
+
+check() {
+    true
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    make DESTDIR="$pkgdir" install
+
+    # Strip ELF objects
+    if command -v strip >/dev/null 2>&1; then
+        find "$pkgdir/usr" -type f -exec sh -c '
+            case "$(file -b "$1")" in
+              *ELF*shared\ object*|*ELF*executable*)
+                  strip --strip-unneeded "$1" 2>/dev/null || true
+              ;;
+            esac
+        ' _ {} \;
+    fi
+}
+
+

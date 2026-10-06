@@ -1,0 +1,19 @@
+#!/bin/bash
+NAME="libcom_err"
+VERSION="1.47.4"
+RELEASE="1"
+ARCH="any"
+SUMMARY="Compatibility dependency for e2fsprogs"
+URL="https://www.linuxfromscratch.org/lfs/view/13.1-systemd/"
+LICENSE=("MIT")
+SOURCE=()
+SHA256SUMS=()
+REQUIRES=("e2fsprogs")
+BUILD_REQUIRES=()
+PROVIDES=("libcom_err")
+prepare() { :; }
+build() { :; }
+staging() {
+    install -dm755 "$pkgdir/usr/share/doc/libcom_err"
+    printf '%s\n' 'The implementation is supplied by e2fsprogs.' > "$pkgdir/usr/share/doc/libcom_err/README"
+}

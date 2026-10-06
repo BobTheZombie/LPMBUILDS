@@ -1,0 +1,84 @@
+#!/bin/bash
+# LPM build script for libnotify
+# Desktop notifications library (D-Bus notifications spec)
+
+NAME="libnotify"
+VERSION="0.8.3"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Desktop notification library"
+URL="https://gitlab.gnome.org/GNOME/libnotify"
+LICENSE=("LGPL-2.1-or-later")
+
+SOURCE=(
+  "https://download.gnome.org/sources/libnotify/0.8/libnotify-${VERSION}.tar.xz"
+)
+
+REQUIRES=(
+  "glibc"
+  "glib2"
+  "gdk-pixbuf2"
+  "dbus"
+  "libxml2"
+  "gobject-introspection"
+  "pkg-config"
+  "meson"
+  "ninja"
+)
+
+PROVIDES=(
+  "libnotify"
+  "libnotify.so"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="libnotify-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+  mkdir -p build
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  meson setup build \
+    --prefix=/usr \
+    --libdir=lib \
+    --buildtype=release \
+    -Ddefault_library=shared \
+    -Dman=false \
+    -Dtests=false \
+    -Dintrospection=enabled
+
+  ninja -C build
+}
+
+check() { true; }
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+  DESTDIR="$pkgdir" ninja -C build install
+
+  # License
+  if [ -f COPYING ]; then
+    install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+  elif [ -f LICENSE ]; then
+    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$NAME/LICENSE"
+  fi
+
+  # Strip
+  if command -v strip >/dev/null 2>&1; then
+    find "$pkgdir/usr" -type f -exec sh -c '
+      case "$(file -b "$1")" in
+        *ELF*executable*|*ELF*shared\ object*) strip --strip-unneeded "$1" 2>/dev/null || true ;;
+      esac
+    ' _ {} \;
+  fi
+}
+

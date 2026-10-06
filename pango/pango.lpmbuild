@@ -1,0 +1,36 @@
+NAME="pango"
+VERSION="1.54.0"
+RELEASE="1"
+ARCH="x86_64"
+SUMMARY="Text layout and rendering library"
+URL="https://pango.gnome.org/"
+SOURCE=("https://download.gnome.org/sources/pango/${VERSION%.*}/pango-${VERSION}.tar.xz")
+LICENSE=("LGPL-2.1-or-later")
+
+REQUIRES=("glib2" "cairo" "harfbuzz" "freetype" "fontconfig" "fribidi")
+PROVIDES=("pango" "libpango-1.0.so")
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/pango-${VERSION}"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/pango-${VERSION}"
+    meson setup build \
+        --prefix=/usr \
+        --libdir=lib \
+        -Dgtk_doc=false \
+        -Dintrospection=auto
+    ninja -C build -j"$(nproc)"
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/pango-${VERSION}"
+    DESTDIR="$pkgdir" ninja -C build install
+}
+

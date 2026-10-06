@@ -1,0 +1,183 @@
+#!/bin/bash
+# LPM build script for smbclient + libsmbclient
+
+NAME="smbclient"
+VERSION="4.21.0"
+RELEASE="5"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="SMB/CIFS client utility and libsmbclient from Samba"
+URL="https://www.samba.org/"
+LICENSE=("GPL-3.0-or-later")
+
+SOURCE=(
+  "https://download.samba.org/pub/samba/stable/samba-${VERSION}.tar.gz"
+  "samba.pam"
+  "samba.tmpfiles"
+)
+
+SHA256SUMS=("SKIP" "SKIP" "SKIP")
+
+REQUIRES=(
+  "docbook-xml"
+  "glibc"
+  "libtirpc"
+  "readline"
+  "zlib"
+  "gnutls"
+  "libarchive"
+  "popt"
+  "libicu"
+  "tdb"
+  "talloc"
+  "tevent"
+  "openldap"
+  "pam"
+  "systemd"
+)
+
+BUILD_REQUIRES=(
+  "python"
+  "pkgconf"
+  "perl"
+  "flex"
+  "bison"
+  "libtirpc"
+  "readline"
+  "zlib"
+  "gnutls"
+  "libarchive"
+  "popt"
+  "libicu"
+  "tdb"
+  "talloc"
+  "tevent"
+  "openldap"
+  "pam"
+  "systemd"
+  "perl-parse-yapp"
+)
+
+PROVIDES=(
+  "smbclient"
+  "libsmbclient"
+  "libsmbclient.so"
+  "smbclient.pc"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_sourcedir() {
+  local d
+  d="$(find "$SRCROOT" -maxdepth 1 -type d \
+    \( -name "samba-${VERSION}" -o -name "smbclient-${VERSION}" \) \
+    | head -n1)"
+  test -n "$d"
+  printf '%s\n' "$d"
+}
+
+prepare() {
+  set -euxo pipefail
+  cd "$(_sourcedir)"
+}
+
+build() {
+  set -euxo pipefail
+  cd "$(_sourcedir)"
+
+  ./configure \
+    --enable-fhs \
+    --prefix=/usr \
+    --sbindir=/usr/bin \
+    --libdir=/usr/lib \
+    --libexecdir=/usr/lib/samba \
+    --sysconfdir=/etc \
+    --localstatedir=/var \
+    --with-configdir=/etc/samba \
+    --with-lockdir=/var/cache/samba \
+    --with-sockets-dir=/run/samba \
+    --with-piddir=/run \
+    --with-logfilebase=/var/log/samba \
+    --disable-cephfs \
+    --disable-cups \
+    --disable-iprint \
+    --with-ldap \
+    --with-ads \
+    --with-winbind \
+    --without-ad-dc \
+    --without-regedit \
+    --with-pam \
+    --with-pammodulesdir=/usr/lib/security \
+    --with-systemd \
+    --systemd-install-services \
+    --private-libraries='!ldb' \
+    --bundled-libraries='!tdb,!talloc,!pytalloc-util,!tevent,!popt,!pyldb-util' \
+    --disable-rpath-install
+    
+
+  make -j"$(nproc)"
+}
+
+check() {
+  true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$(_sourcedir)"
+
+  local pkgsrc="$SRCROOT/samba-pkg"
+  rm -rf "$pkgsrc"
+
+  make DESTDIR="$pkgsrc" install
+
+  install -dm755 "$pkgdir/usr/bin"
+  for bin in smbclient rpcclient smbspool smbtree smbcacls smbcquotas smbget net nmblookup smbtar; do
+    if [ -x "$pkgsrc/usr/bin/$bin" ]; then
+      cp -a "$pkgsrc/usr/bin/$bin" "$pkgdir/usr/bin/"
+    fi
+  done
+
+  if [ ! -e "$pkgdir/usr/bin/smbtar" ] && [ -f "$(_sourcedir)/source3/script/smbtar" ]; then
+    install -m755 "$(_sourcedir)/source3/script/smbtar" "$pkgdir/usr/bin/smbtar"
+  fi
+
+  install -dm755 "$pkgdir/usr/lib"
+  cp -a "$pkgsrc"/usr/lib/lib*.so* "$pkgdir/usr/lib/" 2>/dev/null || true
+
+  install -dm755 "$pkgdir/usr/lib/samba"
+  cp -a "$pkgsrc"/usr/lib/samba/lib*.so* "$pkgdir/usr/lib/samba/" 2>/dev/null || true
+
+  install -dm755 "$pkgdir/usr/lib/pkgconfig"
+  cp -a "$pkgsrc/usr/lib/pkgconfig/smbclient.pc" "$pkgdir/usr/lib/pkgconfig/"
+  cp -a "$pkgsrc/usr/lib/pkgconfig/netapi.pc" "$pkgdir/usr/lib/pkgconfig/" 2>/dev/null || true
+
+  install -dm755 "$pkgdir/usr/include/samba-4.0"
+  cp -a "$pkgsrc/usr/include/samba-4.0/libsmbclient.h" "$pkgdir/usr/include/samba-4.0/"
+  cp -a "$pkgsrc/usr/include/samba-4.0/netapi.h" "$pkgdir/usr/include/samba-4.0/" 2>/dev/null || true
+
+  install -dm755 "$pkgdir/usr/lib/cups/backend"
+  if [ -x "$pkgdir/usr/bin/smbspool" ]; then
+    ln -sf /usr/bin/smbspool "$pkgdir/usr/lib/cups/backend/smb"
+  fi
+
+  install -dm755 "$pkgdir/etc/samba"
+  cat > "$pkgdir/etc/samba/smb.conf" <<'EOF'
+[global]
+   workgroup = WORKGROUP
+   client min protocol = SMB2
+   client max protocol = SMB3
+EOF
+
+  test -x "$pkgdir/usr/bin/smbclient"
+  test -f "$pkgdir/usr/lib/pkgconfig/smbclient.pc"
+  test -f "$pkgdir/usr/include/samba-4.0/libsmbclient.h"
+  find "$pkgdir/usr/lib" -name 'libsmbclient.so*' | grep -q .
+
+  for f in COPYING LICENSE; do
+    if [ -f "$f" ]; then
+      install -Dm644 "$f" \
+        "$pkgdir/usr/share/licenses/$NAME/$f"
+    fi
+  done
+}

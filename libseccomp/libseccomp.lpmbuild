@@ -1,0 +1,32 @@
+NAME="libseccomp"
+VERSION="2.5.5"
+RELEASE="1"
+ARCH="x86_64"
+SUMMARY="Library for Linux syscall filtering"
+URL="https://github.com/seccomp/libseccomp"
+SOURCE=("https://github.com/seccomp/libseccomp/releases/download/v${VERSION}/libseccomp-${VERSION}.tar.gz")
+LICENSE=("LGPL-2.1-or-later")
+
+REQUIRES=("glibc")
+PROVIDES=("libseccomp" "libseccomp.so")
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/libseccomp-${VERSION}"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/libseccomp-${VERSION}"
+    ./configure --prefix=/usr --libdir=/usr/lib --disable-static
+    make -j"$(nproc)"
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/libseccomp-${VERSION}"
+    make DESTDIR="$pkgdir" install
+}
+

@@ -1,0 +1,46 @@
+NAME="efivar"
+VERSION="38"
+RELEASE="1"
+ARCH="x86_64"
+SUMMARY="Tools and library to manage UEFI variables"
+URL="https://github.com/rhboot/efivar"
+SOURCE=("https://github.com/rhboot/efivar/archive/${VERSION}.tar.gz")
+LICENSE=("LGPL-2.1-or-later")
+
+REQUIRES=("glibc")
+PROVIDES=("efivar" "libefivar.so")
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-$VERSION"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-$VERSION"
+
+    make \
+        prefix=/usr \
+        libdir=/usr/lib \
+        bindir=/usr/bin \
+        includedir=/usr/include \
+        mandir=/usr/share/man \
+        V=1
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-$VERSION"
+
+    make \
+        DESTDIR="$pkgdir" \
+        prefix=/usr \
+        libdir=/usr/lib \
+        bindir=/usr/bin \
+        includedir=/usr/include \
+        mandir=/usr/share/man \
+        install
+}
+

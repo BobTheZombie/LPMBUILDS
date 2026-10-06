@@ -1,0 +1,58 @@
+#!/bin/bash
+# LPM build script for budgie-backgrounds
+# Notes:
+# - These are "git+" lpmbuilds (Arch-style) so you are not blocked by the lack of stable 10.10 tarball releases.
+# - If you want to pin to a specific tag/commit, change SOURCE to e.g.:
+#     SOURCE=("git+https://github.com/BuddiesOfBudgie/budgie-desktop.git#tag=10.10-preview.1")
+#   or:
+#     SOURCE=("git+https://github.com/BuddiesOfBudgie/budgie-desktop.git#commit=<sha>")
+# - If your LPM git fetcher uses a different fragment syntax, adjust accordingly.
+#
+
+NAME="budgie-backgrounds"
+VERSION="10.10"
+RELEASE="1"
+ARCH="any"
+SUMMARY="Default background set for the Budgie Desktop"
+URL="https://github.com/BuddiesOfBudgie/budgie-backgrounds"
+LICENSE=("CC0-1.0")
+
+SOURCE=(
+  "git+https://github.com/BuddiesOfBudgie/budgie-backgrounds.git"
+)
+
+REQUIRES=("glibc")
+PROVIDES=("budgie-backgrounds")
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="budgie-backgrounds"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+}
+
+build() {
+  true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  install -vdm755 "$pkgdir/usr/share/backgrounds/budgie"
+  if [ -d backgrounds ]; then
+    cp -a backgrounds/. "$pkgdir/usr/share/backgrounds/budgie/"
+  elif [ -d data ]; then
+    cp -a data/. "$pkgdir/usr/share/backgrounds/budgie/" || true
+  else
+    # fallback: copy common image types
+    find . -maxdepth 2 -type f \( -name '*.png' -o -name '*.jpg' -o -name '*.jpeg' -o -name '*.webp' \) \
+      -exec install -Dm644 {} "$pkgdir/usr/share/backgrounds/budgie/{}" \; || true
+  fi
+
+  if [ -f LICENSE ]; then
+    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$NAME/LICENSE"
+  fi
+}

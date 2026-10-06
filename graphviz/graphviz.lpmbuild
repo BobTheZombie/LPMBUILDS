@@ -1,0 +1,98 @@
+#!/bin/bash
+# LPM build script for graphviz
+# Graph visualization software (dot, neato, etc.)
+
+NAME="graphviz"
+VERSION="14.1.1"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Graph visualization tools"
+URL="https://graphviz.org/"
+LICENSE=("EPL-1.0")
+
+SOURCE=(
+  "https://gitlab.com/graphviz/graphviz/-/archive/${VERSION}/graphviz-${VERSION}.tar.gz"
+)
+
+REQUIRES=(
+  # Runtime
+  "glibc"
+  "libX11"
+  "libXrender"
+  "libXext"
+  "libXt"
+  "fontconfig"
+  "freetype"
+  "libpng"
+  "zlib"
+  "expat"
+  "pango"
+  "cairo"
+  "glib2"
+
+  # Build
+  "pkg-config"
+  "gcc"
+  "cmake"
+  "python"
+)
+
+PROVIDES=(
+  "graphviz"
+  "dot"
+  "neato"
+  "libgraphviz"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="graphviz-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+  ./autogen.sh NOCONFIG
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  export LIBPOSTFIX=/
+	export CXXFLAGS+=' -fPIC -fpermissive'
+
+	./configure --prefix=/usr --enable-python3=yes --disable-python --enable-lefty
+        sed -i -e 's/ -shared / -Wl,-O1,--as-needed\0/g' libtool # Fix overlinking
+	make
+
+}
+
+check() {
+  true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  make DESTDIR="${pkgdir}" install
+
+  # License
+  if [ -f LICENSE ]; then
+    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$NAME/LICENSE"
+  fi
+
+  # Strip binaries/libs
+  if command -v strip >/dev/null 2>&1; then
+    find "$pkgdir/usr" -type f -exec sh -c '
+      case "$(file -b "$1")" in
+        *ELF*executable*|*ELF*shared\ object*)
+          strip --strip-unneeded "$1" 2>/dev/null || true
+        ;;
+      esac
+    ' _ {} \;
+  fi
+}
+
+

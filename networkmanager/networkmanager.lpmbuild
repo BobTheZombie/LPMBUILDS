@@ -8,7 +8,7 @@ URL="https://networkmanager.dev/"
 LICENSE="GPL-2.0-or-later AND LGPL-2.1-or-later"
 SOURCE=("https://download.gnome.org/sources/NetworkManager/${VERSION%.*}/NetworkManager-${VERSION}.tar.xz")
 SHA256SUMS=("3d9071cc62964ddf0e31f5d06f0603e17568b8c95114ae277703581add5a86a1")
-REQUIRES=("glibc" "glib2" "systemd" "dbus" "libudev" "wpa_supplicant" "dhcpcd" "polkit")
+REQUIRES=("glibc" "glib2" "systemd" "dbus" "libudev" "wpa_supplicant" "dhcpcd" "polkit" "mobile-broadband-provider-info" "pppd" "jansson")
 PROVIDES=("networkmanager")
 CONFLICTS=()
 OBSOLETES=()
@@ -27,7 +27,7 @@ build() {
   set -euxo pipefail
   cd "$SRCROOT/NetworkManager-${VERSION}"
   meson setup "$SRCROOT/build" --prefix=/usr --sysconfdir=/etc --localstatedir=/var --libexecdir=/usr/lib --buildtype=release \
-    -Dsystemdsystemunitdir=/usr/lib/systemd/system -Dudev_dir=/usr/lib/udev -Dpolkit=yes
+    -Dsystemdsystemunitdir=/usr/lib/systemd/system -Dudev_dir=/usr/lib/udev -Dpolkit=true
   meson compile -C "$SRCROOT/build"
 }
 

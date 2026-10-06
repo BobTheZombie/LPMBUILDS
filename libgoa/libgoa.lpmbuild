@@ -1,0 +1,65 @@
+#!/bin/bash
+
+NAME="libgoa"
+VERSION="3.52.2"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="GNOME Online Accounts client library"
+URL="https://gitlab.gnome.org/GNOME/gnome-online-accounts"
+LICENSE=("LGPL-2.1-or-later")
+
+SOURCE=(
+  "https://download.gnome.org/sources/gnome-online-accounts/3.52/gnome-online-accounts-${VERSION}.tar.xz"
+)
+
+SHA256SUMS=("SKIP")
+
+REQUIRES=(
+  "glib2"
+  "gtk3"
+  "json-glib"
+  "libsecret"
+  "libsoup"
+  "webkit2gtk-4.1"
+  "rest"
+)
+
+BUILD_REQUIRES=(
+  "meson"
+  "ninja"
+  "pkgconf"
+  "gettext"
+  "gobject-introspection"
+  "vala"
+)
+
+PROVIDES=("libgoa" "libgoa-1.0.so")
+
+_srcdir="gnome-online-accounts-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+  rm -rf build
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  meson setup build \
+    --prefix=/usr \
+    --libdir=lib \
+    --buildtype=release
+
+  meson compile -C build
+}
+
+check() { true; }
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  DESTDIR="$pkgdir" meson install -C build
+}

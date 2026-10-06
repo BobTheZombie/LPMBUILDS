@@ -1,34 +1,40 @@
-# LPM build script for python-wheel
+#!/bin/bash
+# LFS 13.1-systemd baseline; see docs/lfs-13.1.md for patch provenance.
 NAME="python-wheel"
-VERSION="0.44.0"
+VERSION="0.48.0"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="Built-package format for Python"
-URL="https://github.com/pypa/wheel"
-LICENSE=""
-SOURCE=()
-REQUIRES=("python" "python-setuptools")
+URL="https://pypi.org/packages/source/w/wheel/wheel-0.48.0.tar.gz"
+LICENSE=("MIT")
+SOURCE=("https://pypi.org/packages/source/w/wheel/wheel-0.48.0.tar.gz")
+SHA256SUMS=("94800765601e9171bf5d58d066e640662842bcedcbab982b2c90787a2c987322")
+PATCHES=()
+REQUIRES=("python" "python-packaging")
+BUILD_REQUIRES=("python" "python-flit-core" "python-packaging")
 PROVIDES=("python-wheel")
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
+
+_srcdir="wheel-0.48.0"
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    :
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    python3 -m pip wheel --no-cache-dir --no-build-isolation --no-deps --wheel-dir=dist .
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    python3 -m pip install --root="$pkgdir" --prefix=/usr --ignore-installed --no-deps --no-index --no-compile dist/*.whl
+
+    rm -f "$pkgdir/usr/share/info/dir"
+    find "$pkgdir/usr/lib" -name "*.la" -delete 2>/dev/null || true
 }

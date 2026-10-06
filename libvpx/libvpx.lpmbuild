@@ -1,0 +1,140 @@
+# LPM build script for libvpx
+
+NAME="libvpx"
+VERSION="1.15.2"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+
+SUMMARY="VP8 and VP9 video codec library"
+URL="https://chromium.googlesource.com/webm/libvpx/"
+LICENSE=("BSD-3-Clause")
+
+SOURCE=(
+    "https://github.com/webmproject/libvpx/archive/refs/tags/v${VERSION}.tar.gz"
+)
+
+SHA256SUMS=("SKIP")
+PATCHES=()
+
+REQUIRES=(
+    "glibc"
+    "libgcc"
+    "libstdc++"
+)
+
+BUILD_REQUIRES=(
+    "make"
+    "pkgconf"
+    "nasm"
+    "yasm"
+    "perl"
+)
+
+PROVIDES=(
+    "libvpx"
+    "libvpx.so"
+    "vpx.pc"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+    set -euxo pipefail
+
+    cd "$SRCROOT/libvpx-${VERSION}"
+
+    # libvpx supports out-of-tree builds.
+    rm -rf "$SRCROOT/libvpx-build"
+    mkdir -p "$SRCROOT/libvpx-build"
+}
+
+build() {
+    set -euxo pipefail
+
+    cd "$SRCROOT/libvpx-build"
+
+    "$SRCROOT/libvpx-${VERSION}/configure" \
+        --prefix=/usr \
+        --libdir=/usr/lib \
+        --enable-shared \
+        --disable-static \
+        --enable-pic \
+        --enable-vp8 \
+        --enable-vp9 \
+        --enable-runtime-cpu-detect \
+        --enable-postproc \
+        --enable-vp9-postproc \
+        --enable-vp9-highbitdepth \
+        --enable-multithread \
+        --enable-webm-io \
+        --disable-examples \
+        --disable-unit-tests \
+        --disable-docs \
+        --disable-install-docs
+
+    make -j"$(nproc)"
+}
+
+check() {
+    # Unit tests are disabled for the distro build.
+    true
+}
+
+staging() {
+    set -euxo pipefail
+
+    cd "$SRCROOT/libvpx-build"
+
+    make DESTDIR="$pkgdir" install
+
+    #
+    # Shared library
+    #
+
+    test -n "$(
+        find "$pkgdir/usr/lib" \
+            -name 'libvpx.so*' \
+            -print -quit
+    )"
+
+    #
+    # Public headers
+    #
+
+    test -f "$pkgdir/usr/include/vpx/vpx_codec.h"
+    test -f "$pkgdir/usr/include/vpx/vpx_decoder.h"
+    test -f "$pkgdir/usr/include/vpx/vpx_encoder.h"
+    test -f "$pkgdir/usr/include/vpx/vp8dx.h"
+    test -f "$pkgdir/usr/include/vpx/vp8cx.h"
+
+    #
+    # pkg-config metadata
+    #
+    # FFmpeg --enable-libvpx discovers libvpx through this.
+    #
+
+    test -f "$pkgdir/usr/lib/pkgconfig/vpx.pc"
+
+    #
+    # Make sure we didn't accidentally install a static library.
+    #
+
+    if [ -e "$pkgdir/usr/lib/libvpx.a" ]; then
+        rm -f "$pkgdir/usr/lib/libvpx.a"
+    fi
+
+    #
+    # License
+    #
+
+    if [ -f "$SRCROOT/libvpx-${VERSION}/LICENSE" ]; then
+        install -Dm644 \
+            "$SRCROOT/libvpx-${VERSION}/LICENSE" \
+            "$pkgdir/usr/share/licenses/libvpx/LICENSE"
+    fi
+
+    echo "==> libvpx ${VERSION} staging complete"
+}

@@ -1,36 +1,76 @@
-# LPM build script for extra-cmake-modules
+#!/bin/bash
+# LPM build script for extra-cmake-modules (ECM)
+
 NAME="extra-cmake-modules"
-VERSION="1.0.0"
+VERSION="6.26.0"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Placeholder package for extra-cmake-modules dependency"
-URL="https://example.com/extra-cmake-modules"
-LICENSE=""
-SOURCE=()
-SHA256SUMS=()
-PATCHES=()
-REQUIRES=()
-PROVIDES=("extra-cmake-modules")
+SUMMARY="Extra modules and scripts for CMake"
+URL="https://invent.kde.org/frameworks/extra-cmake-modules"
+LICENSE=("BSD-3-Clause")
+
+SOURCE=(
+  "https://download.kde.org/stable/frameworks/${VERSION%.*}/extra-cmake-modules-${VERSION}.tar.xz"
+)
+
+SHA256SUMS=("SKIP")
+
+REQUIRES=(
+  "glibc"
+  "cmake"
+)
+
+BUILD_REQUIRES=(
+  "cmake"
+  "ninja"
+  "python"
+)
+
+PROVIDES=(
+  "extra-cmake-modules"
+  "ECM"
+)
+
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
+
+_srcdir="${NAME}-${VERSION}"
 
 prepare() {
   set -euxo pipefail
-  cd "$SRCROOT"
-  :
+  cd "$SRCROOT/$_srcdir"
+
+  rm -rf build
+  mkdir -p build
 }
 
 build() {
   set -euxo pipefail
-  cd "$SRCROOT"
-  :
+  cd "$SRCROOT/$_srcdir/build"
+
+  cmake .. -G Ninja \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DCMAKE_INSTALL_LIBDIR=lib \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DBUILD_TESTING=OFF
+
+  ninja
+}
+
+check() {
+  true
 }
 
 staging() {
   set -euxo pipefail
-  cd "$SRCROOT"
-  install -d "$pkgdir/usr/share/doc/extra-cmake-modules"
-  printf 'Placeholder package for extra-cmake-modules\n' >"$pkgdir/usr/share/doc/extra-cmake-modules/README"
+  cd "$SRCROOT/$_srcdir/build"
+
+  DESTDIR="$pkgdir" ninja install
+
+  for f in LICENSES/* LICENSE* COPYING*; do
+    if [ -f "$SRCROOT/$_srcdir/$f" ]; then
+      install -Dm644 "$SRCROOT/$_srcdir/$f" \
+        "$pkgdir/usr/share/licenses/$NAME/$(basename "$f")"
+    fi
+  done
 }

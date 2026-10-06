@@ -1,34 +1,50 @@
-# LPM build script for bzip2
+#!/bin/bash
+# LFS 13.1-systemd baseline; see docs/lfs-13.1.md for patch provenance.
 NAME="bzip2"
 VERSION="1.0.8"
-RELEASE="1"
+RELEASE="2"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="Burrows-Wheeler compression"
-URL="https://sourceware.org/bzip2/"
-LICENSE=""
-SOURCE=()
+URL="https://www.sourceware.org/pub/bzip2/bzip2-1.0.8.tar.gz"
+LICENSE=("bzip2-1.0.6")
+SOURCE=("https://www.sourceware.org/pub/bzip2/bzip2-1.0.8.tar.gz" "bzip2-1.0.8-install_docs-1.patch")
+SHA256SUMS=("ab5a03176ee106d3f0fa90e381da478ddae405918153cca248e682cd0c4a2269" "35e3bbd9642af51fef2a8a83afba040d272da42d7e3a251d8e43255a7b496702")
+PATCHES=()
 REQUIRES=("glibc")
+BUILD_REQUIRES=("gcc" "make" "pkgconf")
 PROVIDES=("bzip2")
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
+
+_srcdir="bzip2-1.0.8"
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    patch --batch --forward -Np1 -i "$SRCROOT/bzip2-1.0.8-install_docs-1.patch"
+    sed -i 's@\(ln -s -f \)$(PREFIX)/bin/@\1@' Makefile
+    sed -i 's@(PREFIX)/man@(PREFIX)/share/man@g' Makefile
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    make -f Makefile-libbz2_so
+    make clean
+    make -j"${JOBS:-$(nproc)}"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    make PREFIX="$pkgdir/usr" install
+    cp -a libbz2.so.* "$pkgdir/usr/lib/"
+    ln -sf libbz2.so.1.0.8 "$pkgdir/usr/lib/libbz2.so"
+    ln -sf libbz2.so.1.0.8 "$pkgdir/usr/lib/libbz2.so.1"
+    install -m755 bzip2-shared "$pkgdir/usr/bin/bzip2"
+    ln -sf bzip2 "$pkgdir/usr/bin/bzcat"
+    ln -sf bzip2 "$pkgdir/usr/bin/bunzip2"
+
+    rm -f "$pkgdir/usr/share/info/dir"
+    find "$pkgdir/usr/lib" -name "*.la" -delete 2>/dev/null || true
 }

@@ -1,0 +1,43 @@
+#!/bin/bash
+# LFS 13.1-systemd baseline; see docs/lfs-13.1.md for patch provenance.
+NAME="vim"
+VERSION="9.2.1025"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Vim"
+URL="https://github.com/vim/vim/archive/v9.2.1025/vim-9.2.1025.tar.gz"
+LICENSE=("Vim")
+SOURCE=("https://github.com/vim/vim/archive/v9.2.1025/vim-9.2.1025.tar.gz")
+SHA256SUMS=("cb0dbf701f8550bb54940304fa4d8b875e078db84967e5b36a0eb7ebe8a6d0cc")
+PATCHES=()
+REQUIRES=("glibc")
+BUILD_REQUIRES=("gcc" "make" "pkgconf")
+PROVIDES=("vim")
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="vim-9.2.1025"
+
+prepare() {
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    :
+}
+
+build() {
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    ./configure --prefix=/usr --with-features=huge --enable-multibyte --enable-python3interp=dynamic
+    make -j"${JOBS:-$(nproc)}"
+}
+
+staging() {
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    make DESTDIR="$pkgdir" install
+    ln -sf vim "$pkgdir/usr/bin/vi"
+
+    rm -f "$pkgdir/usr/share/info/dir"
+    find "$pkgdir/usr/lib" -name "*.la" -delete 2>/dev/null || true
+}
+

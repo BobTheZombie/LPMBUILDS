@@ -1,0 +1,79 @@
+#!/bin/bash
+# LPM build script for json-c
+# JSON manipulation library in C
+
+NAME="json-c"
+VERSION="0.18"
+TAGDATE="20240915"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="C library for JSON manipulation"
+URL="https://github.com/json-c/json-c"
+LICENSE=("MIT")
+
+SOURCE=(
+  "git+https://github.com/json-c/json-c#tag=json-c-$VERSION-$TAGDATE"
+)
+
+REQUIRES=(
+  "glibc"
+
+  # Build
+  "gcc"
+  "cmake"
+  "ninja"
+)
+
+PROVIDES=(
+  "json-c"
+  "libjson-c.so"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="json-c"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  cmake -S . -B build \
+    -G Ninja \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DCMAKE_INSTALL_LIBDIR=lib \
+    -DBUILD_SHARED_LIBS=ON \
+    -DBUILD_TESTING=OFF \
+    -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+
+  cmake --build build -j"$(nproc)"
+}
+
+check() {
+  true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  DESTDIR="$pkgdir" cmake --install build
+
+  # License
+  if [ -f COPYING ]; then
+    install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+  elif [ -f LICENSE ]; then
+    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$NAME/LICENSE"
+  fi
+
+  # Strip shared library
+  if command -v strip >/dev/null 2>&1; then
+    find "$pkgdir/usr/lib" -type f -name 'libjson-c.so*' -exec strip --strip-unneeded {} \; 2>/dev/null || true
+  fi
+}

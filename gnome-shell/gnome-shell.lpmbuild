@@ -1,0 +1,98 @@
+#!/bin/bash
+# LPM build script for gnome-shell
+
+NAME="gnome-shell"
+VERSION="47.3"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="GNOME Shell"
+URL="https://gitlab.gnome.org/GNOME/gnome-shell"
+LICENSE=("GPL-2.0-or-later")
+
+SOURCE=(
+  "https://download.gnome.org/sources/gnome-shell/47/gnome-shell-${VERSION}.tar.xz"
+)
+
+SHA256SUMS=("SKIP")
+
+REQUIRES=(
+  "glibc"
+  "glib2"
+  "gtk4"
+  "gjs"
+  "libecal"
+  "mutter"
+  "gnome-session"
+  "gsettings-desktop-schemas"
+  "gnome-desktop"
+  "systemd"
+  "dbus"
+)
+
+BUILD_REQUIRES=(
+  "meson"
+  "ninja"
+  "pkgconf"
+  "gettext"
+  "glib2"
+  "gtk4"
+  "gobject-introspection"
+  "gjs"
+  "mutter"
+  "gnome-session"
+  "gnome-desktop"
+)
+
+PROVIDES=(
+  "gnome-shell"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  rm -rf build
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  export XML_CATALOG_FILES=/etc/xml/catalog
+
+  meson setup build \
+    --prefix=/usr \
+    --libdir=lib \
+    --buildtype=release \
+    -Ddefault_library=shared \
+    -D gtk_doc=false \
+    -Dtests=false \
+    -Dextensions_tool=true
+
+  ninja -C build
+}
+
+check() {
+  true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  DESTDIR="$pkgdir" ninja -C build install
+
+  test -x "$pkgdir/usr/bin/gnome-shell"
+
+  for f in COPYING LICENSE; do
+    if [ -f "$f" ]; then
+      install -Dm644 "$f" \
+        "$pkgdir/usr/share/licenses/$NAME/$f"
+    fi
+  done
+}

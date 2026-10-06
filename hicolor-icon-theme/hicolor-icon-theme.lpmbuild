@@ -1,0 +1,116 @@
+NAME="hicolor-icon-theme"
+VERSION="0.18"
+RELEASE="1"
+ARCH="any"
+
+SUMMARY="Freedesktop.org Hicolor icon theme"
+URL="https://www.freedesktop.org/wiki/Software/icon-theme/"
+LICENSE=("GPL-2.0-or-later")
+
+SOURCE=(
+    "https://icon-theme.freedesktop.org/releases/hicolor-icon-theme-${VERSION}.tar.xz"
+)
+
+SHA256SUMS=("SKIP")
+PATCHES=()
+
+REQUIRES=()
+
+BUILD_REQUIRES=(
+    "meson"
+    "ninja"
+)
+
+PROVIDES=(
+    "hicolor-icon-theme"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    BUILDDIR="$SRCROOT/${NAME}-${VERSION}-build"
+
+    cd "$SRCDIR"
+
+    rm -rf "$BUILDDIR"
+}
+
+build() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    BUILDDIR="$SRCROOT/${NAME}-${VERSION}-build"
+
+    meson setup \
+        "$BUILDDIR" \
+        "$SRCDIR" \
+        --prefix=/usr \
+        --datadir=share \
+        --buildtype=release
+
+    meson compile \
+        -C "$BUILDDIR" \
+        -j"$(nproc)"
+}
+
+check() {
+    true
+}
+
+staging() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    BUILDDIR="$SRCROOT/${NAME}-${VERSION}-build"
+
+    DESTDIR="$pkgdir" \
+        meson install -C "$BUILDDIR"
+
+    #
+    # Icon theme definition
+    #
+
+    test -f \
+        "$pkgdir/usr/share/icons/hicolor/index.theme"
+
+    #
+    # Standard icon hierarchy
+    #
+
+    test -d \
+        "$pkgdir/usr/share/icons/hicolor"
+
+    #
+    # Verify some of the standard icon-size directories.
+    #
+
+    test -d \
+        "$pkgdir/usr/share/icons/hicolor/16x16"
+
+    test -d \
+        "$pkgdir/usr/share/icons/hicolor/32x32"
+
+    test -d \
+        "$pkgdir/usr/share/icons/hicolor/48x48"
+
+    test -d \
+        "$pkgdir/usr/share/icons/hicolor/scalable"
+
+    #
+    # License
+    #
+
+    if [ -f "$SRCDIR/COPYING" ]; then
+        install -Dm644 \
+            "$SRCDIR/COPYING" \
+            "$pkgdir/usr/share/licenses/${NAME}/COPYING"
+    fi
+
+    echo "==> ${NAME} ${VERSION} staging complete"
+}

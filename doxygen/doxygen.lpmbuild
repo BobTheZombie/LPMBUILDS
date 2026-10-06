@@ -1,0 +1,83 @@
+#!/bin/bash
+# LPM build script for doxygen
+
+NAME="doxygen"
+VERSION="1.17.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Documentation system for C, C++, Java, Python and other languages"
+URL="https://www.doxygen.nl/"
+LICENSE=("GPL-2.0-or-later")
+
+SOURCE=(
+  "https://github.com/doxygen/doxygen/archive/refs/tags/Release_${VERSION//./_}.tar.gz"
+)
+
+SHA256SUMS=("SKIP")
+
+REQUIRES=(
+  "glibc"
+  "gcc-libs"
+)
+
+BUILD_REQUIRES=(
+  "cmake"
+  "ninja"
+  "pkgconf"
+  "flex"
+  "bison"
+  "python"
+)
+
+PROVIDES=(
+  "doxygen"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  rm -rf build
+  mkdir -p build
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir/build"
+
+  cmake .. \
+    -G Ninja \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_LIBDIR=lib \
+    -Dbuild_doc=OFF \
+    -Dbuild_parse=ON \
+    -Duse_libclang=OFF
+
+  ninja
+}
+
+check() {
+  true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir/build"
+
+  DESTDIR="$pkgdir" ninja install
+
+  test -x "$pkgdir/usr/bin/doxygen"
+
+  for f in LICENSE COPYING; do
+    if [ -f "../$f" ]; then
+      install -Dm644 "../$f" \
+        "$pkgdir/usr/share/licenses/$NAME/$f"
+    fi
+  done
+}

@@ -1,6 +1,6 @@
 # LPM build script for mesa
 NAME="mesa"
-VERSION="24.2.1"
+VERSION="25.3.2"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="Open-source implementation of the OpenGL and Vulkan graphics APIs"
@@ -8,29 +8,43 @@ URL="https://www.mesa3d.org/"
 LICENSE="MIT"
 SOURCE=("https://archive.mesa3d.org/mesa-${VERSION}.tar.xz")
 CHECKSUMS=("fc9a495f3a9af906838be89367564e10ef335e058f88965ad49ccc3e9a3b420b")
-REQUIRES=("glibc" "libdrm" "wayland" "wayland-protocols" "libx11" "libxext" "libxcb" "libxdamage" "libxfixes" "expat" "llvm" "libva" "vulkan-loader")
+REQUIRES=("glibc" "libdrm" "wayland" "wayland-protocols" "libX11" "libXext" "libxcb" "libXdamage" "libXfixes" "expat" "llvm" "vulkan-loader" "bindgen" "libclc" "spirv-llvm-translator" "libva" "libglvnd")
 PROVIDES=("mesa")
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=("vulkan-loader")
+RECOMMENDS=("vulkan-loader" "libva")
 SUGGESTS=()
 
 prepare() {
   set -euxo pipefail
-  cd "$SRCROOT"
+  cd "$SRCROOT/$NAME-$VERSION"
 }
 
 build() {
   set -euxo pipefail
-  cd "$SRCROOT"
-  meson setup build --prefix=/usr --buildtype=release \
-    -Dgallium-drivers=auto -Dvulkan-drivers=auto -Dplatforms=x11,wayland \
-    -Dglx=dri -Degl=enabled -Dosmesa=true -Dshared-llvm=enabled
+  cd "$SRCROOT/$NAME-$VERSION"
+  meson setup build \
+  --prefix=/usr \
+  --buildtype=release \
+  --libdir=/lib \
+  -Dstrip=true \
+  -Db_lto=true -Db_lto_mode=thin \
+  -Dplatforms=wayland,x11 \
+  -Dglx=dri \
+  -Dglvnd=enabled \
+  -Degl=enabled \
+  -Dgallium-drivers=radeonsi \
+  -Dvulkan-drivers=amd \
+  -Dmesa-clc=enabled \
+  -Dshared-llvm=enabled \
+  -Dvideo-codecs=all \
+  -Dgallium-va=enabled \
+  -Dvulkan-layers=anti-lag,overlay,screenshot,device-select
   ninja -C build
 }
 
 staging() {
   set -euxo pipefail
-  cd "$SRCROOT"
+  cd "$SRCROOT/$NAME-$VERSION"
   DESTDIR="$pkgdir" ninja -C build install
 }

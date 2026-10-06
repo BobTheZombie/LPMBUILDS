@@ -1,0 +1,81 @@
+#!/bin/bash
+# LPM build script for xcursor-themes
+# Default redglass/whiteglass cursor themes for libXcursor
+
+NAME="xcursor-themes"
+VERSION="1.0.7"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Default X.Org cursor themes (redglass and whiteglass)"
+URL="https://www.x.org/"
+LICENSE="MIT"
+
+SOURCE=(
+  "https://www.x.org/releases/individual/data/xcursor-themes-${VERSION}.tar.xz"
+)
+
+REQUIRES=(
+  "glibc"
+  "libX11"
+  "libXcursor"
+  "xcursorgen"
+  "util-macros"
+  "pkg-config"
+  "autoconf"
+  "automake"
+  "libtool"
+  "make"
+)
+
+PROVIDES=("xcursor-themes")
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="xcursor-themes-${VERSION}"
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT"
+    tar xf "xcursor-themes-${VERSION}.tar.xz"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    : "${CC:=cc}"
+
+    ./configure \
+        --prefix=/usr
+
+    make -j"$(nproc)"
+}
+
+check() {
+    # No upstream test suite
+    true
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    DESTDIR="$pkgdir" make install
+
+    # License
+    if [ -f COPYING ]; then
+        install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+    fi
+
+    # This package is mostly data (icons), but strip just in case
+    if command -v strip >/dev/null 2>&1; then
+        find "$pkgdir/usr" -type f -exec sh -c '
+            case "$(file -b "$1")" in
+              *ELF*executable*|*ELF*shared\ object*)
+                strip --strip-unneeded "$1" 2>/dev/null || true
+              ;;
+            esac
+        ' _ {} \;
+    fi
+}
+

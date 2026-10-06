@@ -1,0 +1,56 @@
+#!/bin/bash
+# LPM build script for hwdata
+
+NAME="hwdata"
+VERSION="0.395"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Hardware identification and configuration data"
+URL="https://github.com/vcrhonek/hwdata"
+LICENSE=("GPL-2.0-or-later" "MIT" "BSD")
+
+SOURCE=(
+  "https://github.com/vcrhonek/hwdata/archive/refs/tags/v${VERSION}.tar.gz"
+)
+
+REQUIRES=(
+  "git"
+)
+
+BUILD_REQUIRES=(
+  "meson"
+  "ninja"
+  "pkgconf"
+  "python"
+)
+
+PROVIDES=(
+  "hwdata"
+  "pci.ids"
+  "usb.ids"
+  "pnp.ids"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+ ./configure --prefix=/usr --disable-blacklist
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  make DESTDIR="${pkgdir}" install
+}

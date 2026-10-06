@@ -1,34 +1,60 @@
+#!/bin/bash
 # LPM build script for ca-certificates
+# Standard CA trust bundle (Debian/Arch-style path: /etc/ssl/certs/ca-certificates.crt)
+# Also provides OpenSSL-compat paths /usr/ssl/cert.pem and /usr/ssl/certs.
+
 NAME="ca-certificates"
-VERSION="2025.01"
+VERSION="2024.12.10"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Common CA certificates bundle"
-URL="https://www.mozilla.org/"
-LICENSE=""
-SOURCE=()
-REQUIRES=()
-PROVIDES=("ca-certificates")
+SUMMARY="Common CA certificates (Mozilla trust store)"
+URL="https://curl.se/docs/caextract.html"
+LICENSE=("MPL-2.0")
+
+# Use curl's published Mozilla bundle snapshot.
+# (This is widely used as a bootstrap bundle in minimal systems.)
+SOURCE=(
+  "https://curl.se/ca/cacert.pem"
+)
+
+REQUIRES=(
+  "glibc"
+  "openssl"
+)
+
+PROVIDES=(
+  "ca-certificates"
+)
+
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
 
-prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
-}
-
-build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
-}
+prepare() { true; }
+build() { true; }
 
 staging() {
   set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+
+  # Install canonical bundle location expected by many distros/tools
+  install -vdm755 "$pkgdir/etc/ssl/certs"
+  install -Dm644 "$SRCROOT/cacert.pem" \
+    "$pkgdir/etc/ssl/certs/ca-certificates.crt"
+
+  # RHEL/Fedora compatibility (some software looks here)
+  install -vdm755 "$pkgdir/etc/pki/tls/certs"
+  ln -sf ../../../../etc/ssl/certs/ca-certificates.crt \
+    "$pkgdir/etc/pki/tls/certs/ca-bundle.crt"
+
+  # OpenSSL default path compatibility for builds that expect /usr/ssl/*
+  # (This fixes Python/OpenSSL default_verify_paths pointing at /usr/ssl/cert.pem)
+  install -vdm755 "$pkgdir/usr/ssl"
+  ln -sf ../../etc/ssl/certs/ca-certificates.crt \
+    "$pkgdir/usr/ssl/cert.pem"
+  ln -sf ../../etc/ssl/certs \
+    "$pkgdir/usr/ssl/certs"
+
+  # Also ensure /etc/ssl/cert.pem exists (common on some systems)
+  ln -sf certs/ca-certificates.crt \
+    "$pkgdir/etc/ssl/cert.pem"
 }
+

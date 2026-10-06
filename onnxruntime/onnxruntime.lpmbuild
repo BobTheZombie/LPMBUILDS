@@ -1,0 +1,46 @@
+NAME="onnxruntime"
+VERSION="1.29.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+
+SUMMARY="ONNX Runtime CPU inference engine"
+URL=""
+LICENSE=("custom")
+
+SOURCE=(
+    "https://github.com/microsoft/onnxruntime/archive/refs/tags/v${VERSION}.tar.gz"
+)
+SHA256SUMS=("SKIP")
+PATCHES=()
+
+REQUIRES=(
+    "glibc"
+    "libgcc"
+    "libstdc++"
+)
+
+BUILD_REQUIRES=(
+    "cmake"
+    "ninja"
+    "python"
+    "protobuf"
+)
+
+PROVIDES=(
+    "onnxruntime"
+)
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() { set -euxo pipefail; cd "$SRCROOT/${NAME}-${VERSION}"; }
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    ./build.sh --config Release --parallel --build_shared_lib --skip_tests --allow_running_as_root --cmake_extra_defines CMAKE_INSTALL_PREFIX=/usr CMAKE_INSTALL_LIBDIR=lib
+}
+check() { true; }
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    cmake --install build/Linux/Release --prefix "$pkgdir/usr"
+}

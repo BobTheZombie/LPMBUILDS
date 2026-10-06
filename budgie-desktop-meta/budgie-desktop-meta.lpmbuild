@@ -1,0 +1,40 @@
+#!/bin/bash
+# LPM meta-package for Budgie Desktop (10.10 series)
+# Installs Budgie core plus commonly-used companion components.
+
+NAME="budgie-desktop-meta"
+VERSION="10.10"
+RELEASE="1"
+ARCH="any"
+SUMMARY="Meta package for Budgie Desktop (core + common components)"
+URL="https://buddiesofbudgie.org/"
+LICENSE=("custom")
+
+SOURCE=()
+
+REQUIRES=(
+  "budgie-desktop"
+  "budgie-desktop-services"
+  "budgie-session"
+  "budgie-control-center"
+  "budgie-desktop-view"
+  "budgie-screensaver"
+  "budgie-backgrounds"
+
+  # Common runtime expectations
+  "xorg-server"
+  "xinit"
+  "dbus"
+  "dbus-broker"
+  "polkit"
+
+  # Optional add-ons (comment out if you want strict core only)
+)
+
+PROVIDES=("budgie-desktop")
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() { :; }
+build() { :; }
+staging() { :; }

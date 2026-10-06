@@ -1,34 +1,41 @@
-# LPM build script for man-db
+#!/bin/bash
+# LFS 13.1-systemd baseline; see docs/lfs-13.1.md for patch provenance.
 NAME="man-db"
-VERSION="2.12.1"
+VERSION="2.13.1"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Man page database"
-URL="https://savannah.nongnu.org/projects/man-db/"
-LICENSE=""
-SOURCE=()
-REQUIRES=("glibc" "gdbm")
+SUMMARY="A utility for reading man pages"
+URL="https://download.savannah.gnu.org/releases/man-db/man-db-2.13.1.tar.xz"
+LICENSE=("GPL-2.0-or-later")
+SOURCE=("https://download.savannah.gnu.org/releases/man-db/man-db-2.13.1.tar.xz")
+SHA256SUMS=("8afebb6f7eb6bb8542929458841f5c7e6f240e30c86358c1fbcefbea076c87d9")
+PATCHES=()
+REQUIRES=("glibc" "gdbm" "groff" "libpipeline")
+BUILD_REQUIRES=("gcc" "make" "pkgconf")
 PROVIDES=("man-db")
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
+
+_srcdir="man-db-2.13.1"
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    :
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    ./configure --prefix=/usr --sysconfdir=/etc --disable-setuid --enable-cache-owner=bin
+    make -j"${JOBS:-$(nproc)}"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    make DESTDIR="$pkgdir" install
+
+    rm -f "$pkgdir/usr/share/info/dir"
+    find "$pkgdir/usr/lib" -name "*.la" -delete 2>/dev/null || true
 }

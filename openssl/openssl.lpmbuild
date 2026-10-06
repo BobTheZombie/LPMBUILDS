@@ -1,33 +1,42 @@
-# LPM build script for openssl
+#!/bin/bash
+# LFS 13.1-systemd baseline; see docs/lfs-13.1.md for patch provenance.
 NAME="openssl"
-VERSION="3.3.2"
+VERSION="4.0.1"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="SSL/TLS toolkit"
-URL="https://www.openssl.org/"
-LICENSE=""
-SOURCE=()
-REQUIRES=("glibc" "zlib" "perl")
+SUMMARY="Toolkit for SSL/TLS and cryptography (libcrypto provider)"
+URL="https://github.com/openssl/openssl/releases/download/openssl-4.0.1/openssl-4.0.1.tar.gz"
+LICENSE=("Apache-2.0")
+SOURCE=("https://github.com/openssl/openssl/releases/download/openssl-4.0.1/openssl-4.0.1.tar.gz" "ca-dir.patch")
+SHA256SUMS=("2db3f3a0d6ea4b59e1f094ace2c8cd536dffb87cdc39084c5afa1e6f7f37dd09" "0a32d9ca68e8d985ce0bfef6a4c20b46675e06178cc2d0bf6d91bd6865d648b7")
+PATCHES=()
+REQUIRES=("glibc" "zlib")
+BUILD_REQUIRES=("gcc" "make" "pkgconf")
 PROVIDES=("openssl")
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
+
+_srcdir="openssl-4.0.1"
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./config --prefix=/usr --openssldir=/etc/ssl --libdir=lib
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    patch --batch --forward -Np1 -i "$SRCROOT/ca-dir.patch"
+    :
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make -j"$(nproc)"
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    ./config --prefix=/usr --openssldir=/etc/ssl --libdir=lib shared zlib-dynamic
+    make -j"${JOBS:-$(nproc)}"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    make DESTDIR="$pkgdir" install_sw install_ssldirs
+
+    rm -f "$pkgdir/usr/share/info/dir"
+    find "$pkgdir/usr/lib" -name "*.la" -delete 2>/dev/null || true
 }

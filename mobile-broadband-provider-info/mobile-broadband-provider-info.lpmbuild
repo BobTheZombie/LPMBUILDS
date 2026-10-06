@@ -1,0 +1,71 @@
+#!/bin/bash
+# LPM build script for mobile-broadband-provider-info
+# Mobile broadband provider/APN database used by ModemManager/NetworkManager.
+
+NAME="mobile-broadband-provider-info"
+VERSION="20240407"
+RELEASE="1"
+ARCH="x86_64"
+SUMMARY="Mobile broadband provider APN database"
+URL="https://wiki.gnome.org/Projects/NetworkManager/MobileBroadband/ServiceProviders"
+LICENSE=("CC-PDDC")
+
+SOURCE=(
+  "https://download.gnome.org/sources/mobile-broadband-provider-info/${VERSION}/${NAME}-${VERSION}.tar.xz"
+)
+
+REQUIRES=(
+  "glibc"
+)
+
+BUILD_REQUIRES=(
+  "meson"
+  "ninja"
+  "pkgconf"
+)
+
+PROVIDES=(
+  "mobile-broadband-provider-info"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  rm -rf build
+
+  meson setup build \
+    --prefix=/usr \
+    --libdir=lib \
+    --buildtype=release
+
+  meson compile -C build
+}
+
+check() {
+  true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  DESTDIR="$pkgdir" meson install -C build
+
+  # License / metadata
+  for f in COPYING LICENSE README.md README; do
+    if [ -f "$f" ]; then
+      install -Dm644 "$f" "$pkgdir/usr/share/licenses/$NAME/$f"
+    fi
+  done
+}

@@ -1,0 +1,149 @@
+NAME="wasi-compiler-rt"
+VERSION="20.1.6"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+
+SUMMARY="Compiler runtime builtins for Clang targeting WASI"
+URL="https://compiler-rt.llvm.org/"
+LICENSE=("Apache-2.0 WITH LLVM-exception")
+
+SOURCE=(
+    "https://github.com/llvm/llvm-project/releases/download/llvmorg-${VERSION}/llvm-project-${VERSION}.src.tar.xz"
+)
+
+SHA256SUMS=("SKIP")
+PATCHES=()
+
+# Freestanding builtins must be buildable before wasi-libc.
+REQUIRES=()
+
+BUILD_REQUIRES=(
+    "clang"
+    "cmake"
+    "lld"
+    "llvm"
+    "ninja"
+    "python"
+)
+
+PROVIDES=("wasi-compiler-rt")
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+
+    test -f "$SRCDIR/compiler-rt/CMakeLists.txt"
+
+    rm -rf \
+        "$SRCROOT/${NAME}-${VERSION}-build-wasm32-wasip1" \
+        "$SRCROOT/${NAME}-${VERSION}-build-wasm32-wasip1-threads"
+
+    mkdir -p "$SRCDIR/cmake/Platform"
+
+    cat > "$SRCDIR/cmake/Platform/WASI.cmake" <<'EOF'
+set(WASI 1)
+EOF
+}
+
+build() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    RESOURCE_DIR="$(clang --print-resource-dir)"
+
+    TARGETS=(
+        "wasm32-wasip1"
+        "wasm32-wasip1-threads"
+    )
+
+    for TARGET in "${TARGETS[@]}"; do
+        BUILDDIR="$SRCROOT/${NAME}-${VERSION}-build-${TARGET}"
+
+        env CFLAGS= CXXFLAGS= CPPFLAGS= LDFLAGS= \
+            cmake \
+                -S "$SRCDIR/compiler-rt" \
+                -B "$BUILDDIR" \
+                -G Ninja \
+                -DCMAKE_MODULE_PATH="$SRCDIR/cmake" \
+                -DCMAKE_BUILD_TYPE=Release \
+                -DCMAKE_INSTALL_PREFIX=/usr \
+                -DCMAKE_SYSROOT=/usr/share/wasi-sysroot \
+                -DCMAKE_SYSTEM_NAME=WASI \
+                -DCMAKE_SYSTEM_PROCESSOR=wasm32 \
+                -DCMAKE_SYSTEM_VERSION=1 \
+                -DCMAKE_C_COMPILER=/usr/bin/clang \
+                -DCMAKE_CXX_COMPILER=/usr/bin/clang++ \
+                -DCMAKE_ASM_COMPILER=/usr/bin/clang \
+                -DCMAKE_C_COMPILER_TARGET="$TARGET" \
+                -DCMAKE_CXX_COMPILER_TARGET="$TARGET" \
+                -DCMAKE_ASM_COMPILER_TARGET="$TARGET" \
+                -DCMAKE_C_COMPILER_WORKS=ON \
+                -DCMAKE_CXX_COMPILER_WORKS=ON \
+                -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY \
+                -DCMAKE_AR=/usr/bin/llvm-ar \
+                -DCMAKE_NM=/usr/bin/llvm-nm \
+                -DCMAKE_RANLIB=/usr/bin/llvm-ranlib \
+                -DCMAKE_C_FLAGS="-O2 -fno-exceptions" \
+                -DCMAKE_CXX_FLAGS="-O2 -fno-exceptions" \
+                -DCMAKE_ASM_FLAGS="-O2 -fno-exceptions" \
+                -DCMAKE_C_LINKER_DEPFILE_SUPPORTED=OFF \
+                -DCMAKE_CXX_LINKER_DEPFILE_SUPPORTED=OFF \
+                -DCOMPILER_RT_BAREMETAL_BUILD=ON \
+                -DCOMPILER_RT_BUILD_BUILTINS=ON \
+                -DCOMPILER_RT_BUILD_CTX_PROFILE=OFF \
+                -DCOMPILER_RT_BUILD_GWP_ASAN=OFF \
+                -DCOMPILER_RT_BUILD_LIBFUZZER=OFF \
+                -DCOMPILER_RT_BUILD_MEMPROF=OFF \
+                -DCOMPILER_RT_BUILD_ORC=OFF \
+                -DCOMPILER_RT_BUILD_PROFILE=OFF \
+                -DCOMPILER_RT_BUILD_SANITIZERS=OFF \
+                -DCOMPILER_RT_BUILD_XRAY=OFF \
+                -DCOMPILER_RT_DEFAULT_TARGET_ONLY=ON \
+                -DCOMPILER_RT_HAS_FPIC_FLAG=OFF \
+                -DCOMPILER_RT_INCLUDE_TESTS=OFF \
+                -DCOMPILER_RT_INSTALL_PATH="$RESOURCE_DIR" \
+                -DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=ON \
+                -DUNIX=ON
+
+        cmake --build "$BUILDDIR" -j"$(nproc)"
+    done
+}
+
+check() {
+    true
+}
+
+staging() {
+    set -euxo pipefail
+
+    RESOURCE_DIR="$(clang --print-resource-dir)"
+
+    for TARGET in wasm32-wasip1 wasm32-wasip1-threads; do
+        DESTDIR="$pkgdir" \
+            cmake --install \
+                "$SRCROOT/${NAME}-${VERSION}-build-${TARGET}"
+    done
+
+    RT_LIBDIR="$pkgdir${RESOURCE_DIR}/lib"
+
+    test -f \
+        "$RT_LIBDIR/wasm32-unknown-wasip1/libclang_rt.builtins.a"
+
+    test -f \
+        "$RT_LIBDIR/wasm32-unknown-wasip1-threads/libclang_rt.builtins.a"
+
+    cd "$RT_LIBDIR"
+
+    [ -e wasm32-unknown-wasi ] ||
+        ln -s wasm32-unknown-wasip1 wasm32-unknown-wasi
+
+    [ -e wasm32-unknown-wasip2 ] ||
+        ln -s wasm32-unknown-wasip1 wasm32-unknown-wasip2
+
+    install -Dm644 \
+        "$SRCROOT/${NAME}-${VERSION}/compiler-rt/LICENSE.TXT" \
+        "$pkgdir/usr/share/licenses/$NAME/LICENSE"
+}

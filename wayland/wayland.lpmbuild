@@ -1,6 +1,6 @@
 # LPM build script for wayland
 NAME="wayland"
-VERSION="1.23.0"
+VERSION="1.24.0"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="Reference implementation of the Wayland protocol"
@@ -17,18 +17,22 @@ SUGGESTS=()
 
 prepare() {
   set -euxo pipefail
-  cd "$SRCROOT"
+  cd "$SRCROOT/$NAME-$VERSION"
+  mkdir build
 }
 
 build() {
   set -euxo pipefail
-  cd "$SRCROOT"
-  meson setup build --prefix=/usr --buildtype=release -Ddocumentation=false
-  ninja -C build
+  cd "$SRCROOT/$NAME-$VERSION/build"
+  meson setup .. \
+        --prefix=/usr \
+        --buildtype=release \
+        -Ddocumentation=false &&
+  ninja
 }
 
 staging() {
   set -euxo pipefail
-  cd "$SRCROOT"
-  DESTDIR="$pkgdir" ninja -C build install
+  cd "$SRCROOT/$NAME-$VERSION/build"
+  DESTDIR="$pkgdir" ninja install
 }

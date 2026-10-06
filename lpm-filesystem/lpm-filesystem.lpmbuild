@@ -1,0 +1,93 @@
+#!/bin/bash
+# LPM build script for lpm-filesystem
+
+NAME="lpm-filesystem"
+VERSION="1.0.0"
+RELEASE="1"
+ARCH="any"
+SUMMARY="Filesystem layout and system integration for LPM"
+URL="https://gitlab.com/lpm-org/packages"
+LICENSE=("MIT")
+
+SOURCE=(
+  "lpm.sysusers"
+  "lpm.tmpfiles"
+  "lpm.conf"
+  "official.repo"
+  "README.md"
+)
+
+SHA256SUMS=("SKIP" "SKIP" "SKIP" "SKIP" "SKIP")
+
+REQUIRES=(
+  "systemd"
+)
+
+BUILD_REQUIRES=()
+
+PROVIDES=(
+  "lpm-filesystem"
+  "lpm-base-layout"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() { true; }
+build() { true; }
+check() { true; }
+
+staging() {
+  set -euxo pipefail
+
+  install -dm755 "$pkgdir/etc/lpm"
+  install -dm755 "$pkgdir/etc/lpm/repos.d"
+  install -dm755 "$pkgdir/etc/lpm/hooks.d"
+  install -dm755 "$pkgdir/etc/lpm/makeflags.d"
+
+  install -dm755 "$pkgdir/var/lib/lpm"
+  install -dm755 "$pkgdir/var/lib/lpm/db"
+  install -dm755 "$pkgdir/var/lib/lpm/local"
+  install -dm755 "$pkgdir/var/lib/lpm/sync"
+  install -dm755 "$pkgdir/var/lib/lpm/transactions"
+  install -dm755 "$pkgdir/var/lib/lpm/locks"
+
+  install -dm775 "$pkgdir/var/cache/lpm"
+  install -dm775 "$pkgdir/var/cache/lpm/sources"
+  install -dm775 "$pkgdir/var/cache/lpm/packages"
+  install -dm775 "$pkgdir/var/cache/lpm/lpmbuilds"
+  install -dm775 "$pkgdir/var/cache/lpm/build"
+  install -dm775 "$pkgdir/var/cache/lpm/logs"
+
+  install -dm755 "$pkgdir/var/log/lpm"
+
+  install -dm755 "$pkgdir/usr/share/lpm"
+  install -dm755 "$pkgdir/usr/share/lpm/hooks"
+  install -dm755 "$pkgdir/usr/share/lpm/templates"
+  install -dm755 "$pkgdir/usr/share/lpm/scripts"
+  install -dm755 "$pkgdir/usr/share/lpm/licenses"
+
+  install -dm1777 "$pkgdir/tmp/lpm-build"
+  install -dm755 "$pkgdir/run/lpm"
+
+  install -Dm644 "$SRCROOT/lpm.sysusers" "$pkgdir/usr/lib/sysusers.d/lpm.conf"
+  install -Dm644 "$SRCROOT/lpm.tmpfiles" "$pkgdir/usr/lib/tmpfiles.d/lpm.conf"
+  install -Dm644 "$SRCROOT/lpm.conf" "$pkgdir/etc/lpm/lpm.conf"
+  install -Dm644 "$SRCROOT/official.repo" "$pkgdir/etc/lpm/repos.d/official.repo"
+  install -Dm644 "$SRCROOT/README.md" "$pkgdir/usr/share/doc/lpm-filesystem/README.md"
+
+  touch "$pkgdir/var/lib/lpm/db/.keep"
+  touch "$pkgdir/var/lib/lpm/local/.keep"
+  touch "$pkgdir/var/lib/lpm/sync/.keep"
+  touch "$pkgdir/var/lib/lpm/transactions/.keep"
+  touch "$pkgdir/var/cache/lpm/sources/.keep"
+  touch "$pkgdir/var/cache/lpm/packages/.keep"
+  touch "$pkgdir/var/cache/lpm/lpmbuilds/.keep"
+  touch "$pkgdir/var/log/lpm/.keep"
+
+  test -f "$pkgdir/usr/lib/sysusers.d/lpm.conf"
+  test -f "$pkgdir/usr/lib/tmpfiles.d/lpm.conf"
+  test -f "$pkgdir/etc/lpm/lpm.conf"
+  test -d "$pkgdir/var/lib/lpm/db"
+  test -d "$pkgdir/var/cache/lpm/sources"
+}

@@ -1,0 +1,61 @@
+#!/bin/bash
+
+NAME="intltool"
+VERSION="0.51.0"
+RELEASE="1"
+ARCH="any"
+SUMMARY="Utility scripts for internationalization in GNOME"
+URL="https://launchpad.net/intltool"
+LICENSE=("GPL-2.0-or-later")
+
+SOURCE=(
+  "https://launchpad.net/intltool/trunk/${VERSION}/+download/intltool-${VERSION}.tar.gz"
+)
+
+SHA256SUMS=("SKIP")
+
+REQUIRES=(
+  "perl"
+  "gettext"
+  "xml-parser"
+)
+
+BUILD_REQUIRES=(
+  "perl"
+  "gettext"
+)
+
+PROVIDES=(
+  "intltool"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  ./configure \
+    --prefix=/usr
+
+  make
+}
+
+check() { true; }
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  make DESTDIR="$pkgdir" install
+
+  test -x "$pkgdir/usr/bin/intltool-update"
+}

@@ -1,0 +1,59 @@
+NAME="jack2"
+VERSION="1.9.22"
+RELEASE="1"
+ARCH="x86_64"
+SUMMARY="JACK2 audio connection kit — real-time low-latency audio server"
+URL="https://github.com/jackaudio/jack2"
+SOURCE=("https://github.com/jackaudio/jack2/archive/refs/tags/v${VERSION}.tar.gz"
+        "jack2_update_to_waf2.0.26.patch"
+)
+
+LICENSE=("GPL-2.0-or-later" "LGPL-2.1-or-later")
+
+# Runtime dependencies typical for JACK2
+REQUIRES=(
+  "glibc"
+  "alsa-lib"
+  "libsamplerate"
+  "libpthread-stubs"
+  "dbus"           
+  "systemd"             
+)
+PROVIDES=("jack2" "jackdmp" "libjack.so")
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/jack2-${VERSION}"
+    patch -Np1 -i "$SRCROOT/jack2_update_to_waf2.0.26.patch"
+} 
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/jack2-${VERSION}"
+
+    # Use waf build system (common for JACK2) or fallback to autotools
+    ./waf configure \
+      --prefix=/usr \
+      --libdir=/usr/lib \
+      --bindir=/usr/bin \
+      --autostart=none \
+      --systemd-unit \
+      --dbus \
+      --classic
+
+    ./waf build -j"$(nproc)"
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/jack2-${VERSION}"
+
+    DESTDIR="$pkgdir" ./waf install
+
+    # Strip binaries and shared libs
+    find "$pkgdir/usr" -type f -exec sh -c \
+      'file -b "$1" | grep -q "ELF" && strip --strip-unneeded "$1" || true' _ {} \; 2>/dev/null || true
+}
+

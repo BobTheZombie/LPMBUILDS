@@ -1,0 +1,87 @@
+#!/bin/bash
+# LPM build script for libgnomekbd
+
+NAME="libgnomekbd"
+VERSION="3.28.1"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="GNOME keyboard configuration library"
+URL="https://gitlab.gnome.org/GNOME/libgnomekbd"
+LICENSE=("LGPL-2.1-or-later")
+
+SOURCE=(
+  "git+https://gitlab.gnome.org/Archive/libgnomekbd.git#tag=${VERSION}"
+)
+
+SHA256SUMS=("SKIP")
+
+REQUIRES=(
+  "glibc"
+  "glib2"
+  "gtk3"
+  "gconf"
+  "libx11"
+  "libxklavier"
+)
+
+BUILD_REQUIRES=(
+  "make"
+  "pkgconf"
+  "intltool"
+  "gettext"
+  "glib2"
+  "gtk3"
+  "gobject-introspection"
+  "libx11"
+  "libxklavier"
+)
+
+PROVIDES=(
+  "libgnomekbd"
+  "libgnomekbd.so"
+  "libgnomekbdui.so"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  ./configure \
+    --prefix=/usr \
+    --sysconfdir=/etc \
+    --libdir=/usr/lib \
+    --disable-static
+
+  make -j"$(nproc)"
+}
+
+check() {
+  true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  make DESTDIR="$pkgdir" install
+
+  test -f "$pkgdir/usr/lib/libgnomekbd.so"
+  test -f "$pkgdir/usr/lib/libgnomekbdui.so"
+
+  for f in COPYING LICENSE; do
+    if [ -f "$f" ]; then
+      install -Dm644 "$f" \
+        "$pkgdir/usr/share/licenses/$NAME/$f"
+    fi
+  done
+}

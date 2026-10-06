@@ -1,36 +1,19 @@
-# LPM build script for udev
+#!/bin/bash
 NAME="udev"
-VERSION="1.0.0"
+VERSION="261.2"
 RELEASE="1"
-ARCH="${ARCH:-x86_64}"
-SUMMARY="Placeholder package for udev dependency"
-URL="https://example.com/udev"
-LICENSE=""
+ARCH="any"
+SUMMARY="Compatibility dependency for systemd"
+URL="https://www.linuxfromscratch.org/lfs/view/13.1-systemd/"
+LICENSE=("MIT")
 SOURCE=()
 SHA256SUMS=()
-PATCHES=()
 REQUIRES=("systemd")
+BUILD_REQUIRES=()
 PROVIDES=("udev")
-CONFLICTS=()
-OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
-
-prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
-}
-
-build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
-}
-
+prepare() { :; }
+build() { :; }
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  install -d "$pkgdir/usr/share/doc/udev"
-  printf 'Placeholder package for udev\n' >"$pkgdir/usr/share/doc/udev/README"
+    install -dm755 "$pkgdir/usr/share/doc/udev"
+    printf '%s\n' 'The implementation is supplied by systemd.' > "$pkgdir/usr/share/doc/udev/README"
 }

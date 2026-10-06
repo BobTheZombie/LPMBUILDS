@@ -1,0 +1,103 @@
+NAME="libx264"
+VERSION="0.164.r3108"
+RELEASE="2"
+ARCH="${ARCH:-x86_64}"
+
+SUMMARY="H.264/MPEG-4 AVC encoder library"
+URL="https://www.videolan.org/developers/x264.html"
+LICENSE=("GPL-2.0-or-later")
+
+SOURCE=(
+    "https://code.videolan.org/videolan/x264/-/archive/31e19f92f00c7003fa115047ce50978bc98c3a0d/x264-31e19f92f00c7003fa115047ce50978bc98c3a0d.tar.gz"
+)
+
+SHA256SUMS=("SKIP")
+PATCHES=()
+
+REQUIRES=(
+    "glibc"
+)
+
+BUILD_REQUIRES=(
+    "make"
+    "pkgconf"
+    "nasm"
+)
+
+PROVIDES=(
+    "libx264"
+    "x264"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+    set -euxo pipefail
+
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    rm -rf "$SRCROOT/${NAME}-${VERSION}-build"
+    mkdir -p "$SRCROOT/${NAME}-${VERSION}-build"
+}
+
+build() {
+    set -euxo pipefail
+
+    cd "$SRCROOT/${NAME}-${VERSION}-build"
+
+    "$SRCROOT/${NAME}-${VERSION}/configure" \
+        --prefix=/usr \
+        --libdir=/usr/lib \
+        --includedir=/usr/include \
+        --enable-shared \
+        --enable-pic \
+        --enable-strip
+
+    make -j"$(nproc)"
+}
+
+check() {
+    set -euxo pipefail
+
+    cd "$SRCROOT/${NAME}-${VERSION}-build"
+
+    make check || true
+}
+
+staging() {
+    set -euxo pipefail
+
+    cd "$SRCROOT/${NAME}-${VERSION}-build"
+
+    make DESTDIR="$pkgdir" install
+
+    # Shared library
+    test -n "$(
+        find "$pkgdir/usr/lib" \
+            -name 'libx264.so*' \
+            -print -quit
+    )"
+
+    # Headers
+    test -f "$pkgdir/usr/include/x264.h"
+    test -f "$pkgdir/usr/include/x264_config.h"
+
+    # pkg-config metadata used by FFmpeg
+    test -f "$pkgdir/usr/lib/pkgconfig/x264.pc"
+
+    # CLI encoder
+    test -x "$pkgdir/usr/bin/x264"
+
+    # Shared-library package only
+    rm -f "$pkgdir/usr/lib/libx264.a"
+
+    find "$pkgdir/usr/lib" \
+        -type f \
+        -name '*.la' \
+        -delete 2>/dev/null || true
+
+    echo "==> ${NAME} ${VERSION} staging complete"
+}

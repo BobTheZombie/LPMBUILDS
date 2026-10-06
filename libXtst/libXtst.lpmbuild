@@ -1,0 +1,86 @@
+#!/bin/bash
+# LPM build script for libXtst
+# X11 Record and XTEST extension library
+
+NAME="libXtst"
+VERSION="1.2.4"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="X11 Record and XTEST extension library"
+URL="https://www.x.org/"
+LICENSE="MIT"
+
+SOURCE=(
+  "https://www.x.org/releases/individual/lib/libXtst-${VERSION}.tar.xz"
+)
+
+REQUIRES=(
+  "glibc"
+  "libX11"
+  "libXext"
+  "xorgproto"
+  "util-macros"
+  "pkg-config"
+  "make"
+  "autoconf"
+  "automake"
+  "libtool"
+)
+
+PROVIDES=(
+  "libXtst"
+  "libXtst.so"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    ./configure \
+        --prefix=/usr \
+        --libdir=/usr/lib
+
+    make -j"$(nproc)"
+}
+
+check() {
+    # Upstream has some tests, but they’re not essential for packaging
+    true
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    DESTDIR="$pkgdir" make install
+
+    # License / docs
+    if [ -f COPYING ]; then
+        install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+    fi
+    if [ -f README ]; then
+        install -Dm644 README "$pkgdir/usr/share/doc/$NAME/README"
+    fi
+
+    # Strip ELF objects
+    if command -v strip >/dev/null 2>&1; then
+        find "$pkgdir/usr" -type f -exec sh -c '
+            case "$(file -b "$1")" in
+              *ELF*executable*|*ELF*shared\ object*)
+                  strip --strip-unneeded "$1" 2>/dev/null || true
+              ;;
+            esac
+        ' _ {} \;
+    fi
+}
+

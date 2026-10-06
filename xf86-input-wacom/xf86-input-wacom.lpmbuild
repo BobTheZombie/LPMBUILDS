@@ -1,0 +1,79 @@
+#!/bin/bash
+# LPM build script for Xorg Wacom input driver (xf86-input-wacom)
+
+NAME="xf86-input-wacom"
+VERSION="1.2.4"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="X.Org Wacom tablet input driver"
+URL="https://linuxwacom.github.io/"
+LICENSE="GPL-2.0-or-later"
+
+SOURCE=(
+  "https://github.com/linuxwacom/xf86-input-wacom/releases/download/xf86-input-wacom-${VERSION}/xf86-input-wacom-${VERSION}.tar.bz2"
+)
+
+REQUIRES=(
+  "glibc"
+  "xorg-server"
+  "xorgproto"
+  "libX11"
+  "libXi"
+  "libXrandr"
+  "libXtst"
+  "pkg-config"
+  "util-macros"
+  "autoconf"
+  "automake"
+  "libtool"
+  "make"
+)
+
+PROVIDES=(
+  "xf86-input-wacom"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="xf86-input-wacom-${VERSION}"
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT"
+    tar xf "xf86-input-wacom-${VERSION}.tar.bz2"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    ./configure         --prefix=/usr         --libdir=/usr/lib         --with-xorg-module-dir=/usr/lib/xorg/modules
+
+    make -j"$(nproc)"
+}
+
+check() {
+    true
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    DESTDIR="$pkgdir" make install
+
+    if [ -f COPYING ]; then
+        install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+    fi
+
+    if command -v strip >/dev/null 2>/dev/null; then
+        find "$pkgdir/usr/lib/xorg/modules" -type f -exec sh -c '
+            case "$(file -b "$1")" in
+              *ELF*shared\ object*)
+                  strip --strip-unneeded "$1" 2>/dev/null || true
+              ;;
+            esac
+        ' _ {} \;
+    fi
+}

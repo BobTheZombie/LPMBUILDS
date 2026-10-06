@@ -1,43 +1,42 @@
-# LPM build script for binutils
+#!/bin/bash
+# LFS 13.1-systemd baseline; see docs/lfs-13.1.md for patch provenance.
 NAME="binutils"
-VERSION="2.43.1"
+VERSION="2.47"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="Binary utilities (ld, as, etc.)"
-URL="https://www.gnu.org/software/binutils/"
-LICENSE=""
-SOURCE=()
-REQUIRES=("glibc" "zlib" "xz")
+URL="https://sourceware.org/pub/binutils/releases/binutils-2.47.tar.xz"
+LICENSE=("GPL-3.0-or-later")
+SOURCE=("https://sourceware.org/pub/binutils/releases/binutils-2.47.tar.xz")
+SHA256SUMS=("154ab23b60070e8f27013c22977f1129425d67d1e8acd6e13010e617811e4cff")
+PATCHES=()
+REQUIRES=("glibc" "zlib" "zstd")
+BUILD_REQUIRES=("gcc" "make" "pkgconf")
 PROVIDES=("binutils")
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
+
+_srcdir="binutils-2.47"
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  mkdir -p build
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    :
+    mkdir -p build
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  cd build
-  ../configure --prefix=/usr \
-  --with-lib-path=/usr/lib:/usr/local/lib \
-  --with-system-zlib \
-  --enable-gold \
-  --enable-ld=default \
-  --enable-plugins \
-  --enable-shared \
-  --disable-werror
-  make -j"$(nproc)"
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir/build"
+    ../configure --prefix=/usr --sysconfdir=/etc --enable-ld=default --enable-plugins --enable-shared --disable-werror --enable-64-bit-bfd --enable-new-dtags --with-system-zlib --with-lib-path=/usr/lib --enable-default-hash-style=gnu
+    make -j"${JOBS:-$(nproc)}"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  cd build
-  make DESTDIR="$pkgdir" install
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir/build"
+    make DESTDIR="$pkgdir" install
+
+    rm -f "$pkgdir/usr/share/info/dir"
+    find "$pkgdir/usr/lib" -name "*.la" -delete 2>/dev/null || true
 }

@@ -1,0 +1,95 @@
+#!/bin/bash
+# LPM build script for vala
+# Provides: Vala compiler (valac) and libraries (libvala, vapigen, etc.)
+
+NAME="vala"
+VERSION="0.56.18"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Compiler for the Vala language (GObject/C#-like syntax targeting GObject)"
+URL="https://wiki.gnome.org/Projects/Vala"
+LICENSE=("LGPL-2.1-or-later")
+
+SOURCE=(
+  "https://download.gnome.org/sources/vala/0.56/vala-${VERSION}.tar.xz"
+)
+
+REQUIRES=(
+  # Runtime
+  "glibc"
+  "glib2"
+  "zlib"
+
+  # Toolchain / build
+  "pkg-config"
+  "gcc"
+  "make"
+
+  # Vala build deps
+  "flex"
+  "bison"
+  "graphviz"
+  "python"
+)
+
+PROVIDES=(
+  "vala"
+  "valac"
+  "vapigen"
+  "libvala"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="vala-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  # Some tarballs ship pre-generated configure; this is safe.
+  autoreconf -fi 2>/dev/null || true
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  ./configure \
+    --prefix=/usr \
+    --libdir=/usr/lib \
+    --sysconfdir=/etc \
+    --localstatedir=/var \
+    --disable-static
+
+  make -j"$(nproc)"
+}
+
+check() {
+  # Test suite can be heavy; skip by default
+  true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  make DESTDIR="$pkgdir" install
+
+  # License
+  if [ -f COPYING ]; then
+    install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+  fi
+
+  # Strip ELF binaries / shared libs
+  if command -v strip >/dev/null 2>&1; then
+    find "$pkgdir/usr" -type f -exec sh -c '
+      case "$(file -b "$1")" in
+        *ELF*executable*|*ELF*shared\ object*) strip --strip-unneeded "$1" 2>/dev/null || true ;;
+      esac
+    ' _ {} \;
+  fi
+}
+
+

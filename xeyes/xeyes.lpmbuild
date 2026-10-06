@@ -1,0 +1,49 @@
+#!/bin/bash
+# LPM build script for xeyes
+
+NAME="xeyes"
+VERSION="1.3.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Follow-the-mouse X demo"
+URL="https://www.x.org/"
+LICENSE="MIT"
+
+SOURCE=(
+  "https://www.x.org/archive//individual/app/${NAME}-${VERSION}.tar.xz"
+)
+
+REQUIRES=(
+  "glibc"
+  "libX11"
+  "libXext"
+  "libXmu"
+  "libXrender"
+)
+
+PROVIDES=("xeyes")
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+    set -euxo pipefail
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    ./configure --prefix=/usr
+    make -j"$(nproc)"
+}
+
+check() { true; }
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    DESTDIR="$pkgdir" make install
+}

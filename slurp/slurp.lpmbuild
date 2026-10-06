@@ -1,0 +1,77 @@
+#!/bin/bash
+# LPM build script for slurp
+
+NAME="slurp"
+VERSION="1.5.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Select a region in a Wayland compositor"
+URL="https://github.com/emersion/slurp"
+LICENSE=("MIT")
+
+SOURCE=(
+  "https://github.com/emersion/slurp/releases/download/v${VERSION}/slurp-${VERSION}.tar.gz"
+)
+
+REQUIRES=(
+  "glibc"
+  "cairo"
+  "pango"
+  "wayland"
+)
+
+BUILD_REQUIRES=(
+  "meson"
+  "ninja"
+  "pkgconf"
+  "wayland-protocols"
+  "scdoc"
+)
+
+PROVIDES=(
+  "slurp"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  rm -rf build
+
+  meson setup build \
+    --prefix=/usr \
+    --libdir=lib \
+    --buildtype=release
+
+  meson compile -C build
+}
+
+check() {
+  true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  DESTDIR="$pkgdir" meson install -C build
+
+  test -f "$pkgdir/usr/bin/slurp"
+
+  for f in LICENSE COPYING; do
+    if [ -f "$f" ]; then
+      install -Dm644 "$f" \
+        "$pkgdir/usr/share/licenses/$NAME/$f"
+    fi
+  done
+}

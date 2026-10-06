@@ -1,0 +1,70 @@
+#!/bin/bash
+# LPM build script for budgie-screensaver
+# Notes:
+# - These are "git+" lpmbuilds (Arch-style) so you are not blocked by the lack of stable 10.10 tarball releases.
+# - If you want to pin to a specific tag/commit, change SOURCE to e.g.:
+#     SOURCE=("git+https://github.com/BuddiesOfBudgie/budgie-desktop.git#tag=10.10-preview.1")
+#   or:
+#     SOURCE=("git+https://github.com/BuddiesOfBudgie/budgie-desktop.git#commit=<sha>")
+# - If your LPM git fetcher uses a different fragment syntax, adjust accordingly.
+#
+
+NAME="budgie-screensaver"
+VERSION="10.10"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Screensaver/locker used by Budgie desktop"
+URL="https://github.com/BuddiesOfBudgie/budgie-screensaver"
+LICENSE=("GPL-2.0-or-later")
+
+SOURCE=(
+  "git+https://github.com/BuddiesOfBudgie/budgie-screensaver.git"
+)
+
+REQUIRES=(
+  "glibc"
+  "glib2"
+  "gtk3"
+  "dbus"
+  "systemd"
+  "pam"
+)
+
+PROVIDES=("budgie-screensaver")
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="budgie-screensaver"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+  # Remove unused dependency
+  sed -i '/dep_gnomekbdui/d' {,src/}meson.build
+  mkdir -p build
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  meson setup build \
+    --prefix=/usr \
+    --libdir=lib \
+    --buildtype=release \
+    -Ddefault_library=shared \
+
+  ninja -C build
+}
+
+check() { true; }
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+  DESTDIR="$pkgdir" ninja -C build install
+
+  if [ -f COPYING ]; then
+    install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+  fi
+}

@@ -1,0 +1,88 @@
+#!/bin/bash
+# LPM build script for libdaemon
+# Lightweight C library for writing UNIX daemons
+
+NAME="libdaemon"
+VERSION="0.14"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Lightweight C library for writing UNIX daemons"
+URL="https://0pointer.de/lennart/projects/libdaemon/"
+LICENSE=("LGPL-2.1-or-later")
+
+SOURCE=(
+  "https://0pointer.de/lennart/projects/libdaemon/libdaemon-${VERSION}.tar.gz"
+)
+
+REQUIRES=(
+  "glibc"
+
+  # Build deps
+  "pkg-config"
+  "gcc"
+  "make"
+  "autoconf"
+  "automake"
+  "libtool"
+)
+
+PROVIDES=(
+  "libdaemon"
+  "libdaemon.so"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    # Release tarball ships configure; regenerate only if needed
+    if [ ! -x ./configure ]; then
+        autoreconf -fi
+    fi
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    ./configure \
+        --prefix=/usr \
+        --libdir=/usr/lib \
+        --disable-static \
+        --enable-shared
+
+    make -j"$(nproc)"
+}
+
+check() {
+    true
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    make DESTDIR="$pkgdir" install
+
+    # License
+    if [ -f COPYING ]; then
+        install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+    fi
+
+    # Strip ELF binaries and shared libs
+    if command -v strip >/dev/null 2>&1; then
+        find "$pkgdir/usr" -type f -exec sh -c '
+            case "$(file -b "$1")" in
+              *ELF*shared\ object*|*ELF*executable*)
+                  strip --strip-unneeded "$1" 2>/dev/null || true
+              ;;
+            esac
+        ' _ {} \;
+    fi
+}
+

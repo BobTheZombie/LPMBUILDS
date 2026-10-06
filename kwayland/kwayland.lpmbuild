@@ -1,0 +1,84 @@
+#!/bin/bash
+# LPM build script for KWayland / Plasma KWayland
+
+NAME="kwayland"
+VERSION="6.2.5"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Qt-style client and server library wrapper for Wayland libraries"
+URL="https://invent.kde.org/plasma/kwayland"
+LICENSE=("LGPL-2.1-or-later")
+
+SOURCE=(
+  "https://download.kde.org/stable/plasma/${VERSION}/kwayland-${VERSION}.tar.xz"
+)
+
+SHA256SUMS=("SKIP")
+
+REQUIRES=(
+  "glibc"
+  "plasma-wayland-protocols"
+  "qt6-base"
+  "wayland"
+)
+
+BUILD_REQUIRES=(
+  "cmake"
+  "ninja"
+  "pkgconf"
+  "extra-cmake-modules"
+  "qt6-base"
+  "wayland"
+  "wayland-protocols"
+)
+
+PROVIDES=(
+  "kwayland"
+  "KWayland"
+  "Plasma::KWaylandClient"
+  "Plasma::KWaylandServer"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  rm -rf build
+  mkdir -p build
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir/build"
+
+  cmake .. -G Ninja \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DCMAKE_INSTALL_LIBDIR=lib \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DBUILD_TESTING=OFF
+
+  ninja
+}
+
+check() {
+  true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir/build"
+
+  DESTDIR="$pkgdir" ninja install
+
+  for f in LICENSES/* LICENSE* COPYING*; do
+    if [ -f "$SRCROOT/$_srcdir/$f" ]; then
+      install -Dm644 "$SRCROOT/$_srcdir/$f" \
+        "$pkgdir/usr/share/licenses/$NAME/$(basename "$f")"
+    fi
+  done
+}

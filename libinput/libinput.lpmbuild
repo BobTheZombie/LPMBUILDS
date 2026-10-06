@@ -1,34 +1,77 @@
+#!/bin/bash
 # LPM build script for libinput
+# Input device handling library
+
 NAME="libinput"
-VERSION="1.25.0"
+VERSION="1.30.1"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Input device handling library"
+SUMMARY="Library for handling input devices"
 URL="https://www.freedesktop.org/wiki/Software/libinput/"
 LICENSE="MIT"
-SOURCE=("https://gitlab.freedesktop.org/libinput/libinput/-/archive/${VERSION}/libinput-${VERSION}.tar.gz")
-CHECKSUMS=("f7e8425f185cadba5761d0a1dae6be041750d351163ffa04adc5b9a79a13c0ec")
-REQUIRES=("glibc" "libevdev" "mtdev" "udev" "eudev")
-PROVIDES=("libinput")
+
+SOURCE=(
+  "https://gitlab.freedesktop.org/libinput/libinput/-/archive/${VERSION}/libinput-${VERSION}.tar.gz"
+)
+
+REQUIRES=(
+  "glibc"
+  "libevdev"
+  "systemd"
+  "pkg-config"
+  "meson"
+  "ninja"
+)
+
+PROVIDES=(
+  "libinput"
+  "libinput.so"
+)
+
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=("wayland" "xorg-server")
-SUGGESTS=()
+
+_srcdir="libinput-${VERSION}"
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
+    set -euxo pipefail
+    cd "$SRCROOT"
+    mkdir -p "$_srcdir/build"
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  meson setup build --prefix=/usr --buildtype=release -Dtests=false -Ddebug-gui=false
-  ninja -C build
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir/build"
+
+    : "${CC:=cc}"
+    : "${CXX:=c++}"
+
+    meson setup ..         --prefix=/usr         --libdir=lib         --buildtype=release         -Ddefault_library=shared         -Ddebug-gui=false         -Dtests=false         -Dlibwacom=false         -Ddocumentation=false
+
+    ninja -j"$(nproc)"
+}
+
+check() {
+    true
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  DESTDIR="$pkgdir" ninja -C build install
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir/build"
+
+    DESTDIR="$pkgdir" ninja install
+
+    if [ -f ../COPYING ]; then
+        install -Dm644 ../COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+    fi
+
+    if command -v strip >/dev/null 2>&1; then
+        find "$pkgdir/usr" -type f -exec sh -c '
+            case "$(file -b "$1")" in
+              *ELF*executable*|*ELF*shared\ object*)
+                  strip --strip-unneeded "$1" 2>/dev/null || true
+              ;;
+            esac
+        ' _ {} \;
+    fi
 }

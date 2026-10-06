@@ -1,36 +1,19 @@
-# LPM build script for libudev
+#!/bin/bash
 NAME="libudev"
-VERSION="1.0.0"
+VERSION="261.2"
 RELEASE="1"
-ARCH="${ARCH:-x86_64}"
-SUMMARY="Placeholder package for libudev dependency"
-URL="https://example.com/libudev"
-LICENSE=""
+ARCH="any"
+SUMMARY="Compatibility dependency for systemd"
+URL="https://www.linuxfromscratch.org/lfs/view/13.1-systemd/"
+LICENSE=("MIT")
 SOURCE=()
 SHA256SUMS=()
-PATCHES=()
 REQUIRES=("systemd")
+BUILD_REQUIRES=()
 PROVIDES=("libudev")
-CONFLICTS=()
-OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
-
-prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
-}
-
-build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
-}
-
+prepare() { :; }
+build() { :; }
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  install -d "$pkgdir/usr/share/doc/libudev"
-  printf 'Placeholder package for libudev\n' >"$pkgdir/usr/share/doc/libudev/README"
+    install -dm755 "$pkgdir/usr/share/doc/libudev"
+    printf '%s\n' 'The implementation is supplied by systemd.' > "$pkgdir/usr/share/doc/libudev/README"
 }

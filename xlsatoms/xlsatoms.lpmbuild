@@ -1,0 +1,43 @@
+#!/bin/bash
+# LPM build script for xlsatoms
+
+NAME="xlsatoms"
+VERSION="1.1.4"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="List interned atoms defined on the X server"
+URL="https://www.x.org/"
+LICENSE="MIT"
+
+SOURCE=("https://www.x.org/archive//individual/app/${NAME}-${VERSION}.tar.xz")
+
+REQUIRES=(
+  "glibc"
+  "libX11"
+  "libXmu"
+)
+
+PROVIDES=("xlsatoms")
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+  ./configure --prefix=/usr
+  make -j"$(nproc)"
+}
+
+check() { true; }
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+  DESTDIR="$pkgdir" make install
+}

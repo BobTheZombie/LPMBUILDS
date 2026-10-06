@@ -1,31 +1,51 @@
-# LPM build script for alsa-lib
 NAME="alsa-lib"
 VERSION="1.2.12"
 RELEASE="1"
-ARCH="${ARCH:-x86_64}"
-SUMMARY="Advanced Linux Sound Architecture library"
+ARCH="x86_64"
+SUMMARY="Advanced Linux Sound Architecture (ALSA) core library"
 URL="https://www.alsa-project.org/"
-LICENSE="LGPL-2.1-or-later"
 SOURCE=("https://www.alsa-project.org/files/pub/lib/alsa-lib-${VERSION}.tar.bz2")
-CHECKSUMS=("4868cd908627279da5a634f468701625be8cc251d84262c7e5b6a218391ad0d2")
+LICENSE=("LGPL-2.1-or-later")
+
 REQUIRES=("glibc")
-PROVIDES=("alsa-lib")
+PROVIDES=("alsa-lib" "libasound.so")
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
 
-prepare() { set -euxo pipefail; cd "$SRCROOT"; }
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/alsa-lib-${VERSION}"
+}
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr --sysconfdir=/etc --disable-static
-  make -j"$(nproc)"
+    set -euxo pipefail
+    cd "$SRCROOT/alsa-lib-${VERSION}"
+
+    ./configure \
+        --prefix=/usr \
+        --sysconfdir=/etc \
+        --libdir=/usr/lib \
+        --disable-static \
+        --enable-shared \
+        --enable-symbolic-functions \
+        --with-pcm-plugins=all
+
+    make -j"$(nproc)"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euxo pipefail
+    cd "$SRCROOT/alsa-lib-${VERSION}"
+
+    make DESTDIR="$pkgdir" install
+
+    # Documentation
+    install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+    [ -f README ] && install -Dm644 README "$pkgdir/usr/share/doc/$NAME/README"
+
+    # Strip binaries & shared objects
+    find "$pkgdir/usr/lib" -type f -name "*.so*" -exec sh -c '
+        file -b "$1" | grep -q "ELF" && strip --strip-unneeded "$1" || true
+    ' _ {} \; 2>/dev/null || true
 }
+

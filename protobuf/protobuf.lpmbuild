@@ -1,0 +1,149 @@
+NAME="protobuf"
+VERSION="33.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+
+SUMMARY="Protocol Buffers data serialization format"
+URL="https://protobuf.dev/"
+LICENSE=("BSD-3-Clause")
+
+SOURCE=(
+    "https://github.com/protocolbuffers/protobuf/releases/download/v${VERSION}/protobuf-${VERSION}.tar.gz"
+)
+
+SHA256SUMS=("SKIP")
+PATCHES=()
+
+REQUIRES=(
+    "glibc"
+    "libgcc"
+    "libstdc++"
+    "zlib"
+)
+
+BUILD_REQUIRES=(
+    "cmake"
+    "ninja"
+    "pkgconf"
+)
+
+PROVIDES=(
+    "protobuf"
+    "protoc"
+    "libprotobuf.so"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    BUILDDIR="$SRCROOT/${NAME}-${VERSION}-build"
+
+    cd "$SRCDIR"
+
+    rm -rf "$BUILDDIR"
+}
+
+build() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    BUILDDIR="$SRCROOT/${NAME}-${VERSION}-build"
+
+    cmake \
+        -S "$SRCDIR" \
+        -B "$BUILDDIR" \
+        -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DCMAKE_INSTALL_INCLUDEDIR=include \
+        -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+        -DBUILD_SHARED_LIBS=ON \
+        -Dprotobuf_BUILD_TESTS=OFF \
+        -Dprotobuf_BUILD_EXAMPLES=OFF \
+        -Dprotobuf_WITH_ZLIB=ON \
+        -Dprotobuf_ABSL_PROVIDER=module
+
+    cmake --build "$BUILDDIR" \
+        -j"$(nproc)"
+}
+
+check() {
+    set -euxo pipefail
+
+    BUILDDIR="$SRCROOT/${NAME}-${VERSION}-build"
+
+    test -x "$BUILDDIR/protoc" ||
+        test -x "$BUILDDIR/protoc.exe" ||
+        true
+}
+
+staging() {
+    set -euxo pipefail
+
+    BUILDDIR="$SRCROOT/${NAME}-${VERSION}-build"
+
+    DESTDIR="$pkgdir" \
+        cmake --install "$BUILDDIR"
+
+    #
+    # Remove static libraries.
+    #
+
+    find "$pkgdir/usr/lib" \
+        -type f \
+        -name '*.a' \
+        -delete 2>/dev/null || true
+
+    #
+    # Compiler
+    #
+
+    test -x "$pkgdir/usr/bin/protoc"
+
+    #
+    # Headers
+    #
+
+    test -f \
+        "$pkgdir/usr/include/google/protobuf/message.h"
+
+    test -f \
+        "$pkgdir/usr/include/google/protobuf/descriptor.h"
+
+    #
+    # Libraries
+    #
+
+    test -n "$(
+        find "$pkgdir/usr/lib" \
+            -name 'libprotobuf.so*' \
+            -print -quit
+    )"
+
+    #
+    # pkg-config
+    #
+
+    if [ -d "$pkgdir/usr/lib/pkgconfig" ]; then
+        test -f \
+            "$pkgdir/usr/lib/pkgconfig/protobuf.pc"
+    fi
+
+    #
+    # Verify protoc without executing against the live system's
+    # protobuf libraries.
+    #
+
+    LD_LIBRARY_PATH="$pkgdir/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
+        "$pkgdir/usr/bin/protoc" \
+        --version
+
+    echo "==> protobuf ${VERSION} staging complete"
+}

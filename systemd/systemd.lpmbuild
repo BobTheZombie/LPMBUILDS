@@ -1,52 +1,45 @@
-# LPM build script for systemd
+#!/bin/bash
+# LFS 13.1-systemd baseline; see docs/lfs-13.1.md for patch provenance.
 NAME="systemd"
-VERSION="256"
+VERSION="261.2"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="System and service manager"
-URL="https://www.freedesktop.org/wiki/Software/systemd/"
-LICENSE=""
-SOURCE=()
-REQUIRES=("glibc" "util-linux" "pam")
-PROVIDES=("systemd")
+URL="https://github.com/systemd/systemd/archive/v261.2/systemd-261.2.tar.gz"
+LICENSE=("GPL-2.0-or-later" "LGPL-2.1-or-later")
+SOURCE=("https://github.com/systemd/systemd/archive/v261.2/systemd-261.2.tar.gz" "0001-Use-Arch-Linux-device-access-groups.patch" "systemd-user.pam" "systemd.install" "https://anduin.linuxfromscratch.org/LFS/systemd-man-pages-261.2.tar.xz")
+SHA256SUMS=("ed1059ff964f5df35b6056434cc17cc83f86dc913f10489948a0b19b6081c5ec" "3ed6376fa18f9f79413c49ca0a04543476649217365c27cd396c83e867a3dffc" "d89d4a651a0ade67be200b05ddb622b57bc15027bb27a534f719c6274f680673" "4d7b229064422316adb5d4f0eb4c8b8544bf4530d1f69b768091150ab2b4a83a" "9be13865c9c7f9fecba7b86fc5185aecef00164c87ed68b4f6884283aefebe50")
+PATCHES=()
+REQUIRES=("glibc" "libcap" "libcap-ng" "libxcrypt" "lz4" "xz" "zstd" "pam" "audit" "kmod" "util-linux-libs" "openssl" "libidn2" "libseccomp" "pcre2")
+BUILD_REQUIRES=("gcc" "make" "pkgconf" "meson" "ninja" "python" "python-jinja2" "gperf")
+PROVIDES=("systemd" "libudev" "udev" "libsystemd")
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
+
+_srcdir="systemd-261.2"
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  mkdir -p build
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    patch --batch --forward -Np1 -i "$SRCROOT/0001-Use-Arch-Linux-device-access-groups.patch"
+    :
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  meson setup build \
-  --prefix=/usr \
-  --sysconfdir=/etc \
-  --localstatedir=/var \
-  -Ddefault-hierarchy=unified
-  ninja -C build
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    meson setup build --prefix=/usr --libdir=lib --buildtype=release --wrap-mode=nofallback -Ddefault-dnssec=no -Dfirstboot=false -Dinstall-tests=false -Drpmmacrosdir=no -Dhomed=disabled -Dman=disabled -Dmode=release -Dpamconfdir=no -Ddev-kvm-mode=0660 -Dsysupdate=disabled -Dukify=disabled -Dselinux=disabled -Dbootloader=enabled -Ddefault-kill-user-processes=false -Ddefault-locale=C.UTF-8 -Dfallback-hostname=lpm -Dnologin-path=/usr/bin/nologin
+    meson compile -C build
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ninja -C build install DESTDIR="$pkgdir"
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    DESTDIR="$pkgdir" meson install -C build
+    install -dm755 "$pkgdir/usr/share/man"
+    tar -xf "$SRCROOT/systemd-man-pages-261.2.tar.xz" --no-same-owner --strip-components=1 -C "$pkgdir/usr/share/man"
+    install -Dm644 "$SRCROOT/systemd-user.pam" "$pkgdir/usr/lib/pam.d/systemd-user"
 
-  # Enable networkd + resolved
-  mkdir -p "$pkgdir/etc/systemd/system/multi-user.target.wants"
-  ln -sf /usr/lib/systemd/system/systemd-networkd.service "$pkgdir/etc/systemd/system/multi-user.target.wants/systemd-networkd.service"
-  ln -sf /usr/lib/systemd/system/systemd-resolved.service "$pkgdir/etc/systemd/system/multi-user.target.wants/systemd-resolved.service"
-
-  # Default wired DHCP config
-  install -Dm644 /dev/stdin "$pkgdir/etc/systemd/network/20-wired.network" <<'EOF'
-  [Match]
-  Name=en*
-
-  [Network]
-  DHCP=yes
-  EOF
+    rm -f "$pkgdir/usr/share/info/dir"
+    find "$pkgdir/usr/lib" -name "*.la" -delete 2>/dev/null || true
 }

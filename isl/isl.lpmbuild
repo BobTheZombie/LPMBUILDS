@@ -1,34 +1,37 @@
-# LPM build script for isl
 NAME="isl"
-VERSION="0.27"
+VERSION="0.26"
 RELEASE="1"
-ARCH="${ARCH:-x86_64}"
-SUMMARY="Integer set library for compilers"
-URL="https://libisl.sourceforge.io/"
-LICENSE=""
-SOURCE=()
-REQUIRES=("glibc" "gmp")
-PROVIDES=("isl")
+ARCH="x86_64"
+SUMMARY="Integer Set Library for polyhedral compilation"
+URL="https://libisl.sourceforge.io/isl-${VERSION}.tar.xz"
+LICENSE="MIT"
+
+REQUIRES=(gmp)
+PROVIDES=(isl)
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+    cd "$SRCROOT"
+    tarball="$(basename "$URL")"
+    [ -f "$tarball" ] && tar -xf "$tarball"
+    mkdir -p "$SRCROOT/isl-${VERSION}/build"
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+    set -euxo pipefail
+    cd "$SRCROOT/isl-${VERSION}/build"
+    ../configure \
+        --prefix=/usr \
+        --disable-static \
+        --docdir=/usr/share/doc/isl-${VERSION}
+    make -j"$(nproc)"
 }
 
-staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+install() {
+    set -euxo pipefail
+    cd "$SRCROOT/isl-${VERSION}/build"
+    make DESTDIR="$pkgdir" install
 }
+

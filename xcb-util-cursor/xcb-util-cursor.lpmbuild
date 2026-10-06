@@ -1,0 +1,78 @@
+#!/bin/bash
+# LPM build script for xcb-util-cursor
+
+NAME="xcb-util-cursor"
+VERSION="0.1.5"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="XCB cursor library"
+URL="https://xcb.freedesktop.org/"
+LICENSE="MIT"
+
+SOURCE=(
+  "https://xcb.freedesktop.org/dist/xcb-util-cursor-${VERSION}.tar.xz"
+)
+
+REQUIRES=(
+  "glibc"
+  "libxcb"
+  "pkg-config"
+  "util-macros"
+  "xorgproto"
+  "autoconf"
+  "automake"
+  "libtool"
+  "make"
+  "xcb-util-renderutil"
+  "xcb-util-image"
+)
+
+PROVIDES=(
+  "xcb-util-cursor"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="xcb-util-cursor-${VERSION}"
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT"
+    tar xf "xcb-util-cursor-${VERSION}.tar.xz"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    : "${CC:=cc}"
+
+    ./configure         --prefix=/usr         --libdir=/usr/lib         --disable-static
+
+    make -j"$(nproc)"
+}
+
+check() {
+    true
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+    DESTDIR="$pkgdir" make install
+
+    if [ -f COPYING ]; then
+        install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+    fi
+
+    if command -v strip >/dev/null 2>&1; then
+        find "$pkgdir/usr" -type f -exec sh -c '
+            case "$(file -b "$1")" in
+              *ELF*shared\ object*|*ELF*executable*)
+                strip --strip-unneeded "$1" 2>/dev/null || true
+              ;;
+            esac
+        ' _ {} \;
+    fi
+}

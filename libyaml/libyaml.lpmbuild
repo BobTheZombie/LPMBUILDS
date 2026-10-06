@@ -1,0 +1,79 @@
+#!/bin/bash
+# LPM build script for libyaml
+
+NAME="libyaml"
+VERSION="0.2.5"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="YAML 1.1 parser and emitter library"
+URL="https://pyyaml.org/wiki/LibYAML"
+LICENSE=("MIT")
+
+SOURCE=(
+  "https://github.com/yaml/libyaml/releases/download/${VERSION}/yaml-${VERSION}.tar.gz"
+)
+
+SHA256SUMS=("SKIP")
+
+REQUIRES=(
+  "glibc"
+)
+
+BUILD_REQUIRES=(
+  "gcc"
+  "make"
+)
+
+PROVIDES=(
+  "libyaml"
+  "libyaml.so"
+  "yaml"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  export CFLAGS="${CFLAGS:-} -O2 -pipe -fPIC"
+
+  ./configure \
+    --prefix=/usr \
+    --libdir=/usr/lib \
+    --disable-static
+
+  make -j"$(nproc)"
+}
+
+check() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  make test || true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  make DESTDIR="$pkgdir" install
+
+  test -f "$pkgdir/usr/lib/libyaml.so"
+  test -f "$pkgdir/usr/include/yaml.h"
+
+  for f in LICENSE README.md; do
+    if [ -f "$f" ]; then
+      install -Dm644 "$f" \
+        "$pkgdir/usr/share/licenses/$NAME/$f"
+    fi
+  done
+}

@@ -1,0 +1,121 @@
+NAME="system-base"
+VERSION="1.0.0-lumin"
+RELEASE="1"
+ARCH="x86_64"
+SUMMARY="Meta-package providing a complete Lumin base system"
+URL="https://gitlab.com/lpm-org"
+SOURCE=()
+LICENSE=("GPL-2.0-or-later")
+
+# Everything required for a minimal but functional Linux base + build environment
+REQUIRES=(
+  # Toolchain & runtime
+  "glibc"
+  "gcc-libs"
+  "binutils"
+  "bash"
+  "coreutils"
+  "sed"
+  "gawk"
+  "grep"
+  "findutils"
+  "make"
+  "pkgconf"
+
+  # Compression
+  "zlib"
+  "bzip2"
+  "xz"
+  "zstd"
+
+  # Security
+  "openssl"
+  "libgpg-error"
+  "libgcrypt"
+  "nettle"
+  "libtasn1"
+  "p11-kit"
+  "libcap"
+  "libcap-ng"
+  "libseccomp"
+  "sudo"
+
+  # Databases / auth
+  "gdbm"
+  "sqlite"
+  "cyrus-sasl"
+
+  # Core system utils
+  "util-linux"
+  "e2fsprogs"
+  "shadow"
+
+  # Bootloader and firmware
+  "grub"
+  "linux-firmware"
+
+  # IPC / policy
+  "dbus-broker"
+  "polkit"
+
+  # Text / terminal
+  "ncurses"
+  "readline"
+  "libedit"
+
+  # Mount & FS libs
+  # This one is an LPM-only package
+  "util-linux-libs-extra"
+
+  # Rendering & fonts
+  "freetype"
+  "fontconfig"
+  "pixman"
+  "cairo"
+  "harfbuzz"
+  "fribidi"
+  "pango"
+
+  # GLib + introspection
+  "glib2"
+  "gobject-introspection"
+  "dconf"
+  "shared-mime-info"
+
+  # Python build stack
+  "python"
+  
+  # Package Manager 
+  "lpm"
+)
+
+REQUIRES_PYTHON_DEPENDENCIES=(
+  "python-build"
+  "python-flit-core"
+  "python-installer"
+  "python-packaging"
+  "python-docutils"
+)
+
+PROVIDES=("system-base")
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() {
+    true
+}
+
+build() {
+    true
+}
+
+staging() {
+    set -euxo pipefail
+    mkdir -p "$pkgdir/usr/share/doc/system-base"
+    echo "system-base ${VERSION}-${RELEASE}" > "$pkgdir/.system-base"
+    cat > "$pkgdir/usr/share/doc/system-base/README" <<'README'
+This meta-package defines the complete base system for Lumin OS.
+It ensures all essential runtime, bootloader, and firmware components
+are installed to provide a fully bootable and self-hosting environment.
+README
+}

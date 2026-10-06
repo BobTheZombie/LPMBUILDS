@@ -1,0 +1,89 @@
+#!/bin/bash
+# LPM build script for libxfce4windowing
+
+NAME="libxfce4windowing"
+VERSION="4.20.5"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Xfce windowing abstraction library for X11 and Wayland"
+URL="https://gitlab.xfce.org/xfce/libxfce4windowing"
+LICENSE=("LGPL-2.1-or-later")
+
+SOURCE=(
+  "https://archive.xfce.org/src/xfce/libxfce4windowing/4.20/libxfce4windowing-${VERSION}.tar.bz2"
+)
+
+REQUIRES=(
+  "glibc"
+  "glib2"
+  "gtk3"
+  "libwnck"
+  "libdisplay-info"
+  "wayland"
+  "wayland-protocols"
+  "libX11"
+  "libxfce4util"
+)
+
+BUILD_REQUIRES=(
+  "meson"
+  "ninja"
+  "pkgconf"
+  "gettext"
+  "gobject-introspection"
+  "vala"
+)
+
+PROVIDES=(
+  "libxfce4windowing"
+  "libxfce4windowing-0"
+  "libxfce4windowing-0.so"
+  "libxfce4windowingui-0.so"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  rm -rf build
+
+  meson setup build \
+    --prefix=/usr \
+    --libdir=lib \
+    --buildtype=release \
+    -Ddefault_library=shared \
+    -Dintrospection=true
+
+  meson compile -C build
+}
+
+check() {
+  true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  DESTDIR="$pkgdir" meson install -C build
+
+  test -f "$pkgdir/usr/lib/pkgconfig/libxfce4windowing-0.pc"
+  test -f "$pkgdir/usr/lib/libxfce4windowing-0.so"
+  test -f "$pkgdir/usr/lib/libxfce4windowingui-0.so"
+
+  for f in COPYING LICENSE; do
+    if [ -f "$f" ]; then
+      install -Dm644 "$f" "$pkgdir/usr/share/licenses/$NAME/$f"
+    fi
+  done
+}

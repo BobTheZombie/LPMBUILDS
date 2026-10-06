@@ -1,0 +1,110 @@
+#!/bin/bash
+# LPM build script for xterm
+# Standard X terminal emulator
+
+NAME="xterm"
+VERSION="406"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="X terminal emulator"
+URL="https://invisible-island.net/xterm/"
+LICENSE="MIT"
+
+SOURCE=(
+  "https://invisible-mirror.net/archives/xterm/xterm-${VERSION}.tgz"
+)
+
+REQUIRES=(
+  "glibc"
+  "libX11"
+  "libXaw"
+  "libXmu"
+  "libXt"
+  "libICE"
+  "libSM"
+  "ncurses"     # this should provide libncursesw + libtinfow on your system
+  "xorgproto"
+  "pkg-config"
+  "make"
+  "autoconf"
+  "automake"
+  "libtool"
+)
+
+PROVIDES=(
+  "xterm"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="xterm-${VERSION}"
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    : "${CC:=cc}"
+
+    # Make sure terminfo / tgetent symbols are satisfied explicitly
+    # Your error shows libtinfow.so.6, so use -ltinfow, not -ltinfo.
+    export LIBS="-lncursesw -ltinfow"
+
+    ./configure \
+        --prefix=/usr \
+        --libdir=/usr/lib \
+        --sysconfdir=/etc \
+        --mandir=/usr/share/man \
+        --with-app-defaults=/usr/share/X11/app-defaults \
+        --with-ncursesw \
+        --enable-256-color \
+        --enable-wide-chars \
+        --enable-vt52 \
+        --enable-dec-locator
+
+    make -j"$(nproc)"
+}
+
+check() {
+    # xterm has some test helpers, but nothing critical for packaging
+    true
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    DESTDIR="$pkgdir" make install
+
+    # Ensure app-defaults directory exists
+    mkdir -p "$pkgdir/usr/share/X11/app-defaults"
+
+    # License / docs
+    if [ -f COPYRIGHT ]; then
+        install -Dm644 COPYRIGHT "$pkgdir/usr/share/licenses/$NAME/COPYRIGHT"
+    fi
+    if [ -f README ]; then
+        install -Dm644 README "$pkgdir/usr/share/doc/$NAME/README"
+    fi
+    if [ -f ctlseqs.ms ]; then
+        install -Dm644 ctlseqs.ms "$pkgdir/usr/share/doc/$NAME/ctlseqs.ms"
+    fi
+
+    # Strip ELF binaries
+    if command -v strip >/dev/null 2>&1; then
+        find "$pkgdir/usr" -type f -exec sh -c '
+            case "$(file -b "$1")" in
+              *ELF*executable*|*ELF*shared\ object*)
+                  strip --strip-unneeded "$1" 2>/dev/null || true
+              ;;
+            esac
+        ' _ {} \;
+    fi
+}
+
+

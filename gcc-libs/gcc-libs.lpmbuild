@@ -1,34 +1,54 @@
-# LPM build script for gcc-libs
+#!/bin/bash
+# LFS 13.1-systemd baseline; see docs/lfs-13.1.md for patch provenance.
 NAME="gcc-libs"
-VERSION="14.2.0"
+VERSION="16.2.0"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="Runtime libraries shipped by GCC"
-URL="https://gcc.gnu.org/"
-LICENSE=""
-SOURCE=()
+URL="https://ftpmirror.gnu.org/gcc/gcc-16.2.0/gcc-16.2.0.tar.xz"
+LICENSE=("GPL-3.0-or-later WITH GCC-exception-3.1")
+SOURCE=("https://ftpmirror.gnu.org/gcc/gcc-16.2.0/gcc-16.2.0.tar.xz")
+SHA256SUMS=("e6738e29597f733270731aa90600f37ffdc045079dfc27ec7e8192cc81085c3e")
+PATCHES=()
 REQUIRES=("glibc")
-PROVIDES=("gcc-libs" "libstdc++" "libgcc_s")
+BUILD_REQUIRES=("gcc" "make" "pkgconf" "binutils" "linux-headers" "gawk" "bison" "python" "texinfo" "gmp" "mpfr" "mpc" "isl" "zlib" "zstd")
+PROVIDES=("gcc-libs" "libgcc_s" "libstdc++" "libgomp" "libatomic" "libgfortran")
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
+
+_srcdir="gcc-16.2.0"
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    case "$ARCH" in x86_64) sed -i '/m64=/s/lib64/lib/' gcc/config/i386/t-linux64 ;; esac
+    mkdir -p build
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir/build"
+    ../configure --prefix=/usr --libdir=/usr/lib --libexecdir=/usr/lib --enable-languages=c,c++,fortran --enable-default-pie --enable-default-ssp --enable-host-pie --disable-multilib --disable-bootstrap --disable-fixincludes --with-system-zlib --with-pkgversion=LPM
+    make -j"${JOBS:-$(nproc)}"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir/build"
+    make DESTDIR="$pkgdir" install
+    rm -rf "$BUILDROOT/gcc-runtime"
+    install -dm755 "$BUILDROOT/gcc-runtime/usr/lib"
+    for lib in libgcc_s libstdc++ libgomp libatomic libgfortran libquadmath libasan libubsan liblsan libtsan libitm libhwasan; do
+        for file in "$pkgdir/usr/lib/$lib".so*; do
+            [ ! -e "$file" ] && [ ! -L "$file" ] && continue
+            cp -a "$file" "$BUILDROOT/gcc-runtime/usr/lib/"
+        done
+    done
+    test -e "$BUILDROOT/gcc-runtime/usr/lib/libgcc_s.so.1"
+    test -e "$BUILDROOT/gcc-runtime/usr/lib/libstdc++.so.6"
+    rm -rf "$pkgdir/usr" "$pkgdir/etc"
+    cp -a "$BUILDROOT/gcc-runtime/usr" "$pkgdir/"
+
+    rm -f "$pkgdir/usr/share/info/dir"
+    find "$pkgdir/usr/lib" -name "*.la" -delete 2>/dev/null || true
 }

@@ -1,0 +1,40 @@
+NAME="popt"
+VERSION="1.19"
+RELEASE="1"
+ARCH="x86_64"
+SUMMARY="Command line option parsing library"
+URL="https://github.com/rpm-software-management/popt"
+SOURCE=("https://ftp.osuosl.org/pub/rpm/popt/releases/popt-1.x/popt-${VERSION}.tar.gz")
+LICENSE=("MIT")
+
+REQUIRES=("glibc")
+PROVIDES=("popt" "libpopt.so")
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-$VERSION"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-$VERSION"
+
+    ./autogen.sh || true
+    ./configure \
+        --prefix=/usr \
+        --libdir=/usr/lib \
+        --disable-static \
+        --enable-shared
+
+    make -j"$(nproc)"
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-$VERSION"
+
+    make DESTDIR="$pkgdir" install
+}
+

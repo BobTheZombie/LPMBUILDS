@@ -1,0 +1,74 @@
+#!/bin/bash
+# LPM build script for libatomic_ops
+# Portable atomic memory update operations
+
+NAME="libatomic_ops"
+VERSION="7.8.2"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Portable atomic memory update operations"
+URL="https://github.com/ivmai/libatomic_ops"
+LICENSE=("GPL-2.0-or-later WITH GCC-exception")
+
+SOURCE=(
+  "https://github.com/ivmai/libatomic_ops/releases/download/v${VERSION}/libatomic_ops-${VERSION}.tar.gz"
+)
+
+REQUIRES=(
+  "glibc"
+
+  # Build
+  "gcc"
+  "make"
+  "pkg-config"
+)
+
+PROVIDES=(
+  "libatomic_ops"
+  "libatomic_ops.so"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  ./configure \
+    --prefix=/usr \
+    --libdir=/usr/lib \
+    --disable-static
+
+  make -j"$(nproc)"
+}
+
+check() {
+  true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  make DESTDIR="$pkgdir" install
+
+  # License
+  if [ -f COPYING ]; then
+    install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+  elif [ -f LICENSE ]; then
+    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$NAME/LICENSE"
+  fi
+
+  # Strip shared library
+  if command -v strip >/dev/null 2>&1; then
+    find "$pkgdir/usr/lib" -type f -name 'libatomic_ops.so*' -exec strip --strip-unneeded {} \; 2>/dev/null || true
+  fi
+}

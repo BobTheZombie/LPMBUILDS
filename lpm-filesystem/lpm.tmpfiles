@@ -1,0 +1,22 @@
+# LPM persistent state
+d /var/lib/lpm 0755 root root -
+d /var/lib/lpm/db 0755 root root -
+d /var/lib/lpm/local 0755 root root -
+d /var/lib/lpm/sync 0755 root root -
+d /var/lib/lpm/transactions 0755 root root -
+d /var/lib/lpm/locks 0755 root root -
+
+# LPM cache/build roots
+d /var/cache/lpm 0775 root lpm -
+d /var/cache/lpm/sources 0775 root lpm -
+d /var/cache/lpm/packages 0775 root lpm -
+d /var/cache/lpm/lpmbuilds 0775 root lpm -
+d /var/cache/lpm/build 0775 root lpm -
+d /var/cache/lpm/logs 0775 root lpm -
+
+# Logs and runtime
+d /var/log/lpm 0755 root root -
+d /run/lpm 0755 root root -
+
+# Sticky scratch build dir
+d /tmp/lpm-build 1777 root root -

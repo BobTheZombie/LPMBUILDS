@@ -1,0 +1,4 @@
+# LPM system users/groups
+g lpm - -
+u lpm - "LPM build/cache user" /var/lib/lpm /usr/bin/nologin
+m lpm lpm

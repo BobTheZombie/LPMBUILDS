@@ -1,0 +1,85 @@
+#!/bin/bash
+# LPM build script for hunspell
+
+NAME="hunspell"
+VERSION="1.7.2"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Spell checker and morphological analyzer"
+URL="https://hunspell.github.io/"
+LICENSE=("GPL-2.0-or-later" "LGPL-2.1-or-later" "MPL-1.1")
+
+SOURCE=(
+  "https://github.com/hunspell/hunspell/releases/download/v${VERSION}/hunspell-${VERSION}.tar.gz"
+)
+
+SHA256SUMS=("SKIP")
+
+REQUIRES=(
+  "glibc"
+  "gcc-libs"
+)
+
+BUILD_REQUIRES=(
+  "gcc"
+  "make"
+  "pkgconf"
+  "autoconf"
+  "automake"
+  "libtool"
+)
+
+PROVIDES=(
+  "hunspell"
+  "libhunspell-1.7.so"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  autoreconf -fi
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  export CFLAGS="${CFLAGS:-} -O2 -pipe -fPIC"
+
+  ./configure \
+    --prefix=/usr \
+    --libdir=/usr/lib \
+    --disable-static
+
+  make -j"$(nproc)"
+}
+
+check() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  make check || true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  make DESTDIR="$pkgdir" install
+
+  test -f "$pkgdir/usr/lib/libhunspell-1.7.so"
+  test -x "$pkgdir/usr/bin/hunspell"
+
+  for f in COPYING README.md; do
+    if [ -f "$f" ]; then
+      install -Dm644 "$f" \
+        "$pkgdir/usr/share/licenses/$NAME/$f"
+    fi
+  done
+}

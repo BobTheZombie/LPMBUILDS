@@ -1,0 +1,102 @@
+#!/bin/bash
+# LPM build script for gnome-desktop (provides gnome-desktop-3.0.pc)
+# Needed by budgie-desktop (dependency: gnome-desktop-3.0)
+
+NAME="gnome-desktop"
+VERSION="44.4"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="GNOME Desktop library (provides gnome-desktop-3.0)"
+URL="https://gitlab.gnome.org/GNOME/gnome-desktop"
+LICENSE=("GPL-2.0-or-later" "LGPL-2.1-or-later")
+
+SOURCE=(
+  "https://download.gnome.org/sources/gnome-desktop/44/gnome-desktop-${VERSION}.tar.xz"
+)
+
+REQUIRES=(
+  "glibc"
+  "glib2"
+  "gdk-pixbuf2"
+  "gtk+"
+  "gsettings-desktop-schemas"
+
+  # Common runtime deps for gnome-desktop-3.x
+  "iso-codes"
+  "libX11"
+  "libXext"
+  "libXrandr"
+  "libxkbfile"
+
+  # Introspection output (recommended; Budgie stack tends to assume GI is present)
+  "gobject-introspection"
+
+  # Build tooling
+  "meson"
+  "ninja"
+  "pkgconf"
+)
+
+PROVIDES=(
+  "gnome-desktop"
+  "gnome-desktop-3.0"
+  "libgnome-desktop-3.so"
+  "gnome-desktop-3.0.pc"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  export PKG_CONFIG_PATH="/usr/lib/pkgconfig:/usr/share/pkgconfig:${PKG_CONFIG_PATH:-}"
+
+  rm -rf build
+
+  meson setup build \
+    --prefix=/usr \
+    --libdir=lib \
+    --buildtype=release \
+    -Ddefault_library=shared \
+    -Dgtk_doc=false \
+    -Ddesktop_docs=false \
+    -Dintrospection=true
+
+  meson compile -C build
+}
+
+check() { true; }
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  DESTDIR="$pkgdir" meson install -C build
+
+  # License (best-effort: upstream may use COPYING or LICENSES/*)
+  if [ -f COPYING ]; then
+    install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+  elif [ -d LICENSES ]; then
+    install -dm755 "$pkgdir/usr/share/licenses/$NAME"
+    install -m644 LICENSES/* "$pkgdir/usr/share/licenses/$NAME/" 2>/dev/null || true
+  fi
+
+  # Strip (best-effort)
+  if command -v strip >/dev/null 2>&1; then
+    find "$pkgdir/usr" -type f -exec sh -c '
+      case "$(file -b "$1")" in
+        *ELF*executable*|*ELF*shared\ object*) strip --strip-unneeded "$1" 2>/dev/null || true ;;
+      esac
+    ' _ {} \;
+  fi
+}
+

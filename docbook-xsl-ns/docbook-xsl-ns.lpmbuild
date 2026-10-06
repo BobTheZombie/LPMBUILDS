@@ -1,0 +1,93 @@
+#!/bin/bash
+# LPM build script for docbook-xsl-ns
+
+NAME="docbook-xsl-ns"
+VERSION="1.79.2"
+RELEASE="2"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Namespace-aware DocBook XSL stylesheets"
+URL="https://github.com/docbook/xslt10-stylesheets"
+LICENSE=("MIT")
+
+INSTALL=("docbook-xsl.install")
+SOURCE=(
+  "https://github.com/docbook/xslt10-stylesheets/releases/download/release%2F${VERSION}/docbook-xsl-${VERSION}.tar.bz2"
+)
+
+SHA256SUMS=("SKIP")
+
+REQUIRES=(
+  "libxml2"
+  "libxslt"
+)
+
+PROVIDES=(
+  "docbook-xsl-ns"
+  "docbook-xsl"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() {
+  true
+}
+
+build() {
+  true
+}
+
+check() {
+  true
+}
+
+staging() {
+  set -euxo pipefail
+
+  install -dm755 "$pkgdir/usr/share/xml/docbook"
+  install -dm755 "$pkgdir/etc/xml"
+
+  local src
+  src="$(find "$SRCROOT" -maxdepth 1 -type d \
+    \( -name "${NAME}-${VERSION}" -o -name "docbook-xsl-${VERSION}" \) \
+    | head -n1)"
+
+  test -n "$src"
+  test -d "$src"
+  test -f "$src/html/chunk.xsl"
+
+  local dest="$pkgdir/usr/share/xml/docbook/xsl-stylesheets-${VERSION}"
+
+  install -dm755 "$dest"
+  cp -a "$src"/. "$dest"/
+
+  ln -sfn "xsl-stylesheets-${VERSION}" \
+    "$pkgdir/usr/share/xml/docbook/xsl-stylesheets"
+
+  ln -sfn "xsl-stylesheets-${VERSION}" \
+    "$pkgdir/usr/share/xml/docbook/xsl-stylesheets-ns"
+
+  cat > "$pkgdir/etc/xml/catalog" <<EOF
+<?xml version="1.0"?>
+<!DOCTYPE catalog PUBLIC "-//OASIS//DTD Entity Resolution XML Catalog V1.0//EN"
+ "http://www.oasis-open.org/committees/entity/release/1.0/catalog.dtd">
+<catalog xmlns="urn:oasis:names:tc:entity:xmlns:xml:catalog">
+  <rewriteURI uriStartString="http://docbook.sourceforge.net/release/xsl/current/" rewritePrefix="/usr/share/xml/docbook/xsl-stylesheets/"/>
+  <rewriteURI uriStartString="https://docbook.sourceforge.net/release/xsl/current/" rewritePrefix="/usr/share/xml/docbook/xsl-stylesheets/"/>
+  <rewriteURI uriStartString="http://docbook.sourceforge.net/release/xsl/${VERSION}/" rewritePrefix="/usr/share/xml/docbook/xsl-stylesheets-${VERSION}/"/>
+  <rewriteURI uriStartString="https://docbook.sourceforge.net/release/xsl/${VERSION}/" rewritePrefix="/usr/share/xml/docbook/xsl-stylesheets-${VERSION}/"/>
+  <rewriteURI uriStartString="http://docbook.sourceforge.net/release/xsl-ns/current/" rewritePrefix="/usr/share/xml/docbook/xsl-stylesheets-ns/"/>
+  <rewriteURI uriStartString="https://docbook.sourceforge.net/release/xsl-ns/current/" rewritePrefix="/usr/share/xml/docbook/xsl-stylesheets-ns/"/>
+</catalog>
+EOF
+
+  test -f "$pkgdir/usr/share/xml/docbook/xsl-stylesheets/html/chunk.xsl"
+  test -f "$pkgdir/usr/share/xml/docbook/xsl-stylesheets-ns/html/chunk.xsl"
+
+  for f in COPYING LICENSE; do
+    if [ -f "$src/$f" ]; then
+      install -Dm644 "$src/$f" \
+        "$pkgdir/usr/share/licenses/$NAME/$f"
+    fi
+  done
+}

@@ -1,0 +1,45 @@
+NAME="imake"
+VERSION="1.0.10"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+
+SUMMARY="X.Org imake build utility"
+URL=""
+LICENSE=("custom")
+
+SOURCE=(
+    "https://www.x.org/releases/individual/util/imake-${VERSION}.tar.xz"
+)
+SHA256SUMS=("SKIP")
+PATCHES=()
+
+REQUIRES=(
+    "glibc"
+    "libX11"
+)
+
+BUILD_REQUIRES=(
+    "pkgconf"
+    "make"
+    "xorgproto"
+)
+
+PROVIDES=(
+    "imake"
+)
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() { set -euxo pipefail; cd "$SRCROOT/${NAME}-${VERSION}"; }
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    ./configure --prefix=/usr
+    make -j"$(nproc)"
+}
+check() { true; }
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    make DESTDIR="$pkgdir" install
+}

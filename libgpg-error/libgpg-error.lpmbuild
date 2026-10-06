@@ -1,34 +1,41 @@
-# LPM build script for libgpg-error
 NAME="libgpg-error"
-VERSION="1.49"
+VERSION="1.50"
 RELEASE="1"
-ARCH="${ARCH:-x86_64}"
-SUMMARY="Common error codes for GnuPG"
-URL="https://gnupg.org/software/libgpg-error/"
-LICENSE=""
-SOURCE=()
+ARCH="x86_64"
+SUMMARY="Common error codes and descriptions used by GnuPG components"
+URL="https://www.gnupg.org/software/libgpg-error/"
+SOURCE=("https://www.gnupg.org/ftp/gcrypt/libgpg-error/libgpg-error-${VERSION}.tar.bz2")
+LICENSE=("LGPL-2.1-or-later" "GPL-2.0-or-later")
+
 REQUIRES=("glibc")
-PROVIDES=("libgpg-error")
+PROVIDES=("libgpg-error" "libgpg-error.so")
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+    cd "$SRCROOT/libgpg-error-${VERSION}"
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+    set -euxo pipefail
+    cd "$SRCROOT/libgpg-error-${VERSION}"
+    ./configure \
+        --prefix=/usr \
+        --libdir=/usr/lib \
+        --disable-static
+    make -j"$(nproc)"
+}
+
+check() {
+    set -euxo pipefail
+    cd "$SRCROOT/libgpg-error-${VERSION}"
+    make check || true
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euxo pipefail
+    cd "$SRCROOT/libgpg-error-${VERSION}"
+    make DESTDIR="$pkgdir" install
 }
+

@@ -1,0 +1,66 @@
+#!/bin/bash
+# LPM build script for perl-parse-yapp
+
+NAME="perl-parse-yapp"
+VERSION="1.21"
+RELEASE="1"
+ARCH="any"
+SUMMARY="Perl LALR parser generator"
+URL="https://metacpan.org/dist/Parse-Yapp"
+LICENSE=("Artistic-1.0-Perl" "GPL-1.0-or-later")
+
+SOURCE=(
+  "https://www.cpan.org/authors/id/W/WB/WBRASWELL/Parse-Yapp-${VERSION}.tar.gz"
+)
+
+SHA256SUMS=("SKIP")
+
+REQUIRES=(
+  "perl"
+)
+
+BUILD_REQUIRES=(
+  "perl"
+)
+
+PROVIDES=(
+  "perl-parse-yapp"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  perl Makefile.PL INSTALLDIRS=vendor
+  make
+}
+
+check() {
+  true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  make DESTDIR="$pkgdir" install
+
+  find "$pkgdir/usr" -name 'Driver.pm' | grep -q Parse/Yapp
+
+  for f in COPYING LICENSE Artistic README; do
+    if [ -f "$f" ]; then
+      install -Dm644 "$f" \
+        "$pkgdir/usr/share/licenses/$NAME/$(basename "$f")"
+    fi
+  done
+}

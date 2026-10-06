@@ -1,0 +1,79 @@
+NAME="libxml2"
+VERSION="2.15.3"
+RELEASE="1"
+ARCH="x86_64"
+SUMMARY="XML C parser and toolkit"
+URL="https://gitlab.gnome.org/GNOME/libxml2/-/wikis/home"
+LICENSE=("MIT")
+
+SOURCE=(
+  "git+https://gitlab.gnome.org/GNOME/libxml2.git#tag=v${VERSION}"
+  "https://www.w3.org/XML/Test/xmlts20130923.tar.gz"
+)
+
+REQUIRES=(
+  "bash"
+  "glibc"
+  "icu"
+  "readline"
+  "zlib"
+  "python"
+)
+
+BUILD_REQUIRES=(
+  "docbook-xsl"
+  "git"
+  "meson"
+  "ninja"
+  "pkgconf"
+  "python"
+)
+
+PROVIDES=(
+  "libxml2"
+  "libxml2.so"
+  "xmllint"
+)
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/libxml2"
+
+  # Use xmlconf from conformance test suite
+  ln -sf ../xmlconf xmlconf
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+
+  meson setup libxml2 build \
+    --prefix=/usr \
+    --libdir=/usr/lib \
+    --buildtype=release \
+    -D icu=enabled \
+    -D legacy=enabled \
+    -D python=enabled
+
+  meson compile -C build
+}
+
+check() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+
+  meson test -C build --print-errorlogs
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT"
+
+  DESTDIR="$pkgdir" meson install -C build
+
+  install -Dm644 libxml2/libxml.m4 \
+    "$pkgdir/usr/share/aclocal/libxml.m4"
+
+  install -Dm644 libxml2/Copyright \
+    "$pkgdir/usr/share/licenses/$NAME/Copyright"
+}

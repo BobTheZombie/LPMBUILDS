@@ -1,0 +1,72 @@
+#!/bin/bash
+# LPM build script for tdb
+
+NAME="tdb"
+VERSION="1.4.12"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Trivial Database library"
+URL="https://www.samba.org/ftp/tdb/"
+LICENSE=("GPL-3.0-or-later")
+
+SOURCE=(
+  "https://download.samba.org/pub/tdb/tdb-${VERSION}.tar.gz"
+)
+
+SHA256SUMS=("SKIP")
+
+REQUIRES=(
+  "glibc"
+)
+
+BUILD_REQUIRES=(
+  "python"
+  "pkgconf"
+)
+
+PROVIDES=(
+  "tdb"
+  "libtdb.so"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  ./configure \
+    --prefix=/usr \
+    --libdir=/usr/lib 
+
+  make -j"$(nproc)"
+}
+
+check() {
+  true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  make DESTDIR="$pkgdir" install
+
+  test -f "$pkgdir/usr/lib/libtdb.so"
+  test -f "$pkgdir/usr/lib/pkgconfig/tdb.pc"
+
+  for f in COPYING LICENSE; do
+    if [ -f "$f" ]; then
+      install -Dm644 "$f" \
+        "$pkgdir/usr/share/licenses/$NAME/$f"
+    fi
+  done
+}

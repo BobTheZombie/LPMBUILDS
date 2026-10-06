@@ -1,0 +1,42 @@
+#!/bin/bash
+# LPM build script for xrefresh
+
+NAME="xrefresh"
+VERSION="1.1.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Refresh all or part of an X screen"
+URL="https://www.x.org/"
+LICENSE="MIT"
+
+SOURCE=("https://www.x.org/archive//individual/app/${NAME}-${VERSION}.tar.xz")
+
+REQUIRES=(
+  "glibc"
+  "libX11"
+)
+
+PROVIDES=("xrefresh")
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+  ./configure --prefix=/usr
+  make -j"$(nproc)"
+}
+
+check() { true; }
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+  DESTDIR="$pkgdir" make install
+}

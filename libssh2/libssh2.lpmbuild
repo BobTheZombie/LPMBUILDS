@@ -1,0 +1,81 @@
+#!/bin/bash
+# LPM build script for libssh2
+# Provides: SSH2 client-side library
+
+NAME="libssh2"
+VERSION="1.11.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="SSH2 client-side library"
+URL="https://www.libssh2.org/"
+LICENSE="BSD"
+
+SOURCE=(
+  "https://www.libssh2.org/download/libssh2-${VERSION}.tar.gz"
+)
+
+REQUIRES=(
+  "glibc"
+  "openssl"
+  "zlib"
+)
+
+PROVIDES=(
+  "libssh2"
+  "libssh2.so"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    : "${CC:=cc}"
+    : "${CXX:=c++}"
+
+    ./configure --prefix=/usr          \
+            --disable-docker-tests \
+            --disable-static       
+    make
+}
+
+check() {
+    # Optional tests exist but require networking setup; skip for packaging
+    true
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    make install DESTDIR="$pkgdir"
+
+    # License
+    if [ -f COPYING ]; then
+        install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+    fi
+
+    # Docs
+    if [ -f README ]; then
+        install -Dm644 README "$pkgdir/usr/share/doc/$NAME/README"
+    fi
+
+    # Strip ELF binaries / libs
+    if command -v strip >/dev/null 2>&1; then
+        find "$pkgdir/usr" -type f -exec sh -c '
+            case "$(file -b "$1")" in
+              *ELF*executable*|*ELF*shared\ object*) strip --strip-unneeded "$1" 2>/dev/null || true ;;
+            esac
+        ' _ {} \;
+    fi
+}
+

@@ -1,0 +1,10 @@
+prefix=/usr
+exec_prefix=\${prefix}
+libdir=\${exec_prefix}/lib
+includedir=\${prefix}/include
+
+Name: Graphite2
+Description: Font rendering engine for complex scripts
+Version: 1.3.14
+Libs: -L\${libdir} -lgraphite2
+Cflags: -I\${includedir}/graphite2

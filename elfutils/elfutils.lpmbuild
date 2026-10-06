@@ -1,0 +1,42 @@
+#!/bin/bash
+# LFS 13.1-systemd baseline; see docs/lfs-13.1.md for patch provenance.
+NAME="elfutils"
+VERSION="0.195"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Elfutils"
+URL="https://sourceware.org/ftp/elfutils/0.195/elfutils-0.195.tar.bz2"
+LICENSE=("GPL-3.0-or-later" "LGPL-3.0-or-later")
+SOURCE=("https://sourceware.org/ftp/elfutils/0.195/elfutils-0.195.tar.bz2")
+SHA256SUMS=("37629fdf7f1f3dc2818e138fca2b8094177d6c2d0f701d3bb650a561218dc026")
+PATCHES=()
+REQUIRES=("glibc" "zlib" "bzip2" "xz" "zstd")
+BUILD_REQUIRES=("gcc" "make" "pkgconf")
+PROVIDES=("elfutils" "libelf" "libelf.so")
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="elfutils-0.195"
+
+prepare() {
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    :
+}
+
+build() {
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    ./configure --prefix=/usr --disable-debuginfod --enable-libdebuginfod=dummy --disable-static
+    make -j"${JOBS:-$(nproc)}"
+}
+
+staging() {
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    make DESTDIR="$pkgdir" install
+
+    rm -f "$pkgdir/usr/share/info/dir"
+    find "$pkgdir/usr/lib" -name "*.la" -delete 2>/dev/null || true
+}
+

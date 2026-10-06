@@ -1,34 +1,54 @@
-# LPM build script for pam
 NAME="pam"
 VERSION="1.6.1"
 RELEASE="1"
-ARCH="${ARCH:-x86_64}"
-SUMMARY="Linux-PAM: Pluggable Authentication Modules"
+ARCH="x86_64"
+SUMMARY="Pluggable Authentication Modules"
 URL="https://github.com/linux-pam/linux-pam"
-LICENSE=""
-SOURCE=()
-REQUIRES=("glibc" "libxcrypt")
+SOURCE=(
+    "https://github.com/linux-pam/linux-pam/releases/download/v${VERSION}/Linux-PAM-${VERSION}.tar.xz"
+    "${NAME}.tmpfiles"
+)
+LICENSE="BSD-3-Clause"
+
+REQUIRES=("glibc" "libxcrypt" "pambase-policy" "shadow")
 PROVIDES=("pam")
-CONFLICTS=()
-OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
+OBSOLETES=("pam-bootstrap")
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-$VERSION"
+    autoreconf -fi || true
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-$VERSION"
+
+    ./configure \
+        --prefix=/usr \
+        --sbindir=/usr/sbin \
+        --sysconfdir=/etc \
+        --libdir=/usr/lib \
+        --enable-securedir=/usr/lib/security \
+        --disable-audit \
+        --disable-selinux \
+        --disable-nls
+
+    make -j"$(nproc)"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-$VERSION"
+
+    make DESTDIR="$pkgdir" install
+
+    install -Dm644 "$SRCROOT/$NAME.tmpfiles" "$pkgdir/usr/lib/tmpfiles.d/$NAME.conf"
+
+    # remove unreproducible pdf files (timestamps vary)
+    rm -f "$pkgdir/usr/share/doc/Linux-PAM/"*.pdf || true
+
+    # setuid helper
+    chmod +s "$pkgdir/usr/bin/unix_chkpwd" || true
 }
+

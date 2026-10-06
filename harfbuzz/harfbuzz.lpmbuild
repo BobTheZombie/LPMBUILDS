@@ -1,0 +1,36 @@
+NAME="harfbuzz"
+VERSION="9.0.0"
+RELEASE="1"
+ARCH="x86_64"
+SUMMARY="OpenType text shaping engine"
+URL="https://harfbuzz.github.io/"
+SOURCE=("https://github.com/harfbuzz/harfbuzz/releases/download/${VERSION}/harfbuzz-${VERSION}.tar.xz")
+LICENSE=("MIT")
+
+REQUIRES=("glib2" "freetype" "graphite2")
+PROVIDES=("harfbuzz" "libharfbuzz.so")
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/harfbuzz-${VERSION}"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/harfbuzz-${VERSION}"
+    meson setup build \
+        --prefix=/usr \
+        --libdir=lib \
+        -Dintrospection=auto \
+        -Dgraphite2=enabled
+    ninja -C build -j"$(nproc)"
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/harfbuzz-${VERSION}"
+    DESTDIR="$pkgdir" ninja -C build install
+}
+

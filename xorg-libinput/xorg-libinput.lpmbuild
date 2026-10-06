@@ -1,0 +1,79 @@
+#!/bin/bash
+# LPM build script for Xorg libinput driver (xf86-input-libinput)
+
+NAME="xorg-libinput"
+VERSION="1.5.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="X.Org libinput-based input driver"
+URL="https://www.x.org/"
+LICENSE="MIT"
+
+SOURCE=(
+  "https://www.x.org/pub/individual/driver/xf86-input-libinput-${VERSION}.tar.xz"
+)
+
+REQUIRES=(
+  "glibc"
+  "xorg-server"
+  "xorgproto"
+  "libinput"
+  "libxkbcommon"
+  "libX11"
+  "libXi"
+  "pkg-config"
+  "util-macros"
+  "autoconf"
+  "automake"
+  "libtool"
+  "make"
+)
+
+PROVIDES=(
+  "xorg-libinput"
+  "xf86-input-libinput"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    ./configure         --prefix=/usr         --libdir=/usr/lib         --with-xorg-module-dir=/usr/lib/xorg/modules
+
+    make -j"$(nproc)"
+}
+
+check() {
+    true
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    DESTDIR="$pkgdir" make install
+
+    if [ -f COPYING ]; then
+        install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+    fi
+
+    if command -v strip >/dev/null 2>&1; then
+        find "$pkgdir/usr/lib/xorg/modules" -type f -exec sh -c '
+            case "$(file -b "$1")" in
+              *ELF*shared\ object*)
+                  strip --strip-unneeded "$1" 2>/dev/null || true
+              ;;
+            esac
+        ' _ {} \;
+    fi
+}

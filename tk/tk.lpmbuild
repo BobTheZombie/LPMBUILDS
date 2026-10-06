@@ -1,0 +1,60 @@
+NAME="tk"
+VERSION="9.0.2"
+RELEASE="1"
+ARCH="x86_64"
+SUMMARY="Powerful, easy-to-learn dynamic programming language"
+URL="http://tcl.sourceforge.net/"
+SOURCE=("https://downloads.sourceforge.net/sourceforge/tcl/tcl${VERSION}-src.tar.gz")
+LICENSE="TCL"
+
+REQUIRES=("glibc" "zlib")
+PROVIDES=("tcl" "tclsh" "libtcl${VERSION%.*}.so")
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-${VERSION}"
+
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-${VERSION}/unix"
+
+    ./configure \
+        ZIP_PROG=zip \
+        --prefix=/usr \
+        --mandir=/usr/share/man \
+        --enable-threads \
+        --disable-rpath \
+        --enable-64bit
+
+    make -j1   # upstream recommends single job to avoid race issues
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-${VERSION}/unix"
+
+    make INSTALL_ROOT="$pkgdir" install install-private-headers
+
+    # Symlinks for backward compatibility
+    ln -sf "wish${VERSION%.*}" "${pkgdir}/usr/bin/wish"
+    ln -sf "libtk${VERSION%.*}.so" "${pkgdir}/usr/lib/libtk.so"
+
+     # Install private headers for development use
+    cd ..
+    for dir in compat generic generic/ttk unix; do
+        install -dm755 "${pkgdir}/usr/include/tk-private/${dir}"
+        install -m644 -t "$pkgdir/usr/include/tk-private/$dir" $dir/*.h
+    done
+
+    # Fix tkConfig.sh to remove build paths
+    sed -e "s#${SRCROOT}/${NAME}${VERSION}/unix#/usr/lib#" \
+        -e "s#${SRCROOT}/${NAME}${VERSION}#/usr/include#" \
+        -i "${pkgdir}/usr/lib/tkConfig.sh"
+
+    # Clean permissions
+    chmod -x "${pkgdir}/usr/lib/libtkstub.a" || true
+   
+}
+

@@ -1,0 +1,62 @@
+#!/bin/bash
+
+NAME="rest"
+VERSION="0.9.1"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="REST API library"
+URL="https://gitlab.gnome.org/GNOME/librest"
+LICENSE=("LGPL-2.1-or-later")
+
+SOURCE=(
+  "https://download.gnome.org/sources/librest/0.9/librest-${VERSION}.tar.xz"
+)
+
+SHA256SUMS=("SKIP")
+
+REQUIRES=(
+  "glib2"
+  "libsoup3"
+  "json-glib"
+)
+
+BUILD_REQUIRES=(
+  "meson"
+  "ninja"
+  "pkgconf"
+  "gettext"
+  "gobject-introspection"
+  "vala"
+)
+
+PROVIDES=("rest" "librest-1.0.so")
+
+_srcdir="librest-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+  rm -rf build
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  meson setup build \
+    --prefix=/usr \
+    --libdir=lib \
+    --buildtype=release \
+    -Dgtk_doc=false
+
+  meson compile -C build
+}
+
+check() { true; }
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  DESTDIR="$pkgdir" meson install -C build
+}

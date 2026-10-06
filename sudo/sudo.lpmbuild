@@ -1,41 +1,74 @@
-# LPM build script for sudo
 NAME="sudo"
-VERSION="1.9.15p5"
+VERSION="1.9.17p2"
 RELEASE="1"
-ARCH="${ARCH:-x86_64}"
-SUMMARY="Give certain users the ability to run some commands as root"
+ARCH="x86_64"
+SUMMARY="sudo - execute a command as another user"
 URL="https://www.sudo.ws/"
-LICENSE=""
-SOURCE=()
-REQUIRES=("glibc" "pam")
-PROVIDES=("sudo")
+SOURCE=("https://www.sudo.ws/dist/sudo-${VERSION}.tar.gz"
+        "sudo.pam")
+LICENSE=("ISC")
+
+# runtime deps
+REQUIRES=("glibc" "openssl" "pam" "openldap" "zlib")
+PROVIDES=("sudo" "sudoers" "sudoers.so")
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
 
+# Build-time notes (not enforced here): autoconf/automake, gcc, make, pkgconf, groff (for man)
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+    cd "$SRCROOT/sudo-${VERSION}"
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr \
-  --libexecdir=/usr/lib \
-  --with-pam \
-  --with-env-editor \
-  --with-all-insults
-  make -j"$(nproc)"
+    set -euxo pipefail
+    cd "$SRCROOT/sudo-${VERSION}"
+
+    ./configure \
+        --prefix=/usr \
+        --sysconfdir=/etc \
+        --prefix=/usr \
+        --sbindir=/usr/bin \
+        --libexecdir=/usr/lib \
+        --with-rundir=/run/sudo \
+        --with-vardir=/var/db/sudo \
+        --with-logfac=auth \
+        --enable-tmpfiles.d \
+        --with-pam \
+        --with-sssd \
+        --with-ldap \
+        --with-ldap-conf-file=/etc/openldap/ldap.conf \
+        --with-env-editor \
+        --with-passprompt="[sudo] password for %p: " \
+        --with-secure-path-value=/usr/local/sbin:/usr/local/bin:/usr/bin \
+        --with-all-insults
+    make -j"$(nproc)"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
-  install -d -m 755 "$pkgdir/etc/sudoers.d"
-  echo "%wheel ALL=(ALL) ALL" > "$pkgdir/etc/sudoers.d/10-wheel"
-  chmod 440 "$pkgdir/etc/sudoers.d/10-wheel"
+    set -euxo pipefail
+    cd "$SRCROOT/sudo-${VERSION}"
+
+    make DESTDIR="$pkgdir" install
+
+    # Remove sudoers.dist; not needed since LPM manages updates to sudoers
+    rm "$pkgdir/etc/sudoers.dist"
+
+    # Remove /run/sudo directory; we create it using systemd-tmpfiles
+    rmdir "$pkgdir/run/sudo"
+    rmdir "$pkgdir/run"
+
+    install -Dm644 "$SRCROOT/sudo.pam" "$pkgdir/etc/pam.d/sudo"
+    
+    # --- Critical!: set correct permissions and ownership on sudo binary ---
+    chmod 4755 "$pkgdir/usr/bin/sudo"
+    chown root:root "$pkgdir/usr/bin/sudo"
+
+    # Ensure sudoers file permissions are safe
+    chmod 0440 "$pkgdir/etc/sudoers" || true
+    chown root:root "$pkgdir/etc/sudoers" || true
+    
+install=$NAME.install
+
 }
+

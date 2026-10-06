@@ -1,36 +1,286 @@
-# LPM build script for clang
+#!/bin/bash
+# LPM build script for Clang
+# Based on the upstream LLVM project layout and Arch Linux packaging approach.
+
 NAME="clang"
-VERSION="1.0.0"
-RELEASE="1"
+VERSION="20.1.6"
+RELEASE="3"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Placeholder package for clang dependency"
-URL="https://example.com/clang"
-LICENSE=""
-SOURCE=()
-SHA256SUMS=()
+
+SUMMARY="C language family frontend for LLVM"
+URL="https://clang.llvm.org/"
+LICENSE=("Apache-2.0 WITH LLVM-exception")
+
+SOURCE=(
+    "https://github.com/llvm/llvm-project/releases/download/llvmorg-${VERSION}/llvm-project-${VERSION}.src.tar.xz"
+)
+
+SHA256SUMS=(
+    "SKIP"
+)
+
 PATCHES=()
-REQUIRES=()
-PROVIDES=("clang")
+
+REQUIRES=(
+    "glibc"
+    "llvm"
+    "gcc"
+    "gcc-libs"
+    "libxml2"
+    "zlib"
+    "zstd"
+    "xz"
+    "libedit"
+    "ncurses"
+    "libffi"
+)
+
+BUILD_REQUIRES=(
+    "cmake"
+    "ninja"
+    "python"
+    "llvm"
+)
+
+PROVIDES=(
+    "clang"
+    "clang++"
+    "clang-analyzer"
+    "clang-tools-extra"
+    "clangd"
+    "clang-tidy"
+)
+
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+
+    #
+    # LPM normalizes the primary source directory to:
+    #
+    #   $SRCROOT/${NAME}-${VERSION}
+    #
+    # The archive itself is the complete llvm-project source tree.
+    #
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    CLANGDIR="$SRCDIR/clang"
+    BUILDDIR="$CLANGDIR/build"
+
+    test -d "$SRCDIR"
+    test -d "$CLANGDIR"
+    test -d "$SRCDIR/clang-tools-extra"
+    test -d "$SRCDIR/llvm"
+    test -d "$SRCDIR/cmake"
+
+    rm -rf "$BUILDDIR"
+    mkdir -p "$BUILDDIR"
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    CLANGDIR="$SRCDIR/clang"
+    BUILDDIR="$CLANGDIR/build"
+
+    cd "$BUILDDIR"
+
+    : "${CC:=gcc}"
+    : "${CXX:=g++}"
+
+    #
+    # Keep LPM's CPU optimization flags, but don't let inherited LTO
+    # interfere with the compiler bootstrap.
+    #
+    export CFLAGS="${CFLAGS:-}"
+    export CXXFLAGS="${CXXFLAGS:-}"
+
+    CFLAGS="${CFLAGS//-flto=auto/}"
+    CFLAGS="${CFLAGS//-flto/}"
+
+    CXXFLAGS="${CXXFLAGS//-flto=auto/}"
+    CXXFLAGS="${CXXFLAGS//-flto/}"
+
+    export CFLAGS
+    export CXXFLAGS
+
+    cmake .. \
+        -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DCMAKE_INSTALL_DOCDIR=share/doc \
+        -DCMAKE_SKIP_RPATH=ON \
+        -DCMAKE_C_COMPILER="$CC" \
+        -DCMAKE_CXX_COMPILER="$CXX" \
+        \
+        -DLLVM_DIR=/usr/lib/cmake/llvm \
+        \
+        -DCLANG_DEFAULT_PIE_ON_LINUX=ON \
+        -DCLANG_LINK_CLANG_DYLIB=ON \
+        -DCLANG_ENABLE_ARCMT=ON \
+        -DCLANG_ENABLE_STATIC_ANALYZER=ON \
+        \
+        -DENABLE_LINKER_BUILD_ID=ON \
+        \
+        -DLLVM_ENABLE_RTTI=ON \
+        -DLLVM_LINK_LLVM_DYLIB=ON \
+        \
+        -DLLVM_EXTERNAL_CLANG_TOOLS_EXTRA_SOURCE_DIR="$SRCDIR/clang-tools-extra" \
+        -DLLVM_THIRD_PARTY_DIR="$SRCDIR/third-party" \
+        \
+        -DLLVM_INCLUDE_TESTS=OFF \
+        -DLLVM_BUILD_TESTS=OFF \
+        -DCLANG_INCLUDE_TESTS=OFF \
+        \
+        -DLLVM_INCLUDE_DOCS=OFF \
+        -DLLVM_BUILD_DOCS=OFF \
+        -DCLANG_INCLUDE_DOCS=OFF \
+        -DLLVM_ENABLE_SPHINX=OFF \
+        \
+        -DLLVM_ENABLE_ASSERTIONS=OFF \
+        -DBUILD_SHARED_LIBS=ON
+
+    ninja -j"$(nproc)"
+}
+
+check() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    BUILDDIR="$SRCDIR/clang/build"
+
+    #
+    # Full LLVM/Clang test suite intentionally disabled.
+    #
+    # Firefox needs a working wasm32 backend, so make that our important
+    # package-level sanity check.
+    #
+    test -x "$BUILDDIR/bin/clang"
+
+    "$BUILDDIR/bin/clang" --version
+    "$BUILDDIR/bin/clang" --print-targets | grep -qi wasm
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  install -d "$pkgdir/usr/share/doc/clang"
-  printf 'Placeholder package for clang\n' >"$pkgdir/usr/share/doc/clang/README"
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    CLANGDIR="$SRCDIR/clang"
+    BUILDDIR="$CLANGDIR/build"
+
+    cd "$BUILDDIR"
+
+    DESTDIR="$pkgdir" ninja install
+
+    #
+    # Ensure normal compiler entry points exist.
+    #
+    test -x "$pkgdir/usr/bin/clang"
+
+    if [ ! -e "$pkgdir/usr/bin/clang++" ]; then
+        ln -s clang "$pkgdir/usr/bin/clang++"
+    fi
+
+    #
+    # License
+    #
+    install -Dm644 \
+        "$CLANGDIR/LICENSE.TXT" \
+        "$pkgdir/usr/share/licenses/$NAME/LICENSE"
+
+    #
+    # Python Clang bindings.
+    #
+    site_packages="$(
+        python -c 'import site; print(site.getsitepackages()[0])'
+    )"
+
+    install -d "$pkgdir/$site_packages"
+
+    if [ -d "$CLANGDIR/bindings/python/clang" ]; then
+        cp -a \
+            "$CLANGDIR/bindings/python/clang" \
+            "$pkgdir/$site_packages/"
+    fi
+
+    #
+    # Move scan-build Python modules into site-packages if the build
+    # installed them into /usr/lib.
+    #
+    for module in libear libscanbuild; do
+        if [ -d "$pkgdir/usr/lib/$module" ]; then
+            mv \
+                "$pkgdir/usr/lib/$module" \
+                "$pkgdir/$site_packages/"
+        fi
+    done
+
+    #
+    # Move analyzer helpers out of libexec like Arch does.
+    #
+    if [ -d "$pkgdir/usr/libexec" ]; then
+        install -d "$pkgdir/usr/lib/clang"
+
+        if find "$pkgdir/usr/libexec" -mindepth 1 -print -quit | grep -q .; then
+            mv "$pkgdir/usr/libexec/"* \
+                "$pkgdir/usr/lib/clang/"
+        fi
+
+        rmdir "$pkgdir/usr/libexec" 2>/dev/null || true
+    fi
+
+    #
+    # Correct scan-build's helper path after moving libexec.
+    #
+    if [ -f "$pkgdir/usr/bin/scan-build" ]; then
+        sed -i \
+            's|libexec|lib/clang|g' \
+            "$pkgdir/usr/bin/scan-build"
+    fi
+
+    if [ -f "$pkgdir/$site_packages/libscanbuild/analyze.py" ]; then
+        sed -i \
+            's|libexec|lib/clang|g' \
+            "$pkgdir/$site_packages/libscanbuild/analyze.py"
+    fi
+
+    #
+    # Compile installed Python modules.
+    #
+    if [ -d "$pkgdir/$site_packages" ]; then
+        python -m compileall -q "$pkgdir/$site_packages" || true
+        python -O -m compileall -q "$pkgdir/$site_packages" || true
+        python -OO -m compileall -q "$pkgdir/$site_packages" || true
+    fi
+
+    #
+    # Bash completion.
+    #
+    if [ -f "$pkgdir/usr/share/clang/bash-autocomplete.sh" ]; then
+        install -d \
+            "$pkgdir/usr/share/bash-completion/completions"
+
+        mv \
+            "$pkgdir/usr/share/clang/bash-autocomplete.sh" \
+            "$pkgdir/usr/share/bash-completion/completions/clang"
+    fi
+
+    #
+    # Final package sanity.
+    #
+    test -x "$pkgdir/usr/bin/clang"
+    test -e "$pkgdir/usr/bin/clang++"
+
+    if [ -e "$pkgdir/usr/bin/clangd" ]; then
+        test -x "$pkgdir/usr/bin/clangd"
+    fi
+
+    if [ -e "$pkgdir/usr/bin/clang-tidy" ]; then
+        test -x "$pkgdir/usr/bin/clang-tidy"
+    fi
+
+    echo "==> Clang ${VERSION} staging complete"
 }

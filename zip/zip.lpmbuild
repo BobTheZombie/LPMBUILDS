@@ -1,0 +1,157 @@
+NAME="zip"
+VERSION="3.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+
+SUMMARY="Info-ZIP compression utility"
+URL="https://infozip.sourceforge.net/"
+LICENSE=("custom")
+
+SOURCE=(
+    "https://downloads.sourceforge.net/infozip/zip${VERSION//./}.tar.gz"
+    "https://src.fedoraproject.org/rpms/zip/raw/rawhide/f/zip-3.0-currdir.patch"
+    "https://src.fedoraproject.org/rpms/zip/raw/rawhide/f/zip-3.0-exec-shield.patch"
+    "https://src.fedoraproject.org/rpms/zip/raw/rawhide/f/zip-3.0-format-security.patch"
+    "https://src.fedoraproject.org/rpms/zip/raw/rawhide/f/zipnote.patch"
+    "https://src.fedoraproject.org/rpms/zip/raw/rawhide/f/buffer_overflow.patch"
+    "https://sources.debian.org/data/main/z/zip/3.0-16/debian/patches/buffer-overflow-cve-2018-13410.patch"
+    "https://sources.debian.org/data/main/z/zip/3.0-16/debian/patches/fix-command-injection.patch"
+)
+
+SHA256SUMS=(
+    "SKIP"
+    "SKIP"
+    "SKIP"
+    "SKIP"
+    "SKIP"
+    "SKIP"
+    "SKIP"
+    "SKIP"
+)
+
+PATCHES=()
+
+REQUIRES=(
+    "glibc"
+)
+
+BUILD_REQUIRES=(
+    "make"
+)
+
+PROVIDES=(
+    "zip"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+
+    cd "$SRCDIR"
+
+    #
+    # Respect LPM compiler and linker flags.
+    #
+
+    sed -e "/^CFLAGS_NOOPT =/s/\$/ ${CPPFLAGS:-} ${CFLAGS:-}/" \
+        -i unix/Makefile
+
+    #
+    # Info-ZIP 3.0 contains old C code that requires GNU89 semantics.
+    #
+
+    sed -e 's/CC=gcc/CC="gcc -std=gnu89"/' \
+        -i unix/Makefile
+
+    sed -e "s/^LFLAGS1=''/LFLAGS1=${LDFLAGS:-}/" \
+        -i unix/configure
+
+    #
+    # Distribution security and compatibility patches.
+    #
+
+    patch -Np1 \
+        -i "$SRCROOT/zip-3.0-currdir.patch"
+
+    patch -Np1 \
+        -i "$SRCROOT/zip-3.0-exec-shield.patch"
+
+    patch -Np1 \
+        -i "$SRCROOT/zip-3.0-format-security.patch"
+
+    patch -Np1 \
+        -i "$SRCROOT/zipnote.patch"
+
+    patch -Np1 \
+        -i "$SRCROOT/buffer_overflow.patch"
+
+    patch -Np1 \
+        -i "$SRCROOT/buffer-overflow-cve-2018-13410.patch"
+
+    patch -Np1 \
+        -i "$SRCROOT/fix-command-injection.patch"
+}
+
+build() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+
+    cd "$SRCDIR"
+
+    make \
+        -f unix/Makefile \
+        prefix=/usr \
+        -j"$(nproc)" \
+        generic_gcc
+}
+
+check() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+
+    cd "$SRCDIR"
+
+    #
+    # Basic executable sanity checks.
+    #
+
+    test -x zip
+    test -x zipcloak
+    test -x zipnote
+    test -x zipsplit
+
+    ./zip -v
+}
+
+staging() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+
+    cd "$SRCDIR"
+
+    make \
+        -f unix/Makefile \
+        prefix="$pkgdir/usr" \
+        MANDIR="$pkgdir/usr/share/man/man1" \
+        install
+
+    #
+    # Verify the package.
+    #
+
+    test -x "$pkgdir/usr/bin/zip"
+    test -x "$pkgdir/usr/bin/zipcloak"
+    test -x "$pkgdir/usr/bin/zipnote"
+    test -x "$pkgdir/usr/bin/zipsplit"
+
+    test -f "$pkgdir/usr/share/man/man1/zip.1"
+
+    echo "==> ${NAME} ${VERSION} staging complete"
+}

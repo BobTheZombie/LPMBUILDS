@@ -1,0 +1,43 @@
+NAME="libtirpc"
+VERSION="1.3.5"
+RELEASE="1"
+ARCH="x86_64"
+SUMMARY="Transport Independent RPC library (no Kerberos, no libnsl)"
+URL="https://sourceforge.net/projects/libtirpc/"
+SOURCE=("https://downloads.sourceforge.net/project/libtirpc/libtirpc/${VERSION}/libtirpc-${VERSION}.tar.bz2")
+LICENSE=("BSD-3-Clause")
+
+REQUIRES=("glibc")
+PROVIDES=("libtirpc" "libtirpc.so")
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-$VERSION"
+    autoreconf -fi || true
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-$VERSION"
+
+    ./configure --prefix=/usr \
+                --sysconfdir=/etc \
+                --disable-static \
+                --enable-ipv6 \
+                --disable-gssapi \
+                --without-libnsl   # disable legacy SunRPC via libnsl
+
+    make -j"$(nproc)"
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-$VERSION"
+    make DESTDIR="$pkgdir" install
+
+    # Ensure library symlinks are sane
+    if [ -f "$pkgdir/usr/lib/libtirpc.so" ]; then
+        chmod 755 "$pkgdir/usr/lib/libtirpc.so"* || true
+    fi
+}
+

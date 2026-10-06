@@ -1,0 +1,147 @@
+NAME="mailcap"
+VERSION="2.1.54"
+RELEASE="1"
+ARCH="any"
+
+SUMMARY="MIME type associations and mailcap database"
+URL="https://pagure.io/mailcap"
+LICENSE=("MIT")
+
+SOURCE=(
+    "https://releases.pagure.org/mailcap/mailcap-${VERSION}.tar.xz"
+)
+
+SHA256SUMS=("SKIP")
+PATCHES=()
+
+REQUIRES=()
+
+BUILD_REQUIRES=(
+    "make"
+)
+
+PROVIDES=(
+    "mailcap"
+    "mime-types"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+
+    cd "$SRCDIR"
+}
+
+build() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+
+    cd "$SRCDIR"
+
+    make
+}
+
+check() {
+    true
+}
+
+staging() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+
+    cd "$SRCDIR"
+
+    #
+    # MIME type database
+    #
+
+    test -f mime.types
+
+    install -Dm644 \
+        mime.types \
+        "$pkgdir/etc/mime.types"
+
+    #
+    # mailcap database
+    #
+
+    if [ -f mailcap ]; then
+        install -Dm644 \
+            mailcap \
+            "$pkgdir/etc/mailcap"
+    fi
+
+    #
+    # Man pages
+    #
+
+    if [ -d man ]; then
+        find man -type f -name '*.[1-9]' -print0 |
+            while IFS= read -r -d '' manpage; do
+                section="${manpage##*.}"
+
+                install -Dm644 \
+                    "$manpage" \
+                    "$pkgdir/usr/share/man/man${section}/$(basename "$manpage")"
+            done
+    fi
+
+    #
+    # Documentation
+    #
+
+    install -dm755 \
+        "$pkgdir/usr/share/doc/${NAME}"
+
+    for doc in \
+        README \
+        README.md \
+        NEWS \
+        ChangeLog
+    do
+        if [ -f "$doc" ]; then
+            install -Dm644 \
+                "$doc" \
+                "$pkgdir/usr/share/doc/${NAME}/$doc"
+        fi
+    done
+
+    #
+    # License
+    #
+
+    install -dm755 \
+        "$pkgdir/usr/share/licenses/${NAME}"
+
+    for license in \
+        COPYING \
+        LICENSE
+    do
+        if [ -f "$license" ]; then
+            install -Dm644 \
+                "$license" \
+                "$pkgdir/usr/share/licenses/${NAME}/$license"
+            break
+        fi
+    done
+
+    #
+    # Sanity checks
+    #
+
+    test -s "$pkgdir/etc/mime.types"
+
+    grep -Eq \
+        '^[[:space:]]*text/plain([[:space:]]|$)' \
+        "$pkgdir/etc/mime.types"
+
+    echo "==> ${NAME} ${VERSION} staging complete"
+}

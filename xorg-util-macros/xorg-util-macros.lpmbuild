@@ -1,0 +1,39 @@
+NAME="xorg-util-macros"
+VERSION="1.20.2"
+RELEASE="1"
+ARCH="x86_64"
+SUMMARY="X.Org autotools utility macros"
+URL="https://gitlab.freedesktop.org/xorg/util/util-macros"
+SOURCE=("https://www.x.org/pub/individual/util/util-macros-${VERSION}.tar.xz")
+LICENSE=("MIT")
+
+# Build-time deps: autotools environment
+# Runtime: effectively none, they’re just m4 macro files
+REQUIRES=("m4" "autoconf" "automake")
+PROVIDES=("xorg-util-macros")
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-$VERSION"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-$VERSION"
+
+    ./configure \
+        --prefix=/usr
+        
+    make -j"$(nproc)"
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-$VERSION"
+
+    make DESTDIR="$pkgdir" install
+
+}
+

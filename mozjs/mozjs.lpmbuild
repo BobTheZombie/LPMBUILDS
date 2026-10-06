@@ -1,0 +1,122 @@
+#!/bin/bash
+# LPM build script for mozjs-128 (SpiderMonkey from Firefox ESR 128)
+# This is the GNOME-style packaging target used by gjs (libmozjs-128.so).
+
+NAME="mozjs"
+VERSION="128.3.0"
+RELEASE="3"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Mozilla SpiderMonkey JavaScript engine (mozjs 128 ESR)"
+URL="https://firefox-source-docs.mozilla.org/js/"
+LICENSE=("MPL-2.0")
+
+SOURCE=(
+  "https://archive.mozilla.org/pub/firefox/releases/${VERSION}esr/source/firefox-${VERSION}esr.source.tar.xz"
+)
+
+REQUIRES=(
+  "glibc"
+  "zlib"
+  "icu"
+  "readline"
+  "mozilla-nspr"
+  "python"
+  "gcc"
+  "make"
+  "pkg-config"
+)
+
+PROVIDES=(
+  "mozjs-128"
+  "spidermonkey"
+  "libmozjs-128.so"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+_objdir="$SRCROOT/$_srcdir/obj"
+_mozconfig_path="$SRCROOT/mozconfig"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  # Write mozconfig to a stable path so ./mach can find it via MOZCONFIG
+  cat >"$_mozconfig_path" <<END
+ac_add_options --enable-application=js
+mk_add_options MOZ_OBJDIR=${_objdir@Q}
+
+ac_add_options --prefix=/usr
+ac_add_options --enable-release
+ac_add_options --enable-hardening
+ac_add_options --enable-optimize
+ac_add_options --enable-rust-simd
+ac_add_options --disable-bootstrap
+ac_add_options --disable-debug
+ac_add_options --disable-jemalloc
+ac_add_options --disable-strip
+
+# System libraries
+ac_add_options --with-system-zlib
+ac_add_options --without-system-icu
+
+# Features
+ac_add_options --enable-readline
+ac_add_options --enable-shared-js
+ac_add_options --with-intl-api
+END
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  : "${CC:=cc}"
+  : "${CXX:=c++}"
+
+  export MACH_BUILD_PYTHON_NATIVE_PACKAGE_SOURCE=pip
+
+  # FIX: this must be a directory path, not "cd …"
+  export MOZBUILD_STATE_PATH="$SRCROOT/$_srcdir/mozbuild"
+  mkdir -p "$MOZBUILD_STATE_PATH"
+
+  # Ensure mach uses the mozconfig we generated
+  export MOZCONFIG="$_mozconfig_path"
+
+  export MOZ_BUILD_DATE="$(date -u${SOURCE_DATE_EPOCH:+d @$SOURCE_DATE_EPOCH} +%Y%m%d%H%M%S)"
+  export MOZ_NOSPAM=1
+
+  # Make pip cache deterministic in build envs that mess with HOME/permissions
+  export PIP_CACHE_DIR="$SRCROOT/.cache/pip"
+  mkdir -p "$PIP_CACHE_DIR"
+
+  # malloc_usable_size is used in various parts of the codebase
+  CFLAGS="${CFLAGS/_FORTIFY_SOURCE=3/_FORTIFY_SOURCE=2}"
+  CXXFLAGS="${CXXFLAGS/_FORTIFY_SOURCE=3/_FORTIFY_SOURCE=2}"
+
+  ./mach build --priority normal
+}
+
+check() {
+  true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$_objdir"
+
+  make DESTDIR="$pkgdir" install
+  rm -f "$pkgdir"/usr/lib/*.ajs || true
+  find "$pkgdir"/usr/{lib/pkgconfig,include} -type f -exec chmod -c a-x {} + || true
+
+  # Strip
+  if command -v strip >/dev/null 2>&1; then
+    find "$pkgdir/usr" -type f -exec sh -c '
+      case "$(file -b "$1")" in
+        *ELF*shared\ object*|*ELF*executable*) strip --strip-unneeded "$1" 2>/dev/null || true ;;
+      esac
+    ' _ {} \;
+  fi
+}

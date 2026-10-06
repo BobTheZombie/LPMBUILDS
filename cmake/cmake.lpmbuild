@@ -1,36 +1,35 @@
-# LPM build script for cmake
 NAME="cmake"
-VERSION="1.0.0"
+VERSION="4.1.2"
 RELEASE="1"
-ARCH="${ARCH:-x86_64}"
-SUMMARY="Placeholder package for cmake dependency"
-URL="https://example.com/cmake"
-LICENSE=""
-SOURCE=()
-SHA256SUMS=()
-PATCHES=()
-REQUIRES=()
+ARCH="x86_64"
+SUMMARY="Cross-platform build system generator"
+URL="https://cmake.org/"
+SOURCE=("https://github.com/Kitware/CMake/releases/download/v${VERSION}/cmake-${VERSION}.tar.gz")
+LICENSE=("BSD-3-Clause")
+
+REQUIRES=("glibc" "cppdap" "curl" "expat" "gcc-libs" "jsoncpp" "libarchive" "libuv" "ncurses" "openssl" "rhash" "zlib" "bzip2" "xz")
 PROVIDES=("cmake")
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+    cd "$SRCROOT/cmake-${VERSION}"
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+    cd "$SRCROOT/cmake-${VERSION}"
+    cmake -B build -S . \
+        -G Ninja \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_USE_SYSTEM_LIBRARIES=ON \
+        -DCMAKE_DOC_DIR=/usr/share/doc/cmake
+    ninja -C build -j"$(nproc)"
+}
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/cmake-${VERSION}"
+    DESTDIR="$pkgdir" ninja -C build install
 }
 
-staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  install -d "$pkgdir/usr/share/doc/cmake"
-  printf 'Placeholder package for cmake\n' >"$pkgdir/usr/share/doc/cmake/README"
-}

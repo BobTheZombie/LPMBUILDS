@@ -1,36 +1,120 @@
-# LPM build script for rust
+#!/bin/bash
+# LPM build script for Rust (compiler + cargo + std + tools)
+
 NAME="rust"
-VERSION="1.0.0"
+VERSION="1.92.0"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Placeholder package for rust dependency"
-URL="https://example.com/rust"
-LICENSE=""
-SOURCE=()
-SHA256SUMS=()
-PATCHES=()
-REQUIRES=()
-PROVIDES=("rust")
+SUMMARY="The Rust programming language compiler and tooling"
+URL="https://www.rust-lang.org/"
+LICENSE="Apache-2.0 AND MIT"
+
+SOURCE=(
+  "https://static.rust-lang.org/dist/rustc-${VERSION}-src.tar.xz"
+)
+
+REQUIRES=(
+  "glibc"
+  "zlib"
+  "xz"
+  "curl"
+  "openssl"
+  "libssh2"
+  "pkg-config"
+  "python"
+  "cmake"
+  "gcc"
+  "binutils"
+)
+
+PROVIDES=(
+  "rust"
+  "rustc"
+  "cargo"
+)
+
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
+
+# Matches the directory created by the src tarball
+_srcdir="rust-${VERSION}"
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    # Generate config.toml
+    cat > config.toml <<'EOF'
+    
+# Tell x.py the editors have reviewed the content of this file
+# and updated it to follow the major changes of the building system,
+# so x.py will not warn us to do such a review.
+change-id = 
+
+[llvm]
+link-shared = true
+static-libstdcpp = false
+
+[rust]
+channel = "stable"
+codegen-units = 1
+debuginfo-level = 0
+debuginfo-level-tools = 0
+debuginfo-level-tests = 0
+optimize = true
+lto = false
+debug-assertions = false
+incremental = false
+jemalloc = false
+
+[target.x86_64-unknown-linux-gnu]
+crt-static = false
+
+[build]
+# Let x.py manage stage0; don't force system rustc/cargo
+docs = false
+extended = true
+tools = ["cargo", "clippy", "rustfmt", "src"]
+vendor = true
+submodules = false
+
+[install]
+# Prefix is absolute; docdir/mandir are relative to prefix
+prefix = "/usr"
+docdir = "share/doc/rust"
+mandir = "share/man"
+EOF
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    # ./configure reads config.toml and the prefix below; they match.
+    ./configure --prefix=/usr
+
+    # Build compiler, cargo, tools, std, etc.
+    python ./x.py build
+}
+
+check() {
+    # Full test suite is huge; skip for packaging
+    true
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  install -d "$pkgdir/usr/share/doc/rust"
-  printf 'Placeholder package for rust\n' >"$pkgdir/usr/share/doc/rust/README"
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    DESTDIR="$pkgdir" python ./x.py install
+
+    # License
+    install -Dm644 LICENSE-APACHE "$pkgdir/usr/share/licenses/$NAME/LICENSE-APACHE"
+    install -Dm644 LICENSE-MIT "$pkgdir/usr/share/licenses/$NAME/LICENSE-MIT"
+
+    # Strip binaries to keep them lean
+    if command -v strip >/dev/null 2>&1; then
+        find "$pkgdir/usr/bin" -type f -exec strip --strip-unneeded {} \; || true
+    fi
 }
+

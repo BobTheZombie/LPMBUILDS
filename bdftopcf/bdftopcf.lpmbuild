@@ -1,0 +1,60 @@
+#!/bin/bash
+# LPM build script for bdftopcf
+# Convert BDF fonts to PCF (bitmap compiled format)
+
+NAME="bdftopcf"
+VERSION="1.1.1"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Convert X BDF fonts to PCF format"
+URL="https://www.x.org/"
+LICENSE="MIT"
+
+SOURCE=(
+  "https://www.x.org/releases/individual/util/bdftopcf-${VERSION}.tar.xz"
+)
+
+REQUIRES=(
+  "glibc"
+  "pkg-config"
+  "util-macros"
+  "autoconf"
+  "automake"
+  "libtool"
+  "make"
+)
+
+PROVIDES=("bdftopcf")
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="bdftopcf-${VERSION}"
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT"
+    tar xf "bdftopcf-${VERSION}.tar.xz"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    ./configure --prefix=/usr
+    make -j"$(nproc)"
+}
+
+check() {
+    true
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    DESTDIR="$pkgdir" make install
+
+    if [ -f COPYING ]; then
+        install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+    fi
+}

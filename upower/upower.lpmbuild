@@ -1,0 +1,80 @@
+#!/bin/bash
+# LPM build script for upower
+# Power management daemon + libupower-glib (used by gnome-settings-daemon, Budgie, etc.)
+
+NAME="upower"
+VERSION="1.91.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Abstraction for enumerating power devices and power statistics (UPower)"
+URL="https://gitlab.freedesktop.org/upower/upower"
+LICENSE=("GPL-2.0-or-later")
+
+SOURCE=(
+  "upower-${VERSION}.tar.gz::https://gitlab.freedesktop.org/upower/upower/-/archive/v${VERSION}/upower-v${VERSION}.tar.gz"
+)
+
+REQUIRES=(
+  "glibc"
+  "glib2"
+  "dbus"
+  "polkit"
+  "systemd"       # udev + sd-bus integration commonly used
+  "libgudev"
+  "libusb"
+)
+
+PROVIDES=(
+  "upower"
+  "libupower-glib.so"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  rm -rf build
+
+  meson setup build \
+  --prefix=/usr \
+  --libdir=lib  \
+  --buildtype=release \
+  -Ddefault_library=shared
+
+  meson compile -C build
+}
+
+check() { true; }
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  DESTDIR="$pkgdir" meson install -C build
+
+  # License (best-effort)
+  for f in COPYING LICENSE; do
+    if [ -f "$f" ]; then
+      install -Dm644 "$f" "$pkgdir/usr/share/licenses/$NAME/$f"
+    fi
+  done
+
+  # Strip (best-effort)
+  if command -v strip >/dev/null 2>&1; then
+    find "$pkgdir/usr" -type f -exec sh -c '
+      case "$(file -b "$1")" in
+        *ELF*shared\ object*|*ELF*executable*) strip --strip-unneeded "$1" 2>/dev/null || true ;;
+      esac
+    ' _ {} \;
+  fi
+}

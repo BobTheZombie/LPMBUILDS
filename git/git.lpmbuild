@@ -1,0 +1,60 @@
+NAME="git"
+VERSION="2.46.0"
+RELEASE="1"
+ARCH="x86_64"
+SUMMARY="Fast distributed version control system"
+URL="https://git-scm.com/"
+SOURCE=("https://mirrors.edge.kernel.org/pub/software/scm/git/git-${VERSION}.tar.xz")
+LICENSE=("GPL-2.0-only")
+
+REQUIRES=(
+  "glibc"
+  "curl"
+  "expat"
+  "openssl"
+  "zlib"
+  "perl"
+  "gettext"
+  "bash"
+)
+PROVIDES=("git")
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/git-${VERSION}"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/git-${VERSION}"
+
+    make configure
+    ./configure \
+        --prefix=/usr \
+        --sysconfdir=/etc \
+        --with-openssl \
+        --with-curl \
+        --with-expat \
+        --with-libpcre2 \
+        --mandir=/usr/share/man \
+        --libexecdir=/usr/lib/git-core
+
+    make -j"$(nproc)" all NO_XML_PATH=1
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/git-${VERSION}"
+
+    make DESTDIR="$pkgdir" install
+
+    # Install bash completion
+    install -Dm644 contrib/completion/git-completion.bash \
+        "$pkgdir/usr/share/bash-completion/completions/git"
+
+    install -Dm644 contrib/completion/git-prompt.sh \
+        "$pkgdir/usr/share/git/git-prompt.sh"
+}
+

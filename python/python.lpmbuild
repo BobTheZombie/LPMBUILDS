@@ -1,39 +1,44 @@
-# LPM build script for python
+#!/bin/bash
+# LFS 13.1-systemd baseline; see docs/lfs-13.1.md for patch provenance.
 NAME="python"
-VERSION="3.12.5"
+VERSION="3.14.7"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Python programming language"
-URL="https://www.python.org/"
-LICENSE=""
-SOURCE=()
-REQUIRES=("glibc" "openssl" "libffi" "zlib" "bzip2" "xz" "sqlite" "readline" "ncurses")
-PROVIDES=("python")
+SUMMARY="The Python programming language (CPython)"
+URL="https://www.python.org/ftp/python/3.14.7/Python-3.14.7.tar.xz"
+LICENSE=("PSF-2.0")
+SOURCE=("https://www.python.org/ftp/python/3.14.7/Python-3.14.7.tar.xz" "Python-3.14.7-openssl_4-1.patch")
+SHA256SUMS=("3b48dac8fb59f62eaa67ac83c1eb12bda1b7a08406dd286e252c11a66be27f81" "707a0c457192ac2f3b5b8a51481bc5ebd12db22d57c1dbe0256138ee6e070792")
+PATCHES=()
+REQUIRES=("glibc" "zlib" "xz" "bzip2" "openssl" "libffi" "sqlite" "readline" "ncurses" "expat" "gdbm" "mpdecimal")
+BUILD_REQUIRES=("gcc" "make" "pkgconf")
+PROVIDES=("python" "python3" "pip" "pip3")
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
+
+_srcdir="Python-3.14.7"
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    patch --batch --forward -Np1 -i "$SRCROOT/Python-3.14.7-openssl_4-1.patch"
+    :
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr \
-  --enable-shared \
-  --with-ensurepip=install \
-  --with-system-expat \
-  --with-system-ffi \
-  --enable-optimizations
-  make -j"$(nproc)"
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    ./configure --prefix=/usr --enable-shared --with-system-expat --with-ensurepip=install --without-static-libpython --with-tzpath=/usr/share/zoneinfo
+    make -j"${JOBS:-$(nproc)}"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    make DESTDIR="$pkgdir" install
+    _pyver="${VERSION%.*}"
+    test -f "$pkgdir/usr/lib/python$_pyver/encodings/idna.py"
+    ln -sf python3 "$pkgdir/usr/bin/python"
+    rm -f "$pkgdir/usr/share/info/dir"
+    find "$pkgdir/usr/lib" -name "*.la" -delete 2>/dev/null || true
 }

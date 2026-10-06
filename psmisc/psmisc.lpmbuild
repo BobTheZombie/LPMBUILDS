@@ -1,34 +1,41 @@
-# LPM build script for psmisc
+#!/bin/bash
+# LFS 13.1-systemd baseline; see docs/lfs-13.1.md for patch provenance.
 NAME="psmisc"
-VERSION="23.6"
-RELEASE="1"
+VERSION="23.7"
+RELEASE="2"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Small utilities for process management"
-URL="https://gitlab.com/psmisc/psmisc"
-LICENSE=""
-SOURCE=()
+SUMMARY="Utilities for managing processes (killall, fuser, etc.)"
+URL="https://sourceforge.net/projects/psmisc/files/psmisc/psmisc-23.7.tar.xz"
+LICENSE=("GPL-2.0-or-later")
+SOURCE=("https://sourceforge.net/projects/psmisc/files/psmisc/psmisc-23.7.tar.xz")
+SHA256SUMS=("58c55d9c1402474065adae669511c191de374b0871eec781239ab400b907c327")
+PATCHES=()
 REQUIRES=("glibc")
+BUILD_REQUIRES=("gcc" "make" "pkgconf")
 PROVIDES=("psmisc")
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
+
+_srcdir="psmisc-23.7"
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    :
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    ./configure --prefix=/usr
+    make -j"${JOBS:-$(nproc)}"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    make DESTDIR="$pkgdir" install
+
+    rm -f "$pkgdir/usr/share/info/dir"
+    find "$pkgdir/usr/lib" -name "*.la" -delete 2>/dev/null || true
 }

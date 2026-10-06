@@ -1,0 +1,65 @@
+#!/bin/bash
+# LPM build script for xdg-desktop-portal-cosmic
+
+NAME="xdg-desktop-portal-cosmic"
+VERSION="1.0.1"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="XDG desktop portal backend for COSMIC"
+URL="https://github.com/pop-os/xdg-desktop-portal-cosmic"
+LICENSE=("GPL-3.0-or-later")
+
+SOURCE=(
+  "git+https://github.com/pop-os/xdg-desktop-portal-cosmic.git#tag=epoch-${VERSION}"
+)
+
+# Runtime deps (baseline; adjust per component as you refine)
+REQUIRES=(
+  "glibc"
+  "wayland"
+  "libxkbcommon"
+  "libinput"
+  "libseat"
+  "mesa"
+  "dbus"
+)
+
+# Build deps
+REQUIRES+=(
+  "rust"
+  "cargo"
+  "pkg-config"
+  "gcc"
+)
+
+PROVIDES=(
+  "xdg-desktop-portal-cosmic"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="xdg-desktop-portal-cosmic"
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    make ARGS+=" --release"
+}
+
+check() {
+    true
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    make prefix='/usr' libexecdir='/usr/lib' DESTDIR="${pkgdir}" install
+}

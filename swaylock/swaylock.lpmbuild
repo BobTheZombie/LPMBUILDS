@@ -1,0 +1,87 @@
+#!/bin/bash
+# LPM build script for swaylock
+
+NAME="swaylock"
+VERSION="1.8.2"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Screen locker for Wayland compositors"
+URL="https://github.com/swaywm/swaylock"
+LICENSE=("MIT")
+
+SOURCE=(
+  "https://github.com/swaywm/swaylock/releases/download/v${VERSION}/swaylock-${VERSION}.tar.gz"
+)
+
+REQUIRES=(
+  "glibc"
+  "cairo"
+  "gdk-pixbuf2"
+  "pam"
+  "wayland"
+  "libxkbcommon"
+)
+
+BUILD_REQUIRES=(
+  "meson"
+  "ninja"
+  "pkgconf"
+  "wayland-protocols"
+  "scdoc"
+)
+
+PROVIDES=(
+  "swaylock"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  rm -rf build
+
+  meson setup build \
+    --prefix=/usr \
+    --libdir=lib \
+    --buildtype=release \
+    -Dpam=enabled \
+    -Dgdk-pixbuf=enabled \
+    -Dman-pages=enabled
+
+  meson compile -C build
+}
+
+check() {
+  true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  DESTDIR="$pkgdir" meson install -C build
+
+  test -f "$pkgdir/usr/bin/swaylock"
+
+  # Basic PAM config
+  install -Dm644 /dev/stdin "$pkgdir/etc/pam.d/swaylock" <<'EOF'
+auth include login
+EOF
+
+  for f in LICENSE COPYING; do
+    if [ -f "$f" ]; then
+      install -Dm644 "$f" \
+        "$pkgdir/usr/share/licenses/$NAME/$f"
+    fi
+  done
+}

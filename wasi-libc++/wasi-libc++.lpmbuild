@@ -1,0 +1,274 @@
+NAME="wasi-libc++"
+VERSION="20.1.6"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+
+SUMMARY="LLVM C++ standard library targeting WASI"
+URL="https://libcxx.llvm.org/"
+LICENSE=("Apache-2.0 WITH LLVM-exception")
+
+SOURCE=(
+    "https://github.com/llvm/llvm-project/releases/download/llvmorg-${VERSION}/llvm-project-${VERSION}.src.tar.xz"
+)
+
+SHA256SUMS=("SKIP")
+PATCHES=()
+
+REQUIRES=(
+    "wasi-libc"
+    "wasi-compiler-rt"
+    "wasi-libc++abi"
+)
+
+BUILD_REQUIRES=(
+    "clang"
+    "cmake"
+    "lld"
+    "llvm"
+    "ninja"
+    "python"
+)
+
+PROVIDES=(
+    "wasi-libc++"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    BUILDDIR="$SRCROOT/${NAME}-${VERSION}-build-wasm32-wasip1"
+    RESOURCE_DIR="$(clang --print-resource-dir)"
+
+    test -f "$SRCDIR/runtimes/CMakeLists.txt"
+    test -f "$SRCDIR/libcxx/CMakeLists.txt"
+    test -f "$SRCDIR/libcxxabi/CMakeLists.txt"
+    test -d /usr/share/wasi-sysroot
+
+    test -f \
+        "$RESOURCE_DIR/lib/wasm32-unknown-wasip1/libclang_rt.builtins.a"
+
+    test -f \
+        /usr/share/wasi-sysroot/lib/wasm32-wasip1/libc++abi.a
+
+    rm -rf "$BUILDDIR"
+
+    mkdir -p "$SRCDIR/cmake/Platform"
+
+    cat > "$SRCDIR/cmake/Platform/WASI.cmake" <<'EOF'
+set(WASI 1)
+EOF
+}
+
+build() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    BUILDDIR="$SRCROOT/${NAME}-${VERSION}-build-wasm32-wasip1"
+    TARGET="wasm32-wasip1"
+
+    COMPILE_FLAGS="-O2 -Wno-deprecated -fno-exceptions --target=$TARGET --sysroot=/usr/share/wasi-sysroot"
+    LINK_FLAGS="-rtlib=compiler-rt -unwindlib=none --target=$TARGET --sysroot=/usr/share/wasi-sysroot"
+
+    env \
+        CFLAGS= \
+        CXXFLAGS= \
+        CPPFLAGS= \
+        LDFLAGS= \
+        cmake \
+            -S "$SRCDIR/runtimes" \
+            -B "$BUILDDIR" \
+            -G Ninja \
+            -DCMAKE_MODULE_PATH="$SRCDIR/cmake" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX=/usr/share/wasi-sysroot \
+            -DCMAKE_STAGING_PREFIX=/usr/share/wasi-sysroot \
+            -DCMAKE_INSTALL_INCLUDEDIR="/usr/share/wasi-sysroot/include/$TARGET" \
+            -DCMAKE_SYSROOT=/usr/share/wasi-sysroot \
+            -DCMAKE_SYSTEM_NAME=WASI \
+            -DCMAKE_SYSTEM_PROCESSOR=wasm32 \
+            -DCMAKE_SYSTEM_VERSION=1 \
+            -DCMAKE_C_COMPILER=/usr/bin/clang \
+            -DCMAKE_CXX_COMPILER=/usr/bin/clang++ \
+            -DCMAKE_ASM_COMPILER=/usr/bin/clang \
+            -DCMAKE_C_COMPILER_TARGET="$TARGET" \
+            -DCMAKE_CXX_COMPILER_TARGET="$TARGET" \
+            -DCMAKE_ASM_COMPILER_TARGET="$TARGET" \
+            -DCMAKE_C_COMPILER_WORKS=ON \
+            -DCMAKE_CXX_COMPILER_WORKS=ON \
+            -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY \
+            -DCMAKE_AR=/usr/bin/llvm-ar \
+            -DCMAKE_NM=/usr/bin/llvm-nm \
+            -DCMAKE_RANLIB=/usr/bin/llvm-ranlib \
+            -DCMAKE_C_FLAGS="$COMPILE_FLAGS" \
+            -DCMAKE_CXX_FLAGS="$COMPILE_FLAGS" \
+            -DCMAKE_ASM_FLAGS="$COMPILE_FLAGS" \
+            -DCMAKE_EXE_LINKER_FLAGS="$LINK_FLAGS" \
+            -DCMAKE_SHARED_LINKER_FLAGS="$LINK_FLAGS" \
+            -DCMAKE_MODULE_LINKER_FLAGS="$LINK_FLAGS" \
+            -DCMAKE_C_LINKER_DEPFILE_SUPPORTED=OFF \
+            -DCMAKE_CXX_LINKER_DEPFILE_SUPPORTED=OFF \
+            -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+            -DLLVM_COMPILER_CHECKED=ON \
+            -DLLVM_ENABLE_RUNTIMES="libcxx;libcxxabi" \
+            -DUNIX=ON \
+            -DLIBCXX_ENABLE_SHARED=ON \
+            -DLIBCXX_ENABLE_STATIC=ON \
+            -DLIBCXX_ENABLE_EXCEPTIONS=OFF \
+            -DLIBCXX_ENABLE_THREADS=OFF \
+            -DLIBCXX_HAS_PTHREAD_API=OFF \
+            -DLIBCXX_HAS_EXTERNAL_THREAD_API=OFF \
+            -DLIBCXX_HAS_WIN32_THREAD_API=OFF \
+            -DLIBCXX_USE_COMPILER_RT=ON \
+            -DLIBCXX_HAS_GCC_LIB=OFF \
+            -DLIBCXX_HAS_GCC_S_LIB=OFF \
+            -DLIBCXX_HAS_ATOMIC_LIB=OFF \
+            -DLIBCXX_HAS_RT_LIB=OFF \
+            -DLIBCXX_HAS_DL_LIB=OFF \
+            -DLIBCXX_ENABLE_FILESYSTEM=ON \
+            -DLIBCXX_ENABLE_ABI_LINKER_SCRIPT=OFF \
+            -DLIBCXX_CXX_ABI=libcxxabi \
+            -DLIBCXX_ABI_VERSION=2 \
+            -DLIBCXX_LIBDIR_SUFFIX="/$TARGET" \
+            -DLIBCXX_INCLUDE_TESTS=OFF \
+            -DLIBCXX_INCLUDE_BENCHMARKS=OFF \
+            -DLIBCXXABI_ENABLE_SHARED=ON \
+            -DLIBCXXABI_ENABLE_STATIC=ON \
+            -DLIBCXXABI_ENABLE_EXCEPTIONS=OFF \
+            -DLIBCXXABI_ENABLE_THREADS=OFF \
+            -DLIBCXXABI_HAS_PTHREAD_API=OFF \
+            -DLIBCXXABI_HAS_EXTERNAL_THREAD_API=OFF \
+            -DLIBCXXABI_HAS_WIN32_THREAD_API=OFF \
+            -DLIBCXXABI_HAS_CXA_THREAD_ATEXIT_IMPL=OFF \
+            -DLIBCXXABI_HAS_PTHREAD_LIB=OFF \
+            -DLIBCXXABI_USE_COMPILER_RT=ON \
+            -DLIBCXXABI_USE_LLVM_UNWINDER=OFF \
+            -DLIBCXXABI_ENABLE_STATIC_UNWINDER=OFF \
+            -DLIBCXXABI_HAS_GCC_LIB=OFF \
+            -DLIBCXXABI_HAS_GCC_S_LIB=OFF \
+            -DLIBCXXABI_HAS_DL_LIB=OFF \
+            -DLIBCXXABI_HAS_C_LIB=ON \
+            -DLIBCXXABI_SILENT_TERMINATE=ON \
+            -DLIBCXXABI_LIBDIR_SUFFIX="/$TARGET" \
+            -DLIBCXXABI_INCLUDE_TESTS=OFF
+
+    #
+    # Build both projects together. libc++ is the only component packaged.
+    #
+    env \
+        CFLAGS= \
+        CXXFLAGS= \
+        CPPFLAGS= \
+        LDFLAGS= \
+        cmake --build "$BUILDDIR" \
+            -j"$(nproc)"
+}
+
+check() {
+    true
+}
+
+staging() {
+    set -euxo pipefail
+
+    BUILDDIR="$SRCROOT/${NAME}-${VERSION}-build-wasm32-wasip1"
+    SYSROOT="$pkgdir/usr/share/wasi-sysroot"
+    INCLUDEDIR="$SYSROOT/include/wasm32-wasip1/c++/v1"
+    LIBDIR="$SYSROOT/lib/wasm32-wasip1"
+
+    #
+    # Install only libc++. libc++abi belongs to wasi-libc++abi.
+    #
+
+    env \
+        DESTDIR="$pkgdir" \
+        cmake --build "$BUILDDIR" \
+            --target install-cxx \
+            -j"$(nproc)"
+
+    #
+    # Verify the target-specific headers and libraries.
+    #
+
+    test -f "$INCLUDEDIR/iostream"
+    test -f "$INCLUDEDIR/vector"
+    test -f "$INCLUDEDIR/__config_site"
+
+    test -f "$LIBDIR/libc++.a"
+    test -f "$LIBDIR/libc++experimental.a"
+
+    SHARED_CXX="$(
+        find "$LIBDIR" \
+            -maxdepth 1 \
+            \( -type f -o -type l \) \
+            -name 'libc++.so*' \
+            -print \
+            -quit
+    )"
+
+    test -n "$SHARED_CXX"
+
+    #
+    # wasi-libc already provides real wasm32-wasi directories. Do not try
+    # replacing those directories with symlinks. Add compatibility links
+    # for the libc++ payload files individually.
+    #
+
+    LEGACY_LIBDIR="$SYSROOT/lib/wasm32-wasi"
+    mkdir -p "$LEGACY_LIBDIR"
+
+    for FILE in \
+        "$LIBDIR/libc++.a" \
+        "$LIBDIR/libc++experimental.a" \
+        "$LIBDIR"/libc++.so*
+    do
+        if [ ! -e "$FILE" ] && [ ! -L "$FILE" ]; then
+            continue
+        fi
+
+        BASENAME="$(basename "$FILE")"
+
+        if [ ! -e "$LEGACY_LIBDIR/$BASENAME" ] &&
+           [ ! -L "$LEGACY_LIBDIR/$BASENAME" ]; then
+            ln -s "../wasm32-wasip1/$BASENAME" \
+                "$LEGACY_LIBDIR/$BASENAME"
+        fi
+    done
+
+    #
+    # Provide the legacy target-specific C++ header location without
+    # interfering with wasi-libc's existing wasm32-wasi headers.
+    #
+
+    LEGACY_CXXDIR="$SYSROOT/include/wasm32-wasi/c++"
+    mkdir -p "$LEGACY_CXXDIR"
+
+    if [ ! -e "$LEGACY_CXXDIR/v1" ] &&
+       [ ! -L "$LEGACY_CXXDIR/v1" ]; then
+        ln -s "../../wasm32-wasip1/c++/v1" \
+            "$LEGACY_CXXDIR/v1"
+    fi
+
+    #
+    # Validate compatibility paths.
+    #
+
+    test -f "$LEGACY_CXXDIR/v1/iostream"
+    test -f "$LEGACY_LIBDIR/libc++.a"
+    test -f "$LEGACY_LIBDIR/libc++experimental.a"
+
+    if command -v hardlink >/dev/null 2>&1; then
+        hardlink -c "$SYSROOT"
+    fi
+
+    install -Dm644 \
+        "$SRCROOT/${NAME}-${VERSION}/libcxx/LICENSE.TXT" \
+        "$pkgdir/usr/share/licenses/$NAME/LICENSE"
+
+    install -Dm644 \
+        "$SRCROOT/${NAME}-${VERSION}/libcxx/CREDITS.TXT" \
+        "$pkgdir/usr/share/licenses/$NAME/CREDITS"
+}

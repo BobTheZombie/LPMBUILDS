@@ -1,0 +1,73 @@
+#!/bin/bash
+# LPM build script for Vulkan-Headers
+# Provides: Vulkan API headers only (no libs)
+
+NAME="vulkan-headers"
+VERSION="1.4.335.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Vulkan Header files"
+URL="https://github.com/KhronosGroup/Vulkan-Headers"
+LICENSE="Apache-2.0"
+
+SOURCE=(
+  "git+https://github.com/KhronosGroup/Vulkan-Headers#tag=vulkan-sdk-$VERSION"
+)
+
+REQUIRES=(
+  "glibc"
+)
+
+PROVIDES=(
+  "vulkan-headers"
+)
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="Vulkan-Headers"
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+    mkdir -p build
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    : "${CC:=cc}"
+    : "${CXX:=c++}"
+
+    cmake -S . -B build \
+        -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_C_COMPILER="$CC" \
+        -DCMAKE_CXX_COMPILER="$CXX"
+
+    cmake --build build -j"$(nproc)"
+}
+
+check() {
+    # No real tests needed for headers
+    true
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    DESTDIR="$pkgdir" cmake --install build
+
+    # License
+    if [ -f LICENSE.txt ]; then
+        install -Dm644 LICENSE.txt "$pkgdir/usr/share/licenses/$NAME/LICENSE.txt"
+    fi
+
+    # Basic docs
+    if [ -f README.md ]; then
+        install -Dm644 README.md "$pkgdir/usr/share/doc/$NAME/README.md"
+    fi
+}
+

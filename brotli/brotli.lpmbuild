@@ -1,0 +1,85 @@
+#!/bin/bash
+# LPM build script for Brotli
+# Generic-purpose lossless compression algorithm
+
+NAME="brotli"
+VERSION="1.1.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Generic-purpose lossless compression algorithm"
+URL="https://github.com/google/brotli"
+LICENSE=("MIT")
+
+SOURCE=(
+  "https://github.com/google/brotli/archive/refs/tags/v${VERSION}.tar.gz"
+)
+
+REQUIRES=(
+  "glibc"
+  "cmake"
+  "ninja"
+  "gcc"
+)
+
+PROVIDES=(
+  "brotli"
+  "libbrotlicommon.so"
+  "libbrotlidec.so"
+  "libbrotlienc.so"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="brotli-${VERSION}"
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+    mkdir -p build
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir/build"
+
+    cmake .. \
+        -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+        -DBUILD_SHARED_LIBS=ON \
+        -DBROTLI_DISABLE_TESTS=ON
+
+    ninja -j"$(nproc)"
+}
+
+check() {
+    true
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir/build"
+
+    DESTDIR="$pkgdir" cmake --install .
+
+    # License
+    if [ -f "$SRCROOT/$_srcdir/LICENSE" ]; then
+        install -Dm644 "$SRCROOT/$_srcdir/LICENSE" \
+            "$pkgdir/usr/share/licenses/$NAME/LICENSE"
+    fi
+
+    # Strip shared libraries and binaries
+    if command -v strip >/dev/null 2>&1; then
+        find "$pkgdir/usr" -type f -exec sh -c '
+            case "$(file -b "$1")" in
+              *ELF*shared\ object*|*ELF*executable*)
+                  strip --strip-unneeded "$1" 2>/dev/null || true
+              ;;
+            esac
+        ' _ {} \;
+    fi
+}
+

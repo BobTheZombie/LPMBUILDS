@@ -1,0 +1,90 @@
+#!/bin/bash
+# LPM build script for budgie-desktop-services
+# Wayland-native display configuration + supporting services for Budgie 10.10
+
+NAME="budgie-desktop-services"
+VERSION="1.0.2"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Budgie Desktop Services (Wayland display configuration + desktop service glue)"
+URL="https://forge.moderndesktop.dev/BuddiesOfBudgie/budgie-desktop-services"
+LICENSE=("MPL-2.0")
+
+SOURCE=(
+  "https://github.com/BuddiesOfBudgie/budgie-desktop-services/archive/refs/tags/${VERSION}.tar.gz"
+)
+
+
+BUILD_REQUIRES=(
+  "toml11"
+)
+
+REQUIRES=(
+  "glibc"
+  "systemd"
+  "wayland"
+  "libxkbcommon"
+  "qt6-base"
+  "qt6-wayland"
+  "libdrm"
+  "libinput"
+  "kwayland"
+)
+
+PROVIDES=(
+  "budgie-desktop-services"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+  mkdir -p build
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  : "${CC:=cc}"
+  : "${CXX:=c++}"
+
+  cmake -S . -B build \
+    -G Ninja \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DCMAKE_INSTALL_LIBDIR=lib \
+    -DCMAKE_C_COMPILER="$CC" \
+    -DCMAKE_CXX_COMPILER="$CXX"
+
+  cmake --build build -j"$(nproc)"
+}
+
+check() {
+  true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  DESTDIR="$pkgdir" cmake --install build
+
+  # License
+  if [ -f COPYING ]; then
+    install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+  fi
+
+  # Strip
+  if command -v strip >/dev/null 2>&1; then
+    find "$pkgdir/usr" -type f -exec sh -c '
+      case "$(file -b "$1")" in
+        *ELF*executable*|*ELF*shared\ object*) strip --strip-unneeded "$1" 2>/dev/null || true ;;
+      esac
+    ' _ {} \;
+  fi
+}

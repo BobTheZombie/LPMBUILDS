@@ -1,0 +1,39 @@
+NAME="cppdap"
+VERSION="1.58.0"
+RELEASE="1"
+ARCH="x86_64"
+SUMMARY="C++ implementation of the Debug Adapter Protocol (header-only library)"
+URL="https://github.com/google/cppdap"
+SOURCE=("git+https://github.com/google/cppdap#tag=dap-$VERSION-a")
+LICENSE=("Apache-2.0")
+
+REQUIRES=("glibc" "gcc-libs" "ninja" "nlohmann-json")
+PROVIDES=("cppdap")
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/cppdap"
+    
+    git cherry-pick -n 6a3cc9a8 # Build shared lib
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/cppdap"
+    cmake -B build -S . \
+        -G Ninja \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DBUILD_TESTS=OFF \
+        -DCPPDAP_USE_EXTERNAL_NLOHMANN_JSON_PACKAGE=ON \
+        -DBUILD_SHARED_LIBS=ON
+    ninja -C build -j"$(nproc)"
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/cppdap"
+    DESTDIR="$pkgdir" ninja -C build install
+}
+

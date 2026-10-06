@@ -1,0 +1,67 @@
+#!/bin/bash
+# LPM build script for xbitmaps (X.Org bitmap data)
+
+NAME="xbitmaps"
+VERSION="1.1.3"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Bitmap images used by multiple X clients"
+URL="https://www.x.org/"
+LICENSE="MIT"
+
+SOURCE=(
+  "https://www.x.org/releases/individual/data/xbitmaps-${VERSION}.tar.xz"
+)
+
+REQUIRES=(
+  "glibc"
+)
+
+PROVIDES=(
+  "xbitmaps"
+)
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    # xbitmaps is just data; no C compiler really needed, but we keep it standard.
+    : "${CC:=cc}"
+
+    ./configure \
+        --prefix=/usr
+
+    make -j"$(nproc)"
+}
+
+check() {
+    # No meaningful tests; skip
+    true
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    DESTDIR="$pkgdir" make install
+
+    # Install license (MIT-style)
+    if [ -f COPYING ]; then
+        install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+    fi
+
+    # Basic docs
+    if [ -f README ]; then
+        install -Dm644 README "$pkgdir/usr/share/doc/$NAME/README"
+    fi
+}
+

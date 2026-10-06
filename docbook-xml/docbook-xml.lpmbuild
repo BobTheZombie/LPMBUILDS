@@ -1,49 +1,72 @@
-# LPM build script for docbook-xml
+#!/bin/bash
+# LPM build script for docbook-xml 4.2
+
 NAME="docbook-xml"
-VERSION="4.5"
+VERSION="4.2"
 RELEASE="1"
-ARCH="${ARCH:-x86_64}"
-SUMMARY="DocBook XML DTD 4.5"
-URL="https://docbook.org/"
-LICENSE="custom"
-SOURCE=("https://docbook.org/xml/4.5/docbook-xml-4.5.zip")
-SHA256SUMS=("4e4e037a2b83c98c6c94818390d4bdd3f6e10f6ec62dd79188594e26190dc7b4")
-PATCHES=()
-REQUIRES=("libxml2")
-PROVIDES=("docbook-xml" "docbook-xml-4.5")
+ARCH="any"
+SUMMARY="DocBook XML DTD ${VERSION}"
+URL="https://docbook.org/xml/"
+LICENSE=("MIT")
+
+SOURCE=(
+  "https://archive.docbook.org/xml/${VERSION}/docbook-xml-${VERSION}.zip"
+)
+
+SHA256SUMS=("SKIP")
+
+REQUIRES=(
+  "libxml2"
+)
+
+BUILD_REQUIRES=(
+  "unzip"
+)
+
+PROVIDES=(
+  "docbook-xml"
+  "docbook-xml-dtd"
+  "docbook-xml-${VERSION}"
+)
+
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
 
 prepare() {
   set -euxo pipefail
   cd "$SRCROOT"
 
-  rm -rf docbook-xml-4.5
-  mkdir docbook-xml-4.5
-  unzip -q "${SOURCE[0]##*/}" -d docbook-xml-4.5
-}
+  rm -rf "${NAME}-${VERSION}"
+  mkdir -p "${NAME}-${VERSION}"
 
-build() {
-  set -euxo pipefail
-  cd "$SRCROOT/docbook-xml-4.5"
+  unzip -q -o "docbook-xml-${VERSION}.zip" -d "${NAME}-${VERSION}"
 }
+build() { true; }
+check() { true; }
 
 staging() {
   set -euxo pipefail
-  cd "$SRCROOT/docbook-xml-4.5"
 
-  local dest="$pkgdir/usr/share/xml/docbook/xml-dtd-4.5"
-  install -d "$dest" "$pkgdir/etc/xml"
+  local top="$SRCROOT/${NAME}-${VERSION}"
 
-  install -m644 ChangeLog README docbook.cat catalog.xml \
-    calstblx.dtd dbcentx.mod dbgenent.mod dbhierx.mod dbnotnx.mod \
-    dbpoolx.mod docbookx.dtd htmltblx.mod soextblx.dtd "$dest"
+  local dtdir="/usr/share/xml/docbook/xml-dtd-${VERSION}"
 
-  xmlcatalog --create "$pkgdir/etc/xml/catalog"
-  xmlcatalog --noout --add "delegatePublic" "-//OASIS//DTD DocBook XML V4.5//EN" \
-    "file:///usr/share/xml/docbook/xml-dtd-4.5/catalog.xml" "$pkgdir/etc/xml/catalog"
-  xmlcatalog --noout --add "delegateSystem" "http://www.oasis-open.org/docbook/xml/4.5/" \
-    "file:///usr/share/xml/docbook/xml-dtd-4.5/catalog.xml" "$pkgdir/etc/xml/catalog"
+  install -dm755 "$pkgdir${dtdir}"
+  cp -a "$top"/. "$pkgdir${dtdir}/"
+
+  install -dm755 "$pkgdir/etc/xml"
+
+  cat > "$pkgdir/etc/xml/catalog" <<EOF
+<?xml version="1.0"?>
+<!DOCTYPE catalog PUBLIC "-//OASIS//DTD Entity Resolution XML Catalog V1.0//EN"
+ "http://www.oasis-open.org/committees/entity/release/1.0/catalog.dtd">
+<catalog xmlns="urn:oasis:names:tc:entity:xmlns:xml:catalog">
+  <rewriteSystem systemIdStartString="http://www.oasis-open.org/docbook/xml/${VERSION}/" rewritePrefix="/usr/share/xml/docbook/xml-dtd-${VERSION}/"/>
+  <rewriteURI uriStartString="http://www.oasis-open.org/docbook/xml/${VERSION}/" rewritePrefix="/usr/share/xml/docbook/xml-dtd-${VERSION}/"/>
+  <system systemId="http://www.oasis-open.org/docbook/xml/${VERSION}/docbookx.dtd" uri="/usr/share/xml/docbook/xml-dtd-${VERSION}/docbookx.dtd"/>
+  <uri name="http://www.oasis-open.org/docbook/xml/${VERSION}/docbookx.dtd" uri="/usr/share/xml/docbook/xml-dtd-${VERSION}/docbookx.dtd"/>
+</catalog>
+EOF
+
+  test -f "$pkgdir/usr/share/xml/docbook/xml-dtd-${VERSION}/docbookx.dtd"
 }

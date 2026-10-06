@@ -1,0 +1,47 @@
+NAME="jack"
+VERSION="1.9.22"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+
+SUMMARY="JACK low-latency audio server"
+URL=""
+LICENSE=("custom")
+
+SOURCE=(
+    "https://github.com/jackaudio/jack2/archive/refs/tags/v${VERSION}.tar.gz"
+)
+SHA256SUMS=("SKIP")
+PATCHES=()
+
+REQUIRES=(
+    "glibc"
+    "libgcc"
+    "libstdc++"
+    "alsa-lib"
+)
+
+BUILD_REQUIRES=(
+    "python"
+    "pkgconf"
+    "waf"
+)
+
+PROVIDES=(
+    "jack"
+)
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() { set -euxo pipefail; cd "$SRCROOT/${NAME}-${VERSION}"; }
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    python waf configure --prefix=/usr --libdir=/usr/lib
+    python waf build -j"$(nproc)"
+}
+check() { true; }
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    python waf install --destdir="$pkgdir"
+}

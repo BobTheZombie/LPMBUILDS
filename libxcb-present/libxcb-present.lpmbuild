@@ -1,0 +1,56 @@
+#!/bin/bash
+# LPM build script for libxcb-present
+
+NAME="libxcb-present"
+VERSION="1.0.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="XCB Present extension library"
+URL="https://xcb.freedesktop.org/"
+LICENSE="MIT"
+
+SOURCE=(
+  "https://xorg.freedesktop.org/archive/individual/lib/libxcb-present-${VERSION}.tar.xz"
+)
+
+REQUIRES=(
+  "glibc"
+  "libxcb"
+  "pkg-config"
+  "util-macros"
+)
+
+PROVIDES=("libxcb-present")
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="libxcb-present-${VERSION}"
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT"
+    tar xf "libxcb-present-${VERSION}.tar.xz"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    ./configure --prefix=/usr --libdir=/usr/lib
+    make -j"$(nproc)"
+}
+
+check() {
+    true
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    DESTDIR="$pkgdir" make install
+
+    if [ -f COPYING ]; then
+        install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+    fi
+}

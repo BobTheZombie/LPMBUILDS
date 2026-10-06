@@ -1,0 +1,36 @@
+NAME="gnutls"
+VERSION="3.8.7"
+RELEASE="1"
+ARCH="x86_64"
+SUMMARY="A secure communications library implementing SSL, TLS and DTLS"
+URL="https://www.gnutls.org/"
+SOURCE=("https://www.gnupg.org/ftp/gcrypt/gnutls/v${VERSION%.*}/gnutls-${VERSION}.tar.xz")
+LICENSE=("LGPL-2.1-or-later")
+
+REQUIRES=("glibc" "gmp" "nettle" "libtasn1" "p11-kit" "zlib" "libidn2")
+PROVIDES=("gnutls" "libgnutls.so")
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/gnutls-${VERSION}"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/gnutls-${VERSION}"
+    ./configure \
+        --prefix=/usr \
+        --libdir=/usr/lib \
+        --disable-static \
+        --with-idn
+    make -j"$(nproc)"
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/gnutls-${VERSION}"
+    make DESTDIR="$pkgdir" install
+}
+

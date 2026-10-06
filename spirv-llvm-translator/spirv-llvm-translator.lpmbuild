@@ -1,0 +1,101 @@
+#!/bin/bash
+# LPM build script for SPIRV-LLVM-Translator (libLLVMSPIRVLib / llvmspirvlib)
+# Provides: llvm-spirv tool + libLLVMSPIRVLib.so
+
+NAME="spirv-llvm-translator"
+VERSION="20.1.5"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="LLVM/SPIR-V bi-directional translator (llvm-spirv + libLLVMSPIRVLib)"
+URL="https://github.com/KhronosGroup/SPIRV-LLVM-Translator"
+LICENSE="NCSA"
+
+SOURCE=(
+  "https://github.com/KhronosGroup/SPIRV-LLVM-Translator/archive/v${VERSION}/SPIRV-LLVM-Translator-${VERSION}.tar.gz"
+)
+
+REQUIRES=(
+  "glibc"
+  "llvm"          
+  "libxml2"
+  "spirv-tools"   
+  "spirv-headers" 
+  "zlib"
+  "gcc-libs"
+)
+
+PROVIDES=(
+  "spirv-llvm-translator"
+  "llvmspirvlib"
+  "LLVMSPIRVLib"
+  "libLLVMSPIRVLib.so"
+)
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="spirv-llvm-translator-${VERSION}"
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+    mkdir -p build
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    : "${CC:=cc}"
+    : "${CXX:=c++}"
+
+    # If your llvm CMake files live somewhere else, adjust LLVM_DIR accordingly.
+    # With your llvm lpmbuild, /usr/lib/cmake/llvm should be correct.
+    cmake -S . -B build \
+        -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_C_COMPILER="$CC" \
+        -DCMAKE_CXX_COMPILER="$CXX" \
+        -DBUILD_SHARED_LIBS=ON \
+        -DCMAKE_SKIP_INSTALL_RPATH=ON \
+        -DLLVM_DIR=/usr/lib/cmake/llvm \
+        -DLLVM_SPIRV_INCLUDE_TESTS=OFF \
+        -DLLVM_EXTERNAL_SPIRV_HEADERS_SOURCE_DIR=/usr
+
+    cmake --build build -j"$(nproc)"
+}
+
+check() {
+    # Translator has tests, but they’re not needed for packaging
+    true
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    DESTDIR="$pkgdir" cmake --install build
+
+    # License
+    if [ -f LICENSE.TXT ]; then
+        install -Dm644 LICENSE.TXT \
+            "$pkgdir/usr/share/licenses/$NAME/LICENSE.TXT"
+    fi
+
+    # Basic docs
+    if [ -f README.md ]; then
+        install -Dm644 README.md \
+            "$pkgdir/usr/share/doc/$NAME/README.md"
+    fi
+
+    # Strip ELF objects (tool + shared lib)
+    if command -v strip >/dev/null 2>&1; then
+        find "$pkgdir/usr" -type f -exec sh -c '
+            case "$(file -b "$1")" in
+              *ELF*executable*|*ELF*shared\ object*) strip --strip-unneeded "$1" 2>/dev/null || true ;;
+            esac
+        ' _ {} \;
+    fi
+}
+
+

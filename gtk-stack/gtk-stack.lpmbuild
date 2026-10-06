@@ -1,0 +1,49 @@
+#!/bin/bash
+# LPM meta package for GTK stack (2/3/4 + libadwaita)
+
+NAME="gtk-stack"
+VERSION="1.0.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Meta package pulling in GTK2, GTK3, GTK4 and libadwaita"
+URL="https://www.gtk.org/"
+LICENSE=("LGPL-2.1-or-later")
+
+SOURCE=()
+
+REQUIRES=(
+  "gtk2"
+  "gtk3"
+  "gtk4"
+  "libadwaita"
+)
+
+PROVIDES=("gtk-stack")
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() {
+    set -euxo pipefail
+    true
+}
+
+build() {
+    set -euxo pipefail
+    true
+}
+
+staging() {
+    set -euxo pipefail
+
+    mkdir -p "$pkgdir/usr/share/doc/$NAME"
+    cat > "$pkgdir/usr/share/doc/$NAME/README" <<'EOF'
+This is a meta package that installs:
+
+  - GTK2 (legacy)
+  - GTK3
+  - GTK4
+  - libadwaita (GTK4 GNOME widgets)
+
+You can safely remove gtk2 later if you do not need legacy apps.
+EOF
+}

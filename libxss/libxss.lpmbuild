@@ -1,0 +1,123 @@
+# LPM build script for libxss / libXScrnSaver
+
+NAME="libxss"
+VERSION="1.2.4"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+
+SUMMARY="X11 Screen Saver extension client library"
+URL="https://gitlab.freedesktop.org/xorg/lib/libxscrnsaver"
+LICENSE=("MIT")
+
+SOURCE=(
+    "https://xorg.freedesktop.org/releases/individual/lib/libXScrnSaver-${VERSION}.tar.xz"
+)
+
+SHA256SUMS=("SKIP")
+PATCHES=()
+
+REQUIRES=(
+    "glibc"
+    "libX11"
+    "libXext"
+)
+
+BUILD_REQUIRES=(
+    "pkgconf"
+    "xorgproto"
+    "make"
+)
+
+PROVIDES=(
+    "libxss"
+    "libXScrnSaver"
+    "libXss.so"
+    "xscrnsaver.pc"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+    set -euxo pipefail
+
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    rm -rf "$SRCROOT/libxss-build"
+    mkdir -p "$SRCROOT/libxss-build"
+}
+
+build() {
+    set -euxo pipefail
+
+    cd "$SRCROOT/libxss-build"
+
+    "$SRCROOT/${NAME}-${VERSION}/configure" \
+        --prefix=/usr \
+        --libdir=/usr/lib \
+        --includedir=/usr/include \
+        --disable-static
+
+    make -j"$(nproc)"
+}
+
+check() {
+    set -euxo pipefail
+
+    cd "$SRCROOT/libxss-build"
+
+    make check || true
+}
+
+staging() {
+    set -euxo pipefail
+
+    cd "$SRCROOT/libxss-build"
+
+    make DESTDIR="$pkgdir" install
+
+    #
+    # Shared library
+    #
+
+    test -n "$(
+        find "$pkgdir/usr/lib" \
+            -name 'libXss.so*' \
+            -print -quit
+    )"
+
+    #
+    # Public API
+    #
+
+    test -f "$pkgdir/usr/include/X11/extensions/scrnsaver.h"
+
+    #
+    # pkg-config metadata
+    #
+
+    test -f "$pkgdir/usr/lib/pkgconfig/xscrnsaver.pc"
+
+    #
+    # Remove libtool archive
+    #
+
+    find "$pkgdir/usr/lib" \
+        -type f \
+        -name '*.la' \
+        -delete 2>/dev/null || true
+
+    #
+    # License
+    #
+
+    if [ -f "$SRCROOT/libXScrnSaver-${VERSION}/COPYING" ]; then
+        install -Dm644 \
+            "$SRCROOT/libXScrnSaver-${VERSION}/COPYING" \
+            "$pkgdir/usr/share/licenses/libxss/COPYING"
+    fi
+
+    echo "==> libxss ${VERSION} staging complete"
+}

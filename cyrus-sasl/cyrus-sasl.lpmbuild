@@ -1,0 +1,68 @@
+NAME="cyrus-sasl"
+VERSION="2.1.27"
+RELEASE="1"
+ARCH="x86_64"
+SUMMARY="Cyrus SASL authentication library"
+URL="https://www.cyrusimap.org/sasl/"
+SOURCE=("https://github.com/cyrusimap/cyrus-sasl/releases/download/cyrus-sasl-${VERSION}/cyrus-sasl-${VERSION}.tar.gz"
+        "saslauthd.service"
+        "saslauthd.conf.d")
+        
+LICENSE=("BSD-4-Clause" "BSD-3-Clause")
+
+REQUIRES=("glibc" "openssl" "gdbm" "krb5" "pam" "libxcrypt" "sqlite")
+PROVIDES=("cyrus-sasl" "libsasl2.so")
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/cyrus-sasl-${VERSION}"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/cyrus-sasl-${VERSION}"
+    ./configure \
+        --prefix=/usr \
+        --libdir=/usr/lib \
+        --disable-krb4 \
+        --disable-macos-framework \
+        --disable-otp \
+        --disable-passdss \
+        --disable-srp \
+        --disable-static \
+        --enable-cram \
+        --enable-alwaystrue \
+        --enable-anon \
+        --enable-auth-sasldb \
+        --enable-shared \
+        --infodir=/usr/share/info \
+        --mandir=/usr/share/man \
+        --sbindir=/usr/bin \
+        --sysconfdir=/etc \
+        --with-dblib=gdbm \
+        --with-devrandom=/dev/urandom \
+        --with-configdir=/etc/sasl2:/etc/sasl:/usr/lib/sasl2 \
+        --with-openssl \
+        --with-saslauthd=/run/saslauthd \
+        --with-sqlite3=/usr
+    make -j"$(nproc)"
+}
+
+check() {
+    set -euxo pipefail
+    cd "$SRCROOT/cyrus-sasl-${VERSION}"
+    make check || true
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/cyrus-sasl-${VERSION}"
+    make DESTDIR="$pkgdir" install
+    
+    # Systemd + config integration
+    install -vDm 644 "$SRCROOT/saslauthd.conf.d" "$pkgdir/etc/conf.d/saslauthd"
+    install -vDm 644 "$SRCROOT/saslauthd.service" -t "$pkgdir/usr/lib/systemd/system/"
+}
+

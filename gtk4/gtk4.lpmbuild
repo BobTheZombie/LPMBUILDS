@@ -1,36 +1,85 @@
-# LPM build script for gtk4
+#!/bin/bash
+# LPM build script for GTK 4
+
 NAME="gtk4"
-VERSION="1.0.0"
+VERSION="4.16.0"   # adjust to the exact upstream version you want
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Placeholder package for gtk4 dependency"
-URL="https://example.com/gtk4"
-LICENSE=""
-SOURCE=()
-SHA256SUMS=()
-PATCHES=()
-REQUIRES=("glib2")
-PROVIDES=("gtk4")
+SUMMARY="GIMP Toolkit v4 for creating graphical user interfaces"
+URL="https://gitlab.gnome.org/GNOME/gtk"
+LICENSE=("LGPL-2.1-or-later")
+
+SOURCE=(
+  "https://download.gnome.org/sources/gtk/4.16/gtk-${VERSION}.tar.xz"
+)
+
+REQUIRES=(
+  "glib2"
+  "pango"
+  "cairo"
+  "gdk-pixbuf2"
+  "fribidi"
+  "harfbuzz"
+  "libepoxy"
+  "wayland"
+  "wayland-protocols"
+  "libxkbcommon"
+  "at-spi2-atk"
+  "at-spi2-core"
+  "libXrandr"
+  "libXi"
+  "meson"
+  "ninja"
+  "pkg-config"
+  "gcc"
+)
+
+PROVIDES=("gtk4" "libgtk-4.so")
+
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
+
+_srcdir="${NAME}-${VERSION}"
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    meson setup build \
+        --prefix=/usr \
+        --libdir=lib \
+        --buildtype=release \
+        -Dbuild-examples=false \
+        -Dbuild-tests=false \
+        -Dbroadway-backend=true \
+        -DIntrospection=true \
+        -Ddocumentation=false
+      
+    meson compile -C build
+}
+
+check() {
+    true
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  install -d "$pkgdir/usr/share/doc/gtk4"
-  printf 'Placeholder package for gtk4\n' >"$pkgdir/usr/share/doc/gtk4/README"
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    DESTDIR="$pkgdir" meson install -C build
+
+    if command -v strip >/dev/null 2>&1; then
+        find "$pkgdir/usr" -type f -exec sh -c '
+            case "$(file -b "$1")" in
+              *ELF*executable*|*ELF*shared\ object*)
+                  strip --strip-unneeded "$1" 2>/dev/null || true
+              ;;
+            esac
+        ' _ {} \;
+    fi
 }

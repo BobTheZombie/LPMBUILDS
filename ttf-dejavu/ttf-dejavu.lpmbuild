@@ -1,0 +1,118 @@
+NAME="ttf-dejavu"
+VERSION="2.37"
+RELEASE="1"
+ARCH="any"
+
+SUMMARY="DejaVu TrueType font family"
+URL="https://dejavu-fonts.github.io/"
+LICENSE=("custom")
+
+SOURCE=(
+    "https://downloads.sourceforge.net/dejavu/dejavu-fonts-ttf-${VERSION}.tar.bz2"
+)
+
+SHA256SUMS=("SKIP")
+PATCHES=()
+
+REQUIRES=()
+
+BUILD_REQUIRES=()
+
+PROVIDES=(
+    "ttf-dejavu"
+    "ttf-font"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+
+    cd "$SRCDIR"
+
+    test -d ttf
+}
+
+build() {
+    #
+    # Upstream release contains the prebuilt TrueType fonts.
+    #
+    true
+}
+
+check() {
+    true
+}
+
+staging() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+
+    cd "$SRCDIR"
+
+    #
+    # TrueType fonts
+    #
+
+    install -dm755 \
+        "$pkgdir/usr/share/fonts/TTF"
+
+    find ttf \
+        -maxdepth 1 \
+        -type f \
+        -name '*.ttf' \
+        -exec install -m644 {} \
+            "$pkgdir/usr/share/fonts/TTF/" \;
+
+    #
+    # Verify that fonts were actually installed.
+    #
+
+    test -n "$(
+        find "$pkgdir/usr/share/fonts/TTF" \
+            -type f \
+            -name '*.ttf' \
+            -print -quit
+    )"
+
+    #
+    # Documentation
+    #
+
+    install -dm755 \
+        "$pkgdir/usr/share/doc/${NAME}"
+
+    for doc in \
+        README.md \
+        NEWS \
+        AUTHORS
+    do
+        if [ -f "$doc" ]; then
+            install -Dm644 \
+                "$doc" \
+                "$pkgdir/usr/share/doc/${NAME}/$doc"
+        fi
+    done
+
+    #
+    # License
+    #
+
+    install -dm755 \
+        "$pkgdir/usr/share/licenses/${NAME}"
+
+    if [ -f LICENSE ]; then
+        install -Dm644 \
+            LICENSE \
+            "$pkgdir/usr/share/licenses/${NAME}/LICENSE"
+    fi
+
+    echo "==> ${NAME} ${VERSION} staging complete"
+    echo "==> Provides virtual dependency: ttf-font"
+}

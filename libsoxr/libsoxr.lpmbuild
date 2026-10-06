@@ -1,0 +1,80 @@
+#!/bin/bash
+# LPM build script for libsoxr
+# High-quality, one-dimensional sample-rate conversion library
+
+NAME="libsoxr"
+VERSION="0.1.3"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="High-quality sample-rate conversion library"
+URL="https://sourceforge.net/projects/soxr/"
+LICENSE=("LGPL-2.1-or-later")
+
+SOURCE=(
+  "https://downloads.sourceforge.net/project/soxr/soxr-${VERSION}-Source.tar.xz"
+)
+
+REQUIRES=(
+  "glibc"
+
+  # Build
+  "gcc"
+  "cmake"
+  "ninja"
+)
+
+PROVIDES=(
+  "libsoxr"
+  "libsoxr.so"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  cmake -S . -B build \
+    -G Ninja \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DCMAKE_INSTALL_LIBDIR=lib \
+    -DBUILD_SHARED_LIBS=ON \
+    -DBUILD_TESTS=OFF \
+    -DWITH_OPENMP=OFF \
+    -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+
+  cmake --build build -j"$(nproc)"
+}
+
+check() {
+  true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  DESTDIR="$pkgdir" cmake --install build
+
+  # License
+  if [ -f COPYING ]; then
+    install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+  elif [ -f LICENSE ]; then
+    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$NAME/LICENSE"
+  fi
+
+  # Strip shared library
+  if command -v strip >/dev/null 2>&1; then
+    find "$pkgdir/usr/lib" -type f -name 'libsoxr.so*' -exec strip --strip-unneeded {} \; 2>/dev/null || true
+  fi
+}
+

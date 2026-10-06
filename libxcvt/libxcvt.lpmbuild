@@ -1,0 +1,78 @@
+#!/bin/bash
+NAME="libxcvt"
+VERSION="0.1.3"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="VESA CVT standard modeline generator library"
+URL="https://www.x.org/"
+LICENSE="MIT"
+
+SOURCE=(
+    "https://www.x.org/releases/individual/lib/${NAME}-${VERSION}.tar.xz"
+)
+
+REQUIRES=(
+  "glibc"
+  "meson"
+  "ninja"
+  "pkg-config"
+)
+
+PROVIDES=(
+  "libxcvt"
+  "libxcvt.so"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  
+  # Create build dir
+  mkdir -p "$_srcdir/build"
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir/build"
+  
+    : "${CC:=cc}"
+    : "${CXX:=c++}"
+
+    meson setup .. \
+        --prefix=/usr \
+        --libdir=lib \
+        --buildtype=release \
+        -Ddefault_library=shared
+
+    ninja -j"$(nproc)"
+}    
+
+check() { true;
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir/build"
+
+    DESTDIR="$pkgdir" ninja install
+
+    # License
+    if [ -f ../COPYING ]; then
+        install -Dm644 ../COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+    fi
+
+    # Strip ELF libs/bins if strip is available
+    if command -v strip >/dev/null 2>&1; then
+        find "$pkgdir/usr" -type f -exec sh -c '
+            case "$(file -b "$1")" in
+              *ELF*shared\ object*|*ELF*executable*)
+                  strip --strip-unneeded "$1" 2>/dev/null || true
+                  ;;
+            esac
+        ' _ {} \;
+    fi
+}

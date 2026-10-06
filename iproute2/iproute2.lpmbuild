@@ -1,34 +1,41 @@
-# LPM build script for iproute2
+#!/bin/bash
+# LFS 13.1-systemd baseline; see docs/lfs-13.1.md for patch provenance.
 NAME="iproute2"
-VERSION="6.10.0"
+VERSION="7.1.0"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="IP Routing utilities"
-URL="https://wiki.linuxfoundation.org/networking/iproute2"
-LICENSE=""
-SOURCE=()
-REQUIRES=("glibc")
+SUMMARY="IP Routing Utilities"
+URL="https://www.kernel.org/pub/linux/utils/net/iproute2/iproute2-7.1.0.tar.xz"
+LICENSE=("GPL-2.0-or-later")
+SOURCE=("https://www.kernel.org/pub/linux/utils/net/iproute2/iproute2-7.1.0.tar.xz")
+SHA256SUMS=("fd9fa1b95809417157ca83dd72957e3261bdbce896353cb936f80af0b33a4b5c")
+PATCHES=()
+REQUIRES=("glibc" "libcap" "libmnl")
+BUILD_REQUIRES=("gcc" "make" "pkgconf" "bison" "flex")
 PROVIDES=("iproute2")
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
+
+_srcdir="iproute2-7.1.0"
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    sed -i /ARPD/d Makefile
+    rm -f man/man8/arpd.8
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    make -j"${JOBS:-$(nproc)}" NETNS_RUN_DIR=/run/netns
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    make DESTDIR="$pkgdir" SBINDIR=/usr/bin install
+
+    rm -f "$pkgdir/usr/share/info/dir"
+    find "$pkgdir/usr/lib" -name "*.la" -delete 2>/dev/null || true
 }

@@ -1,0 +1,48 @@
+NAME="libaio"
+VERSION="0.3.113"
+RELEASE="1"
+ARCH="x86_64"
+SUMMARY="Linux-native asynchronous I/O access library"
+URL="https://pagure.io/libaio"
+SOURCE=("https://releases.pagure.org/libaio/libaio-${VERSION}.tar.gz")
+LICENSE=("LGPL-2.1-or-later")
+
+REQUIRES=("glibc")
+PROVIDES=("libaio" "libaio.so")
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-$VERSION"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-$VERSION"
+
+    make prefix=/usr
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-$VERSION"
+
+    make prefix=/usr DESTDIR="$pkgdir" install
+
+    # Ensure pkgconfig file exists (some versions omit it)
+    install -d "$pkgdir/usr/lib/pkgconfig"
+    cat > "$pkgdir/usr/lib/pkgconfig/libaio.pc" <<'EOF'
+prefix=/usr
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+Name: libaio
+Description: Linux-native asynchronous I/O access library
+Version: 0.3.113
+Libs: -L${libdir} -laio
+Cflags: -I${includedir}
+EOF
+}
+

@@ -1,36 +1,117 @@
-# LPM build script for libxfont2
 NAME="libxfont2"
-VERSION="1.0.0"
+VERSION="2.0.7"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Placeholder package for libxfont2 dependency"
-URL="https://example.com/libxfont2"
-LICENSE=""
-SOURCE=()
-SHA256SUMS=()
+
+SUMMARY="X11 font rasterisation library"
+URL="https://xorg.freedesktop.org/"
+LICENSE=("MIT")
+
+SOURCE=(
+    "https://www.x.org/releases/individual/lib/libXfont2-${VERSION}.tar.xz"
+)
+
+SHA256SUMS=("SKIP")
 PATCHES=()
-REQUIRES=()
-PROVIDES=("libxfont2")
+
+REQUIRES=(
+    "glibc"
+    "freetype"
+    "fontenc"
+    "libX11"
+    "libxcb"
+    "xtrans"
+    "zlib"
+)
+
+BUILD_REQUIRES=(
+    "pkgconf"
+    "xorgproto"
+    "make"
+)
+
+PROVIDES=(
+    "libXfont2"
+    "libXfont2.so"
+)
+
 CONFLICTS=()
 OBSOLETES=()
 RECOMMENDS=()
 SUGGESTS=()
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+
+    cd "$SRCDIR"
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+
+    cd "$SRCDIR"
+
+    ./configure \
+        --prefix=/usr \
+        --libdir=/usr/lib \
+        --sysconfdir=/etc \
+        --localstatedir=/var \
+        --disable-static
+
+    make -j"$(nproc)"
+}
+
+check() {
+    true
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  install -d "$pkgdir/usr/share/doc/libxfont2"
-  printf 'Placeholder package for libxfont2\n' >"$pkgdir/usr/share/doc/libxfont2/README"
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+
+    cd "$SRCDIR"
+
+    make \
+        DESTDIR="$pkgdir" \
+        install
+
+    #
+    # Remove libtool/static artifacts.
+    #
+
+    find "$pkgdir/usr/lib" \
+        -type f \
+        \( -name '*.la' -o -name '*.a' \) \
+        -delete 2>/dev/null || true
+
+    #
+    # Library
+    #
+
+    test -n "$(
+        find "$pkgdir/usr/lib" \
+            -name 'libXfont2.so*' \
+            -print -quit
+    )"
+
+    #
+    # Headers
+    #
+
+    test -f \
+        "$pkgdir/usr/include/X11/fonts/libxfont2.h"
+
+    #
+    # pkg-config
+    #
+
+    test -f \
+        "$pkgdir/usr/lib/pkgconfig/xfont2.pc"
+
+    echo "==> ${NAME} ${VERSION} staging complete"
 }

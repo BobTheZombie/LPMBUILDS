@@ -1,0 +1,80 @@
+#!/bin/bash
+# LPM build script for luit
+# Unicode terminal I/O filter used by xterm and other X11 tools
+
+NAME="luit"
+VERSION="20250912"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Locale and Unicode conversion tool for terminal I/O"
+URL="https://invisible-island.net/luit/"
+LICENSE="MIT"
+
+SOURCE=(
+  "https://invisible-mirror.net/archives/luit/luit-${VERSION}.tgz"
+)
+
+REQUIRES=(
+  "glibc"
+  "zlib"
+  "pkg-config"
+  "xorgproto"
+  "util-macros"
+  "autoconf"
+  "automake"
+  "libtool"
+  "make"
+)
+
+PROVIDES=("luit")
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="luit-${VERSION}"
+
+prepare() {
+    set -euxo pipefail
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    : "${CC:=cc}"
+
+    ./configure \
+        --prefix=/usr \
+        --libdir=/usr/lib \
+        --disable-static
+
+    make -j"$(nproc)"
+}
+
+check() {
+    # upstream has no robust test suite; skip
+    true
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    DESTDIR="$pkgdir" make install
+
+    # license
+    if [ -f COPYING ]; then
+        install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+    fi
+
+    # strip ELF
+    if command -v strip >/dev/null 2>&1; then
+        find "$pkgdir/usr" -type f -exec sh -c '
+            case "$(file -b "$1")" in
+              *ELF*executable*|*ELF*shared\ object*)
+                strip --strip-unneeded "$1" 2>/dev/null || true
+              ;;
+            esac
+        ' _ {} \;
+    fi
+}
+

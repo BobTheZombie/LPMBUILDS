@@ -1,0 +1,47 @@
+#!/bin/bash
+NAME="xorg-libraries"
+VERSION="1.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Meta package for core X.Org libraries"
+URL="https://www.x.org/"
+LICENSE="MIT"
+
+REQUIRES=(
+  "libxcb"
+  "libX11"
+  "libXext"
+  "libXrender"
+  "libXrandr"
+  "libXi"
+  "libXinerama"
+  "libXcursor"
+  "libXfixes"
+  "libXdamage"
+  "libXcomposite"
+  "libXdmcp"
+  "libXau"
+  "libXt"
+  "libXaw"
+  "libXmu"
+  "libSM"
+  "libICE"
+  "libXv"
+  "libXxf86vm"
+  "libxkbfile"
+  "libfontenc"
+  "libXft"
+)
+
+PROVIDES=("xorg-libraries")
+CONFLICTS=()
+OBSOLETES=()
+
+prepare(){ true; }
+build(){ true; }
+check(){ true; }
+
+staging(){
+  mkdir -p "$pkgdir/usr/share/doc/$NAME"
+  echo "Meta package for X.Org libraries" > "$pkgdir/usr/share/doc/$NAME/README"
+}

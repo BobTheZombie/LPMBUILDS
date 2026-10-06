@@ -1,0 +1,50 @@
+NAME="xorg-server-xvfb"
+VERSION="21.1.18"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+
+SUMMARY="X.Org virtual framebuffer server"
+URL=""
+LICENSE=("custom")
+
+SOURCE=(
+    "https://www.x.org/releases/individual/xserver/xorg-server-${VERSION}.tar.xz"
+)
+SHA256SUMS=("SKIP")
+PATCHES=()
+
+REQUIRES=(
+    "glibc"
+    "libX11"
+    "libXext"
+    "libXfixes"
+    "libxfont2"
+    "libxkbfile"
+    "libxcb"
+)
+
+BUILD_REQUIRES=(
+    "meson"
+    "ninja"
+    "pkgconf"
+    "xorgproto"
+)
+
+PROVIDES=(
+    "xorg-server-xvfb"
+)
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() { set -euxo pipefail; rm -rf "$SRCROOT/${NAME}-${VERSION}-build"; }
+build() {
+    set -euxo pipefail
+    meson setup "$SRCROOT/${NAME}-${VERSION}-build" "$SRCROOT/${NAME}-${VERSION}"         --prefix=/usr --libdir=lib --buildtype=release         -Dxvfb=true -Dxorg=false -Dxnest=false -Dxephyr=false -Dxwayland=false
+    meson compile -C "$SRCROOT/${NAME}-${VERSION}-build" -j"$(nproc)"
+}
+check() { true; }
+staging() {
+    set -euxo pipefail
+    DESTDIR="$pkgdir" meson install -C "$SRCROOT/${NAME}-${VERSION}-build"
+    test -x "$pkgdir/usr/bin/Xvfb"
+}

@@ -1,0 +1,52 @@
+NAME="linux-firmware"
+VERSION="2025.10.11"
+RELEASE="1"
+ARCH="x86_64"
+SUMMARY="Firmware files for Linux drivers (Wi-Fi, GPU, audio, BT, etc.)"
+URL="https://gitlab.com/kernel-firmware/linux-firmware"
+SOURCE=("https://gitlab.com/kernel-firmware/linux-firmware/-/archive/20251011/linux-firmware-20251011.tar.gz")
+LICENSE=("Various")
+
+# Firmware is data-only; no runtime deps required
+REQUIRES=()
+PROVIDES=("linux-firmware")
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/linux-firmware-${VERSION}"
+}
+
+build() {
+    # Nothing to compile
+    true
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/linux-firmware-${VERSION}"
+
+    # Install firmware payload
+    install -d "$pkgdir/lib/firmware"
+    # Copy all, but skip readmes and markdown to keep package smaller
+    # (adjust excludes if you want absolutely everything)
+    rsync -a \
+      --exclude 'README*' \
+      --exclude '*.md' \
+      --exclude '.git*' \
+      ./ "$pkgdir/lib/firmware/"
+
+    # Docs / licensing
+    install -d "$pkgdir/usr/share/doc/$NAME"
+    echo "This package aggregates firmware from many upstreams; see per-file LICENSE.* in /lib/firmware." \
+      > "$pkgdir/usr/share/doc/$NAME/README"
+
+    # Copy top-level license file if present (not all snapshots have it)
+    if [ -f COPYING ]; then
+      install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+    fi
+
+    # Do NOT strip: these are binary blobs, not ELF executables.
+}
+

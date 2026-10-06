@@ -1,34 +1,41 @@
-# LPM build script for pkgconf
+#!/bin/bash
+# LFS 13.1-systemd baseline; see docs/lfs-13.1.md for patch provenance.
 NAME="pkgconf"
-VERSION="2.3.0"
+VERSION="3.0.5"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="Package compiler and linker metadata toolkit"
-URL="https://github.com/pkgconf/pkgconf"
-LICENSE=""
-SOURCE=()
+URL="https://distfiles.ariadne.space/pkgconf/pkgconf-3.0.5.tar.xz"
+LICENSE=("GPL-3.0-or-later")
+SOURCE=("https://distfiles.ariadne.space/pkgconf/pkgconf-3.0.5.tar.xz")
+SHA256SUMS=("3acd3a8a3cce65a8d620321855d92fb602e026cbe8e13ee36bdec58483b59ace")
+PATCHES=()
 REQUIRES=("glibc")
-PROVIDES=("pkgconf")
+BUILD_REQUIRES=("gcc" "make" "pkgconf")
+PROVIDES=("pkgconf" "pkg-config")
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
+
+_srcdir="pkgconf-3.0.5"
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    :
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    ./configure --prefix=/usr
+    make -j"${JOBS:-$(nproc)}"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    make DESTDIR="$pkgdir" install
+    ln -sf pkgconf "$pkgdir/usr/bin/pkg-config"
+    rm -f "$pkgdir/usr/share/info/dir"
+    find "$pkgdir/usr/lib" -name "*.la" -delete 2>/dev/null || true
 }

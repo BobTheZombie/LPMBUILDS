@@ -1,0 +1,50 @@
+#!/bin/bash
+# LFS 13.1-systemd baseline; see docs/lfs-13.1.md for patch provenance.
+NAME="tzdata"
+VERSION="2026c"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Time Zone Data"
+URL="https://www.iana.org/time-zones/repository/releases/tzdata2026c.tar.gz"
+LICENSE=("LicenseRef-Public-Domain")
+SOURCE=("https://www.iana.org/time-zones/repository/releases/tzdata2026c.tar.gz")
+SHA256SUMS=("e4a178a4477f3d0ea77cc31828ff72aa38feff8d61aa13e7e99e142e9d902be4")
+PATCHES=()
+REQUIRES=("glibc")
+BUILD_REQUIRES=("gcc" "make" "pkgconf")
+PROVIDES=("tzdata")
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="tzdata-2026c"
+
+prepare() {
+    set -euo pipefail
+    mkdir -p "$SRCROOT/$_srcdir"
+    tar -xf "$SRCROOT/tzdata2026c.tar.gz" -C "$SRCROOT/$_srcdir"
+    cd "$SRCROOT/$_srcdir"
+    :
+}
+
+build() {
+    set -euo pipefail
+    :
+}
+
+staging() {
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    _zoneinfo="$pkgdir/usr/share/zoneinfo"
+    install -dm755 "$_zoneinfo/posix" "$_zoneinfo/right"
+    for zone in etcetera southamerica northamerica europe africa antarctica asia australasia backward; do
+        zic -L /dev/null -d "$_zoneinfo" "$zone"
+        zic -L /dev/null -d "$_zoneinfo/posix" "$zone"
+        zic -L leapseconds -d "$_zoneinfo/right" "$zone"
+    done
+    install -m644 zone.tab zone1970.tab iso3166.tab leapseconds "$_zoneinfo/"
+    # /etc/localtime remains an administrator choice.
+
+    rm -f "$pkgdir/usr/share/info/dir"
+    find "$pkgdir/usr/lib" -name "*.la" -delete 2>/dev/null || true
+}
+

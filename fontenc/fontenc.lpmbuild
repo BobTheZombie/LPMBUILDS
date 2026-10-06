@@ -1,0 +1,111 @@
+NAME="fontenc"
+VERSION="1.1.8"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+
+SUMMARY="X11 font encoding library"
+URL="https://xorg.freedesktop.org/"
+LICENSE=("MIT")
+
+SOURCE=(
+    "https://www.x.org/releases/individual/lib/libfontenc-${VERSION}.tar.xz"
+)
+
+SHA256SUMS=("SKIP")
+PATCHES=()
+
+REQUIRES=(
+    "glibc"
+    "zlib"
+)
+
+BUILD_REQUIRES=(
+    "pkgconf"
+    "xorgproto"
+    "xtrans"
+    "make"
+)
+
+PROVIDES=(
+    "fontenc"
+    "libfontenc.so"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+
+    cd "$SRCDIR"
+}
+
+build() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+
+    cd "$SRCDIR"
+
+    ./configure \
+        --prefix=/usr \
+        --libdir=/usr/lib \
+        --disable-static
+
+    make -j"$(nproc)"
+}
+
+check() {
+    true
+}
+
+staging() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+
+    cd "$SRCDIR"
+
+    make \
+        DESTDIR="$pkgdir" \
+        install
+
+    #
+    # Remove static/libtool artifacts.
+    #
+
+    find "$pkgdir/usr/lib" \
+        -type f \
+        \( -name '*.a' -o -name '*.la' \) \
+        -delete 2>/dev/null || true
+
+    #
+    # Library
+    #
+
+    test -n "$(
+        find "$pkgdir/usr/lib" \
+            -name 'libfontenc.so*' \
+            -print -quit
+    )"
+
+    #
+    # Header
+    #
+
+    test -f \
+        "$pkgdir/usr/include/X11/fonts/fontenc.h"
+
+    #
+    # pkg-config
+    #
+
+    test -f \
+        "$pkgdir/usr/lib/pkgconfig/fontenc.pc"
+
+    echo "==> ${NAME} ${VERSION} staging complete"
+}

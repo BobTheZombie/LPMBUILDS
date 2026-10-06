@@ -1,34 +1,41 @@
-# LPM build script for libgcrypt
 NAME="libgcrypt"
-VERSION="1.10.3"
+VERSION="1.11.0"
 RELEASE="1"
-ARCH="${ARCH:-x86_64}"
-SUMMARY="General purpose crypto lib"
-URL="https://gnupg.org/software/libgcrypt/"
-LICENSE=""
-SOURCE=()
+ARCH="x86_64"
+SUMMARY="General purpose cryptographic library based on libgpg-error"
+URL="https://www.gnupg.org/software/libgcrypt/"
+SOURCE=("https://www.gnupg.org/ftp/gcrypt/libgcrypt/libgcrypt-${VERSION}.tar.bz2")
+LICENSE=("LGPL-2.1-or-later" "GPL-2.0-or-later")
+
 REQUIRES=("glibc" "libgpg-error")
-PROVIDES=("libgcrypt")
+PROVIDES=("libgcrypt" "libgcrypt.so")
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+    cd "$SRCROOT/libgcrypt-${VERSION}"
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+    set -euxo pipefail
+    cd "$SRCROOT/libgcrypt-${VERSION}"
+    ./configure \
+        --prefix=/usr \
+        --libdir=/usr/lib \
+        --disable-static
+    make -j"$(nproc)"
+}
+
+check() {
+    set -euxo pipefail
+    cd "$SRCROOT/libgcrypt-${VERSION}"
+    make check || true
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euxo pipefail
+    cd "$SRCROOT/libgcrypt-${VERSION}"
+    make DESTDIR="$pkgdir" install
 }
+

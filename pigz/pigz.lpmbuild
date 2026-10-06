@@ -1,0 +1,50 @@
+# pigz.lpmbuild
+NAME="pigz"
+VERSION="2.8"
+RELEASE="1"
+ARCH="x86_64"
+SUMMARY="Parallel implementation of gzip using zlib and pthreads"
+URL="https://zlib.net/pigz/"
+LICENSE=("Zlib")
+
+SOURCE=("https://zlib.net/pigz/pigz-${VERSION}.tar.gz")
+
+# Anything that depends on 'gzip' will be satisfied by pigz
+PROVIDES=("gzip" "pigz")
+CONFLICTS=("gzip")   # in case you have a separate gzip package
+
+REQUIRES=(
+  "glibc" 
+  "zlib"
+)
+
+PROVIDES=("gzip" "pigz")
+
+prepare() {
+  cd "pigz-${VERSION}"
+}
+
+build() {
+  cd "pigz-${VERSION}"
+  make -j"$(nproc)"
+}
+
+staging() {
+  cd "pigz-${VERSION}"
+
+  # Install pigz/unpigz binaries
+  install -Dm755 pigz   "$pkgdir/usr/bin/pigz"
+  install -Dm755 unpigz "$pkgdir/usr/bin/unpigz"
+
+  # Drop-in gzip compatibility symlinks
+  ln -sv pigz   "$pkgdir/usr/bin/gzip"
+  ln -sv unpigz "$pkgdir/usr/bin/gunzip"
+  ln -sv "pigz" "$pkgdir/usr/bin/zcat"     # pigz -d -c acts like zcat
+
+  # Manpages (pigz ships its own)
+  install -Dm644 pigz.1   "$pkgdir/usr/share/man/man1/pigz.1"
+  # gzip compat manpages as symlinks
+  ln -sv pigz.1   "$pkgdir/usr/share/man/man1/gzip.1"
+  ln -sv pigz.1   "$pkgdir/usr/share/man/man1/zcat.1"
+}
+

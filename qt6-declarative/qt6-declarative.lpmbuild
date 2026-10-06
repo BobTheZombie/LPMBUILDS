@@ -1,29 +1,87 @@
+#!/bin/bash
 # LPM build script for qt6-declarative
+
 NAME="qt6-declarative"
 VERSION="6.7.2"
-RELEASE="1"
+RELEASE="2"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="Qt 6 QML and Quick modules"
 URL="https://www.qt.io/"
-LICENSE=""
-SOURCE=("https://download.qt.io/official_releases/qt/6.7/6.7.2/submodules/qtdeclarative-everywhere-src-6.7.2.tar.xz")
+LICENSE=("GPL-3.0-only" "LGPL-3.0-only" "GPL-2.0-only")
+
+SOURCE=(
+  "https://download.qt.io/archive/qt/6.7/${VERSION}/submodules/qtdeclarative-everywhere-src-${VERSION}.tar.xz"
+)
+
 SHA256SUMS=("SKIP")
-PATCHES=()
-BUILD_REQUIRES=("qt6-base" "cmake" "ninja" "pkgconf" "mesa" "wayland")
-REQUIRES=("qt6-base" "mesa" "wayland")
-PROVIDES=("qt6-declarative")
+
+BUILD_REQUIRES=(
+  "qt6-base"
+  "cmake"
+  "ninja"
+  "perl"
+  "python"
+  "pkgconf"
+  "mesa"
+  "wayland"
+  "libxkbcommon"
+)
+
+REQUIRES=(
+  "qt6-base"
+  "glibc"
+  "mesa"
+  "wayland"
+  "libxkbcommon"
+)
+
+PROVIDES=(
+  "qt6-declarative"
+  "Qt6Qml"
+  "Qt6Quick"
+  "Qt6QmlIntegration"
+)
+
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
 
-prepare() { set -euxo pipefail; cd "$SRCROOT"; mkdir -p build; }
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  rm -rf build
+  mkdir -p build
+}
 
 build() {
   set -euxo pipefail
-  cd "$SRCROOT/build"
-  cmake .. -G Ninja -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release
+  cd "$SRCROOT/$_srcdir/build"
+
+  qt-configure-module .. -- \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DBUILD_SHARED_LIBS=ON \
+  -DQT_BUILD_EXAMPLES=OFF \
+  -DQT_BUILD_TESTS=OFF
+
   ninja
 }
 
-staging() { set -euxo pipefail; cd "$SRCROOT/build"; ninja install DESTDIR="$pkgdir"; }
+check() {
+  true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir/build"
+
+  DESTDIR="$pkgdir" ninja install
+
+  for f in LICENSES/* LICENSE*; do
+    if [ -f "$SRCROOT/$_srcdir/$f" ]; then
+      install -Dm644 "$SRCROOT/$_srcdir/$f" \
+        "$pkgdir/usr/share/licenses/$NAME/$(basename "$f")"
+    fi
+  done
+}

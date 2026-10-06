@@ -1,0 +1,55 @@
+NAME="mkinitcpio"
+VERSION="39.2"
+RELEASE="1"
+ARCH="x86_64"
+SUMMARY="Modular initramfs image creation utility"
+URL="https://archlinux.org/"
+SOURCE=("https://gitlab.archlinux.org/archlinux/mkinitcpio/mkinitcpio/-/releases/v39.2/downloads/mkinitcpio-39.2.tar.xz"
+        "0002-systemd-258.patch"
+        "mkinitcpio.conf")
+LICENSE=("GPL-2.0-or-later")
+
+REQUIRES=(
+  "gawk"
+  "bash"
+  "binutils"
+  "busybox-static" 
+  "coreutils" 
+  "kmod" 
+  "libarchive"
+  "util-linux" 
+  "findutils" 
+  "grep" 
+  "pigz"
+  "gawk" 
+  "sed"
+  "systemd"
+  "zstd"
+  )
+  
+PROVIDES=(mkinitcpio)
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-$VERSION"
+    patch -Np1 < $SRCROOT/0002-systemd-258.patch
+
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-$VERSION"
+    make
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-$VERSION"
+
+    make DESTDIR="$pkgdir" install
+
+    # Use Known Working Config file
+    install -Dm644 $SRCROOT/mkinitcpio.conf \
+        "$pkgdir/etc/mkinitcpio.conf"
+}
+

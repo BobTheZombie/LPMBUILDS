@@ -1,0 +1,87 @@
+#!/bin/bash
+# LPM build script for perl-XML-Parser
+# XML::Parser - Expat-based XML parser module for Perl
+
+NAME="perl-XML-Parser"
+VERSION="2.47"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Expat-based XML parser module for Perl (XML::Parser)"
+URL="https://metacpan.org/dist/XML-Parser"
+LICENSE=("GPL-1.0-or-later OR Artistic-1.0-Perl")
+
+SOURCE=(
+  "https://cpan.metacpan.org/authors/id/T/TO/TODDR/XML-Parser-${VERSION}.tar.gz"
+)
+
+REQUIRES=(
+  # Runtime
+  "perl"
+  "expat"
+
+  # Build
+  "gcc"
+  "make"
+  "pkg-config"
+)
+
+PROVIDES=(
+  "perl-XML-Parser"
+  "XML::Parser"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  : "${PERL:=perl}"
+
+  # Use system expat (recommended) and install into vendor dirs under /usr
+  $PERL Makefile.PL \
+    PREFIX=/usr \
+    INSTALLDIRS=vendor
+
+  make -j"$(nproc)"
+}
+
+check() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  # Safe to skip if you're bootstrapping; otherwise keep it on.
+  make test || true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  make DESTDIR="$pkgdir" install
+
+  # Licenses (module ships LICENSE starting with 2.47; keep fallbacks)
+  if [ -f LICENSE ]; then
+    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$NAME/LICENSE"
+  fi
+
+  # Basic docs
+  if [ -f README ]; then
+    install -Dm644 README "$pkgdir/usr/share/doc/$NAME/README"
+  fi
+
+  # No stripping: perl .so may exist (Expat XS); stripping is optional and can
+  # break debugability. If you insist, uncomment below.
+  # if command -v strip >/dev/null 2>&1; then
+  #   find "$pkgdir/usr" -type f -name '*.so' -exec strip --strip-unneeded {} \; 2>/dev/null || true
+  # fi
+}
+

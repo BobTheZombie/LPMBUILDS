@@ -1,0 +1,44 @@
+NAME="nodejs"
+VERSION="24.8.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+
+SUMMARY="JavaScript runtime built on V8"
+URL=""
+LICENSE=("custom")
+
+SOURCE=(
+    "https://nodejs.org/dist/v${VERSION}/node-v${VERSION}.tar.xz"
+)
+SHA256SUMS=("SKIP")
+PATCHES=()
+
+REQUIRES=(
+    "glibc"
+    "libgcc"
+    "libstdc++"
+    "openssl"
+    "zlib"
+)
+
+BUILD_REQUIRES=(
+    "python"
+    "make"
+    "pkgconf"
+)
+
+PROVIDES=(
+    "nodejs"
+)
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() { set -euxo pipefail; cd "$SRCROOT/${NAME}-${VERSION}"; }
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    ./configure --prefix=/usr --shared-openssl --shared-zlib
+    make -j"$(nproc)"
+}
+check() { true; }
+staging() { set -euxo pipefail; cd "$SRCROOT/${NAME}-${VERSION}"; make DESTDIR="$pkgdir" install; }

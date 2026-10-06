@@ -1,0 +1,52 @@
+#!/bin/bash
+# lpmbuild for VDO userspace tools (dm-vdo toolset)
+
+NAME="vdo"
+VERSION="8.3.1.1"
+RELEASE="1"
+ARCH="x86_64"
+SUMMARY="VDO userspace tools for managing deduplicated/compressed block storage"
+URL="https://github.com/dm-vdo/vdo"
+SOURCE=("https://github.com/dm-vdo/vdo/archive/refs/tags/${VERSION}.tar.gz")
+LICENSE=("GPL-2.0")
+
+REQUIRES=(
+  "glibc"
+  "python3"
+  "util-linux"  # for block devices, mount, etc.
+)
+PROVIDES=("vdo" "vdoformat" "vdostats")
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/vdo-${VERSION}"
+    # Remove root ownership enforcement during staging
+   sed -i -E 's/\binstall -o root -g root\b/install/g' Makefile
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/vdo-${VERSION}"
+
+    # The upstream Makefile builds Python tools
+    make
+}
+
+check() {
+    set -euxo pipefail
+    cd "$SRCROOT/vdo-${VERSION}"
+
+    # Basic help checks, not full tests (needs kernel)
+    ./vdoformat --help || true
+    ./vdostats --help || true
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/vdo-${VERSION}"
+
+    make DESTDIR="$pkgdir" install
+}
+

@@ -1,0 +1,55 @@
+#!/bin/bash
+# LPM build script for encodings
+# X.Org font encoding files
+
+NAME="encodings"
+VERSION="1.1.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="X.Org font encoding files"
+URL="https://www.x.org/"
+LICENSE="MIT"
+
+SOURCE=(
+  "https://www.x.org/releases/individual/font/encodings-${VERSION}.tar.xz"
+)
+
+REQUIRES=(
+  "glibc"
+  "font-util"
+)
+
+PROVIDES=("encodings")
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="encodings-${VERSION}"
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT"
+    tar xf "encodings-${VERSION}.tar.xz"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    ./configure --prefix=/usr
+    make -j"$(nproc)"
+}
+
+check() {
+    true
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    DESTDIR="$pkgdir" make install
+
+    if [ -f COPYING ]; then
+        install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+    fi
+}

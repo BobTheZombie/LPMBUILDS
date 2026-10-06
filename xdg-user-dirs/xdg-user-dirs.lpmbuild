@@ -1,0 +1,78 @@
+#!/bin/bash
+# LPM build script for xdg-user-dirs
+
+NAME="xdg-user-dirs"
+VERSION="1.0.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Manage user directories such as Desktop, Documents, Downloads"
+URL="https://www.freedesktop.org/wiki/Software/xdg-user-dirs/"
+LICENSE=("MIT")  # adjust to real license
+
+SOURCE=(
+  "https://www.freedesktop.org/software/xdg-user-dirs/xdg-user-dirs-${VERSION}.tar.xz"
+)
+
+REQUIRES=(
+  "glibc"
+)
+
+REQUIRES+=(
+  "pkg-config"
+  "gcc"
+  "make"
+  "autoconf"
+  "automake"
+  "libtool"
+)
+
+PROVIDES=(
+  "xdg-user-dirs"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="xdg-user-dirs-${VERSION}"
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+    # For release tarballs this is usually not necessary, but safe
+    if [ -f configure.ac ] || [ -f configure.in ]; then
+        autoreconf -vfi || true
+    fi
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    ./configure \
+        --prefix=/usr \
+        --sysconfdir=/etc
+
+    make -j"$(nproc)"
+}
+
+check() {
+    true
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    make DESTDIR="$pkgdir" install
+
+    # Strip ELF files
+    if command -v strip >/dev/null 2>&1; then
+        find "$pkgdir/usr" -type f -exec sh -c '
+            case "$(file -b "$1")" in
+              *ELF*executable*|*ELF*shared\ object*)
+                  strip --strip-unneeded "$1" 2>/dev/null || true
+              ;;
+            esac
+        ' _ {} \;
+    fi
+}

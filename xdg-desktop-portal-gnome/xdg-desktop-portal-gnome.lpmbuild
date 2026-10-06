@@ -1,0 +1,74 @@
+#!/bin/bash
+# LPM build script for xdg-desktop-portal-gnome
+
+NAME="xdg-desktop-portal-gnome"
+VERSION="1.0.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="GNOME XDG desktop portal backend"
+URL="https://github.com/flatpak/xdg-desktop-portal-gnome"
+LICENSE=("MIT")  # adjust to real license
+
+SOURCE=(
+  "https://github.com/flatpak/xdg-desktop-portal-gnome/archive/refs/tags/v${VERSION}.tar.gz"
+)
+
+REQUIRES=(
+  "glibc"
+  "dbus"
+)
+
+REQUIRES+=(
+  "meson"
+  "ninja"
+  "pkg-config"
+  "gcc"
+)
+
+PROVIDES=(
+  "xdg-desktop-portal-gnome"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="xdg-desktop-portal-gnome-${VERSION}"
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    meson setup build \
+        --prefix=/usr \
+        --libdir=lib \
+        --buildtype=release
+
+    meson compile -C build
+}
+
+check() {
+    true
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    DESTDIR="$pkgdir" meson install -C build
+
+    # Strip ELF files
+    if command -v strip >/dev/null 2>&1; then
+        find "$pkgdir/usr" -type f -exec sh -c '
+            case "$(file -b "$1")" in
+              *ELF*executable*|*ELF*shared\ object*)
+                  strip --strip-unneeded "$1" 2>/dev/null || true
+              ;;
+            esac
+        ' _ {} \;
+    fi
+}

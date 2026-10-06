@@ -1,0 +1,80 @@
+#!/bin/bash
+# LPM build script for libsoup 2.x
+# HTTP client/server library (GNOME legacy 2.x line)
+
+NAME="libsoup"
+VERSION="2.74.3"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="HTTP client/server library for GNOME (2.x series)"
+URL="https://wiki.gnome.org/Projects/libsoup"
+LICENSE=("LGPL-2.1-or-later")
+
+SOURCE=(
+  "https://download.gnome.org/sources/libsoup/2.74/libsoup-${VERSION}.tar.xz"
+)
+
+REQUIRES=(
+  "glibc"
+  "glib2"
+  "libxml2"
+  "sqlite"
+  "zlib"
+  "openssl"
+  "gobject-introspection"
+  "pkgconf"
+  "meson"
+  "ninja"
+)
+
+PROVIDES=(
+  "libsoup-2.4"
+  "libsoup"
+  "liblibsoup-2.4.so"
+  "libsoup-2.4.pc"
+)
+
+CONFLICTS=(
+  "libsoup3"
+)
+
+OBSOLETES=()
+
+_srcdir="libsoup-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  meson setup build \
+    --prefix=/usr \
+    --libdir=lib \
+    --buildtype=release \
+    -Ddefault_library=shared \
+    -Dintrospection=enabled \
+    -Dvapi=enabled \
+    -Dsysprof=disabled \
+    -Dtests=false \
+    -Dgtk_doc=false
+
+  meson compile -C build
+}
+
+check() {
+  true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  DESTDIR="$pkgdir" meson install -C build
+
+  # License
+  install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+}

@@ -1,0 +1,41 @@
+#!/bin/bash
+# LFS 13.1-systemd baseline; see docs/lfs-13.1.md for patch provenance.
+NAME="autoconf"
+VERSION="2.73"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="A GNU tool for automatically configuring source code"
+URL="https://ftpmirror.gnu.org/autoconf/autoconf-2.73.tar.xz"
+LICENSE=("GPL-3.0-or-later")
+SOURCE=("https://ftpmirror.gnu.org/autoconf/autoconf-2.73.tar.xz")
+SHA256SUMS=("9fd672b1c8425fac2fa67fa0477b990987268b90ff36d5f016dae57be0d6b52e")
+PATCHES=()
+REQUIRES=("perl" "m4")
+BUILD_REQUIRES=("gcc" "make" "pkgconf")
+PROVIDES=("autoconf")
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="autoconf-2.73"
+
+prepare() {
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    :
+}
+
+build() {
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    ./configure --prefix=/usr
+    make -j"${JOBS:-$(nproc)}"
+}
+
+staging() {
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    make DESTDIR="$pkgdir" install
+
+    rm -f "$pkgdir/usr/share/info/dir"
+    find "$pkgdir/usr/lib" -name "*.la" -delete 2>/dev/null || true
+}

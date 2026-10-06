@@ -1,34 +1,43 @@
-# LPM build script for linux-headers
+#!/bin/bash
+# LFS 13.1-systemd baseline; see docs/lfs-13.1.md for patch provenance.
 NAME="linux-headers"
-VERSION="6.15.7"
+VERSION="7.1.8"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Linux API headers"
-URL="https://www.kernel.org/"
-LICENSE=""
-SOURCE=()
+SUMMARY="Header files for the Linux kernel"
+URL="https://www.kernel.org/pub/linux/kernel/v7.x/linux-7.1.8.tar.xz"
+LICENSE="GPL-2.0-or-later"
+SOURCE=("https://www.kernel.org/pub/linux/kernel/v7.x/linux-7.1.8.tar.xz")
+SHA256SUMS=("ff01dcb449279d5b4cfccdb01fee639cf5ff1803f1749a77844dd33915422c49")
+PATCHES=()
 REQUIRES=()
+BUILD_REQUIRES=("gcc" "make" "pkgconf")
 PROVIDES=("linux-headers")
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
+
+_srcdir="linux-7.1.8"
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    :
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    make mrproper
+    make headers
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    find usr/include -type f ! -name "*.h" -delete
+    install -dm755 "$pkgdir/usr/include"
+    cp -a usr/include/. "$pkgdir/usr/include/"
+
+    rm -f "$pkgdir/usr/share/info/dir"
+    find "$pkgdir/usr/lib" -name "*.la" -delete 2>/dev/null || true
 }

@@ -1,0 +1,19 @@
+#!/bin/bash
+NAME="util-linux-libs-extra"
+VERSION="2.42.2"
+RELEASE="1"
+ARCH="any"
+SUMMARY="Compatibility dependency for util-linux-libs"
+URL="https://www.linuxfromscratch.org/lfs/view/13.1-systemd/"
+LICENSE=("MIT")
+SOURCE=()
+SHA256SUMS=()
+REQUIRES=("util-linux-libs")
+BUILD_REQUIRES=()
+PROVIDES=("util-linux-libs-extra")
+prepare() { :; }
+build() { :; }
+staging() {
+    install -dm755 "$pkgdir/usr/share/doc/util-linux-libs-extra"
+    printf '%s\n' 'The implementation is supplied by util-linux-libs.' > "$pkgdir/usr/share/doc/util-linux-libs-extra/README"
+}

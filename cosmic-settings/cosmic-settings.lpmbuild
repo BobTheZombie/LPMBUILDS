@@ -1,50 +1,84 @@
+#!/bin/bash
 # LPM build script for cosmic-settings
+
 NAME="cosmic-settings"
-VERSION="epoch-1.0.0"
+VERSION="1.0.0"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Settings application for configuring the COSMIC desktop"
+SUMMARY="COSMIC settings application"
 URL="https://github.com/pop-os/cosmic-settings"
-LICENSE=""
-SOURCE=("https://github.com/pop-os/cosmic-settings/archive/refs/tags/${VERSION}.tar.gz")
-SHA256SUMS=("SKIP")
-PATCHES=()
-BUILD_REQUIRES=(
-    "rust"
-    "cargo"
-    "pkgconf"
-    "clang"
-    "gtk4"
-    "libadwaita"
-    "wayland-protocols"
-    "accountsservice"
-    "networkmanager"
+LICENSE=("GPL-3.0-or-later")
+
+SOURCE=(
+  "git+https://github.com/pop-os/cosmic-settings.git"
 )
-REQUIRES=("gtk4" "libadwaita" "wayland-protocols" "accountsservice" "networkmanager")
-PROVIDES=("cosmic-settings")
+
+# Runtime deps (baseline; adjust per component as you refine)
+REQUIRES=(
+  "glibc"
+  "wayland"
+  "libxkbcommon"
+  "libinput"
+  "libseat"
+  "mesa"
+  "dbus"
+)
+
+# Build deps
+REQUIRES+=(
+  "rust"
+  "cargo"
+  "pkg-config"
+  "gcc"
+)
+
+PROVIDES=(
+  "cosmic-settings"
+)
+
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
+
+_srcdir="cosmic-settings"
 
 prepare() {
     set -euxo pipefail
-    cd "$SRCROOT"
-    for patch in "${PATCHES[@]}"; do
-        patch -p1 <"$SRCROOT/$patch"
-    done
-    cargo fetch --locked
-    cargo vendor vendor
+    cd "$SRCROOT/$_srcdir"
 }
 
 build() {
     set -euxo pipefail
-    cd "$SRCROOT"
-    CARGO_TARGET_DIR="$SRCROOT/target" cargo build --frozen --locked --release
+    cd "$SRCROOT/$_srcdir"
+
+    : "${CARGO_HOME:=$HOME/.cargo}"
+    export CARGO_HOME
+
+    cargo build --release --locked
+}
+
+check() {
+    true
 }
 
 staging() {
     set -euxo pipefail
-    cd "$SRCROOT"
-    install -Dm755 "$SRCROOT/target/release/cosmic-settings" "$pkgdir/usr/bin/cosmic-settings"
+    cd "$SRCROOT/$_srcdir"
+
+    # Install main binary; most COSMIC crates use repo name as binary name.
+    if [ -f "target/release/cosmic-settings" ]; then
+        install -Dm755 "target/release/cosmic-settings" "$pkgdir/usr/bin/cosmic-settings"
+    fi
+
+    # Icons, schemas, portals, etc. should be wired in per-component later.
+
+    # Strip
+    if command -v strip >/dev/null 2>&1; then
+        find "$pkgdir/usr/bin" -type f -exec sh -c '
+            case "$(file -b "$1")" in
+              *ELF*executable*)
+                  strip --strip-unneeded "$1" 2>/dev/null || true
+              ;;
+            esac
+        ' _ {} \;
+    fi
 }

@@ -1,0 +1,117 @@
+#!/bin/bash
+# LPM build script for libecal / evolution-data-server
+
+NAME="libecal"
+VERSION="3.54.2"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Evolution calendar library from evolution-data-server"
+URL="https://gitlab.gnome.org/GNOME/evolution-data-server"
+LICENSE=("LGPL-2.1-or-later")
+
+SOURCE=(
+  "https://download.gnome.org/sources/evolution-data-server/3.54/evolution-data-server-${VERSION}.tar.xz"
+)
+
+SHA256SUMS=("SKIP")
+
+REQUIRES=(
+  "glibc"
+  "glib2"
+  "gtk3"
+  "libsoup" # this is libsoup3 in LPM Ecosystem
+  "libxml2"
+  "sqlite"
+  "mozilla-nspr"
+  "mozilla-nss"
+  "icu"
+  "libical"
+  "json-glib"
+  "libgoa"
+)
+
+BUILD_REQUIRES=(
+  "meson"
+  "ninja"
+  "pkgconf"
+  "gettext"
+  "glib2"
+  "gtk3"
+  "gobject-introspection"
+  "vala"
+  "cmake"
+  "libsoup"
+  "libxml2"
+  "sqlite"
+  "mozilla-nspr"
+  "mozilla-nss"
+  "icu"
+  "libical"
+  "json-glib"
+)
+
+PROVIDES=(
+  "libecal"
+  "libecal-2.0.so"
+  "libebook"
+  "libebook-1.2.so"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  rm -rf build
+
+  # disable docs to avoid docbook/xmlto headaches
+  sed -i "/subdir('docs')/d" meson.build || true
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  export XML_CATALOG_FILES=/etc/xml/catalog
+
+cmake -S . -B build -G Ninja \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DCMAKE_INSTALL_LIBDIR=lib \
+    -DLIBEXEC_INSTALL_DIR=/usr/lib \
+    -DSYSCONF_INSTALL_DIR=/etc \
+    -DENABLE_GTK_DOC=OFF \
+    -DENABLE_GI_DOCGEN=OFF \
+    -DENABLE_INTROSPECTION=ON \
+    -DENABLE_VALA_BINDINGS=ON \
+    -DWITH_LIBDB=OFF \
+    -DWITH_PHONENUMBER=OFF
+
+  cmake --build build
+}
+
+check() {
+  true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  DESTDIR="$pkgdir" cmake --install build
+
+  test -f "$pkgdir/usr/lib/libecal-2.0.so"
+  test -f "$pkgdir/usr/lib/libedataserver-1.2.so"
+  test -f "$pkgdir/usr/lib/libebook-1.2.so"
+
+  for f in COPYING LICENSE; do
+    if [ -f "$f" ]; then
+      install -Dm644 "$f" \
+        "$pkgdir/usr/share/licenses/$NAME/$f"
+    fi
+  done
+}

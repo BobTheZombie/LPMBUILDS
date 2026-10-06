@@ -1,0 +1,5 @@
+# Runtime directory for greetd
+# Created at boot by systemd-tmpfiles
+
+d /run/greetd 0755 root root -
+

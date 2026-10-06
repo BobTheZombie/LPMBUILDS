@@ -1,15 +1,14 @@
 # LPM build script for libpciaccess
 NAME="libpciaccess"
-VERSION="1.0.0"
+VERSION="0.18.1"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Placeholder package for libpciaccess dependency"
-URL="https://example.com/libpciaccess"
+SUMMARY="X11 PCI access library"
+URL="https://gitlab.freedesktop.org/xorg/lib/libpciacces"
 LICENSE=""
-SOURCE=()
+SOURCE=(https://xorg.freedesktop.org/releases/individual/lib/${NAME}-${VERSION}.tar.xz)
 SHA256SUMS=()
-PATCHES=()
-REQUIRES=()
+REQUIRES=("glibc" "zlib" "xorg-util-macros" "meson")
 PROVIDES=("libpciaccess")
 CONFLICTS=()
 OBSOLETES=()
@@ -19,18 +18,17 @@ SUGGESTS=()
 prepare() {
   set -euxo pipefail
   cd "$SRCROOT"
-  :
+  mkdir build
 }
 
 build() {
   set -euxo pipefail
-  cd "$SRCROOT"
-  :
+  meson "$NAME"-$VERSION build
+  ninja -C build
+
 }
 
 staging() {
   set -euxo pipefail
-  cd "$SRCROOT"
-  install -d "$pkgdir/usr/share/doc/libpciaccess"
-  printf 'Placeholder package for libpciaccess\n' >"$pkgdir/usr/share/doc/libpciaccess/README"
+  DESTDIR="$pkgdir" ninja -C build install
 }

@@ -1,0 +1,66 @@
+#!/bin/bash
+# LPM build script for iso-codes
+# ISO standards lists (languages, countries, currencies, scripts)
+# Required by gnome-desktop-3.0 and GNOME/Budgie components
+
+NAME="iso-codes"
+VERSION="4.20.1"
+RELEASE="1"
+ARCH="noarch"
+SUMMARY="ISO standards lists (languages, countries, currencies, scripts)"
+URL="https://salsa.debian.org/iso-codes-team/iso-codes"
+LICENSE=("LGPL-2.1-or-later")
+
+SOURCE=(
+  "https://salsa.debian.org/iso-codes-team/iso-codes/-/archive/v${VERSION}/iso-codes-v${VERSION}.tar.gz"
+)
+
+REQUIRES=(
+  "glibc"
+  "python"        # Meson scripts use Python
+  "meson"
+  "ninja"
+  "pkgconf"
+)
+
+PROVIDES=(
+  "iso-codes"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="iso-codes-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+  mkdir build
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir/build"
+
+  meson setup --prefix=/usr .. &&
+  ninja
+}
+
+check() {
+  true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir/build"
+
+  DESTDIR="$pkgdir" ninja install
+
+  # License
+  if [ -f COPYING ]; then
+    install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+  elif [ -d LICENSES ]; then
+    install -dm755 "$pkgdir/usr/share/licenses/$NAME"
+    install -m644 LICENSES/* "$pkgdir/usr/share/licenses/$NAME/" 2>/dev/null || true
+  fi
+}

@@ -1,0 +1,79 @@
+#!/bin/bash
+# LPM build script for lcms2
+
+NAME="lcms2"
+VERSION="2.16"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Small-footprint color management engine"
+URL="https://www.littlecms.com/"
+LICENSE=("MIT")
+
+SOURCE=(
+  "https://downloads.sourceforge.net/project/lcms/lcms/${VERSION}/lcms2-${VERSION}.tar.gz"
+)
+
+SHA256SUMS=("SKIP")
+
+REQUIRES=(
+  "glibc"
+  "libjpeg"
+  "libtiff"
+  "zlib"
+)
+
+BUILD_REQUIRES=(
+  "make"
+  "pkgconf"
+  "libjpeg"
+  "libtiff"
+  "zlib"
+)
+
+PROVIDES=(
+  "lcms2"
+  "liblcms2.so"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  ./configure \
+    --prefix=/usr \
+    --libdir=/usr/lib \
+    --disable-static \
+    --with-jpeg \
+    --with-tiff \
+    --with-zlib
+
+  make -j"$(nproc)"
+}
+
+check() {
+  true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  make DESTDIR="$pkgdir" install
+
+  for f in COPYING LICENSE; do
+    if [ -f "$f" ]; then
+      install -Dm644 "$f" \
+        "$pkgdir/usr/share/licenses/$NAME/$f"
+    fi
+  done
+}

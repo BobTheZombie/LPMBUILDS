@@ -1,0 +1,67 @@
+#!/usr/bin/env python3
+import os
+import shutil
+import subprocess
+from pathlib import Path
+from typing import Iterable, List, Set
+
+from _targets import collect_targets
+
+
+def _iter_dconf_dirs(root: Path, targets: Iterable[str]) -> List[Path]:
+    base = root / "etc" / "dconf" / "db"
+    seen: Set[Path] = set()
+    result: List[Path] = []
+    for target in targets:
+        if not target:
+            continue
+        rel_text = target.lstrip("/")
+        if not rel_text:
+            continue
+        path = root / rel_text
+        try:
+            path.relative_to(base)
+        except ValueError:
+            continue
+        if path.name.endswith(".d"):
+            dir_path = path
+        else:
+            dir_path = path.parent
+        if not dir_path.name.endswith(".d"):
+            continue
+        if dir_path not in seen:
+            seen.add(dir_path)
+            result.append(dir_path)
+    return result
+
+
+def _remove_stale_database(directory: Path) -> None:
+    compiled = directory.with_suffix("")
+    try:
+        compiled.unlink(missing_ok=True)
+    except TypeError:
+        # Python < 3.8 compatibility: fall back to ignoring missing files.
+        try:
+            compiled.unlink()
+        except FileNotFoundError:
+            pass
+
+
+def main(argv: Iterable[str]) -> None:
+    if os.environ.get("LPM_ROOT", "/") != "/":
+        return
+    tool = shutil.which("dconf")
+    if not tool:
+        return
+    root = Path("/")
+    targets = collect_targets(argv)
+    for directory in _iter_dconf_dirs(root, targets):
+        if not directory.is_dir():
+            _remove_stale_database(directory)
+    subprocess.run([tool, "update"], check=False)
+
+
+if __name__ == "__main__":
+    import sys
+
+    main(sys.argv[1:])

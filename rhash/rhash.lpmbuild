@@ -1,0 +1,40 @@
+NAME="rhash"
+VERSION="1.4.5"
+RELEASE="1"
+ARCH="x86_64"
+SUMMARY="Utility for computing and checking various file hashes"
+URL="https://github.com/rhash/RHash"
+SOURCE=("https://github.com/rhash/RHash/archive/v${VERSION}/rhash-${VERSION}.tar.gz")
+LICENSE=("0BSD")
+
+REQUIRES=("glibc")
+PROVIDES=("rhash" "librhash")
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/rhash-${VERSION}"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/rhash-${VERSION}"
+    ./configure \
+        --prefix=/usr \
+        --sysconfdir=/etc \
+        --libdir=/lib \
+        --disable-static
+    make -j"$(nproc)"
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/rhash-${VERSION}"
+    make DESTDIR="$pkgdir" install
+    
+    # library, since the makefiles are still broken
+    make -C librhash DESTDIR="$pkgdir" install-lib-headers install-lib-shared install-so-link
+
+}
+

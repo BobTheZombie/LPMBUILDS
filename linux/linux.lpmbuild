@@ -1,0 +1,50 @@
+#!/bin/bash
+# LFS 13.1-systemd baseline; see docs/lfs-13.1.md for patch provenance.
+NAME="linux"
+VERSION="7.1.8"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="The Linux kernel and modules"
+URL="https://www.kernel.org/pub/linux/kernel/v7.x/linux-7.1.8.tar.xz"
+LICENSE=("GPL-2.0-only")
+SOURCE=("https://www.kernel.org/pub/linux/kernel/v7.x/linux-7.1.8.tar.xz" "config")
+SHA256SUMS=("ff01dcb449279d5b4cfccdb01fee639cf5ff1803f1749a77844dd33915422c49" "c88a5466ddadf1a832132c27ca85d446fc9b019f5aedf7aff8299bfffe13663b")
+PATCHES=()
+REQUIRES=("kmod" "mkinitcpio")
+BUILD_REQUIRES=("gcc" "make" "pkgconf" "bc" "bison" "flex" "openssl" "elfutils")
+PROVIDES=("linux")
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="linux-7.1.8"
+
+prepare() {
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    :
+    # Reuse the repository's kernel config while accepting new defaults.
+    cp "$SRCROOT/config" .config
+    make olddefconfig
+}
+
+build() {
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    make -j"${JOBS:-$(nproc)}"
+}
+
+staging() {
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    make INSTALL_MOD_PATH="$pkgdir/usr" modules_install
+    _krel=$(make -s kernelrelease)
+    install -Dm644 arch/x86/boot/bzImage "$pkgdir/boot/vmlinuz-$_krel"
+    install -Dm644 System.map "$pkgdir/boot/System.map-$_krel"
+    install -Dm644 .config "$pkgdir/boot/config-$_krel"
+    install -Dm644 arch/x86/boot/bzImage "$pkgdir/usr/lib/modules/$_krel/vmlinuz"
+    # Headers have a separate owner: linux-headers.
+    rm -f "$pkgdir/usr/lib/modules/$_krel/build" "$pkgdir/usr/lib/modules/$_krel/source"
+
+    rm -f "$pkgdir/usr/share/info/dir"
+    find "$pkgdir/usr/lib" -name "*.la" -delete 2>/dev/null || true
+}

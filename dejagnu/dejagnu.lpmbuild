@@ -1,0 +1,42 @@
+#!/bin/bash
+# LFS 13.1-systemd baseline; see docs/lfs-13.1.md for patch provenance.
+NAME="dejagnu"
+VERSION="1.6.3"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="DejaGNU"
+URL="https://ftpmirror.gnu.org/dejagnu/dejagnu-1.6.3.tar.gz"
+LICENSE=("GPL-3.0-or-later")
+SOURCE=("https://ftpmirror.gnu.org/dejagnu/dejagnu-1.6.3.tar.gz")
+SHA256SUMS=("87daefacd7958b4a69f88c6856dbd1634261963c414079d0c371f589cd66a2e3")
+PATCHES=()
+REQUIRES=("expect")
+BUILD_REQUIRES=("gcc" "make" "pkgconf")
+PROVIDES=("dejagnu")
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="dejagnu-1.6.3"
+
+prepare() {
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    :
+}
+
+build() {
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    ./configure --prefix=/usr 
+    make -j"${JOBS:-$(nproc)}"
+}
+
+staging() {
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    make DESTDIR="$pkgdir" install
+
+    rm -f "$pkgdir/usr/share/info/dir"
+    find "$pkgdir/usr/lib" -name "*.la" -delete 2>/dev/null || true
+}
+

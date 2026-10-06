@@ -1,0 +1,19 @@
+[Unit]
+Description=OpenLDAP Directory Server (slapd)
+After=network.target
+Documentation=man:slapd(8) man:slapd.conf(5)
+
+[Service]
+Type=forking
+User=ldap
+Group=ldap
+RuntimeDirectory=openldap
+RuntimeDirectoryMode=0755
+PIDFile=/run/openldap/slapd.pid
+ExecStart=/usr/bin/slapd -u ldap -g ldap -h "ldap:/// ldapi:///" -f /etc/openldap/slapd.conf
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

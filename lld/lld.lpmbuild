@@ -1,0 +1,57 @@
+NAME="lld"
+VERSION="22.1.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+
+SUMMARY="LLVM linker"
+URL=""
+LICENSE=("custom")
+
+SOURCE=(
+    "https://github.com/llvm/llvm-project/releases/download/llvmorg-${VERSION}/llvm-project-${VERSION}.src.tar.xz"
+)
+SHA256SUMS=("SKIP")
+PATCHES=()
+
+REQUIRES=(
+    "glibc"
+    "libgcc"
+    "libstdc++"
+    "llvm"
+)
+
+BUILD_REQUIRES=(
+    "cmake"
+    "ninja"
+    "python"
+)
+
+PROVIDES=(
+    "lld"
+)
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() {
+    set -euxo pipefail
+    rm -rf "$SRCROOT/${NAME}-${VERSION}-build"
+}
+build() {
+    set -euxo pipefail
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    BUILDDIR="$SRCROOT/${NAME}-${VERSION}-build"
+    cmake -S "$SRCDIR/llvm" -B "$BUILDDIR" -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DLLVM_TARGETS_TO_BUILD="X86;WebAssembly" \
+        -DLLVM_ENABLE_PROJECTS="lld" \
+        -DLLVM_INCLUDE_TESTS=OFF \
+        -DLLVM_INCLUDE_EXAMPLES=OFF
+    cmake --build "$BUILDDIR" -j"$(nproc)"
+}
+check() { true; }
+staging() {
+    set -euxo pipefail
+    DESTDIR="$pkgdir" cmake --install "$SRCROOT/${NAME}-${VERSION}-build"
+}

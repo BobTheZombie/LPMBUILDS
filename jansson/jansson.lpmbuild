@@ -1,0 +1,74 @@
+#!/bin/bash
+# LPM build script for jansson
+# C library for encoding, decoding, and manipulating JSON data.
+
+NAME="jansson"
+VERSION="2.15.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="C library for encoding, decoding and manipulating JSON"
+URL="https://digip.org/jansson/"
+LICENSE=("MIT")
+
+SOURCE=(
+  "https://github.com/akheron/jansson/releases/download/v${VERSION}/jansson-${VERSION}.tar.gz"
+)
+
+REQUIRES=(
+  "glibc"
+)
+
+BUILD_REQUIRES=(
+  "cmake"
+  "ninja"
+  "pkgconf"
+)
+
+PROVIDES=(
+  "jansson"
+  "libjansson.so"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  rm -rf build
+
+  cmake -S . -B build -G Ninja \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DCMAKE_INSTALL_LIBDIR=lib \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DJANSSON_BUILD_DOCS=OFF \
+    -DJANSSON_BUILD_SHARED_LIBS=ON \
+    -DJANSSON_WITHOUT_TESTS=ON
+
+  cmake --build build
+}
+
+check() {
+  true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  DESTDIR="$pkgdir" cmake --install build
+
+  for f in LICENSE COPYING; do
+    if [ -f "$f" ]; then
+      install -Dm644 "$f" "$pkgdir/usr/share/licenses/$NAME/$f"
+    fi
+  done
+}

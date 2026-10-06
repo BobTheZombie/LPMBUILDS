@@ -1,0 +1,78 @@
+#!/bin/bash
+# LPM build script for gsettings-desktop-schemas
+# Default GSettings schemas for GNOME / GTK desktops
+
+NAME="gsettings-desktop-schemas"
+VERSION="47.beta"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="A collection of GSettings schemas for desktop components"
+URL="https://gitlab.gnome.org/GNOME/gsettings-desktop-schemas"
+LICENSE=("LGPL-2.1-or-later")
+
+SOURCE=(
+  "https://download.gnome.org/sources/gsettings-desktop-schemas/47/gsettings-desktop-schemas-${VERSION}.tar.xz"
+)
+
+REQUIRES=(
+  "glibc"
+  "glib2"
+  "libwacom"
+)
+
+# Build deps
+REQUIRES+=(
+  "meson"
+  "ninja"
+  "pkg-config"
+  "gettext"
+  
+)
+
+PROVIDES=(
+  "gsettings-desktop-schemas"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="gsettings-desktop-schemas-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  meson setup build \
+    --prefix=/usr \
+    --libdir=lib \
+    --buildtype=release
+
+  meson compile -C build
+}
+
+check() {
+  true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  DESTDIR="$pkgdir" meson install -C build
+
+  # Compile schemas at install time (handled by triggers on most systems,
+  # but safe to precompile if glib-compile-schemas exists)
+  if command -v glib-compile-schemas >/dev/null 2>&1; then
+    glib-compile-schemas "$pkgdir/usr/share/glib-2.0/schemas" || true
+  fi
+
+  # License
+  if [ -f COPYING ]; then
+    install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+  fi
+}

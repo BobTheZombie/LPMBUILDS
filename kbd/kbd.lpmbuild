@@ -1,34 +1,42 @@
-# LPM build script for kbd
+#!/bin/bash
+# LFS 13.1-systemd baseline; see docs/lfs-13.1.md for patch provenance.
 NAME="kbd"
-VERSION="2.6.4"
+VERSION="2.10.0"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Keyboard utilities"
-URL="https://www.kernel.org/pub/linux/utils/kbd/"
-LICENSE=""
-SOURCE=()
+SUMMARY="Keytable utilities for Linux console"
+URL="https://www.kernel.org/pub/linux/utils/kbd/kbd-2.10.0.tar.xz"
+LICENSE=("GPL-2.0-or-later")
+SOURCE=("https://www.kernel.org/pub/linux/utils/kbd/kbd-2.10.0.tar.xz" "kbd-2.10.0-backspace-1.patch")
+SHA256SUMS=("6e5ca4f8d76ee9e3a8db700b667f13e12aac9933828a64e1aaad93d26be9b479" "8be28dcb11420624a500f2ea4fe975f771174bffee50e54ec8cd295a2dec104e")
+PATCHES=()
 REQUIRES=("glibc")
+BUILD_REQUIRES=("gcc" "make" "pkgconf")
 PROVIDES=("kbd")
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
+
+_srcdir="kbd-2.10.0"
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    patch --batch --forward -Np1 -i "$SRCROOT/kbd-2.10.0-backspace-1.patch"
+    :
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    ./configure --prefix=/usr --disable-vlock
+    make -j"${JOBS:-$(nproc)}"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    make DESTDIR="$pkgdir" install
+
+    rm -f "$pkgdir/usr/share/info/dir"
+    find "$pkgdir/usr/lib" -name "*.la" -delete 2>/dev/null || true
 }

@@ -1,0 +1,80 @@
+NAME="lvm2"
+VERSION="2.03.34"
+RELEASE="1"
+ARCH="x86_64"
+SUMMARY="Logical Volume Manager 2 utilities and device-mapper library"
+URL="https://sourceware.org/lvm2/"
+SOURCE=("https://sourceware.org/ftp/lvm2/LVM2.${VERSION}.tgz")
+LICENSE=("GPL-2.0-or-later" "LGPL-2.1-or-later")
+
+REQUIRES=(
+  "glibc"
+  "libaio"
+  "readline"
+  "systemd"
+)
+PROVIDES=("device-mapper" "lvm2" "libdevmapper.so")
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-${VERSION}"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-${VERSION}"
+
+    ./configure \
+        --prefix=/usr \
+        --sysconfdir=/etc \
+        --sbindir=/usr/bin \
+        --libdir=/usr/lib \
+        --disable-static \
+        --enable-cmdlib \
+        --enable-dmeventd \
+        --enable-lvmetad \
+        --enable-udev_rules \
+        --with-systemdsystemunitdir=/usr/lib/systemd/system \
+        --with-udev-prefix=/usr \
+        --with-default-system-dir=/etc/lvm \
+        --enable-pkgconfig
+
+    make -j"$(nproc)"
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-${VERSION}"
+
+    make DESTDIR="$pkgdir" install
+
+    # Ensure dirs for config and state
+    install -d "$pkgdir/etc/lvm"
+    install -d "$pkgdir/var/lib/lvm"
+
+    # Basic default config if none shipped
+    if [ ! -f "$pkgdir/etc/lvm/lvm.conf" ]; then
+        cat > "$pkgdir/etc/lvm/lvm.conf" <<'EOF'
+# Minimal LVM configuration
+devices {
+    dir = "/dev"
+}
+allocation {
+    thin_pool_autoextend_threshold = 70
+    thin_pool_autoextend_percent = 20
+}
+EOF
+    fi
+
+    # License/docs
+    install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+    install -Dm644 WHATS_NEW "$pkgdir/usr/share/doc/$NAME/WHATS_NEW"
+
+    # Strip ELF binaries
+    find "$pkgdir/usr" -type f -exec sh -c '
+        file -b "$1" | grep -q "ELF" && strip --strip-unneeded "$1" || true
+    ' _ {} \; 2>/dev/null || true
+}
+

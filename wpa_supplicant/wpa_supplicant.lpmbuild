@@ -1,44 +1,67 @@
-# LPM build script for wpa_supplicant
 NAME="wpa_supplicant"
-VERSION="2.10"
+VERSION="2.11"
 RELEASE="1"
-ARCH="${ARCH:-x86_64}"
-SUMMARY="WPA supplicant for wireless networking"
+ARCH="x86_64"
+SUMMARY="WPA/WPA2/WPA3 wireless supplicant"
 URL="https://w1.fi/wpa_supplicant/"
-LICENSE=""
-SOURCE=()
-REQUIRES=("glibc" "openssl" "dbus")
-PROVIDES=("wpa_supplicant")
-CONFLICTS=()
-OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
+LICENSE=("BSD")
+
+SOURCE=("https://w1.fi/releases/wpa_supplicant-2.11.tar.gz"
+        "wpa_supplicant_config"
+        "0001-Enable-TLSv1.0-by-default.patch"
+        "0002-Disable-Werror-for-eapol_test.patch"
+        "0003-Allow-legacy-renegotiation-to-fix-PEAP-issues-with-s.patch"
+        "0004-Tweak-D-Bus-systemd-service-activation-configuration.patch"
+        "0005-Add-IgnoreOnIsolate-yes-to-keep-wpa-supplicant-runni.patch"
+        "0006-Add-reload-support-to-the-systemd-unit-files.patch"
+        "0007-nl80211-add-extra-ies-only-if-allowed-by-driver.patch")
+
+REQUIRES=(glibc openssl dbus libnl readline)
+PROVIDES=(wpa_supplicant)
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-$VERSION"
+
+    # Apply patches
+    for src in "${SOURCE[@]}"; do
+        [[ $src = *.patch ]] || continue
+        echo "Applying patch $src..."
+        patch -Np1 < "$SRCROOT/$src"
+    done
+
+    # Cherry-pick upstream crash fix (optional)
+    git cherry-pick -n 015f6a5a0cd1c8b0d40441b9fd9e4c8658bc9493 || true
+
+    # Drop config into place
+    cp "$SRCROOT/wpa_supplicant_config" wpa_supplicant/.config
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make -j"$(nproc)" BINDIR=/usr/bin LIBDIR=/usr/lib
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-$VERSION/$NAME"
+
+    make BINDIR=/usr/sbin LIBDIR=/usr/lib
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install BINDIR=/usr/bin LIBDIR=/usr/lib
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-$VERSION/$NAME"
 
-  # Provide placeholder config
-  install -Dm600 /dev/stdin "$pkgdir/etc/wpa_supplicant/wpa_supplicant.conf" <<'EOF'
-  ctrl_interface=/run/wpa_supplicant
-  update_config=1
+    make BINDIR=/usr/sbin LIBDIR=/usr/lib DESTDIR="$pkgdir" install
 
-  network={
-  ssid="YourSSID"
-  psk="YourPassphrase"
-  }
-  EOF
+    # Default config
+    install -dm755 "$pkgdir/etc/wpa_supplicant"
+    install -Dm644 wpa_supplicant.conf \
+        "$pkgdir/usr/share/doc/${NAME}/wpa_supplicant.conf"
+
+    # DBus integration
+    install -Dm644 dbus/fi.w1.wpa_supplicant1.service \
+        "$pkgdir/usr/share/dbus-1/system-services/fi.w1.wpa_supplicant1.service"
+    install -Dm644 dbus/dbus-wpa_supplicant.conf \
+        "$pkgdir/usr/share/dbus-1/system.d/wpa_supplicant.conf"
+
+    # Systemd units
+    install -Dm644 systemd/*.service -t "$pkgdir/usr/lib/systemd/system"
 }
+

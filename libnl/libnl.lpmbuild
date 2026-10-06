@@ -1,34 +1,83 @@
-# LPM build script for libnl
 NAME="libnl"
 VERSION="3.9.0"
 RELEASE="1"
-ARCH="${ARCH:-x86_64}"
-SUMMARY="Netlink protocol library"
-URL="https://www.infradead.org/~tgr/libnl/"
-LICENSE=""
-SOURCE=()
-REQUIRES=("glibc")
-PROVIDES=("libnl")
-CONFLICTS=()
-OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
+ARCH="x86_64"
+SUMMARY="Netlink Protocol Library Suite for Linux"
+URL="https://github.com/thom311/libnl"
+SOURCE=("https://github.com/thom311/libnl/releases/download/libnl${VERSION//./_}/libnl-${VERSION}.tar.gz")
+LICENSE=("LGPL-2.1-or-later")
+
+REQUIRES=(glibc)
+PROVIDES=(libnl libnl3 libnl-genl libnl-route libnl-cli)
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-$VERSION"
+    autoreconf -vfi || true
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-$VERSION"
+
+    ./configure \
+        --prefix=/usr \
+        --sysconfdir=/etc \
+        --libdir=/usr/lib \
+        --disable-static \
+        --enable-cli \
+        --enable-shared
+
+    make -j"$(nproc)"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-$VERSION"
+
+    make DESTDIR="$pkgdir" install
+
+    # Remove static libraries
+    rm -f "$pkgdir"/usr/lib/*.a
+
+    # Install license
+    install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/LICENSE"
+
+    # =============== Split runtime libs ===============
+    splitdir="$BUILDROOT/libnl-libs"
+    rm -rf "$splitdir"
+    mkdir -p "$splitdir/usr/lib"
+
+    mv "$pkgdir"/usr/lib/libnl-3.so* \
+       "$pkgdir"/usr/lib/libnl-cli-3.so* \
+       "$pkgdir"/usr/lib/libnl-genl-3.so* \
+       "$pkgdir"/usr/lib/libnl-route-3.so* \
+       "$splitdir/usr/lib/" || true
+
+    "$LPM_SPLIT_PACKAGE" \
+        --stagedir "$splitdir" \
+        --name libnl-libs \
+        --summary "Runtime libraries for libnl" \
+        --provides libnl-libs \
+        --provides libnl-3.so \
+        --provides libnl-cli-3.so \
+        --provides libnl-genl-3.so \
+        --provides libnl-route-3.so \
+        --requires glibc
+
+    # =============== Split development files ===============
+    splitdir="$BUILDROOT/libnl-devel"
+    rm -rf "$splitdir"
+    mkdir -p "$splitdir/usr"
+
+    [ -d "$pkgdir/usr/include" ] && mv "$pkgdir/usr/include" "$splitdir/usr/"
+    [ -d "$pkgdir/usr/lib/pkgconfig" ] && mv "$pkgdir/usr/lib/pkgconfig" "$splitdir/usr/lib/"
+
+    "$LPM_SPLIT_PACKAGE" \
+        --stagedir "$splitdir" \
+        --name libnl-devel \
+        --summary "Development headers and pkgconfig for libnl" \
+        --provides libnl-devel \
+        --requires libnl-libs
 }
+

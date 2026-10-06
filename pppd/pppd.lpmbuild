@@ -1,0 +1,94 @@
+#!/bin/bash
+# LPM build script for ppp / pppd
+
+NAME="pppd"
+VERSION="2.5.2"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Point-to-Point Protocol daemon and utilities"
+URL="https://github.com/ppp-project/ppp"
+LICENSE=("BSD-3-Clause" "GPL-2.0-or-later")
+
+SOURCE=(
+  "https://github.com/ppp-project/ppp/archive/refs/tags/v2.5.2.tar.gz"
+)
+
+REQUIRES=(
+  "glibc"
+  "openssl"
+  "libxcrypt"
+  "pam"
+  "systemd"
+)
+
+BUILD_REQUIRES=(
+  "autoconf"
+  "automake"
+  "libtool"
+  "make"
+  "pkgconf"
+  "gcc"
+  "linux-headers"
+)
+
+PROVIDES=(
+  "ppp"
+  "pppd"
+  "chat"
+  "pppstats"
+  "pppdump"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  autoreconf -vfi
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  ./configure \
+    --prefix=/usr \
+    --sysconfdir=/etc \
+    --sbindir=/usr/bin \
+    --libdir=/usr/lib \
+    --libexecdir=/usr/lib/pppd \
+    --localstatedir=/var \
+    --runstatedir=/run \
+    --enable-openssl \
+    --enable-pam \
+    --enable-systemd \
+    --disable-static
+
+  make -j"$(nproc)"
+}
+
+check() {
+  true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  make install DESTDIR="$pkgdir"
+
+  # Ensure expected runtime config dirs exist.
+  install -dm755 "$pkgdir/etc/ppp"
+  install -dm755 "$pkgdir/etc/ppp/peers"
+
+  # License files.
+  for f in LICENSE* COPYING*; do
+    if [ -f "$f" ]; then
+      install -Dm644 "$f" "$pkgdir/usr/share/licenses/$NAME/$f"
+    fi
+  done
+}

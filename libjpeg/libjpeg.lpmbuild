@@ -1,0 +1,79 @@
+#!/bin/bash
+# LPM build script for libjpeg-turbo
+
+NAME="libjpeg"
+VERSION="3.0.3"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="SIMD-accelerated JPEG codec library"
+URL="https://libjpeg-turbo.org/"
+LICENSE=("BSD-3-Clause")
+
+SOURCE=(
+  "https://downloads.sourceforge.net/libjpeg-turbo/libjpeg-turbo-${VERSION}.tar.gz"
+)
+
+SHA256SUMS=("SKIP")
+
+REQUIRES=(
+  "glibc"
+)
+
+BUILD_REQUIRES=(
+  "cmake"
+  "ninja"
+  "nasm"
+)
+
+PROVIDES=(
+  "libjpeg"
+  "libjpeg.so"
+  "libturbojpeg.so"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="libjpeg-turbo-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  rm -rf build
+  mkdir -p build
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir/build"
+
+  cmake .. -G Ninja \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DCMAKE_INSTALL_LIBDIR=lib \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DENABLE_STATIC=FALSE
+
+  ninja
+}
+
+check() {
+  true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir/build"
+
+  DESTDIR="$pkgdir" ninja install
+
+  test -f "$pkgdir/usr/lib/libjpeg.so"
+  test -f "$pkgdir/usr/lib/libturbojpeg.so"
+
+  for f in LICENSE.md README.ijg; do
+    if [ -f "$SRCROOT/$_srcdir/$f" ]; then
+      install -Dm644 "$SRCROOT/$_srcdir/$f" \
+        "$pkgdir/usr/share/licenses/$NAME/$(basename "$f")"
+    fi
+  done
+}

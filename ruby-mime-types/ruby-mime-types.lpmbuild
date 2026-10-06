@@ -1,0 +1,27 @@
+NAME="ruby-mime-types"
+VERSION="3.7.0"
+RELEASE="1"
+ARCH="any"
+SUMMARY="MIME Content-Type database for Ruby"
+URL="https://github.com/mime-types/ruby-mime-types"
+LICENSE=("MIT")
+SOURCE=("https://github.com/mime-types/ruby-mime-types/archive/refs/tags/v${VERSION}.tar.gz")
+SHA256SUMS=("SKIP")
+PATCHES=()
+REQUIRES=("ruby" "ruby-mime-types-data")
+BUILD_REQUIRES=("ruby" "rubygems")
+PROVIDES=("ruby-mime-types")
+CONFLICTS=()
+OBSOLETES=()
+prepare() { set -euxo pipefail; cd "$SRCROOT/${NAME}-${VERSION}"; }
+build() { set -euxo pipefail; cd "$SRCROOT/${NAME}-${VERSION}"; gem build mime-types.gemspec; }
+check() { true; }
+staging() {
+ set -euxo pipefail; cd "$SRCROOT/${NAME}-${VERSION}"
+ gemfile="$(find . -maxdepth 1 -name 'mime-types-*.gem' ! -name 'mime-types-data-*' -print -quit)"; test -n "$gemfile"
+ gemdir="$(ruby -e 'puts Gem.default_dir')"
+ gem install --local --ignore-dependencies --no-document --install-dir "$pkgdir$gemdir" "$gemfile"
+ rm -rf "$pkgdir$gemdir/cache"
+ install -dm755 "$pkgdir/usr/share/licenses/${NAME}"
+ for f in LICENSE LICENSE.txt COPYING; do [ ! -f "$f" ] || install -Dm644 "$f" "$pkgdir/usr/share/licenses/${NAME}/$f"; done
+}

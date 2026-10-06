@@ -1,0 +1,77 @@
+#!/bin/bash
+# LPM build script for SPIR-V headers
+
+NAME="spirv-headers"
+VERSION="1.4.335.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="SPIR-V header files and registry"
+URL="https://www.khronos.org/spirv/"
+LICENSE="MIT"
+
+# Matched to Vulkan SDK 1.4.335.0 tag
+SOURCE=(
+  "https://github.com/KhronosGroup/SPIRV-Headers/archive/vulkan-sdk-${VERSION}/SPIRV-Headers-vulkan-sdk-${VERSION}.tar.gz"
+)
+
+REQUIRES=(
+  "glibc"
+  "cmake"
+)
+
+PROVIDES=(
+  "spirv-headers"
+)
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="$NAME-${VERSION}"
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+    mkdir -p build
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    : "${CC:=cc}"
+    : "${CXX:=c++}"
+
+    cmake -S . -B build \
+        -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_C_COMPILER="$CC" \
+        -DCMAKE_CXX_COMPILER="$CXX"
+
+    cmake --build build -j"$(nproc)"
+}
+
+check() {
+    # No formal test suite for headers
+    true
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    DESTDIR="$pkgdir" cmake --install build
+
+    # License
+    if [ -f LICENSE ]; then
+        install -Dm644 LICENSE \
+            "$pkgdir/usr/share/licenses/$NAME/LICENSE"
+    fi
+
+    # Minimal docs
+    if [ -f README.md ]; then
+        install -Dm644 README.md \
+            "$pkgdir/usr/share/doc/$NAME/README.md"
+    fi
+}
+
+

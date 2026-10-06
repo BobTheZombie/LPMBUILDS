@@ -1,0 +1,72 @@
+#!/bin/bash
+# LPM build script for cosmic-initial-setup
+
+NAME="cosmic-initial-setup"
+VERSION="1.0.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="COSMIC initial setup wizard"
+URL="https://github.com/pop-os/cosmic-initial-setup"
+LICENSE=("GPL-3.0-or-later")
+
+SOURCE=(
+  "git+https://github.com/pop-os/cosmic-initial-setup.git#tag=epoch-${VERSION}"
+)
+
+# Runtime deps (baseline; adjust per component as you refine)
+REQUIRES=(
+  "glibc"
+  "wayland"
+  "libxkbcommon"
+  "libinput"
+  "libseat"
+  "mesa"
+  "dbus"
+)
+
+# Build deps
+REQUIRES+=(
+  "rust"
+  "cargo"
+  "pkg-config"
+  "gcc"
+)
+
+PROVIDES=(
+  "cosmic-initial-setup"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="cosmic-initial-setup"
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+    cargo fetch --locked --target "$(rustc --print host-tuple)"
+
+    git lfs install --local
+    git remote add network-origin https://github.com/pop-os/cosmic-initial-setup
+    git lfs fetch network-origin
+    git lfs checkout
+
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    just build-release
+}
+
+check() {
+    true
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    just rootdir="$pkgdir" install
+}

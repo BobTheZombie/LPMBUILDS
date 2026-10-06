@@ -1,0 +1,43 @@
+#!/bin/bash
+# LFS 13.1-systemd baseline; see docs/lfs-13.1.md for patch provenance.
+NAME="tcl"
+VERSION="8.6.18"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Powerful, easy-to-learn dynamic programming language"
+URL="https://downloads.sourceforge.net/tcl/tcl8.6.18-src.tar.gz"
+LICENSE=("TCL")
+SOURCE=("https://downloads.sourceforge.net/tcl/tcl8.6.18-src.tar.gz")
+SHA256SUMS=("14f9af32b1767ff718477a8f974ad03c34341097e6b43f4ce54644ee974e268e")
+PATCHES=()
+REQUIRES=("glibc" "zlib")
+BUILD_REQUIRES=("gcc" "make" "pkgconf")
+PROVIDES=("tcl")
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="tcl8.6.18"
+
+prepare() {
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    :
+}
+
+build() {
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir/unix"
+    ./configure --prefix=/usr --mandir=/usr/share/man --disable-rpath
+    make -j"${JOBS:-$(nproc)}"
+}
+
+staging() {
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir/unix"
+    make DESTDIR="$pkgdir" install install-private-headers
+    ln -sf tclsh8.6 "$pkgdir/usr/bin/tclsh"
+    ln -sf libtcl8.6.so "$pkgdir/usr/lib/libtcl.so"
+    sed -i -e "s|$SRCROOT/$_srcdir/unix|/usr/lib|g" -e "s|$SRCROOT/$_srcdir|/usr/include|g" "$pkgdir/usr/lib/tclConfig.sh"
+    rm -f "$pkgdir/usr/share/info/dir"
+    find "$pkgdir/usr/lib" -name "*.la" -delete 2>/dev/null || true
+}

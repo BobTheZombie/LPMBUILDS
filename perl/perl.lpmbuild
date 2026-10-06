@@ -1,34 +1,45 @@
-# LPM build script for perl
+#!/bin/bash
+# LFS 13.1-systemd baseline; see docs/lfs-13.1.md for patch provenance.
 NAME="perl"
-VERSION="5.40.0"
+VERSION="5.44.0"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Practical Extraction and Reporting Language"
-URL="https://www.perl.org/"
-LICENSE=""
-SOURCE=()
-REQUIRES=("glibc" "gdbm")
+SUMMARY="A highly capable, feature-rich programming language"
+URL="https://www.cpan.org/src/5.0/perl-5.44.0.tar.xz"
+LICENSE=("GPL-1.0-or-later" "Artistic-1.0-Perl")
+SOURCE=("https://www.cpan.org/src/5.0/perl-5.44.0.tar.xz")
+SHA256SUMS=("505cf43912e9480495c344c70260452e32aa2a73c546a026b3f100053b23ce91")
+PATCHES=()
+REQUIRES=("glibc")
+BUILD_REQUIRES=("gcc" "make" "pkgconf")
 PROVIDES=("perl")
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
+
+_srcdir="perl-5.44.0"
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    :
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    sh Configure -des -Dprefix=/usr -Dvendorprefix=/usr \
+        -Dprivlib=/usr/lib/perl5/core_perl -Darchlib=/usr/lib/perl5/core_perl \
+        -Dsitelib=/usr/lib/perl5/site_perl -Dsitearch=/usr/lib/perl5/site_perl \
+        -Dvendorlib=/usr/lib/perl5/vendor_perl -Dvendorarch=/usr/lib/perl5/vendor_perl \
+        -Dman1dir=/usr/share/man/man1 -Dman3dir=/usr/share/man/man3 -Duseshrplib
+    make -j"${JOBS:-$(nproc)}"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    make DESTDIR="$pkgdir" install
+
+    rm -f "$pkgdir/usr/share/info/dir"
+    find "$pkgdir/usr/lib" -name "*.la" -delete 2>/dev/null || true
 }

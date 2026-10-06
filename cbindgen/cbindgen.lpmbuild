@@ -1,0 +1,132 @@
+NAME="cbindgen"
+VERSION="0.29.4"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+
+SUMMARY="Generate C and C++ bindings from Rust code"
+URL="https://github.com/mozilla/cbindgen"
+LICENSE=("MPL-2.0")
+
+SOURCE=(
+    "https://github.com/mozilla/cbindgen/archive/refs/tags/${VERSION}.tar.gz"
+)
+
+SHA256SUMS=("SKIP")
+PATCHES=()
+
+REQUIRES=(
+    "glibc"
+    "libgcc"
+)
+
+BUILD_REQUIRES=(
+    "rust"
+)
+
+PROVIDES=(
+    "cbindgen"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+
+    cd "$SRCDIR"
+
+    test -f Cargo.toml
+    test -f Cargo.lock
+}
+
+build() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+
+    cd "$SRCDIR"
+
+    #
+    # Build the locked upstream dependency set.
+    #
+
+    cargo build \
+        --release \
+        --locked
+}
+
+check() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+
+    cd "$SRCDIR"
+
+    test -x target/release/cbindgen
+
+    ./target/release/cbindgen \
+        --version
+}
+
+staging() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+
+    cd "$SRCDIR"
+
+    #
+    # cbindgen executable
+    #
+
+    install -Dm755 \
+        target/release/cbindgen \
+        "$pkgdir/usr/bin/cbindgen"
+
+    #
+    # Documentation
+    #
+
+    install -dm755 \
+        "$pkgdir/usr/share/doc/${NAME}"
+
+    for doc in \
+        README.md \
+        CHANGES \
+        docs.md
+    do
+        if [ -f "$doc" ]; then
+            install -Dm644 \
+                "$doc" \
+                "$pkgdir/usr/share/doc/${NAME}/$doc"
+        fi
+    done
+
+    #
+    # License
+    #
+
+    install -dm755 \
+        "$pkgdir/usr/share/licenses/${NAME}"
+
+    if [ -f LICENSE ]; then
+        install -Dm644 \
+            LICENSE \
+            "$pkgdir/usr/share/licenses/${NAME}/LICENSE"
+    fi
+
+    #
+    # Package sanity check
+    #
+
+    test -x "$pkgdir/usr/bin/cbindgen"
+
+    "$pkgdir/usr/bin/cbindgen" \
+        --version
+
+    echo "==> ${NAME} ${VERSION} staging complete"
+}

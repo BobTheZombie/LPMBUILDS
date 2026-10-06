@@ -1,0 +1,41 @@
+#!/bin/bash
+# LFS 13.1-systemd baseline; see docs/lfs-13.1.md for patch provenance.
+NAME="automake"
+VERSION="1.18.1"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="A GNU tool for automatically generating Makefile.in files"
+URL="https://ftpmirror.gnu.org/automake/automake-1.18.1.tar.xz"
+LICENSE=("GPL-2.0-or-later")
+SOURCE=("https://ftpmirror.gnu.org/automake/automake-1.18.1.tar.xz")
+SHA256SUMS=("168aa363278351b89af56684448f525a5bce5079d0b6842bd910fdd3f1646887")
+PATCHES=()
+REQUIRES=("perl" "autoconf")
+BUILD_REQUIRES=("gcc" "make" "pkgconf")
+PROVIDES=("automake")
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="automake-1.18.1"
+
+prepare() {
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    :
+}
+
+build() {
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    ./configure --prefix=/usr
+    make -j"${JOBS:-$(nproc)}"
+}
+
+staging() {
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    make DESTDIR="$pkgdir" install
+
+    rm -f "$pkgdir/usr/share/info/dir"
+    find "$pkgdir/usr/lib" -name "*.la" -delete 2>/dev/null || true
+}

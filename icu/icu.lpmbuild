@@ -1,0 +1,37 @@
+NAME="icu"
+VERSION="75.1"
+RELEASE="1"
+ARCH="x86_64"
+SUMMARY="International Components for Unicode library"
+URL="http://site.icu-project.org/"
+SOURCE=("https://github.com/unicode-org/icu/releases/download/release-${VERSION//./-}/icu4c-${VERSION//./_}-src.tgz")
+LICENSE=("ICU")
+
+REQUIRES=("glibc" "gcc-libs")
+PROVIDES=("icu" "libicu" "libicuuc.so" "libicui18n.so" "libicudata.so")
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-$VERSION/source"
+
+    ./configure \
+        --prefix=/usr \
+        --sysconfdir=/etc \
+        --libdir=/usr/lib \
+        --disable-static
+
+    make -j"$(nproc)"
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-$VERSION/source"
+
+    make DESTDIR="$pkgdir" install
+}
+

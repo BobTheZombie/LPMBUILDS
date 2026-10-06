@@ -1,0 +1,173 @@
+NAME="libx265"
+VERSION="4.1"
+RELEASE="2"
+ARCH="${ARCH:-x86_64}"
+
+SUMMARY="H.265/HEVC encoder library"
+URL="https://www.x265.org/"
+LICENSE=("GPL-2.0-or-later")
+
+SOURCE=(
+    "https://bitbucket.org/multicoreware/x265_git/downloads/x265_${VERSION}.tar.gz"
+)
+
+SHA256SUMS=("SKIP")
+PATCHES=()
+
+REQUIRES=(
+    "glibc"
+    "libgcc"
+    "libstdc++"
+)
+
+BUILD_REQUIRES=(
+    "cmake"
+    "ninja"
+    "pkgconf"
+    "nasm"
+)
+
+PROVIDES=(
+    "libx265"
+    "x265"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    BUILDDIR="$SRCROOT/${NAME}-${VERSION}-build"
+
+    cd "$SRCDIR"
+
+    #
+    # x265 4.1 predates CMake 4.x and explicitly requests OLD
+    # behavior for policies that CMake 4 has removed.
+    #
+    # CMP0025:
+    #   Compiler ID behavior.
+    #
+    # CMP0054:
+    #   Only interpret if() arguments as variables/keywords when
+    #   they are not quoted.
+    #
+    # CMake 4 requires NEW behavior for both.
+    #
+
+    sed -i \
+        -e 's/cmake_policy(SET CMP0025 OLD)/cmake_policy(SET CMP0025 NEW)/' \
+        -e 's/cmake_policy(SET CMP0054 OLD)/cmake_policy(SET CMP0054 NEW)/' \
+        "$SRCDIR/source/CMakeLists.txt"
+
+    #
+    # x265 also declares compatibility with ancient CMake.
+    # CMake 4 removed compatibility with CMake < 3.5.
+    #
+    # Raise the policy floor while leaving the rest of the x265
+    # build system intact.
+    #
+
+    sed -i -E \
+        's/cmake_minimum_required[[:space:]]*\([[:space:]]*VERSION[[:space:]]+[0-2](\.[0-9]+)*[[:space:]]*\)/cmake_minimum_required(VERSION 3.5)/' \
+        "$SRCDIR/source/CMakeLists.txt"
+
+    #
+    # Show the resulting policy declarations in the build log.
+    #
+
+    grep -n \
+        -E 'cmake_minimum_required|CMP0025|CMP0054' \
+        "$SRCDIR/source/CMakeLists.txt" || true
+
+    rm -rf "$BUILDDIR"
+}
+
+build() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    BUILDDIR="$SRCROOT/${NAME}-${VERSION}-build"
+
+    cd "$SRCDIR"
+
+    cmake \
+        -S "$SRCDIR/source" \
+        -B "$BUILDDIR" \
+        -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+        -DENABLE_SHARED=ON \
+        -DENABLE_CLI=ON \
+        -DENABLE_PIC=ON \
+        -DENABLE_ASSEMBLY=ON \
+        -DENABLE_TESTS=OFF
+
+    cmake \
+        --build "$BUILDDIR" \
+        -j"$(nproc)"
+}
+
+check() {
+    true
+}
+
+staging() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    BUILDDIR="$SRCROOT/${NAME}-${VERSION}-build"
+
+    cd "$SRCDIR"
+
+    DESTDIR="$pkgdir" \
+        cmake --install "$BUILDDIR"
+
+    #
+    # Shared library
+    #
+
+    test -n "$(
+        find "$pkgdir/usr/lib" \
+            -name 'libx265.so*' \
+            -print -quit
+    )"
+
+    #
+    # Development headers
+    #
+
+    test -f "$pkgdir/usr/include/x265.h"
+    test -f "$pkgdir/usr/include/x265_config.h"
+
+    #
+    # pkg-config metadata required by FFmpeg
+    #
+
+    test -f "$pkgdir/usr/lib/pkgconfig/x265.pc"
+
+    #
+    # CLI
+    #
+
+    test -x "$pkgdir/usr/bin/x265"
+
+    #
+    # Shared-library package only
+    #
+
+    rm -f "$pkgdir/usr/lib/libx265.a"
+
+    find "$pkgdir/usr/lib" \
+        -type f \
+        -name '*.la' \
+        -delete 2>/dev/null || true
+
+    echo "==> ${NAME} ${VERSION} staging complete"
+}

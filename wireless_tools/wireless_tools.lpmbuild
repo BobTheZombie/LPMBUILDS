@@ -1,33 +1,32 @@
-# LPM build script for wireless_tools
 NAME="wireless_tools"
 VERSION="30.pre9"
 RELEASE="1"
-ARCH="${ARCH:-x86_64}"
-SUMMARY="Tools for manipulating wireless extensions"
+ARCH="x86_64"
+SUMMARY="Legacy tools for wireless networking (iwconfig, iwlist)"
 URL="https://hewlettpackard.github.io/wireless-tools/"
-LICENSE=""
-SOURCE=()
+LICENSE=("GPL-2.0-or-later")
+
+SOURCE=("https://hewlettpackard.github.io/wireless-tools/$NAME.$VERSION.tar.gz")
+
 REQUIRES=("glibc")
-PROVIDES=("wireless_tools")
-CONFLICTS=()
-OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+  cd "$SRCROOT/wireless_tools-$VERSION"
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make -j"$(nproc)"
+  cd "$SRCROOT/wireless_tools-$VERSION"
+  make -j$(nproc) CC="gcc" CFLAGS="$CFLAGS"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make PREFIX=/usr DESTDIR="$pkgdir" install
+  cd "$SRCROOT/wireless_tools-$VERSION"
+  install -Dm755 iwconfig "$pkgdir/usr/bin/iwconfig"
+  install -Dm755 iwlist "$pkgdir/usr/bin/iwlist"
+  install -Dm755 ifrename "$pkgdir/usr/bin/ifrename"
+  install -Dm755 iwevent "$pkgdir/usr/bin/iwevent"
+  install -Dm644 COPYING "$pkgdir/usr/share/licenses/wireless-tools/LICENSE"
+  mkdir -p "$pkgdir/usr/share/man/man8"
+  install -m644 iwconfig.8 iwlist.8 iwevent.8 ifrename.8 "$pkgdir/usr/share/man/man8/"
 }
+

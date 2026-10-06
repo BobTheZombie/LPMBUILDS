@@ -1,0 +1,57 @@
+#!/bin/bash
+# LPM build script for xclock
+
+NAME="xclock"
+VERSION="1.1.1"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Analog / digital clock for X"
+URL="https://www.x.org/"
+LICENSE="MIT"
+
+SOURCE=(
+  "https://www.x.org/releases/individual/app/${NAME}-${VERSION}.tar.xz"
+)
+
+REQUIRES=(
+  "glibc"
+  "libX11"
+  "libXaw"
+  "libXft"
+  "libXrender"
+  "xbitmaps"
+)
+
+PROVIDES=(
+  "xclock"
+)
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+    set -euxo pipefail
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    ./configure \
+        --prefix=/usr
+
+    make -j"$(nproc)"
+}
+
+check() {
+    # no useful tests
+    true
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    DESTDIR="$pkgdir" make install
+}

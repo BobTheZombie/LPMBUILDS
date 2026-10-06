@@ -1,0 +1,163 @@
+NAME="sdl2"
+VERSION="2.32.10"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+
+SUMMARY="Simple DirectMedia Layer"
+URL="https://www.libsdl.org/"
+LICENSE=("Zlib")
+
+SOURCE=(
+    "https://github.com/libsdl-org/SDL/releases/download/release-${VERSION}/SDL2-${VERSION}.tar.gz"
+)
+
+SHA256SUMS=("SKIP")
+PATCHES=()
+
+REQUIRES=(
+    "glibc"
+    "libX11"
+    "libXext"
+    "libXrandr"
+    "libXcursor"
+    "libXi"
+    "libXfixes"
+    "libxss"
+    "libdrm"
+    "libglvnd"
+    "wayland"
+    "libxkbcommon"
+    "alsa-lib"
+    "libpulse"
+    "dbus"
+)
+
+BUILD_REQUIRES=(
+    "meson"
+    "ninja"
+    "pkgconf"
+    "wayland-protocols"
+    "xorgproto"
+)
+
+PROVIDES=(
+    "sdl2"
+    "SDL2"
+    "libSDL2"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    BUILDDIR="$SRCROOT/${NAME}-${VERSION}-build"
+
+    cd "$SRCDIR"
+
+    rm -rf "$BUILDDIR"
+}
+
+build() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    BUILDDIR="$SRCROOT/${NAME}-${VERSION}-build"
+
+    cmake \
+        -S "$SRCDIR" \
+        -B "$BUILDDIR" \
+        -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+        -DSDL_SHARED=ON \
+        -DSDL_STATIC=OFF \
+        -DSDL_TEST=OFF \
+        -DSDL_TESTS=OFF \
+        -DSDL_INSTALL_TESTS=OFF \
+        -DSDL_ALSA=ON \
+        -DSDL_PULSEAUDIO=ON \
+        -DSDL_DBUS=ON \
+        -DSDL_WAYLAND=ON \
+        -DSDL_X11=ON \
+        -DSDL_OPENGL=ON \
+        -DSDL_OPENGLES=ON
+
+    cmake \
+        --build "$BUILDDIR" \
+        -j"$(nproc)"
+}
+
+check() {
+    true
+}
+
+staging() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    BUILDDIR="$SRCROOT/${NAME}-${VERSION}-build"
+
+    DESTDIR="$pkgdir" \
+        cmake --install "$BUILDDIR"
+
+    #
+    # Shared SDL2 library
+    #
+
+    test -n "$(
+        find "$pkgdir/usr/lib" \
+            -name 'libSDL2*.so*' \
+            -print -quit
+    )"
+
+    #
+    # Headers
+    #
+
+    test -f "$pkgdir/usr/include/SDL2/SDL.h"
+    test -f "$pkgdir/usr/include/SDL2/SDL_version.h"
+    test -f "$pkgdir/usr/include/SDL2/SDL_video.h"
+    test -f "$pkgdir/usr/include/SDL2/SDL_audio.h"
+
+    #
+    # pkg-config metadata used by FFmpeg
+    #
+
+    test -f "$pkgdir/usr/lib/pkgconfig/sdl2.pc"
+
+    #
+    # SDL2 config helper
+    #
+
+    if [ -e "$pkgdir/usr/bin/sdl2-config" ]; then
+        test -x "$pkgdir/usr/bin/sdl2-config"
+    fi
+
+    #
+    # No static library in this package
+    #
+
+    find "$pkgdir/usr/lib" \
+        -type f \
+        \( -name 'libSDL2*.a' -o -name '*.la' \) \
+        -delete 2>/dev/null || true
+
+    #
+    # License
+    #
+
+    if [ -f "$SRCDIR/LICENSE.txt" ]; then
+        install -Dm644 \
+            "$SRCDIR/LICENSE.txt" \
+            "$pkgdir/usr/share/licenses/${NAME}/LICENSE.txt"
+    fi
+
+    echo "==> ${NAME} ${VERSION} staging complete"
+}

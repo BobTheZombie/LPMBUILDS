@@ -1,0 +1,36 @@
+NAME="nlohmann-json"
+VERSION="3.12.0"
+RELEASE="1"
+ARCH="x86_64"
+SUMMARY="JSON for Modern C++ — a header-only JSON library"
+URL="https://github.com/nlohmann/json"
+SOURCE=("https://github.com/nlohmann/json/archive/refs/tags/v${VERSION}.tar.gz")
+LICENSE=("MIT")
+
+REQUIRES=("ninja")
+PROVIDES=("nlohmann-json" "nlohmann_json")
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-${VERSION}"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-${VERSION}"
+    cmake -B build -S . \
+        -G Ninja \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DJSON_BuildTests=OFF \
+        -DJSON_BuildExamples=OFF
+    ninja -C build -j"$(nproc)"
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-${VERSION}"
+    DESTDIR="$pkgdir" ninja -C build install
+}
+

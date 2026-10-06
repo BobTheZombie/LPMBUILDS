@@ -1,0 +1,90 @@
+#!/bin/bash
+# LPM build script for libselinux
+# SELinux userspace library and core utilities
+
+NAME="libselinux"
+VERSION="3.6"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="SELinux userspace library and core utilities"
+URL="https://github.com/SELinuxProject/selinux"
+LICENSE=("GPL-2.0-only" "LGPL-2.1-or-later")
+
+SOURCE=(
+  "https://github.com/SELinuxProject/selinux/releases/download/${VERSION}/selinux-${VERSION}.tar.gz"
+)
+
+REQUIRES=(
+  "glibc"
+  "pcre2"
+  "libsepol"
+  "pkg-config"
+  "gcc"
+  "make"
+)
+
+PROVIDES=(
+  "libselinux"
+  "libselinux.so"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    # Build just libselinux + basic tools; avoid python bindings to keep deps small.
+    make -C libselinux -j"$(nproc)" \
+        PREFIX=/usr \
+        LIBDIR=/usr/lib \
+        SHLIBDIR=/usr/lib \
+        PYTHON= \
+        PYTHON3= \
+        SWIG= \
+        RANLIB=ranlib
+}
+
+check() {
+    true
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    make -C libselinux \
+        DESTDIR="$pkgdir" \
+        PREFIX=/usr \
+        LIBDIR=/usr/lib \
+        SHLIBDIR=/usr/lib \
+        PYTHON= \
+        PYTHON3= \
+        SWIG= \
+        install
+
+    # License
+    if [ -f COPYING ]; then
+        install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+    fi
+
+    # Strip libs/tools
+    if command -v strip >/dev/null 2>&1; then
+        find "$pkgdir/usr" -type f -exec sh -c '
+            case "$(file -b "$1")" in
+              *ELF*shared\ object*|*ELF*executable*)
+                  strip --strip-unneeded "$1" 2>/dev/null || true
+              ;;
+            esac
+        ' _ {} \;
+    fi
+}
+

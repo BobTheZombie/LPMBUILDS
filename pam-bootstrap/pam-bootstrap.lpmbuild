@@ -1,0 +1,34 @@
+NAME="pam-bootstrap"
+VERSION="1.6.1"
+RELEASE="1"
+ARCH="x86_64"
+SUMMARY="Pluggable Authentication Modules (bootstrap build)"
+URL="https://github.com/linux-pam/linux-pam"
+SOURCE=("https://github.com/linux-pam/linux-pam/releases/download/v${VERSION}/Linux-PAM-${VERSION}.tar.xz")
+LICENSE=("GPL-2.0-or-later" "LGPL-2.1-or-later")
+
+# 🚨 No deps here to break the cycle
+REQUIRES=()
+PROVIDES=("pam" "pam-bootstrap" "libpam.so")
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-$VERSION"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-$VERSION"
+    ./configure \
+        --prefix=/usr \
+        --sysconfdir=/etc \
+        --disable-doc
+    make -j"$(nproc)"
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-$VERSION"
+    make DESTDIR="$pkgdir" install
+}
+

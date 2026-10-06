@@ -1,0 +1,131 @@
+# LPM build script for libvdpau
+
+NAME="libvdpau"
+VERSION="1.5"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="NVIDIA VDPAU library"
+URL="https://www.freedesktop.org/wiki/Software/VDPAU/"
+LICENSE=("MIT")
+
+SOURCE=(
+    "https://gitlab.freedesktop.org/vdpau/libvdpau/-/archive/${VERSION}/libvdpau-${VERSION}.tar.gz"
+)
+
+SHA256SUMS=("SKIP")
+PATCHES=()
+
+REQUIRES=(
+    "glibc"
+    "libX11"
+    "libXext"
+)
+
+BUILD_REQUIRES=(
+    "cmake"
+    "ninja"
+    "pkgconf"
+    "xorgproto"
+)
+
+PROVIDES=(
+    "libvdpau"
+    "libvdpau.so"
+    "vdpau"
+    "vdpau.pc"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+    set -euxo pipefail
+
+    cd "$SRCROOT/libvdpau-${VERSION}"
+
+    rm -rf "$SRCROOT/libvdpau-build"
+}
+
+build() {
+    set -euxo pipefail
+
+    cd "$SRCROOT/libvdpau-${VERSION}"
+
+    meson setup \
+        "$SRCROOT/libvdpau-build" \
+        . \
+        --prefix=/usr \
+        --libdir=lib \
+        --buildtype=release \
+        --default-library=shared
+
+    meson compile \
+        -C "$SRCROOT/libvdpau-build" \
+        -j"$(nproc)"
+}
+
+check() {
+    set -euxo pipefail
+
+    meson test \
+        -C "$SRCROOT/libvdpau-build" \
+        --print-errorlogs || true
+}
+
+staging() {
+    set -euxo pipefail
+
+    cd "$SRCROOT/libvdpau-${VERSION}"
+
+    DESTDIR="$pkgdir" \
+        meson install -C "$SRCROOT/libvdpau-build"
+
+    #
+    # Shared VDPAU loader
+    #
+
+    test -n "$(
+        find "$pkgdir/usr/lib" \
+            -name 'libvdpau.so*' \
+            -print -quit
+    )"
+
+    #
+    # Public API
+    #
+
+    test -f "$pkgdir/usr/include/vdpau/vdpau.h"
+    test -f "$pkgdir/usr/include/vdpau/vdpau_x11.h"
+
+    #
+    # pkg-config metadata
+    #
+    # FFmpeg uses this for --enable-vdpau.
+    #
+
+    test -f "$pkgdir/usr/lib/pkgconfig/vdpau.pc"
+
+    #
+    # VDPAU trace library, if enabled by upstream
+    #
+
+    if find "$pkgdir/usr/lib" \
+        -name 'libvdpau_trace.so*' \
+        -print -quit | grep -q .; then
+
+        echo "==> VDPAU trace library installed"
+    fi
+
+    #
+    # License
+    #
+
+    if [ -f COPYING ]; then
+        install -Dm644 COPYING \
+            "$pkgdir/usr/share/licenses/libvdpau/COPYING"
+    fi
+
+    echo "==> libvdpau ${VERSION} staging complete"
+}

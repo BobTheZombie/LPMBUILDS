@@ -1,0 +1,101 @@
+#!/bin/bash
+# LPM build script for libclc (OpenCL C standard library for LLVM)
+
+NAME="libclc"
+VERSION="20.1.6"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Library requirements of the OpenCL C programming language"
+URL="https://libclc.llvm.org/"
+LICENSE="Apache-2.0 WITH LLVM-exception"
+
+# libclc comes as a separate tarball in the llvm-project release set
+SOURCE=(
+  "https://github.com/llvm/llvm-project/releases/download/llvmorg-${VERSION}/libclc-${VERSION}.src.tar.xz"
+)
+
+REQUIRES=(
+  "glibc"
+  "llvm"
+  "clang"
+  "python"
+  "cmake"
+  "make"
+  "spirv-llvm-translator"
+)
+
+PROVIDES=(
+  "libclc"
+)
+CONFLICTS=()
+OBSOLETES=()
+
+# Your log shows the extracted dir is: libclc-20.1.6
+_srcdir="libclc-${VERSION}"
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+    mkdir -p build
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    : "${CC:=clang}"
+    : "${CXX:=clang++}"
+
+    # Valid targets (from libclc's own error message):
+    #   amdgcn--;amdgcn--amdhsa;clspv--;clspv64--;r600--;
+    #   nvptx--;nvptx64--;nvptx--nvidiacl;nvptx64--nvidiacl;
+    #   amdgcn-mesa-mesa3d;spirv-mesa3d-;spirv64-mesa3d-
+    #
+    # What you want: amdgcn, r600, 64-bit SPIR-V-style Mesa target
+    LIBCLC_TARGETS="amdgcn--;r600--;spirv64-mesa3d-"
+
+    cmake -S . -B build \
+        -G "Unix Makefiles" \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_C_COMPILER="$CC" \
+        -DCMAKE_CXX_COMPILER="$CXX" \
+        -DLLVM_CONFIG=/usr/bin/llvm-config \
+        -DLIBCLC_TARGETS_TO_BUILD="${LIBCLC_TARGETS}"
+
+    # Use make (via CMake) instead of Ninja to dodge the multiple-output bug
+    cmake --build build -- -j"$(nproc)"
+}
+
+check() {
+    # No formal test harness for packagers; skip by default
+    true
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    DESTDIR="$pkgdir" cmake --install build
+
+    # License & docs
+    if [ -f LICENSE.TXT ]; then
+        install -Dm644 LICENSE.TXT "$pkgdir/usr/share/licenses/$NAME/LICENSE.TXT"
+    elif [ -f LICENSE ]; then
+        install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$NAME/LICENSE"
+    fi
+
+    if [ -f README.md ]; then
+        install -Dm644 README.md "$pkgdir/usr/share/doc/$NAME/README.md"
+    fi
+
+    # Strip any ELF artifacts (most of libclc is .bc, but be safe)
+    if command -v strip >/dev/null 2>&1; then
+        find "$pkgdir/usr" -type f -exec sh -c '
+            case "$(file -b "$1")" in
+              *ELF*executable*|*ELF*shared\ object*) strip --strip-unneeded "$1" 2>/dev/null || true ;;
+            esac
+        ' _ {} \;
+    fi
+}
+

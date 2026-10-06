@@ -1,0 +1,51 @@
+NAME="bash-completion"
+VERSION="2.11"
+RELEASE="1"
+ARCH="x86_64"
+SUMMARY="Programmable completion functions for bash"
+URL="https://github.com/scop/bash-completion"
+SOURCE=(
+  "https://github.com/scop/bash-completion/releases/download/${VERSION}/bash-completion-${VERSION}.tar.xz"
+)
+LICENSE=("GPL-2.0-or-later")
+
+REQUIRES=("bash")
+
+PROVIDES=("bash-completion")
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-$VERSION"
+    autoreconf -fiv || true
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-$VERSION"
+
+    ./configure \
+        --prefix=/usr \
+        --sysconfdir=/etc \
+        --datadir=/usr/share \
+        --disable-debug \
+        --without-libintl-prefix
+
+    make -j"$(nproc)"
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-$VERSION"
+
+    make DESTDIR="$pkgdir" install
+
+    # Default completion dir
+    install -d "$pkgdir/etc/bash_completion.d"
+    
+    # remove Slackware's makepkg completion
+    rm "${pkgdir}/usr/share/bash-completion/completions/makepkg"
+
+    # Remove any leftover static libs or cache
+    rm -f "$pkgdir/usr/lib"/*.a || true
+}
+

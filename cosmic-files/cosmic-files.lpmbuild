@@ -1,0 +1,84 @@
+#!/bin/bash
+# LPM build script for cosmic-files
+
+NAME="cosmic-files"
+VERSION="1.0.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="COSMIC file manager"
+URL="https://github.com/BobTheZombie/cosmic-files"
+LICENSE=("GPL-3.0-or-later")
+
+SOURCE=(
+  "git+https://github.com/pop-os/cosmic-files.git"
+)
+
+# Runtime deps (baseline; adjust per component as you refine)
+REQUIRES=(
+  "glibc"
+  "wayland"
+  "libxkbcommon"
+  "libinput"
+  "libseat"
+  "mesa"
+  "dbus"
+)
+
+# Build deps
+REQUIRES+=(
+  "rust"
+  "cargo"
+  "pkg-config"
+  "gcc"
+)
+
+PROVIDES=(
+  "cosmic-files"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="cosmic-files"
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    : "${CARGO_HOME:=$HOME/.cargo}"
+    export CARGO_HOME
+
+    cargo build --release --locked
+}
+
+check() {
+    true
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    # Install main binary; most COSMIC crates use repo name as binary name.
+    if [ -f "target/release/cosmic-files" ]; then
+        install -Dm755 "target/release/cosmic-files" "$pkgdir/usr/bin/cosmic-files"
+    fi
+
+    # Icons, schemas, portals, etc. should be wired in per-component later.
+
+    # Strip
+    if command -v strip >/dev/null 2>&1; then
+        find "$pkgdir/usr/bin" -type f -exec sh -c '
+            case "$(file -b "$1")" in
+              *ELF*executable*)
+                  strip --strip-unneeded "$1" 2>/dev/null || true
+              ;;
+            esac
+        ' _ {} \;
+    fi
+}

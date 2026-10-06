@@ -1,0 +1,36 @@
+NAME="wget"
+VERSION="1.25.0"
+RELEASE="1"
+ARCH="x86_64"
+SUMMARY="GNU Wget: network downloader"
+URL="https://www.gnu.org/software/wget/"
+SOURCE=("https://ftp.gnu.org/gnu/wget/wget-${VERSION}.tar.gz")
+LICENSE=("GPL-3.0-or-later")
+
+REQUIRES=("glibc" "openssl" "zlib" "libidn2" "pcre2")
+PROVIDES=("wget")
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/wget-${VERSION}"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/wget-${VERSION}"
+    ./configure \
+        --prefix=/usr \
+        --sysconfdir=/etc \
+        --libdir=/usr/lib \
+        --with-ssl=openssl
+    make -j"$(nproc)"
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/wget-${VERSION}"
+    make DESTDIR="$pkgdir" install
+}
+

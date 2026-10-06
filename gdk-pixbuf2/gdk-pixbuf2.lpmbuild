@@ -1,0 +1,87 @@
+#!/bin/bash
+# LPM build script for gdk-pixbuf2
+# Image loading library for GTK and GNOME
+
+NAME="gdk-pixbuf2"
+VERSION="2.44.4"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Image loading library for GTK and GNOME"
+URL="https://gitlab.gnome.org/GNOME/gdk-pixbuf"
+LICENSE=("LGPL-2.1-or-later")
+
+SOURCE=(
+  "https://download.gnome.org/sources/gdk-pixbuf/2.44/gdk-pixbuf-${VERSION}.tar.xz"
+)
+
+REQUIRES=(
+  "glibc"
+  "glib2"
+  "libjpeg-turbo"
+  "libpng"
+  "libtiff"
+  "shared-mime-info"
+  "meson"
+  "ninja"
+  "pkg-config"
+  "gcc"
+)
+
+PROVIDES=(
+  "gdk-pixbuf2"
+  "gdk-pixbuf"
+  "libgdk_pixbuf-2.0.so"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+# Note: upstream dir name is gdk-pixbuf-${VERSION}
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    meson setup build \
+        --prefix=/usr \
+        --libdir=lib \
+        --buildtype=release \
+        -Ddocumentation=false \
+        -Dman=false \
+        -Dtests=false \
+        -Dinstalled_tests=false \
+        -Dgio_sniffing=true \
+        -Dbuiltin_loaders=default \
+        -Dglycin=disabled
+
+    meson compile -C build
+}
+
+check() {
+    true
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    DESTDIR="$pkgdir" meson install -C build
+
+    # Strip ELF binaries/libs
+    if command -v strip >/dev/null 2>&1; then
+        find "$pkgdir/usr" -type f -exec sh -c '
+            case "$(file -b "$1")" in
+              *ELF*executable*|*ELF*shared\ object*)
+                  strip --strip-unneeded "$1" 2>/dev/null || true
+              ;;
+            esac
+        ' _ {} \;
+    fi
+}
+

@@ -1,0 +1,68 @@
+NAME="shadow-bootstrap"
+VERSION="4.16.0"
+RELEASE="1"
+ARCH="x86_64"
+SUMMARY="Password and account management tools (bootstrap version, minimal PAM)"
+URL="https://github.com/shadow-maint/shadow"
+SOURCE=(
+  "https://github.com/shadow-maint/shadow/releases/download/${VERSION}/shadow-${VERSION}.tar.xz"
+  "0002-Adapt-login.defs-for-PAM-and-util-linux.patch"
+  "0003-Add-Arch-Linux-defaults-for-login.defs.patch"
+  "shadow.sysusers"
+  "shadow.tmpfiles"
+  "useradd.defaults"
+)
+LICENSE="BSD-3-Clause"
+
+# Bootstrap deps — use pam-bootstrap instead of real pam
+REQUIRES=("glibc" "pam-bootstrap" "libxcrypt")
+PROVIDES=("shadow" "shadow-bootstrap")
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-$VERSION"
+
+    # Apply bootstrap-safe patches
+    for patch in ../*.patch; do
+        [ -f "$patch" ] && patch -Np1 -i "$patch"
+    done
+
+    autoreconf -fiv || true
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-$VERSION"
+
+    ./configure --prefix=/usr \
+        --sysconfdir=/etc \
+        --bindir=/usr/bin \
+        --sbindir=/usr/sbin \
+        --libdir=/usr/lib \
+        --mandir=/usr/share/man \
+        --disable-static \
+        --disable-account-tools-setuid \
+        --with-yescrypt \
+        --without-bcrypt \
+        --without-selinux \
+        --without-nscd \
+        --without-su \
+        --with-group-name-max-length=32 \
+        --with-libpam # links to pam-bootstrap
+
+    make -j"$(nproc)"
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-$VERSION"
+    make DESTDIR="$pkgdir" install
+
+    # Default useradd config
+    install -vDm600 ../useradd.defaults "$pkgdir/etc/default/useradd"
+
+    # sysusers + tmpfiles config (minimal system integration)
+    install -vDm644 ../shadow.sysusers "$pkgdir/usr/lib/sysusers.d/shadow.conf"
+    install -vDm644 ../shadow.tmpfiles "$pkgdir/usr/lib/tmpfiles.d/shadow.conf"
+}
+

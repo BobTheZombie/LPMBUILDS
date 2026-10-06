@@ -1,0 +1,118 @@
+#!/bin/bash
+# LPM build script for pulseaudio
+# Sound server + client libraries
+
+NAME="pulseaudio"
+VERSION="17.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Sound server and client libraries"
+URL="https://www.freedesktop.org/wiki/Software/PulseAudio/"
+LICENSE=("LGPL-2.1-or-later")
+
+SOURCE=(
+  "https://www.freedesktop.org/software/pulseaudio/releases/pulseaudio-${VERSION}.tar.xz"
+)
+
+REQUIRES=(
+  "glibc"
+  "libcap"
+  "libtool"
+  "pkg-config"
+  "gettext"
+  "perl"
+  "python"
+  "dbus"
+  "systemd"
+  "alsa-lib"
+  "libsndfile"
+  "speexdsp"
+  "libsoxr"
+  "openssl"
+  "json-c"
+  "libatomic_ops"
+  "tdb"
+)
+
+PROVIDES=(
+  "pulseaudio"
+  "libpulse"
+  "libpulse.so"
+  "libpulse-simple"
+  "libpulse-simple.so"
+  "libpulse-mainloop-glib"
+  "libpulse-mainloop-glib.so"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="pulseaudio-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+  mkdir -p build
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  : "${CC:=cc}"
+  : "${CXX:=c++}"
+
+  meson setup build \
+    --prefix=/usr \
+    --libdir=lib \
+    --sysconfdir=/etc \
+    --localstatedir=/var \
+    --buildtype=release \
+    -Ddefault_library=shared \
+    -Ddaemon=true \
+    -Dclient=true \
+    -Ddoxygen=false \
+    -Dgtk=disabled \
+    -Dtests=false \
+    -Dman=true \
+    -Dsystemd=enabled \
+    -Ddbus=enabled \
+    -Dalsa=enabled \
+    -Dopenssl=enabled \
+    -Davahi=enabled \
+    -Dbluez5=disabled \
+    -Djack=disabled \
+    -Dgstreamer=disabled
+
+  meson compile -C build
+}
+
+check() { true; }
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  DESTDIR="$pkgdir" meson install -C build
+
+  # Ensure runtime dirs exist
+  install -vdm755 "$pkgdir/var/lib/pulse"
+  install -vdm755 "$pkgdir/etc/pulse"
+
+  # License
+  if [ -f LICENSE ]; then
+    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$NAME/LICENSE"
+  elif [ -f COPYING ]; then
+    install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+  fi
+
+  # Strip ELF binaries/libs
+  if command -v strip >/dev/null 2>&1; then
+    find "$pkgdir/usr" -type f -exec sh -c '
+      case "$(file -b "$1")" in
+        *ELF*executable*|*ELF*shared\ object*) strip --strip-unneeded "$1" 2>/dev/null || true ;;
+      esac
+    ' _ {} \;
+  fi
+}
+

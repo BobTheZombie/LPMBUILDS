@@ -1,0 +1,74 @@
+#!/bin/bash
+# LPM build script for xdg-desktop-portal
+
+NAME="xdg-desktop-portal"
+VERSION="1.20.3"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="D-Bus service for Flatpak and sandboxed apps (core XDG portal)"
+URL="https://github.com/flatpak/xdg-desktop-portal"
+LICENSE=("MIT")  # adjust to real license
+
+SOURCE=(
+  "https://github.com/flatpak/xdg-desktop-portal/archive/refs/tags/v${VERSION}.tar.gz"
+)
+
+REQUIRES=(
+  "glibc"
+  "dbus"
+)
+
+REQUIRES+=(
+  "meson"
+  "ninja"
+  "pkg-config"
+  "gcc"
+)
+
+PROVIDES=(
+  "xdg-desktop-portal"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="xdg-desktop-portal-${VERSION}"
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    meson setup build \
+        --prefix=/usr \
+        --libdir=lib \
+        --buildtype=release
+
+    meson compile -C build
+}
+
+check() {
+    true
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    DESTDIR="$pkgdir" meson install -C build
+
+    # Strip ELF files
+    if command -v strip >/dev/null 2>&1; then
+        find "$pkgdir/usr" -type f -exec sh -c '
+            case "$(file -b "$1")" in
+              *ELF*executable*|*ELF*shared\ object*)
+                  strip --strip-unneeded "$1" 2>/dev/null || true
+              ;;
+            esac
+        ' _ {} \;
+    fi
+}

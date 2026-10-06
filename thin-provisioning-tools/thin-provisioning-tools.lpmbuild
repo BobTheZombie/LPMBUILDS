@@ -1,0 +1,51 @@
+#!/bin/bash
+# lpmbuild for thin-provisioning-tools (dm-thin metadata utilities)
+
+NAME="thin-provisioning-tools"
+VERSION="1.2.2"
+RELEASE="1"
+ARCH="x86_64"
+SUMMARY="Tools for manipulating device-mapper thin metadata (thin_check, thin_dump, thin_repair, etc.)"
+URL="https://github.com/jthornber/thin-provisioning-tools"
+SOURCE=("https://github.com/jthornber/thin-provisioning-tools/archive/refs/tags/v${VERSION}.tar.gz")
+LICENSE=("GPL-3.0-only")
+
+REQUIRES=(
+  "glibc"
+  "libaio"
+  "systemd"
+)
+PROVIDES=("thin-provisioning-tools")
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/thin-provisioning-tools-${VERSION}"
+    # If upstream needs patching or feature toggles, do them here
+    # For example, disable devtools or io_uring if your toolchain lacks support
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/thin-provisioning-tools-${VERSION}"
+
+    # This project is primarily Rust-based (cargo) for tools
+    # But also includes Makefile wrapper for installation
+
+    # Build with cargo in release mode
+    cargo build --release
+
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/thin-provisioning-tools-${VERSION}"
+
+    make \
+    DESTDIR="${pkgdir}"/usr \
+    BINDIR="${pkgdir}"/usr/bin \
+    DATADIR="${pkgdir}"/usr/share \
+    install
+}
+

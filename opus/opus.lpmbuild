@@ -1,0 +1,137 @@
+NAME="opus"
+VERSION="1.5.2"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+
+SUMMARY="Open, royalty-free, highly versatile audio codec"
+URL="https://opus-codec.org/"
+LICENSE=("BSD-3-Clause")
+
+SOURCE=(
+    "https://downloads.xiph.org/releases/opus/opus-${VERSION}.tar.gz"
+)
+
+SHA256SUMS=("SKIP")
+PATCHES=()
+
+REQUIRES=(
+    "glibc"
+)
+
+BUILD_REQUIRES=(
+    "meson"
+    "ninja"
+    "pkgconf"
+)
+
+PROVIDES=(
+    "opus"
+    "libopus"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    BUILDDIR="$SRCROOT/${NAME}-${VERSION}-build"
+
+    cd "$SRCDIR"
+
+    rm -rf "$BUILDDIR"
+}
+
+build() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    BUILDDIR="$SRCROOT/${NAME}-${VERSION}-build"
+
+    cd "$SRCDIR"
+
+    meson setup \
+        "$BUILDDIR" \
+        "$SRCDIR" \
+        --prefix=/usr \
+        --libdir=lib \
+        --buildtype=release \
+        --default-library=shared \
+        -Dtests=disabled \
+        -Ddocs=disabled \
+        -Dextra-programs=disabled
+
+    meson compile \
+        -C "$BUILDDIR" \
+        -j"$(nproc)"
+}
+
+check() {
+    true
+}
+
+staging() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    BUILDDIR="$SRCROOT/${NAME}-${VERSION}-build"
+
+    cd "$SRCDIR"
+
+    DESTDIR="$pkgdir" \
+        meson install -C "$BUILDDIR"
+
+    #
+    # Shared Opus library
+    #
+
+    test -n "$(
+        find "$pkgdir/usr/lib" \
+            -name 'libopus.so*' \
+            -print -quit
+    )"
+
+    #
+    # Public headers
+    #
+
+    test -f "$pkgdir/usr/include/opus/opus.h"
+    test -f "$pkgdir/usr/include/opus/opus_defines.h"
+    test -f "$pkgdir/usr/include/opus/opus_multistream.h"
+    test -f "$pkgdir/usr/include/opus/opus_types.h"
+
+    #
+    # pkg-config metadata
+    #
+    # FFmpeg uses this to resolve --enable-libopus.
+    #
+
+    test -f "$pkgdir/usr/lib/pkgconfig/opus.pc"
+
+    #
+    # Ensure we're shipping the shared library rather than
+    # an unnecessary static duplicate.
+    #
+
+    rm -f "$pkgdir/usr/lib/libopus.a"
+
+    find "$pkgdir/usr/lib" \
+        -type f \
+        -name '*.la' \
+        -delete 2>/dev/null || true
+
+    #
+    # License
+    #
+
+    if [ -f "$SRCDIR/COPYING" ]; then
+        install -Dm644 \
+            "$SRCDIR/COPYING" \
+            "$pkgdir/usr/share/licenses/${NAME}/COPYING"
+    fi
+
+    echo "==> ${NAME} ${VERSION} staging complete"
+}

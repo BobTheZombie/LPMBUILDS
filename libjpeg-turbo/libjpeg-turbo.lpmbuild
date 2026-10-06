@@ -1,36 +1,92 @@
+#!/bin/bash
 # LPM build script for libjpeg-turbo
+# High-performance JPEG image codec with SIMD acceleration
+
 NAME="libjpeg-turbo"
-VERSION="3.0.2"
+VERSION="3.0.1"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="JPEG image codec with SIMD acceleration"
+SUMMARY="High-performance JPEG image codec with SIMD acceleration"
 URL="https://libjpeg-turbo.org/"
-LICENSE="BSD"
-SOURCE=("https://github.com/libjpeg-turbo/libjpeg-turbo/archive/refs/tags/${VERSION}.tar.gz")
-CHECKSUMS=("29f2197345aafe1dcaadc8b055e4cbec9f35aad2a318d61ea081f835af2eebe9")
-REQUIRES=("glibc")
-PROVIDES=("libjpeg-turbo" "libjpeg" "libturbojpeg")
+LICENSE=("BSD-3-Clause" "IJG")
+
+SOURCE=(
+  "https://github.com/libjpeg-turbo/libjpeg-turbo/archive/${VERSION}.tar.gz"
+)
+
+REQUIRES=(
+  "glibc"
+  "cmake"
+  "ninja"
+  "pkg-config"
+  "gcc"
+  "nasm"   # if your system names nasm package differently, fix this
+)
+
+PROVIDES=(
+  "libjpeg-turbo"
+  "libjpeg"
+  "libjpeg.so"
+)
+
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
 
-prepare() { set -euxo pipefail; cd "$SRCROOT"; }
+_srcdir="libjpeg-turbo-${VERSION}"
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+    mkdir -p build
+}
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  cmake -B build -S . \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_INSTALL_PREFIX=/usr \
-    -DENABLE_SHARED=ON \
-    -DENABLE_STATIC=OFF \
-    -DWITH_SIMD=OFF
-  cmake --build build -j"$(nproc)"
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir/build"
+
+    cmake .. \
+        -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DENABLE_SHARED=TRUE \
+        -DENABLE_STATIC=FALSE \
+        -DENABLE_JPEG8=TRUE \
+        -DWITH_JPEG8=1 \
+        -DWITH_SIMD=TRUE \
+        -DWITH_ARITH_DEC=TRUE \
+        -DWITH_ARITH_ENC=TRUE \
+        -DENABLE_TESTING=FALSE \
+        -DENABLE_DOCS=FALSE
+
+    ninja -j"$(nproc)"
+}
+
+check() {
+    true
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  DESTDIR="$pkgdir" cmake --install build
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir/build"
+
+    DESTDIR="$pkgdir" ninja install
+
+    # License
+    if [ -f ../LICENSE.md ]; then
+        install -Dm644 ../LICENSE.md "$pkgdir/usr/share/licenses/$NAME/LICENSE"
+    fi
+
+    # Strip binaries + libs
+    if command -v strip >/dev/null 2>&1; then
+        find "$pkgdir/usr" -type f -exec sh -c '
+            case "$(file -b "$1")" in
+              *ELF*executable*|*ELF*shared\ object*)
+                  strip --strip-unneeded "$1" 2>/dev/null || true
+              ;;
+            esac
+        ' _ {} \;
+    fi
 }
+

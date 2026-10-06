@@ -1,34 +1,41 @@
-# LPM build script for m4
+#!/bin/bash
+# LFS 13.1-systemd baseline; see docs/lfs-13.1.md for patch provenance.
 NAME="m4"
-VERSION="1.4.19"
+VERSION="1.4.21"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="Macro processor"
-URL="https://www.gnu.org/software/m4/"
-LICENSE=""
-SOURCE=()
+URL="https://ftpmirror.gnu.org/m4/m4-1.4.21.tar.xz"
+LICENSE="GPL-3.0-or-later"
+SOURCE=("https://ftpmirror.gnu.org/m4/m4-1.4.21.tar.xz")
+SHA256SUMS=("f25c6ab51548a73a75558742fb031e0625d6485fe5f9155949d6486a2408ab66")
+PATCHES=()
 REQUIRES=("glibc")
+BUILD_REQUIRES=("gcc" "make" "pkgconf")
 PROVIDES=("m4")
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
+
+_srcdir="m4-1.4.21"
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    :
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    ./configure --prefix=/usr
+    make -j"${JOBS:-$(nproc)}"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    make DESTDIR="$pkgdir" install
+
+    rm -f "$pkgdir/usr/share/info/dir"
+    find "$pkgdir/usr/lib" -name "*.la" -delete 2>/dev/null || true
 }

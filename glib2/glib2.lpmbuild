@@ -1,36 +1,101 @@
+#!/bin/bash
 # LPM build script for glib2
+
 NAME="glib2"
-VERSION="1.0.0"
-RELEASE="1"
+VERSION="2.84.4"
+RELEASE="2"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Placeholder package for glib2 dependency"
-URL="https://example.com/glib2"
-LICENSE=""
-SOURCE=()
-SHA256SUMS=()
-PATCHES=()
-REQUIRES=("glibc")
-PROVIDES=("glib2")
+SUMMARY="Low-level core library that forms the basis of GTK and GNOME"
+URL="https://gitlab.gnome.org/GNOME/glib"
+LICENSE=("LGPL-2.1-or-later")
+
+SOURCE=(
+  "https://download.gnome.org/sources/glib/${VERSION%.*}/glib-${VERSION}.tar.xz"
+)
+
+SHA256SUMS=("SKIP")
+
+REQUIRES=(
+  "glibc"
+  "libffi"
+  "zlib"
+  "pcre2"
+  "libmount"
+)
+
+BUILD_REQUIRES=(
+  "meson"
+  "ninja"
+  "pkgconf"
+  "gettext"
+  "python"
+  "python-docutils"
+  "python-packaging"
+  "gobject-introspection"
+  "libffi"
+  "zlib"
+  "pcre2"
+  "libmount"
+)
+
+PROVIDES=(
+  "glib"
+  "glib2"
+  "libglib-2.0.so"
+  "libgobject-2.0.so"
+  "libgio-2.0.so"
+  "glib-2.0.pc"
+)
+
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
+
+_srcdir="${NAME}-${VERSION}"
 
 prepare() {
   set -euxo pipefail
-  cd "$SRCROOT"
-  :
+  cd "$SRCROOT/$_srcdir"
+  rm -rf build
 }
 
 build() {
   set -euxo pipefail
-  cd "$SRCROOT"
-  :
+  cd "$SRCROOT/$_srcdir"
+
+  meson setup build \
+    --prefix=/usr \
+    --libdir=lib \
+    --buildtype=release \
+    -Ddefault_library=shared \
+    -Dlibmount=enabled \
+    -Dintrospection=enabled \
+    -Dman-pages=disabled \
+    -Dtests=false
+
+  ninja -C build
+}
+
+check() {
+  true
 }
 
 staging() {
   set -euxo pipefail
-  cd "$SRCROOT"
-  install -d "$pkgdir/usr/share/doc/glib2"
-  printf 'Placeholder package for glib2\n' >"$pkgdir/usr/share/doc/glib2/README"
+  cd "$SRCROOT/$_srcdir"
+
+  DESTDIR="$pkgdir" ninja -C build install
+
+  test -f "$pkgdir/usr/lib/libglib-2.0.so"
+  test -f "$pkgdir/usr/lib/libgobject-2.0.so"
+  test -f "$pkgdir/usr/lib/libgio-2.0.so"
+  test -f "$pkgdir/usr/lib/pkgconfig/glib-2.0.pc"
+
+  rm -f "$pkgdir"/usr/lib/*.a 2>/dev/null || true
+
+  for f in COPYING LICENSES/LGPL-2.1-or-later.txt; do
+    if [ -f "$f" ]; then
+      install -Dm644 "$f" \
+        "$pkgdir/usr/share/licenses/$NAME/$(basename "$f")"
+    fi
+  done
 }

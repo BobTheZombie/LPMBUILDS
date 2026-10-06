@@ -1,0 +1,47 @@
+NAME="cairo"
+VERSION="1.18.0"
+RELEASE="1"
+ARCH="x86_64"
+SUMMARY="2D graphics library with multiple output targets (includes cairo-gobject)"
+URL="https://cairographics.org/"
+SOURCE=("https://www.cairographics.org/releases/cairo-${VERSION}.tar.xz")
+LICENSE=("LGPL-2.1-or-later" "MPL-1.1")
+
+REQUIRES=("glibc" "pixman" "fontconfig" "freetype" "libpng" "zlib" "glib2" "gobject-introspection")
+PROVIDES=("cairo" "libcairo.so" "cairo-gobject" "libcairo-gobject.so")
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/cairo-${VERSION}"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/cairo-${VERSION}"
+
+    # Modern Meson build — more consistent than old autotools
+    meson setup build \
+        --prefix=/usr \
+        --libdir=lib \
+        -Dgtk_doc=false \
+        -Dtests=disabled \
+        -Dpng=enabled \
+        -Dfreetype=enabled \
+        -Dfontconfig=enabled \
+        -Dzlib=enabled \
+        -Dglib=enabled \
+        -Dxlib=enabled \
+        -Dxcb=enabled
+
+    ninja -C build -j"$(nproc)"
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/cairo-${VERSION}"
+    DESTDIR="$pkgdir" ninja -C build install
+    
+}
+

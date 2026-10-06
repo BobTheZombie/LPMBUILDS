@@ -1,0 +1,42 @@
+#!/bin/bash
+# LFS 13.1-systemd baseline; see docs/lfs-13.1.md for patch provenance.
+NAME="libpipeline"
+VERSION="1.5.8"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Libpipeline"
+URL="https://download.savannah.gnu.org/releases/libpipeline/libpipeline-1.5.8.tar.gz"
+LICENSE=("GPL-3.0-or-later")
+SOURCE=("https://download.savannah.gnu.org/releases/libpipeline/libpipeline-1.5.8.tar.gz")
+SHA256SUMS=("1b1203ca152ccd63983c3f2112f7fe6fa5afd453218ede5153d1b31e11bb8405")
+PATCHES=()
+REQUIRES=("glibc")
+BUILD_REQUIRES=("gcc" "make" "pkgconf")
+PROVIDES=("libpipeline")
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="libpipeline-1.5.8"
+
+prepare() {
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    :
+}
+
+build() {
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    ./configure --prefix=/usr 
+    make -j"${JOBS:-$(nproc)}"
+}
+
+staging() {
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    make DESTDIR="$pkgdir" install
+
+    rm -f "$pkgdir/usr/share/info/dir"
+    find "$pkgdir/usr/lib" -name "*.la" -delete 2>/dev/null || true
+}
+

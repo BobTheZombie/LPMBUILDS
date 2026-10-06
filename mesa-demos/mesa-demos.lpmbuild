@@ -1,0 +1,82 @@
+#!/bin/bash
+# LPM build script for mesa-demos (includes eglinfo)
+
+NAME="mesa-demos"
+VERSION="9.0.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Mesa demos and diagnostic tools"
+URL="https://mesa.freedesktop.org/"
+LICENSE=("MIT")
+
+SOURCE=(
+  "https://archive.mesa3d.org/demos/mesa-demos-${VERSION}.tar.xz"
+)
+
+REQUIRES=(
+  "glibc"
+  "mesa"
+  "libX11"
+  "wayland"
+)
+
+BUILD_REQUIRES=(
+  "meson"
+  "ninja"
+  "pkgconf"
+  "wayland-protocols"
+)
+
+PROVIDES=(
+  "mesa-demos"
+  "eglinfo"
+  "glxinfo"
+  "glxgears"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  rm -rf build
+
+  meson setup build \
+    --prefix=/usr \
+    --libdir=lib \
+    --buildtype=release \
+    -Degl=enabled \
+    -Dosmesa=auto
+
+  meson compile -C build
+}
+
+check() {
+  true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  DESTDIR="$pkgdir" meson install -C build
+
+  test -f "$pkgdir/usr/bin/eglinfo"
+  test -f "$pkgdir/usr/bin/glxinfo"
+
+  for f in LICENSE COPYING; do
+    if [ -f "$f" ]; then
+      install -Dm644 "$f" \
+        "$pkgdir/usr/share/licenses/$NAME/$f"
+    fi
+  done
+}

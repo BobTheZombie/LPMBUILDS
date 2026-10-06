@@ -1,31 +1,104 @@
+#!/bin/bash
 # LPM build script for xinit
+# X.Org X server initialisation program (startx/xinit)
+
 NAME="xinit"
-VERSION="1.4.2"
+VERSION="1.4.4"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="X.Org initialisation program"
+SUMMARY="X.Org X server initialisation program"
 URL="https://www.x.org/"
 LICENSE="MIT"
-SOURCE=("https://www.x.org/releases/individual/app/xinit-${VERSION}.tar.xz")
-CHECKSUMS=("b7d8dc8d22ef9f15985a10b606ee4f2aad6828befa437359934647e88d331f23")
-REQUIRES=("glibc" "xorg-server" "xorgproto" "libx11" "libxext" "libxrandr")
-PROVIDES=("xinit")
+
+SOURCE=(
+  "https://www.x.org/releases/individual/app/xinit-${VERSION}.tar.xz"
+)
+
+REQUIRES=(
+  "glibc"
+  "xorg-server"   # provides /usr/bin/Xorg
+  "xauth"         # for remote auth, usually from xorg-apps
+  "xterm"         # default client used in xinitrc
+  "twm"           # default WM used in xinitrc
+  "xorgproto"
+  "util-macros"
+  "pkg-config"
+  "make"
+  "autoconf"
+  "automake"
+  "libtool"
+)
+
+PROVIDES=(
+  "xinit"
+  "startx"
+)
+
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
 
-prepare() { set -euxo pipefail; cd "$SRCROOT"; }
+_srcdir="xinit-${VERSION}"
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT"
+}
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var
-  make -j"$(nproc)"
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    : "${CC:=cc}"
+
+    ./configure \
+        --prefix=/usr \
+        --sysconfdir=/etc \
+        --with-xinitdir=/etc/X11/xinit \
+        --with-xserver=/usr/bin/Xorg \
+        --mandir=/usr/share/man
+
+    make -j"$(nproc)"
+}
+
+check() {
+    # tests are minimal; safe to skip for packaging
+    true
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    DESTDIR="$pkgdir" make install
+
+    # Ensure config directory exists
+    mkdir -p "$pkgdir/etc/X11/xinit"
+
+    # If example xinitrc is provided, install as system xinitrc
+    if [ -f xinitrc ]; then
+        install -Dm755 xinitrc "$pkgdir/etc/X11/xinit/xinitrc"
+    elif [ -f xinitrc.cpp ]; then
+        # some tarballs ship xinitrc.cpp; fallback if needed
+        install -Dm755 xinitrc.cpp "$pkgdir/etc/X11/xinit/xinitrc"
+    fi
+
+    # License / docs
+    if [ -f COPYING ]; then
+        install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+    fi
+    if [ -f README ]; then
+        install -Dm644 README "$pkgdir/usr/share/doc/$NAME/README"
+    fi
+
+    # Strip ELF binaries
+    if command -v strip >/dev/null 2>&1; then
+        find "$pkgdir/usr" -type f -exec sh -c '
+            case "$(file -b "$1")" in
+              *ELF*executable*|*ELF*shared\ object*)
+                  strip --strip-unneeded "$1" 2>/dev/null || true
+              ;;
+            esac
+        ' _ {} \;
+    fi
 }
+

@@ -1,32 +1,84 @@
-# LPM build script for cosmic-session meta package
+#!/bin/bash
+# LPM build script for cosmic-session
+
 NAME="cosmic-session"
-VERSION="1.0"
+VERSION="1.0.0"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Meta package installing the full COSMIC desktop session"
-URL="https://github.com/pop-os"
-LICENSE=""
-SOURCE=()
-SHA256SUMS=()
-PATCHES=()
-BUILD_REQUIRES=("cosmic-comp" "cosmic-panel" "cosmic-settings" "cosmic-launcher" "cosmic-greeter")
-REQUIRES=(
-    "cosmic-comp"
-    "cosmic-panel"
-    "cosmic-settings"
-    "cosmic-launcher"
-    "cosmic-greeter"
-    "pipewire"
-    "wlroots"
+SUMMARY="COSMIC desktop session"
+URL="https://github.com/pop-os/cosmic-session"
+LICENSE=("GPL-3.0-or-later")
+
+SOURCE=(
+  "git+https://github.com/pop-os/cosmic-session.git"
 )
-PROVIDES=("cosmic-session")
+
+# Runtime deps (baseline; adjust per component as you refine)
+REQUIRES=(
+  "glibc"
+  "wayland"
+  "libxkbcommon"
+  "libinput"
+  "libseat"
+  "mesa"
+  "dbus"
+)
+
+# Build deps
+REQUIRES+=(
+  "rust"
+  "cargo"
+  "pkg-config"
+  "gcc"
+)
+
+PROVIDES=(
+  "cosmic-session"
+)
+
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
 
-prepare() { set -euxo pipefail; cd "$SRCROOT"; :; }
+_srcdir="cosmic-session"
 
-build() { set -euxo pipefail; cd "$SRCROOT"; :; }
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+}
 
-staging() { set -euxo pipefail; cd "$SRCROOT"; :; }
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    : "${CARGO_HOME:=$HOME/.cargo}"
+    export CARGO_HOME
+
+    cargo build --release --locked
+}
+
+check() {
+    true
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    # Install main binary; most COSMIC crates use repo name as binary name.
+    if [ -f "target/release/cosmic-session" ]; then
+        install -Dm755 "target/release/cosmic-session" "$pkgdir/usr/bin/cosmic-session"
+    fi
+
+    # Icons, schemas, portals, etc. should be wired in per-component later.
+
+    # Strip
+    if command -v strip >/dev/null 2>&1; then
+        find "$pkgdir/usr/bin" -type f -exec sh -c '
+            case "$(file -b "$1")" in
+              *ELF*executable*)
+                  strip --strip-unneeded "$1" 2>/dev/null || true
+              ;;
+            esac
+        ' _ {} \;
+    fi
+}

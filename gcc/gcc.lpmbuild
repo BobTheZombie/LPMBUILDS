@@ -1,49 +1,51 @@
-# LPM build script for gcc
+#!/bin/bash
+# LFS 13.1-systemd baseline; see docs/lfs-13.1.md for patch provenance.
 NAME="gcc"
-VERSION="14.2.0"
+VERSION="16.2.0"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="GNU Compiler Collection"
-URL="https://gcc.gnu.org/"
-LICENSE=""
-SOURCE=()
-REQUIRES=("glibc" "linux-headers" "binutils" "zlib" "gmp" "mpfr" "mpc" "isl" "make")
-PROVIDES=("gcc")
+URL="https://ftpmirror.gnu.org/gcc/gcc-16.2.0/gcc-16.2.0.tar.xz"
+LICENSE=("GPL-3.0-or-later WITH GCC-exception-3.1")
+SOURCE=("https://ftpmirror.gnu.org/gcc/gcc-16.2.0/gcc-16.2.0.tar.xz")
+SHA256SUMS=("e6738e29597f733270731aa90600f37ffdc045079dfc27ec7e8192cc81085c3e")
+PATCHES=()
+REQUIRES=("glibc" "gcc-libs" "binutils" "gmp" "mpfr" "mpc" "isl" "zlib" "zstd")
+BUILD_REQUIRES=("gcc" "make" "pkgconf" "binutils" "linux-headers" "gawk" "bison" "python" "texinfo" "gmp" "mpfr" "mpc" "isl" "zlib" "zstd")
+PROVIDES=("gcc" "cc" "c++" "fortran")
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
+
+_srcdir="gcc-16.2.0"
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  mkdir -p build
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    # LFS and Arch agree on /usr/lib for native x86_64 libraries.
+    case "$ARCH" in x86_64) sed -i '/m64=/s/lib64/lib/' gcc/config/i386/t-linux64 ;; esac
+    mkdir -p build
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  cd build
-  ../configure --prefix=/usr \
-  --libdir=/usr/lib \
-  --libexecdir=/usr/lib \
-  --with-system-zlib \
-  --enable-languages=c,c++,fortran \
-  --enable-shared \
-  --enable-threads=posix \
-  --enable-checking=release \
-  --enable-__cxa_atexit \
-  --disable-multilib \
-  --disable-werror \
-  --with-pkgversion="Arch Linux" \
-  --with-bugurl=https://bugs.archlinux.org/
-  make -j"$(nproc)"
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir/build"
+    ../configure --prefix=/usr --libdir=/usr/lib --libexecdir=/usr/lib --enable-languages=c,c++,fortran --enable-default-pie --enable-default-ssp --enable-host-pie --disable-multilib --disable-bootstrap --disable-fixincludes --with-system-zlib --with-pkgversion=LPM
+    make -j"${JOBS:-$(nproc)}"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  cd build
-  make DESTDIR="$pkgdir" install
-  ln -sf gcc "$pkgdir/usr/bin/cc"
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir/build"
+    make DESTDIR="$pkgdir" install
+    # Runtime libraries belong to gcc-libs; compiler-private plugins stay here.
+    rm -f "$pkgdir"/usr/lib/lib{gcc_s,stdc++,gomp,atomic,gfortran,quadmath,asan,ubsan,lsan,tsan,itm,hwasan}.so*
+    ln -sf gcc "$pkgdir/usr/bin/cc"
+    ln -sf ../bin/cpp "$pkgdir/usr/lib/cpp"
+    install -dm755 "$pkgdir/usr/lib/bfd-plugins"
+    _plugin=$(find "$pkgdir/usr/lib/gcc" -name liblto_plugin.so -print -quit)
+    test -n "$_plugin"
+    ln -sf "../${_plugin#"$pkgdir/usr/lib/"}" "$pkgdir/usr/lib/bfd-plugins/liblto_plugin.so"
+
+    rm -f "$pkgdir/usr/share/info/dir"
+    find "$pkgdir/usr/lib" -name "*.la" -delete 2>/dev/null || true
 }

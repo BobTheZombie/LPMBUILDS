@@ -1,0 +1,98 @@
+#!/bin/bash
+# LPM build script for gobject-introspection
+
+NAME="gobject-introspection"
+VERSION="1.86.0"
+RELEASE="2"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Generate introspection data for GObject libraries"
+URL="https://gi.readthedocs.io/"
+LICENSE=("LGPL-2.1-or-later")
+
+SOURCE=(
+  "https://download.gnome.org/sources/gobject-introspection/${VERSION%.*}/gobject-introspection-${VERSION}.tar.xz"
+)
+
+SHA256SUMS=("SKIP")
+
+REQUIRES=(
+  "glib2"
+  "libffi"
+  "python"
+  "cairo"
+)
+
+BUILD_REQUIRES=(
+  "meson"
+  "ninja"
+  "pkgconf"
+  "flex"
+  "bison"
+  "glib2"
+  "libffi"
+  "python"
+  "cairo"
+)
+
+REQUIRES_PYTHON_DEPENDENCIES=(
+  "python-mako"
+  "python-markdown"
+)
+
+PROVIDES=(
+  "gobject-introspection"
+  "g-ir-scanner"
+  "g-ir-compiler"
+  "libgirepository-1.0.so"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+  rm -rf build
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  meson setup build \
+    --prefix=/usr \
+    --libdir=lib \
+    --sysconfdir=/etc \
+    --buildtype=release \
+    -Ddefault_library=shared \
+    -Dgtk_doc=false \
+    -Dtests=false \
+    -Dcairo=enabled
+
+  ninja -C build
+}
+
+check() {
+  true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  DESTDIR="$pkgdir" ninja -C build install
+
+  test -x "$pkgdir/usr/bin/g-ir-scanner"
+  test -x "$pkgdir/usr/bin/g-ir-compiler"
+  test -f "$pkgdir/usr/lib/libgirepository-1.0.so"
+  test -f "$pkgdir/usr/lib/pkgconfig/gobject-introspection-1.0.pc"
+
+  for f in COPYING LICENSES/LGPL-2.1-or-later.txt; do
+    if [ -f "$f" ]; then
+      install -Dm644 "$f" \
+        "$pkgdir/usr/share/licenses/$NAME/$(basename "$f")"
+    fi
+  done
+}

@@ -1,0 +1,69 @@
+#!/bin/bash
+
+NAME="webkit2gtk-4.1"
+VERSION="2.46.6"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="WebKit GTK port"
+URL="https://webkitgtk.org/"
+LICENSE=("LGPL-2.1-or-later")
+
+SOURCE=(
+  "https://webkitgtk.org/releases/webkitgtk-${VERSION}.tar.xz"
+)
+
+SHA256SUMS=("SKIP")
+
+REQUIRES=(
+  "glib2"
+  "gtk3"
+  "libsoup"
+  "sqlite"
+  "icu"
+  "enchant"
+)
+
+BUILD_REQUIRES=(
+  "cmake"
+  "ninja"
+  "pkgconf"
+  "python"
+  "ruby"
+  "perl"
+  "bison"
+  "flex"
+)
+
+PROVIDES=("webkit2gtk-4.1" "libwebkit2gtk-4.1.so")
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+  rm -rf build
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  cmake -S . -B build -G Ninja \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DCMAKE_INSTALL_LIBDIR=lib \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DPORT=GTK \
+    -DUSE_SOUP2=OFF \
+    -DENABLE_DOCUMENTATION=OFF
+
+  cmake --build build
+}
+
+check() { true; }
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  DESTDIR="$pkgdir" cmake --install build
+}

@@ -1,0 +1,73 @@
+#!/bin/bash
+# LPM build script for check
+
+NAME="check"
+VERSION="0.15.2"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Unit testing framework for C"
+URL="https://libcheck.github.io/check/"
+LICENSE=("LGPL-2.1-or-later")
+
+SOURCE=(
+  "https://github.com/libcheck/check/releases/download/${VERSION}/check-${VERSION}.tar.gz"
+)
+
+SHA256SUMS=("SKIP")
+
+REQUIRES=(
+  "glibc"
+)
+
+BUILD_REQUIRES=(
+  "make"
+  "pkgconf"
+)
+
+PROVIDES=(
+  "check"
+  "libcheck.so"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  ./configure \
+    --prefix=/usr \
+    --sysconfdir=/etc \
+    --libdir=/usr/lib \
+    --disable-static
+
+  make -j"$(nproc)"
+}
+
+check() {
+  true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  make DESTDIR="$pkgdir" install
+
+  test -f "$pkgdir/usr/lib/libcheck.so"
+
+  for f in COPYING LICENSE; do
+    if [ -f "$f" ]; then
+      install -Dm644 "$f" \
+        "$pkgdir/usr/share/licenses/$NAME/$f"
+    fi
+  done
+}

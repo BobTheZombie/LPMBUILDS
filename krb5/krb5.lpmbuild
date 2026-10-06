@@ -1,0 +1,45 @@
+NAME="krb5"
+VERSION="1.21.3"
+RELEASE="1"
+ARCH="x86_64"
+SUMMARY="MIT Kerberos - Network authentication protocol"
+URL="https://web.mit.edu/kerberos/"
+SOURCE=("https://web.mit.edu/kerberos/dist/krb5/${VERSION%.*}/krb5-${VERSION}.tar.gz")
+LICENSE=("MIT")
+
+REQUIRES=("glibc" "openssl" "libedit" "e2fsprogs")
+PROVIDES=("krb5" "libkrb5.so" "libgssapi_krb5.so")
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() {
+    set -euxo pipefail
+    tar -xf "$SRCROOT/krb5-${VERSION}.tar.gz" -C "$SRCROOT"
+    cd "$SRCROOT/krb5-${VERSION}/src"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/krb5-${VERSION}/src"
+    ./configure \
+        --prefix=/usr \
+        --libdir=/usr/lib \
+        --sysconfdir=/etc \
+        --sbindir=/usr/bin \
+        --enable-shared \
+        --disable-static
+    make -j"$(nproc)"
+}
+
+check() {
+    set -euxo pipefail
+    cd "$SRCROOT/krb5-${VERSION}/src"
+    make check || true
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/krb5-${VERSION}/src"
+    make DESTDIR="$pkgdir" install
+}
+

@@ -1,50 +1,109 @@
+#!/bin/bash
 # LPM build script for cosmic-greeter
+
 NAME="cosmic-greeter"
-VERSION="epoch-1.0.0"
+VERSION="1.0.1"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Login and lock screen greeter for COSMIC"
+SUMMARY="COSMIC greeter for greetd"
 URL="https://github.com/pop-os/cosmic-greeter"
-LICENSE=""
-SOURCE=("https://github.com/pop-os/cosmic-greeter/archive/refs/tags/${VERSION}.tar.gz")
-SHA256SUMS=("SKIP")
-PATCHES=()
-BUILD_REQUIRES=(
-    "rust"
-    "cargo"
-    "pkgconf"
-    "clang"
-    "gtk4"
-    "libadwaita"
-    "wayland-protocols"
-    "pam"
-    "systemd"
+LICENSE=("GPL-3.0-or-later")
+
+SOURCE=(
+  "git+https://github.com/pop-os/cosmic-greeter.git"
+  "cosmic-greeter-display-manager.patch"
+  "cosmic-greeter.sysusers"
+  "cosmic-greeter.tmpfiles"
 )
-REQUIRES=("gtk4" "libadwaita" "wayland-protocols" "pam" "systemd")
+
+REQUIRES=(
+  # Runtime
+  "glibc"
+  "wayland"
+  "libxkbcommon"
+  "libinput"
+  "libseat"
+  "mesa"
+  "dbus"
+  "systemd"
+  "greetd"
+
+  # Build
+  "rust"
+  "cargo"
+  "pkg-config"
+  "gcc"
+  "just"
+)
+
 PROVIDES=("cosmic-greeter")
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
+
+_srcdir="cosmic-greeter"
 
 prepare() {
     set -euxo pipefail
-    cd "$SRCROOT"
-    for patch in "${PATCHES[@]}"; do
-        patch -p1 <"$SRCROOT/$patch"
-    done
-    cargo fetch --locked
-    cargo vendor vendor
+    cd "$SRCROOT/$_srcdir"
+
+    if [ -f "$SRCROOT/cosmic-greeter-display-manager.patch" ]; then
+        patch -Np1 -i "$SRCROOT/cosmic-greeter-display-manager.patch"
+    fi
 }
 
 build() {
     set -euxo pipefail
-    cd "$SRCROOT"
-    CARGO_TARGET_DIR="$SRCROOT/target" cargo build --frozen --locked --release
+    cd "$SRCROOT/$_srcdir"
+
+    just build-release
+}
+
+check() {
+    true
 }
 
 staging() {
     set -euxo pipefail
-    cd "$SRCROOT"
-    install -Dm755 "$SRCROOT/target/release/cosmic-greeter" "$pkgdir/usr/bin/cosmic-greeter"
+    cd "$SRCROOT/$_srcdir"
+
+    # Install using upstream justfile
+    just rootdir="$pkgdir" install
+
+    # greetd config
+    install -vdm755 "$pkgdir/etc/greetd"
+    if [ -f "$SRCROOT/$_srcdir/cosmic-greeter.toml" ]; then
+        install -Dm644 "$SRCROOT/$_srcdir/cosmic-greeter.toml" \
+            "$pkgdir/etc/greetd/cosmic-greeter.toml"
+    fi
+
+    # systemd units (if present)
+    install -vdm755 "$pkgdir/usr/lib/systemd/system"
+
+    if [ -f "$SRCROOT/$_srcdir/debian/cosmic-greeter.service" ]; then
+        install -Dm644 "$SRCROOT/$_srcdir/debian/cosmic-greeter.service" \
+            "$pkgdir/usr/lib/systemd/system/cosmic-greeter.service"
+    fi
+
+    if [ -f "$SRCROOT/$_srcdir/debian/cosmic-greeter-daemon.service" ]; then
+        install -Dm644 "$SRCROOT/$_srcdir/debian/cosmic-greeter-daemon.service" \
+            "$pkgdir/usr/lib/systemd/system/cosmic-greeter-daemon.service"
+    fi
+
+    # sysusers.d: install our packaged sysusers file as cosmic-greeter.conf
+    # (systemd-sysusers will create the user + group memberships)
+    install -vdm755 "$pkgdir/usr/lib/sysusers.d"
+    install -Dm644 "$SRCROOT/cosmic-greeter.sysusers" \
+        "$pkgdir/usr/lib/sysusers.d/cosmic-greeter.conf"
+
+    # Optional: tmpfiles.d (recommended if you also ship cosmic-greeter.tmpfiles)
+     install -vdm755 "$pkgdir/usr/lib/tmpfiles.d"
+     install -Dm644 "$SRCROOT/cosmic-greeter.tmpfiles" \
+         "$pkgdir/usr/lib/tmpfiles.d/cosmic-greeter.conf"
+
+    # Strip binaries
+    if command -v strip >/dev/null 2>&1; then
+        [ -f "$pkgdir/usr/bin/cosmic-greeter" ] && strip --strip-unneeded "$pkgdir/usr/bin/cosmic-greeter" 2>/dev/null || true
+        [ -f "$pkgdir/usr/bin/cosmic-greeter-daemon" ] && strip --strip-unneeded "$pkgdir/usr/bin/cosmic-greeter-daemon" 2>/dev/null || true
+    fi
 }
+

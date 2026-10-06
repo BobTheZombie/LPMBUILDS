@@ -1,0 +1,34 @@
+# LPM build script for libxpm
+NAME="libXpm"
+VERSION="3.5.17"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="X11 pixmap library"
+URL="https://www.x.org/"
+LICENSE="MIT"
+SOURCE=("https://www.x.org/releases/individual/lib/${NAME}-${VERSION}.tar.xz")
+CHECKSUMS=("64b31f81019e7d388c822b0b28af8d51c4622b83f1f0cb6fa3fc95e271226e43")
+REQUIRES=("glibc" "libX11" "libXext" "libXt" "libSM" "xorgproto")
+PROVIDES=("libxpm")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() { 
+  set -euxo pipefail
+   cd "$SRCROOT" 
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/${NAME}-${VERSION}"
+  ./configure --prefix=/usr --sysconfdir=/etc --disable-static
+  make -j"$(nproc)"
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/${NAME}-${VERSION}"
+  make DESTDIR="$pkgdir" install
+}

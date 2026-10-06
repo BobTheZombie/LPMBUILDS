@@ -1,0 +1,41 @@
+#!/bin/bash
+# LFS 13.1-systemd baseline; see docs/lfs-13.1.md for patch provenance.
+NAME="pcre2"
+VERSION="10.47"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Perl Compatible Regular Expressions library (version 2)"
+URL="https://github.com/PCRE2Project/pcre2/releases/download/pcre2-10.47/pcre2-10.47.tar.bz2"
+LICENSE=("BSD")
+SOURCE=("https://github.com/PCRE2Project/pcre2/releases/download/pcre2-10.47/pcre2-10.47.tar.bz2")
+SHA256SUMS=("47fe8c99461250d42f89e6e8fdaeba9da057855d06eb7fc08d9ca03fd08d7bc7")
+PATCHES=()
+REQUIRES=("glibc" "zlib" "bzip2" "readline")
+BUILD_REQUIRES=("gcc" "make" "pkgconf")
+PROVIDES=("pcre2" "pcre2-libs")
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="pcre2-10.47"
+
+prepare() {
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    :
+}
+
+build() {
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    ./configure --prefix=/usr --enable-unicode --enable-jit --enable-pcre2-16 --enable-pcre2-32 --enable-pcre2grep-libz --enable-pcre2grep-libbz2 --enable-pcre2test-libreadline --disable-static
+    make -j"${JOBS:-$(nproc)}"
+}
+
+staging() {
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    make DESTDIR="$pkgdir" install
+
+    rm -f "$pkgdir/usr/share/info/dir"
+    find "$pkgdir/usr/lib" -name "*.la" -delete 2>/dev/null || true
+}

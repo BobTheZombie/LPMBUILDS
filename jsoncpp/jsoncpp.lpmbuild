@@ -1,0 +1,36 @@
+NAME="jsoncpp"
+VERSION="1.9.6"
+RELEASE="1"
+ARCH="x86_64"
+SUMMARY="C++ library for interacting with JSON"
+URL="https://github.com/open-source-parsers/jsoncpp"
+SOURCE=("https://github.com/open-source-parsers/jsoncpp/archive/${VERSION}/jsoncpp-${VERSION}.tar.gz")
+LICENSE=("MIT" "Public_Domain")
+
+REQUIRES=("glibc" "gcc-libs" "meson" "ninja")
+PROVIDES=("jsoncpp" "libjsoncpp.so")
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/jsoncpp-${VERSION}"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/jsoncpp-${VERSION}"
+    meson setup build \
+        --prefix=/usr \
+        --libdir=lib \
+        --default-library=shared \
+        -Dtests=false 
+    ninja -C build -j"$(nproc)"
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/jsoncpp-${VERSION}"
+    DESTDIR="$pkgdir" ninja -C build install
+}
+

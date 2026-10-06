@@ -1,36 +1,87 @@
-# LPM build script for libva
+#!/bin/bash
+# LPM build script for libva (VA-API core library)
+
 NAME="libva"
-VERSION="1.0.0"
+VERSION="2.22.0"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Placeholder package for libva dependency"
-URL="https://example.com/libva"
-LICENSE=""
-SOURCE=()
-SHA256SUMS=()
-PATCHES=()
-REQUIRES=("mesa")
-PROVIDES=("libva")
+SUMMARY="Video Acceleration (VA) API for Linux"
+URL="https://github.com/intel/libva"
+LICENSE="MIT"
+
+SOURCE=(
+  "https://github.com/intel/libva/releases/download/${VERSION}/libva-${VERSION}.tar.bz2"
+)
+
+# Adjust these to your actual package names as needed
+REQUIRES=(
+  "glibc"
+  "libdrm"
+  "libX11"
+  "libXext"
+  "libXfixes"
+)
+
+PROVIDES=(
+  "libva"
+  "libva.so"
+  "libva-x11.so"
+  "libva-drm.so"
+  "libva-wayland.so"
+)
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
+
+_srcdir="${NAME}-${VERSION}"
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+    mkdir -p build
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir/build"
+
+    # Use system compilers unless overridden
+    : "${CC:=cc}"
+    : "${CXX:=c++}"
+
+   meson setup \
+      --prefix=/usr \
+      --buildtype=release 
+   ninja
+}
+
+check() {
+    # libva has tests but they’re not essential for packaging; skip by default
+    true
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  install -d "$pkgdir/usr/share/doc/libva"
-  printf 'Placeholder package for libva\n' >"$pkgdir/usr/share/doc/libva/README"
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir/build"
+
+    DESTDIR="$pkgdir" ninja install
+
+    # License
+    if [ -f COPYING ]; then
+        install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+    fi
+
+    # Basic doc
+    if [ -f README.md ]; then
+        install -Dm644 README.md "$pkgdir/usr/share/doc/$NAME/README.md"
+    fi
+
+    # Strip ELF executables and shared objects
+    if command -v strip >/dev/null 2>&1; then
+        find "$pkgdir/usr" -type f -exec sh -c '
+            case "$(file -b "$1")" in
+              *ELF*executable*|*ELF*shared\ object*) strip --strip-unneeded "$1" 2>/dev/null || true ;;
+            esac
+        ' _ {} \;
+    fi
 }
+

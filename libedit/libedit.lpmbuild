@@ -1,0 +1,43 @@
+NAME="libedit"
+VERSION="20240808-3.1"
+RELEASE="1"
+ARCH="x86_64"
+SUMMARY="BSD line editing library similar to readline"
+URL="https://www.thrysoee.dk/editline/"
+SOURCE=("https://thrysoee.dk/editline/libedit-${VERSION}.tar.gz")
+LICENSE=("BSD-2-Clause")
+
+REQUIRES=("glibc" "ncurses")
+PROVIDES=("libedit" "libedit.so")
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/libedit-${VERSION}"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/libedit-${VERSION}"
+    ./configure \
+        --prefix=/usr \
+        --libdir=/usr/lib \
+        --disable-static \
+        --enable-widec \
+        LIBS="-lncursesw -ltinfow"
+    make -j"$(nproc)"
+}
+
+check() {
+    set -euxo pipefail
+    cd "$SRCROOT/libedit-${VERSION}"
+    make check || true
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/libedit-${VERSION}"
+    make DESTDIR="$pkgdir" install
+}
+

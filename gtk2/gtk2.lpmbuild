@@ -1,0 +1,203 @@
+#!/bin/bash
+
+NAME="gtk2"
+VERSION="2.24.33"
+RELEASE="5"
+ARCH="${ARCH:-x86_64}"
+
+SUMMARY="GObject-based multi-platform GUI toolkit (legacy)"
+URL="https://www.gtk.org/"
+LICENSE=("LGPL-2.1-or-later")
+
+SOURCE=(
+    "https://download.gnome.org/sources/gtk+/2.24/gtk+-${VERSION}.tar.xz"
+)
+
+SHA256SUMS=("SKIP")
+PATCHES=()
+
+REQUIRES=(
+    "atk"
+    "cairo"
+    "desktop-file-utils"
+    "fontconfig"
+    "gdk-pixbuf2"
+    "glib2"
+    "glibc"
+    "gtk-update-icon-cache"
+    "libcups"
+    "librsvg"
+    "libX11"
+    "libXcomposite"
+    "libXcursor"
+    "libXdamage"
+    "libXext"
+    "libXfixes"
+    "libXi"
+    "libXinerama"
+    "libXrandr"
+    "libXrender"
+    "pango"
+    "shared-mime-info"
+)
+
+BUILD_REQUIRES=(
+    "atk"
+    "autoconf"
+    "automake"
+    "cairo"
+    "fontconfig"
+    "gdk-pixbuf2"
+    "glib2"
+    "gobject-introspection"
+    "gtk-doc"
+    "libcups"
+    "librsvg"
+    "libtool"
+    "libX11"
+    "libXcomposite"
+    "libXcursor"
+    "libXdamage"
+    "libXext"
+    "libXfixes"
+    "libXi"
+    "libXinerama"
+    "libXrandr"
+    "libXrender"
+    "make"
+    "pango"
+    "pkgconf"
+)
+
+PROVIDES=(
+    "gtk2"
+    "libgailutil.so"
+    "libgdk-x11-2.0.so"
+    "libgtk-x11-2.0.so"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    cd "$SRCDIR"
+
+    test -f configure
+    test -f configure.ac
+
+    #
+    # Undo source modifications left by previous attempts if LPM reused the
+    # extracted source tree.
+    #
+
+    sed -i \
+        's/^create_menu (gint depth)$/create_menu (depth)/' \
+        tests/testmenubars.c
+
+    sed -i \
+        's/priv->adjustment = GTK_ADJUSTMENT (g_object_ref_sink (obj));/priv->adjustment = g_object_ref_sink (obj);/' \
+        gtk/gtkcellrendererspin.c
+
+    sed -i \
+        's/parser_data->object = G_OBJECT (g_object_ref (buildable));/parser_data->object = g_object_ref (buildable);/' \
+        gtk/gtkcomboboxtext.c
+
+    grep -Fq \
+        'create_menu (depth)' \
+        tests/testmenubars.c
+}
+
+build() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    cd "$SRCDIR"
+
+    #
+    # These are the compatibility flags used by Arch for GTK 2.24.33.
+    # Current GCC promotes these historical C constructs to errors.
+    #
+
+    export CFLAGS="${CFLAGS:-} \
+-Wno-error=implicit-int \
+-Wno-error=incompatible-pointer-types"
+
+    ./configure \
+        --prefix=/usr \
+        --sysconfdir=/etc \
+        --localstatedir=/var \
+        --libdir=/usr/lib \
+        --with-xinput=yes \
+        --disable-gtk-doc \
+        --disable-static \
+        --enable-shared
+
+    #
+    # Apply as-needed linking without modifying the distro-wide LDFLAGS.
+    #
+
+    sed -i \
+        's/ -shared / -Wl,-O1,--as-needed -shared /g' \
+        libtool
+
+    make -j"$(nproc)"
+}
+
+check() {
+    true
+}
+
+staging() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    cd "$SRCDIR"
+
+    make DESTDIR="$pkgdir" install
+
+    #
+    # Provide usable defaults for legacy GTK2 applications.
+    #
+
+    install -Dm644 /dev/stdin \
+        "$pkgdir/usr/share/gtk-2.0/gtkrc" <<'EOF'
+gtk-icon-theme-name = "Adwaita"
+gtk-theme-name = "Adwaita"
+gtk-font-name = "Adwaita Sans 11"
+EOF
+
+    #
+    # GTK2's copy conflicts with the modern shared implementation supplied
+    # by the gtk-update-icon-cache/GTK4 package.
+    #
+
+    rm -f "$pkgdir/usr/bin/gtk-update-icon-cache"
+
+    #
+    # Remove obsolete libtool metadata.
+    #
+
+    find "$pkgdir/usr/lib" \
+        -type f \
+        -name '*.la' \
+        -delete
+
+    #
+    # Validate the package payload.
+    #
+
+    test -f "$pkgdir/usr/lib/libgtk-x11-2.0.so.0.2400.33"
+    test -f "$pkgdir/usr/lib/libgdk-x11-2.0.so.0.2400.33"
+    test -f "$pkgdir/usr/lib/libgailutil.so.18.0.1"
+
+    test -L "$pkgdir/usr/lib/libgtk-x11-2.0.so.0"
+    test -L "$pkgdir/usr/lib/libgdk-x11-2.0.so.0"
+    test -L "$pkgdir/usr/lib/libgailutil.so"
+
+    test -f "$pkgdir/usr/lib/pkgconfig/gtk+-2.0.pc"
+    test -f "$pkgdir/usr/include/gtk-2.0/gtk/gtk.h"
+    test -f "$pkgdir/usr/share/gtk-2.0/gtkrc"
+}

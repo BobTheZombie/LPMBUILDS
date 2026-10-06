@@ -1,0 +1,48 @@
+#!/bin/bash
+# LPM build script for mkfontscale (and mkfontdir)
+
+NAME="mkfontscale"
+VERSION="1.2.3"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Scalable font index generator for X (also installs mkfontdir)"
+URL="https://www.x.org/"
+LICENSE="MIT"
+
+SOURCE=("https://www.x.org/releases/individual/app/${NAME}-${VERSION}.tar.xz")
+
+REQUIRES=(
+  "glibc"
+  "libX11"
+  "freetype"
+  "libfontenc"
+  "zlib"
+)
+
+PROVIDES=(
+  "mkfontscale"
+  "mkfontdir"
+)
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+  ./configure --prefix=/usr
+  make -j"$(nproc)"
+}
+
+check() { true; }
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+  DESTDIR="$pkgdir" make install
+}

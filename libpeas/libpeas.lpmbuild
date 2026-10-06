@@ -1,0 +1,84 @@
+#!/bin/bash
+# LPM build script for libpeas (libpeas-2)
+# GObject plugin engine used by GNOME apps and Budgie components
+
+NAME="libpeas"
+VERSION="2.0.5"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="GObject plugin engine (libpeas)"
+URL="https://gitlab.gnome.org/GNOME/libpeas"
+LICENSE=("LGPL-2.1-or-later")
+
+SOURCE=(
+  "https://download.gnome.org/sources/libpeas/2.0/libpeas-${VERSION}.tar.xz"
+)
+
+REQUIRES=(
+  "glibc"
+  "glib2"
+  "gobject-introspection"
+  "gtk4"
+  "python"
+  "gee"
+  "gjs"
+  "lua51"
+  "lua-lgi"
+  "vala"
+)
+
+PROVIDES=(
+  "libpeas-2"
+  "libpeas"
+  "libpeas.so"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="libpeas-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  meson setup build \
+    --prefix=/usr \
+    --libdir=lib \
+    --buildtype=release \
+    -Ddefault_library=shared \
+    -Dintrospection=true \
+    -Dgtk_doc=false \
+    -Dvapi=true \
+    -Dpython3=true
+
+  meson compile -C build
+}
+
+check() { true; }
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  DESTDIR="$pkgdir" meson install -C build
+
+  # License
+  if [ -f COPYING ]; then
+    install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+  fi
+
+  # Strip
+  if command -v strip >/dev/null 2>&1; then
+    find "$pkgdir/usr" -type f -exec sh -c '
+      case "$(file -b "$1")" in
+        *ELF*executable*|*ELF*shared\ object*) strip --strip-unneeded "$1" 2>/dev/null || true ;;
+      esac
+    ' _ {} \;
+  fi
+}

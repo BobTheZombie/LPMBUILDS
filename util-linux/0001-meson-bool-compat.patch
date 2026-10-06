@@ -1,0 +1,35 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Your Name <you@example.com>
+Date: Sat, 28 Sep 2024 22:00:00 +0000
+Subject: [PATCH] meson: fix int/bool coercion for Meson >= 1.5
+
+---
+ meson.build | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/meson.build b/meson.build
+index 1234567..89abcde 100644
+--- a/meson.build
++++ b/meson.build
+@@ -480,12 +480,12 @@ foreach header : headers
+-  conf.set('HAVE_' + header.underscorify().to_upper(), have ? 1 : false)
++  conf.set('HAVE_' + header.underscorify().to_upper(), have ? true : false)
+ endforeach
+
+ header = 'linux/btrfs.h'
+ enable_btrfs = cc.has_header(header,
+                              required : get_option('btrfs'))
+-conf.set('HAVE_' + header.underscorify().to_upper(), enable_btrfs ? 1 : false)
+-conf.set('HAVE_BTRFS_SUPPORT', enable_btrfs ? 1 : false)
++conf.set('HAVE_' + header.underscorify().to_upper(), enable_btrfs ? true : false)
++conf.set('HAVE_BTRFS_SUPPORT', enable_btrfs ? true : false)
+
+ prefix = conf.get('HAVE_LINUX_COMPILER_H') ? '#include <linux/compiler.h>' : ''
+ foreach header : [
+@@ -493,7 +493,7 @@ foreach header : [
+   have = cc.has_header(header,
+                        prefix : prefix)
+-  conf.set('HAVE_' + header.underscorify().to_upper(), have ? 1 : false)
++  conf.set('HAVE_' + header.underscorify().to_upper(), have ? true : false)
+ endforeach
+

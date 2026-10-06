@@ -1,0 +1,49 @@
+NAME="libpthread-stubs"
+VERSION="0.5"
+RELEASE="1"
+ARCH="x86_64"
+SUMMARY="Weak stub pthread symbols for libraries that might need them"
+URL="https://gitlab.freedesktop.org/xorg/lib/libpthread-stubs"
+SOURCE=("http://xcb.freedesktop.org/dist/${NAME}-${VERSION}.tar.gz")
+LICENSE=("MIT")
+
+REQUIRES=("glibc")
+PROVIDES=("libpthread-stubs" "pthread-stubs.pc")
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/libpthread-stubs-${VERSION}"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/libpthread-stubs-${VERSION}"
+
+    ./autogen.sh || true
+    ./configure \
+        --prefix=/usr \
+        --libdir=/usr/lib \
+        --disable-static \
+        --enable-shared
+
+    make -j"$(nproc)"
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/libpthread-stubs-${VERSION}"
+
+    make DESTDIR="$pkgdir" install
+
+    # Install license and doc
+    install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+    [ -f README.md ] && install -Dm644 README.md "$pkgdir/usr/share/doc/$NAME/README.md"
+
+    # Strip ELF files (though this package has only .pc and symlink stubs)
+    find "$pkgdir/usr" -type f -exec sh -c '
+        file -b "$1" | grep -q "ELF" && strip --strip-unneeded "$1" || true
+    ' _ {} \; 2>/dev/null || true
+}
+

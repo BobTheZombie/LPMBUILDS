@@ -1,0 +1,24 @@
+NAME="haskell-mime-types"
+VERSION="0.1.2.1"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="MIME type handling library for Haskell"
+URL="https://hackage.haskell.org/package/mime-types"
+LICENSE=("MIT")
+SOURCE=("https://hackage.haskell.org/package/mime-types-${VERSION}/mime-types-${VERSION}.tar.gz")
+SHA256SUMS=("SKIP")
+PATCHES=()
+REQUIRES=("glibc" "ghc-libs")
+BUILD_REQUIRES=("ghc" "cabal-install")
+PROVIDES=("haskell-mime-types")
+CONFLICTS=()
+OBSOLETES=()
+prepare() { set -euxo pipefail; cd "$SRCROOT/${NAME}-${VERSION}"; }
+build() { set -euxo pipefail; cd "$SRCROOT/${NAME}-${VERSION}"; cabal v2-build --offline --enable-shared --disable-static --disable-tests --disable-benchmarks; }
+check() { true; }
+staging() {
+ set -euxo pipefail; cd "$SRCROOT/${NAME}-${VERSION}"
+ cabal v2-install --offline --installdir="$pkgdir/usr/bin" --install-method=copy --overwrite-policy=always --enable-shared --disable-static --disable-tests --disable-benchmarks --libdir="$pkgdir/usr/lib" --libsubdir='$compiler/lib/$pkgid' --dynlibdir="$pkgdir/usr/lib" --datadir="$pkgdir/usr/share" --docdir="$pkgdir/usr/share/doc/${NAME}" --htmldir="$pkgdir/usr/share/doc/${NAME}/html"
+ install -dm755 "$pkgdir/usr/share/licenses/${NAME}"
+ for f in LICENSE LICENSE.txt COPYING; do [ ! -f "$f" ] || install -Dm644 "$f" "$pkgdir/usr/share/licenses/${NAME}/$f"; done
+}

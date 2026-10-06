@@ -1,0 +1,101 @@
+NAME="xtrans"
+VERSION="1.6.0"
+RELEASE="1"
+ARCH="any"
+
+SUMMARY="X transport library"
+URL="https://xorg.freedesktop.org/"
+LICENSE=("MIT")
+
+SOURCE=(
+    "https://www.x.org/releases/individual/lib/xtrans-${VERSION}.tar.xz"
+)
+
+SHA256SUMS=("SKIP")
+PATCHES=()
+
+REQUIRES=()
+
+BUILD_REQUIRES=(
+    "pkgconf"
+    "xorgproto"
+    "make"
+)
+
+PROVIDES=(
+    "xtrans"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+
+    cd "$SRCDIR"
+}
+
+build() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+
+    cd "$SRCDIR"
+
+    ./configure \
+        --prefix=/usr \
+        --libdir=/usr/lib \
+        --sysconfdir=/etc
+
+    make -j"$(nproc)"
+}
+
+check() {
+    true
+}
+
+staging() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+
+    cd "$SRCDIR"
+
+    make \
+        DESTDIR="$pkgdir" \
+        install
+
+    #
+    # xtrans is primarily a collection of transport headers.
+    #
+
+    test -f \
+        "$pkgdir/usr/include/X11/Xtrans/Xtrans.h"
+
+    test -f \
+        "$pkgdir/usr/include/X11/Xtrans/Xtransint.h"
+
+    #
+    # pkg-config metadata
+    #
+
+    test -f \
+        "$pkgdir/usr/share/pkgconfig/xtrans.pc" ||
+    test -f \
+        "$pkgdir/usr/lib/pkgconfig/xtrans.pc"
+
+    #
+    # Remove libtool artifacts if upstream installs any.
+    #
+
+    find "$pkgdir/usr/lib" \
+        -type f \
+        -name '*.la' \
+        -delete 2>/dev/null || true
+
+    echo "==> ${NAME} ${VERSION} staging complete"
+}

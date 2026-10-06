@@ -1,0 +1,44 @@
+NAME="efibootmgr"
+VERSION="18"
+RELEASE="1"
+ARCH="x86_64"
+SUMMARY="EFI Boot Manager - manipulate UEFI Boot Manager entries"
+URL="https://github.com/rhboot/efibootmgr"
+SOURCE=("https://github.com/rhboot/efibootmgr/archive/${VERSION}.tar.gz")
+LICENSE=("GPL-2.0-or-later")
+
+REQUIRES=("glibc" "efivar" "popt")
+PROVIDES=("efibootmgr")
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-$VERSION"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-$VERSION"
+
+    # EFIDIR defines the name of your distro's EFI directory under /boot/efi/EFI/
+    # e.g. /boot/efi/EFI/Nebula or /boot/efi/EFI/Linux
+    make EFIDIR="LuminOS" \
+         EFIDIRNAME="EFI" \
+         libdir="/usr/lib" \
+         sbindir="/usr/bin" \
+         mandir="/usr/share/man" \
+         CFLAGS="-O2 -pipe -Wall -Wextra"
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-$VERSION"
+
+    make DESTDIR="$pkgdir" \
+         EFIDIR="LuminOS" \
+         EFIDIRNAME="EFI" \
+         libdir="/usr/lib" \
+         sbindir="/usr/bin" \
+         mandir="/usr/share/man" \
+         install
+}
+

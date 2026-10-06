@@ -1,0 +1,41 @@
+#!/bin/bash
+# LFS 13.1-systemd baseline; see docs/lfs-13.1.md for patch provenance.
+NAME="acl"
+VERSION="2.4.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Access Control List utilities and libraries"
+URL="https://download.savannah.gnu.org/releases/acl/acl-2.4.0.tar.xz"
+LICENSE=("LGPL-2.1-or-later" "GPL-2.0-or-later")
+SOURCE=("https://download.savannah.gnu.org/releases/acl/acl-2.4.0.tar.xz")
+SHA256SUMS=("e661131456d2708a01c614a0f400e11d7d1bfaeb6f3e74b75bb980b72f0161a3")
+PATCHES=()
+REQUIRES=("glibc")
+BUILD_REQUIRES=("gcc" "make" "pkgconf")
+PROVIDES=("acl")
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="acl-2.4.0"
+
+prepare() {
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    :
+}
+
+build() {
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    ./configure --prefix=/usr --libdir=/usr/lib --disable-static
+    make -j"${JOBS:-$(nproc)}"
+}
+
+staging() {
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    make DESTDIR="$pkgdir" install
+
+    rm -f "$pkgdir/usr/share/info/dir"
+    find "$pkgdir/usr/lib" -name "*.la" -delete 2>/dev/null || true
+}

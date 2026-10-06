@@ -1,34 +1,40 @@
-# LPM build script for python-setuptools
+#!/bin/bash
+# LFS 13.1-systemd baseline; see docs/lfs-13.1.md for patch provenance.
 NAME="python-setuptools"
-VERSION="75.1.0"
+VERSION="84.0.0"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="Build and distribute Python packages"
-URL="https://github.com/pypa/setuptools"
-LICENSE=""
-SOURCE=()
+URL="https://pypi.org/packages/source/s/setuptools/setuptools-84.0.0.tar.gz"
+LICENSE=("MIT")
+SOURCE=("https://pypi.org/packages/source/s/setuptools/setuptools-84.0.0.tar.gz")
+SHA256SUMS=("f4695c21257f0d9b537ec2692c941d02ee143b7cc1276941349a546573b2ef73")
+PATCHES=()
 REQUIRES=("python")
+BUILD_REQUIRES=("python" "python-wheel")
 PROVIDES=("python-setuptools")
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
+
+_srcdir="setuptools-84.0.0"
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    :
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    python3 -m pip wheel --no-cache-dir --no-build-isolation --no-deps --wheel-dir=dist .
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    python3 -m pip install --root="$pkgdir" --prefix=/usr --ignore-installed --no-deps --no-index --no-compile dist/*.whl
+
+    rm -f "$pkgdir/usr/share/info/dir"
+    find "$pkgdir/usr/lib" -name "*.la" -delete 2>/dev/null || true
 }

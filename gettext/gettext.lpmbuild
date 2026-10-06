@@ -1,34 +1,41 @@
-# LPM build script for gettext
+#!/bin/bash
+# LFS 13.1-systemd baseline; see docs/lfs-13.1.md for patch provenance.
 NAME="gettext"
-VERSION="0.22.5"
+VERSION="1.0"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="GNU i18n utilities"
-URL="https://www.gnu.org/software/gettext/"
-LICENSE=""
-SOURCE=()
-REQUIRES=("glibc")
+SUMMARY="GNU internationalization and localization library"
+URL="https://ftpmirror.gnu.org/gettext/gettext-1.0.tar.xz"
+LICENSE=("GPL-3.0-or-later" "LGPL-2.1-or-later")
+SOURCE=("https://ftpmirror.gnu.org/gettext/gettext-1.0.tar.xz")
+SHA256SUMS=("71132a3fb71e68245b8f2ac4e9e97137d3e5c02f415636eb508ae607bc01add7")
+PATCHES=()
+REQUIRES=("glibc" "libxml2" "ncurses")
+BUILD_REQUIRES=("gcc" "make" "pkgconf")
 PROVIDES=("gettext")
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
+
+_srcdir="gettext-1.0"
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    :
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    ./configure --prefix=/usr --disable-static
+    make -j"${JOBS:-$(nproc)}"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    make DESTDIR="$pkgdir" install
+
+    rm -f "$pkgdir/usr/share/info/dir"
+    find "$pkgdir/usr/lib" -name "*.la" -delete 2>/dev/null || true
 }

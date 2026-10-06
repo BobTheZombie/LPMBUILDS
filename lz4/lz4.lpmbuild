@@ -1,0 +1,40 @@
+#!/bin/bash
+# LFS 13.1-systemd baseline; see docs/lfs-13.1.md for patch provenance.
+NAME="lz4"
+VERSION="1.10.0"
+RELEASE="2"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Extremely Fast Compression algorithm"
+URL="https://github.com/lz4/lz4/releases/download/v1.10.0/lz4-1.10.0.tar.gz"
+LICENSE=("BSD-2-Clause" "GPL-2.0-only")
+SOURCE=("https://github.com/lz4/lz4/releases/download/v1.10.0/lz4-1.10.0.tar.gz")
+SHA256SUMS=("537512904744b35e232912055ccf8ec66d768639ff3abe5788d90d792ec5f48b")
+PATCHES=()
+REQUIRES=("glibc")
+BUILD_REQUIRES=("gcc" "make" "pkgconf")
+PROVIDES=("lz4")
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="lz4-1.10.0"
+
+prepare() {
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    :
+}
+
+build() {
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    make -j"${JOBS:-$(nproc)}" PREFIX=/usr BUILD_STATIC=no
+}
+
+staging() {
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    make DESTDIR="$pkgdir" PREFIX=/usr BUILD_STATIC=no install
+
+    rm -f "$pkgdir/usr/share/info/dir"
+    find "$pkgdir/usr/lib" -name "*.la" -delete 2>/dev/null || true
+}

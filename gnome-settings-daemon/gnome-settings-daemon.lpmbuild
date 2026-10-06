@@ -1,0 +1,143 @@
+#!/bin/bash
+# LPM build script for gnome-settings-daemon
+
+NAME="gnome-settings-daemon"
+VERSION="49.beta"
+RELEASE="2"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="GNOME settings daemon"
+URL="https://gitlab.gnome.org/GNOME/gnome-settings-daemon"
+LICENSE=("GPL-2.0-or-later" "LGPL-2.1-or-later")
+
+SOURCE=(
+  "https://download.gnome.org/sources/gnome-settings-daemon/49/${NAME}-${VERSION}.tar.xz"
+)
+
+SHA256SUMS=("SKIP")
+
+: "${ENABLE_COLORD:=1}"
+: "${ENABLE_CUPS:=0}"
+: "${ENABLE_NETWORKMANAGER:=1}"
+: "${ENABLE_SMARTCARD:=0}"
+: "${ENABLE_WWAN:=0}"
+: "${ENABLE_RFKILL:=1}"
+: "${USE_SYSTEMD:=1}"
+
+REQUIRES=(
+  "glibc"
+  "glib2"
+  "gtk3"
+  "dconf"
+  "gsettings-desktop-schemas"
+  "gobject-introspection"
+  "libnotify"
+  "libcanberra"
+  "alsa-lib"
+  "pulseaudio"
+  "fontconfig"
+  "polkit"
+  "upower"
+  "libgudev"
+  "geoclue"
+  "geocode-glib"
+  "gnome-desktop"
+  "libgweather"
+  "libwacom"
+  "colord"
+  "networkmanager"
+)
+
+BUILD_REQUIRES=(
+  "meson"
+  "ninja"
+  "pkgconf"
+  "gettext"
+  "vala"
+  "glib2"
+  "gtk3"
+  "gobject-introspection"
+  "docbook-xsl-ns"
+  "libxml2"
+  "libxslt"
+  "linux-headers"
+)
+
+PROVIDES=(
+  "gnome-settings-daemon"
+  "gsd"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  rm -rf build
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  _b() {
+    [ "${1:-0}" = "1" ] && echo "true" || echo "false"
+  }
+
+  local _systemd="$(_b "$USE_SYSTEMD")"
+  local _elogind="false"
+  local _colord="$(_b "$ENABLE_COLORD")"
+  local _cups="$(_b "$ENABLE_CUPS")"
+  local _nm="true"
+  local _smartcard="$(_b "$ENABLE_SMARTCARD")"
+  local _wwan="$(_b "$ENABLE_WWAN")"
+  local _rfkill="$(_b "$ENABLE_RFKILL")"
+
+  export XML_CATALOG_FILES=/etc/xml/catalog
+
+  meson setup build \
+    --prefix=/usr \
+    --libdir=lib \
+    --buildtype=release \
+    -Ddefault_library=shared \
+    -Dsystemd="$_systemd" \
+    -Delogind="$_elogind" \
+    -Dudev_dir=/usr/lib/udev \
+    -Dalsa=true \
+    -Dgudev=true \
+    -Drfkill="$_rfkill" \
+    -Dgcr3=false \
+    -Dcolord="$_colord" \
+    -Dcups="$_cups" \
+    -Dnetwork_manager="$_nm" \
+    -Dsmartcard="$_smartcard" \
+    -Dwwan="$_wwan"
+
+  meson compile -C build
+}
+
+check() {
+  true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  DESTDIR="$pkgdir" meson install -C build
+
+  test -f "$pkgdir/usr/lib/pkgconfig/gnome-settings-daemon.pc"
+
+  if [ -f COPYING ]; then
+    install -Dm644 COPYING \
+      "$pkgdir/usr/share/licenses/$NAME/COPYING"
+  fi
+
+  if [ -f COPYING.LIB ]; then
+    install -Dm644 COPYING.LIB \
+      "$pkgdir/usr/share/licenses/$NAME/COPYING.LIB"
+  fi
+}

@@ -1,34 +1,41 @@
-# LPM build script for libxcrypt
+#!/bin/bash
+# LFS 13.1-systemd baseline; see docs/lfs-13.1.md for patch provenance.
 NAME="libxcrypt"
-VERSION="4.4.36"
+VERSION="4.5.2"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Modern libcrypt implementation"
-URL="https://github.com/besser82/libxcrypt"
-LICENSE=""
-SOURCE=()
+SUMMARY="Modern library for password hashing, compatible with glibc's crypt"
+URL="https://github.com/besser82/libxcrypt/releases/download/v4.5.2/libxcrypt-4.5.2.tar.xz"
+LICENSE=("LGPL-2.1-or-later")
+SOURCE=("https://github.com/besser82/libxcrypt/releases/download/v4.5.2/libxcrypt-4.5.2.tar.xz")
+SHA256SUMS=("71513a31c01a428bccd5367a32fd95f115d6dac50fb5b60c779d5c7942aec071")
+PATCHES=()
 REQUIRES=("glibc")
+BUILD_REQUIRES=("gcc" "make" "pkgconf")
 PROVIDES=("libxcrypt")
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
+
+_srcdir="libxcrypt-4.5.2"
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    sed -i '/strchr/s/const//' lib/crypt-{sm3,gost}-yescrypt.c
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    ./configure --prefix=/usr --enable-hashes=strong,glibc --enable-obsolete-api=no --disable-static --disable-failure-tokens
+    make -j"${JOBS:-$(nproc)}"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    make DESTDIR="$pkgdir" install
+
+    rm -f "$pkgdir/usr/share/info/dir"
+    find "$pkgdir/usr/lib" -name "*.la" -delete 2>/dev/null || true
 }

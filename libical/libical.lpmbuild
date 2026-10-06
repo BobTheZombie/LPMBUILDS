@@ -1,0 +1,93 @@
+#!/bin/bash
+# LPM build script for libical
+
+NAME="libical"
+VERSION="3.0.19"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="iCalendar protocol library"
+URL="https://github.com/libical/libical"
+LICENSE=("LGPL-2.1-or-later" "MPL-2.0")
+
+SOURCE=(
+  "https://github.com/libical/libical/releases/download/v${VERSION}/libical-${VERSION}.tar.gz"
+)
+
+SHA256SUMS=("SKIP")
+
+REQUIRES=(
+  "glibc"
+  "icu"
+  "glib2"
+)
+
+BUILD_REQUIRES=(
+  "cmake"
+  "ninja"
+  "pkgconf"
+  "python"
+  "icu"
+  "glib2"
+  "gobject-introspection"
+)
+
+PROVIDES=(
+  "libical"
+  "libical.so"
+  "libicalss.so"
+  "libicalvcal.so"
+  "libical-glib.so"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  rm -rf build
+  mkdir -p build
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir/build"
+
+  cmake .. \
+    -G Ninja \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DCMAKE_INSTALL_LIBDIR=lib \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DBUILD_SHARED_LIBS=ON \
+    -DICAL_GLIB=ON \
+    -DICAL_GLIB_VAPI=OFF \
+    -DICAL_BUILD_DOCS=OFF \
+    -DICAL_BUILD_TESTING=OFF \
+    -DGOBJECT_INTROSPECTION=ON
+
+  ninja
+}
+
+check() {
+  true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir/build"
+
+  DESTDIR="$pkgdir" ninja install
+
+  test -f "$pkgdir/usr/lib/libical.so"
+  test -f "$pkgdir/usr/lib/libicalss.so"
+
+  for f in LICENSE COPYING; do
+    if [ -f "../$f" ]; then
+      install -Dm644 "../$f" \
+        "$pkgdir/usr/share/licenses/$NAME/$f"
+    fi
+  done
+}

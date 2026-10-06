@@ -1,0 +1,72 @@
+#!/bin/bash
+# LPM build script for libgtop
+
+NAME="libgtop"
+VERSION="2.41.3"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="GNOME library for system monitoring"
+URL="https://gitlab.gnome.org/GNOME/libgtop"
+LICENSE=("GPL-2.0-or-later")
+
+SOURCE=(
+  "https://download.gnome.org/sources/libgtop/2.41/libgtop-${VERSION}.tar.xz"
+)
+
+REQUIRES=(
+  "glibc"
+  "glib2"
+)
+
+BUILD_REQUIRES=(
+  "meson"
+  "ninja"
+  "pkgconf"
+  "gettext"
+  "gobject-introspection"
+)
+
+PROVIDES=(
+  "libgtop"
+  "libgtop-2.0"
+  "libgtop-2.0.so"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+  
+  autoreconf -fiv
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  ./configure \
+    --prefix=/usr \
+    --libdir=/lib \
+    --sysconfdir=/etc \
+    --localstatedir=/var \
+    --libexecdir=/usr/lib \
+    --disable-gtk-doc
+  sed -i -e 's/ -shared / -Wl,-O1,--as-needed\0/g' libtool
+  make
+
+}
+
+check() {
+  true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  make DESTDIR="$pkgdir" install
+}

@@ -1,36 +1,101 @@
-# LPM build script for llvm
+#!/bin/bash
+# LPM build script for LLVM core only
+# Provides: llvm libs/tools (no libc++ / libc++abi / libunwind runtimes)
+
 NAME="llvm"
-VERSION="1.0.0"
+VERSION="20.1.6"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Placeholder package for llvm dependency"
-URL="https://example.com/llvm"
-LICENSE=""
-SOURCE=()
-SHA256SUMS=()
-PATCHES=()
-REQUIRES=()
-PROVIDES=("llvm")
+SUMMARY="LLVM compiler infrastructure (core libraries and tools)"
+URL="https://llvm.org/"
+LICENSE="Apache-2.0 WITH LLVM-exception"
+
+SOURCE=(
+  "https://github.com/llvm/llvm-project/archive/refs/tags/llvmorg-${VERSION}.tar.gz"
+)
+
+REQUIRES=(
+  "glibc"
+  "zlib"
+  "xz"
+  "zstd"
+  "libxml2"
+  "libedit"
+  "ncurses"
+  "libffi"
+  "python"
+  "gcc-libs"
+)
+
+PROVIDES=(
+  "llvm"
+  "llvm-config"
+)
+
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
+
+_srcdir="$NAME-${VERSION}"
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+    mkdir -p build
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    # We build:
+    #  - LLVM core (no clang, no runtimes here)
+    # You can still build clang/lld/libc++/libunwind in separate lpmbuilds
+    # using the same tarball.
+
+    cmake -S llvm -B build \
+        -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DLLVM_TARGETS_TO_BUILD="X86;AMDGPU;WebAssembly" \
+        -DLLVM_ENABLE_PROJECTS="" \
+        -DLLVM_ENABLE_RTTI=ON \
+        -DLLVM_ENABLE_FFI=ON \
+        -DLLVM_BUILD_LLVM_DYLIB=ON \
+        -DLLVM_LINK_LLVM_DYLIB=ON \
+        -DLLVM_ENABLE_ZLIB=ON \
+        -DLLVM_ENABLE_ZSTD=ON \
+        -DLLVM_ENABLE_TERMINFO=ON \
+        -DLLVM_ENABLE_LIBEDIT=ON \
+        -DLLVM_INCLUDE_TESTS=OFF \
+        -DLLVM_INCLUDE_EXAMPLES=OFF \
+        -DLLVM_INCLUDE_BENCHMARKS=OFF \
+        -DLLVM_ENABLE_ASSERTIONS=OFF \
+        -DBUILD_SHARED_LIBS=OFF
+
+    cmake --build build -j"$(nproc)"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  install -d "$pkgdir/usr/share/doc/llvm"
-  printf 'Placeholder package for llvm\n' >"$pkgdir/usr/share/doc/llvm/README"
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    # Generic install: LLVM core libraries and tools
+    DESTDIR="$pkgdir" cmake --install build
+
+    # License & docs
+    if [ -f LICENSE.TXT ]; then
+        install -Dm644 LICENSE.TXT "$pkgdir/usr/share/licenses/$NAME/LICENSE.TXT"
+    fi
+    if [ -f llvm/README.md ]; then
+        install -Dm644 llvm/README.md "$pkgdir/usr/share/doc/$NAME/README.md"
+    fi
+
+    # Strip ELF executables and shared libs to keep things tight
+    find "$pkgdir/usr" -type f -exec sh -c '
+        case "$(file -b "$1")" in
+          *ELF*executable*|*ELF*shared\ object*) strip --strip-unneeded "$1" 2>/dev/null || true ;;
+        esac
+    ' _ {} \;
 }
+

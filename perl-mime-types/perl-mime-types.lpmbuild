@@ -1,0 +1,24 @@
+NAME="perl-mime-types"
+VERSION="2.30"
+RELEASE="1"
+ARCH="any"
+SUMMARY="Perl MIME::Types module"
+URL="https://metacpan.org/dist/MIME-Types"
+LICENSE=("PerlArtistic" "GPL-1.0-or-later")
+SOURCE=("https://cpan.metacpan.org/authors/id/M/MA/MARKOV/MIME-Types-${VERSION}.tar.gz")
+SHA256SUMS=("SKIP")
+PATCHES=()
+REQUIRES=("perl")
+BUILD_REQUIRES=("perl" "make")
+PROVIDES=("perl-mime-types")
+CONFLICTS=()
+OBSOLETES=()
+prepare() { set -euxo pipefail; cd "$SRCROOT/${NAME}-${VERSION}"; }
+build() { set -euxo pipefail; cd "$SRCROOT/${NAME}-${VERSION}"; PERL_MM_USE_DEFAULT=1 perl Makefile.PL INSTALLDIRS=vendor; make; }
+check() { set -euxo pipefail; cd "$SRCROOT/${NAME}-${VERSION}"; make test; }
+staging() {
+ set -euxo pipefail; cd "$SRCROOT/${NAME}-${VERSION}"; make DESTDIR="$pkgdir" install
+ find "$pkgdir" -type f \( -name '.packlist' -o -name 'perllocal.pod' \) -delete
+ install -dm755 "$pkgdir/usr/share/licenses/${NAME}"
+ for f in LICENSE LICENSE.txt COPYING; do [ ! -f "$f" ] || install -Dm644 "$f" "$pkgdir/usr/share/licenses/${NAME}/$f"; done
+}

@@ -1,0 +1,43 @@
+#!/bin/bash
+# LPM build script for xcmsdb
+
+NAME="xcmsdb"
+VERSION="1.0.7"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="X Color Management System database utility"
+URL="https://www.x.org/"
+LICENSE="MIT"
+
+SOURCE=("https://www.x.org/archive//individual/app/${NAME}-${VERSION}.tar.xz")
+
+REQUIRES=(
+  "glibc"
+  "libX11"
+  "libXmu"
+)
+
+PROVIDES=("xcmsdb")
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+  ./configure --prefix=/usr
+  make -j"$(nproc)"
+}
+
+check() { true; }
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+  DESTDIR="$pkgdir" make install
+}

@@ -1,0 +1,76 @@
+#!/bin/bash
+# LPM build script for just
+# A handy command runner for project-specific tasks
+
+NAME="just"
+VERSION="1.46.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Command runner for project-specific tasks"
+URL="https://github.com/casey/just"
+LICENSE=("CC0-1.0")
+
+SOURCE=(
+  "https://github.com/casey/just/archive/refs/tags/${VERSION}.tar.gz"
+)
+
+REQUIRES=(
+  "glibc"
+
+  # Build deps
+  "rust"
+  "cargo"
+  "gcc"
+)
+
+PROVIDES=(
+  "just"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="just-${VERSION}"
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    : "${CARGO_HOME:=$HOME/.cargo}"
+    export CARGO_HOME
+
+    cargo build --release --locked
+}
+
+check() {
+    true
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    # Binary
+    install -Dm755 target/release/just "$pkgdir/usr/bin/just"
+
+    # Man page (if present)
+    if [ -f "man/just.1" ]; then
+        install -Dm644 man/just.1 "$pkgdir/usr/share/man/man1/just.1"
+    fi
+
+    # License
+    if [ -f LICENSE ]; then
+        install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$NAME/LICENSE"
+    fi
+
+    # Strip binary
+    if command -v strip >/dev/null 2>&1; then
+        strip --strip-unneeded "$pkgdir/usr/bin/just" 2>/dev/null || true
+    fi
+}
+

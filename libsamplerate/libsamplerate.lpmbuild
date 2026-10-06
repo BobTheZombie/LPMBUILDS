@@ -1,0 +1,50 @@
+NAME="libsamplerate"
+VERSION="0.2.2"
+RELEASE="1"
+ARCH="x86_64"
+SUMMARY="High-quality audio sample rate conversion library (Secret Rabbit Code)"
+URL="https://libsndfile.github.io/libsamplerate/"
+SOURCE=("https://github.com/libsndfile/libsamplerate/archive/refs/tags/${VERSION}.tar.gz")
+LICENSE=("BSD-2-Clause")
+
+REQUIRES=("glibc")
+PROVIDES=("libsamplerate" "libsamplerate.so")
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-${VERSION}"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-${VERSION}"
+
+    # Standard autotools build
+    ./autogen.sh || true
+    ./configure \
+        --prefix=/usr \
+        --libdir=/usr/lib \
+        --disable-static \
+        --enable-shared
+
+    make -j"$(nproc)"
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-${VERSION}"
+
+    make DESTDIR="$pkgdir" install
+
+    # Docs & license
+    install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+    [ -f README.md ] && install -Dm644 README.md "$pkgdir/usr/share/doc/$NAME/README.md"
+
+    # Strip binaries / shared libs
+    find "$pkgdir/usr/lib" -type f -name "*.so*" -exec sh -c '
+        file -b "$1" | grep -q "ELF" && strip --strip-unneeded "$1" || true
+    ' _ {} \; 2>/dev/null || true
+}
+

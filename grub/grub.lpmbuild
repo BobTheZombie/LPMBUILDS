@@ -1,0 +1,42 @@
+#!/bin/bash
+# LFS 13.1-systemd baseline; see docs/lfs-13.1.md for patch provenance.
+NAME="grub"
+VERSION="2.14"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="GNU GRUB bootloader with BIOS and UEFI support"
+URL="https://ftpmirror.gnu.org/grub/grub-2.14.tar.xz"
+LICENSE=("GPL-3.0-or-later")
+SOURCE=("https://ftpmirror.gnu.org/grub/grub-2.14.tar.xz")
+SHA256SUMS=("bc8d3c73535b8838d8c8e2654d73edc4e6ae8c8acdb45d5df5dc9a1547446d43")
+PATCHES=()
+REQUIRES=("glibc" "gettext" "freetype" "lvm2")
+BUILD_REQUIRES=("gcc" "make" "pkgconf")
+PROVIDES=("grub")
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="grub-2.14"
+
+prepare() {
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    :
+    mkdir -p build
+}
+
+build() {
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir/build"
+    ../configure --prefix=/usr --sysconfdir=/etc --disable-werror --with-platform=efi --target=x86_64 --enable-device-mapper
+    make -j"${JOBS:-$(nproc)}"
+}
+
+staging() {
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir/build"
+    make DESTDIR="$pkgdir" install
+
+    rm -f "$pkgdir/usr/share/info/dir"
+    find "$pkgdir/usr/lib" -name "*.la" -delete 2>/dev/null || true
+}

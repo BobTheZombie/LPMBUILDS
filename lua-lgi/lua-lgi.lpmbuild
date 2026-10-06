@@ -1,0 +1,119 @@
+#!/bin/bash
+# LPM build script for lua-lgi (LGI)
+# Lua 5.1 bindings for GObject libraries via GObject-Introspection
+# Goal: provide `require("lgi")` for lua5.1, used by libpeas Lua loader.
+
+NAME="lua-lgi"
+VERSION="0.9.2"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="LGI: Lua binding to GObject libraries using GObject-Introspection (Lua 5.1 build)"
+URL="https://github.com/pavouk/lgi"
+LICENSE=("MIT")
+
+SOURCE=(
+  "lgi-${VERSION}.tar.gz::https://github.com/pavouk/lgi/archive/${VERSION}.tar.gz"
+)
+
+REQUIRES=(
+  "glibc"
+  "glib2"
+  "libffi"
+  "gobject-introspection"
+  "lua51"
+
+  # Build tooling (keeps builds reproducible)
+  "pkgconf"
+  "make"
+)
+
+PROVIDES=(
+  "lua-lgi"
+  "lgi"
+)
+
+CONFLICTS=(
+  "lgi"
+)
+
+OBSOLETES=()
+
+# GitHub tarball unpacks to "lgi-${VERSION}", not "lua-lgi-${VERSION}"
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  # Ensure pkg-config discovery works (GI, GLib, etc.)
+  export PKG_CONFIG_PATH="/usr/lib/pkgconfig:/usr/share/pkgconfig:${PKG_CONFIG_PATH:-}"
+
+  # Build flags: make sure Lua headers are found and objects are PIC-safe
+  local _cflags="${CFLAGS:--O2} -fPIC -I/usr/include -I/usr/include/lua5.1"
+  local _ldflags="${LDFLAGS:-}"
+
+  make \
+    CC="${CC:-cc}" \
+    CFLAGS="$_cflags" \
+    LDFLAGS="$_ldflags"
+}
+
+check() {
+  true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  export PKG_CONFIG_PATH="/usr/lib/pkgconfig:/usr/share/pkgconfig:${PKG_CONFIG_PATH:-}"
+
+  local _cflags="${CFLAGS:--O2} -fPIC -I/usr/include -I/usr/include/lua5.1"
+  local _ldflags="${LDFLAGS:-}"
+
+  make \
+    CC="${CC:-cc}" \
+    CFLAGS="$_cflags" \
+    LDFLAGS="$_ldflags" \
+    LUA_LIBDIR=/usr/lib/lua/5.1 \
+    LUA_SHAREDIR=/usr/share/lua/5.1 \
+    DESTDIR="$pkgdir" \
+    install
+
+  # Docs / samples (best-effort: upstream layout can vary slightly)
+  install -dm755 "$pkgdir/usr/share/doc/$NAME"
+  if [ -f README.md ]; then
+    install -Dm644 README.md "$pkgdir/usr/share/doc/$NAME/README.md"
+  fi
+  if [ -d docs ]; then
+    install -Dm644 docs/* "$pkgdir/usr/share/doc/$NAME/" 2>/dev/null || true
+  fi
+
+  install -dm755 "$pkgdir/usr/share/$NAME/samples"
+  if [ -d samples ]; then
+    install -Dm644 samples/*.lua "$pkgdir/usr/share/$NAME/samples/" 2>/dev/null || true
+    if [ -d samples/gtk-demo ]; then
+      install -dm755 "$pkgdir/usr/share/$NAME/samples/gtk-demo"
+      install -Dm644 samples/gtk-demo/* "$pkgdir/usr/share/$NAME/samples/gtk-demo/" 2>/dev/null || true
+    fi
+  fi
+
+  # License
+  if [ -f LICENSE ]; then
+    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$NAME/LICENSE"
+  fi
+
+  # Strip (best-effort)
+  if command -v strip >/dev/null 2>&1; then
+    find "$pkgdir/usr" -type f -exec sh -c '
+      case "$(file -b "$1")" in
+        *ELF*shared\ object*|*ELF*executable*) strip --strip-unneeded "$1" 2>/dev/null || true ;;
+      esac
+    ' _ {} \;
+  fi
+}

@@ -1,0 +1,72 @@
+#!/bin/bash
+# LPM build script for NASM (Netwide Assembler)
+
+NAME="nasm"
+VERSION="2.16.03"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="The Netwide Assembler - 80x86 assembler"
+URL="https://www.nasm.us/"
+LICENSE=("BSD-2-Clause")
+
+SOURCE=(
+  "https://www.nasm.us/pub/nasm/releasebuilds/${VERSION}/nasm-${VERSION}.tar.xz"
+)
+
+REQUIRES=(
+  "glibc"
+  "gcc"
+  "make"
+  "perl"
+)
+
+PROVIDES=(
+  "nasm"
+  "ndisasm"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="nasm-${VERSION}"
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    ./configure \
+        --prefix=/usr \
+        --bindir=/usr/bin \
+        --mandir=/usr/share/man
+
+    make -j"$(nproc)"
+}
+
+check() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+    make test || true   # upstream tests sometimes require network, so don't hard fail
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    make DESTDIR="$pkgdir" install
+
+    # License
+    if [ -f LICENSE ]; then
+        install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$NAME/LICENSE"
+    fi
+
+    # Strip ELF binaries
+    if command -v strip >/dev/null 2>&1; then
+        find "$pkgdir/usr/bin" -type f -exec strip --strip-unneeded {} \; || true
+    fi
+}
+

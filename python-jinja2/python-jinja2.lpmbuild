@@ -1,0 +1,41 @@
+#!/bin/bash
+# LFS 13.1-systemd baseline; see docs/lfs-13.1.md for patch provenance.
+NAME="python-jinja2"
+VERSION="3.1.6"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Jinja2"
+URL="https://pypi.org/packages/source/J/Jinja2/jinja2-3.1.6.tar.gz"
+LICENSE=("BSD-3-Clause")
+SOURCE=("https://pypi.org/packages/source/J/Jinja2/jinja2-3.1.6.tar.gz")
+SHA256SUMS=("0137fb05990d35f1275a587e9aee6d56da821fc83491a0fb838183be43f66d6d")
+PATCHES=()
+REQUIRES=("python" "python-markupsafe")
+BUILD_REQUIRES=("python" "python-flit-core")
+PROVIDES=("python-jinja2")
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="jinja2-3.1.6"
+
+prepare() {
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    :
+}
+
+build() {
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    python3 -m pip wheel --no-cache-dir --no-build-isolation --no-deps --wheel-dir=dist .
+}
+
+staging() {
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    python3 -m pip install --root="$pkgdir" --prefix=/usr --ignore-installed --no-deps --no-index --no-compile dist/*.whl
+
+    rm -f "$pkgdir/usr/share/info/dir"
+    find "$pkgdir/usr/lib" -name "*.la" -delete 2>/dev/null || true
+}
+

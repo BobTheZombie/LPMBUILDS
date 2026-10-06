@@ -1,0 +1,80 @@
+#!/bin/bash
+# LPM build script for xkeyboard-config
+# X Keyboard Extension (XKB) configuration database
+
+NAME="xkeyboard-config"
+VERSION="2.46"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="X Keyboard Extension configuration data"
+URL="https://www.x.org/"
+LICENSE="MIT"
+
+SOURCE=(
+  " https://www.x.org/pub/individual/data/xkeyboard-config/xkeyboard-config-${VERSION}.tar.xz"
+)
+
+REQUIRES=(
+  "glibc"
+  "xorgproto"
+  "util-macros"
+  "pkg-config"
+  "xkbcomp"
+  "gettext"
+  "meson"
+  "ninja"
+)
+
+PROVIDES=("xkeyboard-config")
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="xkeyboard-config-${VERSION}"
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir/"
+    mkdir build
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir/build"
+
+    : "${CC:=cc}"
+
+    meson setup --prefix=$XORG_PREFIX --buildtype=release .. 
+    ninja
+}
+
+check() {
+    # Upstream has some validation, but we skip for packaging
+    true
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir/build"
+
+    DESTDIR="$pkgdir" ninja install
+
+    # Install license / docs
+    if [ -f COPYING ]; then
+        install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+    fi
+    if [ -f NEWS ]; then
+        install -Dm644 NEWS "$pkgdir/usr/share/doc/$NAME/NEWS"
+    fi
+
+    # Strip any binaries/scripts that happen to be ELF (rare here)
+    if command -v strip >/dev/null 2>&1; then
+        find "$pkgdir/usr" -type f -exec sh -c '
+            case "$(file -b "$1")" in
+              *ELF*executable*|*ELF*shared\ object*)
+                strip --strip-unneeded "$1" 2>/dev/null || true
+              ;;
+            esac
+        ' _ {} \;
+    fi
+}
+

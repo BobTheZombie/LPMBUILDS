@@ -1,36 +1,326 @@
-# LPM build script for ffmpeg
+# LPM build script for FFmpeg
+
 NAME="ffmpeg"
-VERSION="1.0.0"
-RELEASE="1"
+VERSION="8.0"
+RELEASE="2"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Placeholder package for ffmpeg dependency"
-URL="https://example.com/ffmpeg"
-LICENSE=""
-SOURCE=()
-SHA256SUMS=()
+SUMMARY="Complete solution to record, convert and stream audio and video"
+URL="https://ffmpeg.org/"
+LICENSE=("GPL-2.0-or-later" "LGPL-2.1-or-later")
+
+SOURCE=(
+    "https://ffmpeg.org/releases/ffmpeg-${VERSION}.tar.xz"
+)
+
+SHA256SUMS=("SKIP")
 PATCHES=()
-REQUIRES=("glibc")
-PROVIDES=("ffmpeg")
+
+REQUIRES=(
+    "glibc"
+    "alsa-lib"
+    "bzip2"
+    "fontconfig"
+    "freetype"
+    "fribidi"
+    "glib2"
+    "gnutls"
+    "libass"
+    "libaom"
+    "libdav1d"
+    "libdrm"
+    "libjpeg"
+    "libpng"
+    "libpulse"
+    "libva"
+    "libvdpau"
+    "libvpx"
+    "libX11"
+    "libx264"
+    "libx265"
+    "libxcb"
+    "libXext"
+    "libxml2"
+    "openjpeg2"
+    "opus"
+    "sdl2"
+    "svt-av1"
+    "vulkan-loader"
+    "xz"
+    "zlib"
+)
+
+BUILD_REQUIRES=(
+    "pkgconf"
+    "nasm"
+    "yasm"
+    "make"
+    "perl"
+)
+
+PROVIDES=(
+    "ffmpeg"
+    "libavcodec"
+    "libavdevice"
+    "libavfilter"
+    "libavformat"
+    "libavutil"
+    "libpostproc"
+    "libswresample"
+    "libswscale"
+)
+
 CONFLICTS=()
 OBSOLETES=()
 RECOMMENDS=()
 SUGGESTS=()
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+
+    cd "$SRCROOT/ffmpeg-${VERSION}"
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+
+    cd "$SRCROOT/ffmpeg-${VERSION}"
+
+    ./configure \
+        --prefix=/usr \
+        --libdir=/usr/lib \
+        --shlibdir=/usr/lib \
+        --incdir=/usr/include \
+        --mandir=/usr/share/man \
+        --docdir=/usr/share/doc/ffmpeg \
+        --enable-shared \
+        --disable-static \
+        --enable-gpl \
+        --enable-version3 \
+        --enable-pic \
+        --enable-pthreads \
+        --enable-runtime-cpudetect \
+        --enable-gnutls \
+        --enable-fontconfig \
+        --enable-libfreetype \
+        --enable-libfribidi \
+        --enable-libass \
+        --enable-libdrm \
+        --enable-libpulse \
+        --enable-vaapi    \
+        --enable-vdpau \
+        --enable-libvpx \
+        --enable-libopenjpeg \
+        --enable-libopus \
+        --enable-libx264 \
+        --enable-libx265 \
+        --enable-libaom \
+        --enable-libdav1d \
+        --enable-libsvtav1 \
+        --enable-libxml2 \
+        --enable-sdl2 \
+        --enable-vulkan \
+        --enable-xlib \
+        --enable-libxcb \
+        --enable-libxcb-shm \
+        --enable-libxcb-xfixes \
+        --enable-libxcb-shape
+
+    make -j"$(nproc)"
+}
+
+check() {
+    set -euxo pipefail
+
+    cd "$SRCROOT/ffmpeg-${VERSION}"
+
+    make -k check || true
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  install -d "$pkgdir/usr/share/doc/ffmpeg"
-  printf 'Placeholder package for ffmpeg\n' >"$pkgdir/usr/share/doc/ffmpeg/README"
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+
+    cd "$SRCDIR"
+
+    make DESTDIR="$pkgdir" install
+
+    #
+    # Main programs
+    #
+
+    test -x "$pkgdir/usr/bin/ffmpeg"
+    test -x "$pkgdir/usr/bin/ffprobe"
+
+    #
+    # FFmpeg shared libraries
+    #
+
+    for lib in \
+        avcodec \
+        avdevice \
+        avfilter \
+        avformat \
+        avutil \
+        swresample \
+        swscale
+    do
+        test -n "$(
+            find "$pkgdir/usr/lib" \
+                -name "lib${lib}.so*" \
+                -print -quit
+        )"
+    done
+
+    #
+    # pkg-config metadata
+    #
+
+    for pc in \
+        libavcodec \
+        libavdevice \
+        libavfilter \
+        libavformat \
+        libavutil \
+        libswresample \
+        libswscale
+    do
+        test -f "$pkgdir/usr/lib/pkgconfig/${pc}.pc"
+    done
+
+    #
+    # FFmpeg has not been installed into /usr yet.
+    #
+    # Its executables therefore cannot find their own staged
+    # libraries through the normal dynamic linker search path.
+    #
+
+    STAGED_LD_LIBRARY_PATH="$pkgdir/usr/lib"
+
+    if [ -n "${LD_LIBRARY_PATH:-}" ]; then
+        STAGED_LD_LIBRARY_PATH="${STAGED_LD_LIBRARY_PATH}:${LD_LIBRARY_PATH}"
+    fi
+
+    #
+    # Basic staged runtime validation
+    #
+
+    LD_LIBRARY_PATH="$STAGED_LD_LIBRARY_PATH" \
+        "$pkgdir/usr/bin/ffmpeg" -version
+
+    LD_LIBRARY_PATH="$STAGED_LD_LIBRARY_PATH" \
+        "$pkgdir/usr/bin/ffprobe" -version
+
+    #
+    # Capture build configuration once.
+    #
+
+    BUILDCONF="$(
+        LD_LIBRARY_PATH="$STAGED_LD_LIBRARY_PATH" \
+            "$pkgdir/usr/bin/ffmpeg" -buildconf 2>&1
+    )"
+
+    #
+    # Verify the external codec/library integrations requested
+    # by this package actually made it into FFmpeg.
+    #
+
+    for feature in \
+        --enable-libx264 \
+        --enable-libx265 \
+        --enable-libaom \
+        --enable-libdav1d \
+        --enable-libsvtav1 \
+        --enable-libvpx \
+        --enable-libopus \
+        --enable-libopenjpeg \
+        --enable-libass \
+        --enable-libfreetype \
+        --enable-libfribidi \
+        --enable-libxml2 \
+        --enable-libdrm \
+        --enable-libpulse \
+        --enable-sdl2 \
+        --enable-vaapi \
+        --enable-vdpau \
+        --enable-vulkan
+    do
+        printf '%s\n' "$BUILDCONF" |
+            grep -Fq -- "$feature"
+    done
+
+    #
+    # Verify important encoders/decoders are actually registered.
+    #
+
+    CODECS="$(
+        LD_LIBRARY_PATH="$STAGED_LD_LIBRARY_PATH" \
+            "$pkgdir/usr/bin/ffmpeg" \
+            -hide_banner \
+            -codecs 2>&1
+    )"
+
+    printf '%s\n' "$CODECS" | grep -q 'libx264'
+    printf '%s\n' "$CODECS" | grep -q 'libx265'
+    printf '%s\n' "$CODECS" | grep -q 'libaom'
+    printf '%s\n' "$CODECS" | grep -q 'libdav1d'
+    printf '%s\n' "$CODECS" | grep -q 'libsvtav1'
+    printf '%s\n' "$CODECS" | grep -q 'libvpx'
+    printf '%s\n' "$CODECS" | grep -q 'libopus'
+
+    #
+    # Verify hardware acceleration backends.
+    #
+
+    HWACCELS="$(
+        LD_LIBRARY_PATH="$STAGED_LD_LIBRARY_PATH" \
+            "$pkgdir/usr/bin/ffmpeg" \
+            -hide_banner \
+            -hwaccels 2>&1
+    )"
+
+    printf '%s\n' "$HWACCELS" | grep -q 'vaapi'
+    printf '%s\n' "$HWACCELS" | grep -q 'vdpau'
+    printf '%s\n' "$HWACCELS" | grep -q 'vulkan'
+
+    #
+    # Make sure no static FFmpeg libraries slipped into the package.
+    #
+
+    find "$pkgdir/usr/lib" \
+        -type f \
+        -name 'libav*.a' \
+        -delete 2>/dev/null || true
+
+    find "$pkgdir/usr/lib" \
+        -type f \
+        -name 'libsw*.a' \
+        -delete 2>/dev/null || true
+
+    find "$pkgdir/usr/lib" \
+        -type f \
+        -name '*.la' \
+        -delete 2>/dev/null || true
+
+    #
+    # Licenses
+    #
+
+    install -dm755 \
+        "$pkgdir/usr/share/licenses/${NAME}"
+
+    for license in \
+        COPYING.GPLv2 \
+        COPYING.GPLv3 \
+        COPYING.LGPLv2.1 \
+        COPYING.LGPLv3
+    do
+        if [ -f "$SRCDIR/$license" ]; then
+            install -Dm644 \
+                "$SRCDIR/$license" \
+                "$pkgdir/usr/share/licenses/${NAME}/$license"
+        fi
+    done
+
+    echo "==> FFmpeg ${VERSION} staging complete"
 }

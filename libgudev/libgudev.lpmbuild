@@ -1,0 +1,94 @@
+#!/bin/bash
+# LPM build script for libgudev
+# GObject bindings for libudev (systemd udev)
+# Required by gnome-settings-daemon, upower, gnome-desktop, etc.
+
+NAME="libgudev"
+VERSION="238"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="GObject bindings for libudev"
+URL="https://gitlab.gnome.org/GNOME/libgudev"
+LICENSE=("LGPL-2.1-or-later")
+
+SOURCE=(
+  "https://download.gnome.org/sources/libgudev/${VERSION%.*}/libgudev-${VERSION}.tar.xz"
+)
+
+REQUIRES=(
+  "glibc"
+  "glib2"
+  "systemd"                  # provides libudev
+  "gobject-introspection"
+
+  # Build tooling
+  "meson"
+  "ninja"
+  "pkgconf"
+)
+
+PROVIDES=(
+  "libgudev"
+  "libgudev-1.0"
+  "gudev-1.0"
+  "libgudev-1.0.so"
+  "gudev-1.0.pc"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  export PKG_CONFIG_PATH="/usr/lib/pkgconfig:/usr/share/pkgconfig:${PKG_CONFIG_PATH:-}"
+
+  rm -rf build
+
+  meson setup build \
+    --prefix=/usr \
+    --libdir=lib \
+    --buildtype=release \
+    -Ddefault_library=shared \
+    -Dintrospection=enabled \
+    -Dvapi=disabled \
+    -Dgtk_doc=false
+
+  meson compile -C build
+}
+
+check() {
+  true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  DESTDIR="$pkgdir" meson install -C build
+
+  # License
+  if [ -f COPYING ]; then
+    install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+  elif [ -d LICENSES ]; then
+    install -dm755 "$pkgdir/usr/share/licenses/$NAME"
+    install -m644 LICENSES/* "$pkgdir/usr/share/licenses/$NAME/" 2>/dev/null || true
+  fi
+
+  # Strip (best-effort)
+  if command -v strip >/dev/null 2>&1; then
+    find "$pkgdir/usr" -type f -exec sh -c '
+      case "$(file -b "$1")" in
+        *ELF*shared\ object*|*ELF*executable*) strip --strip-unneeded "$1" 2>/dev/null || true ;;
+      esac
+    ' _ {} \;
+  fi
+}

@@ -1,34 +1,41 @@
-# LPM build script for less
+#!/bin/bash
+# LFS 13.1-systemd baseline; see docs/lfs-13.1.md for patch provenance.
 NAME="less"
-VERSION="661"
+VERSION="704"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="Pager program"
-URL="https://www.greenwoodsoftware.com/less/"
-LICENSE=""
-SOURCE=()
-REQUIRES=("ncurses")
+URL="https://www.greenwoodsoftware.com/less/less-704.tar.gz"
+LICENSE=("GPL-3.0-or-later")
+SOURCE=("https://www.greenwoodsoftware.com/less/less-704.tar.gz")
+SHA256SUMS=("20a0b0a2bb2525fa53c7eee9beb854b4c9cf172eabb209af7020743547bfe9fb")
+PATCHES=()
+REQUIRES=("glibc")
+BUILD_REQUIRES=("gcc" "make" "pkgconf")
 PROVIDES=("less")
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
+
+_srcdir="less-704"
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    :
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    ./configure --prefix=/usr
+    make -j"${JOBS:-$(nproc)}"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    make DESTDIR="$pkgdir" install
+
+    rm -f "$pkgdir/usr/share/info/dir"
+    find "$pkgdir/usr/lib" -name "*.la" -delete 2>/dev/null || true
 }

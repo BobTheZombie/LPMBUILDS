@@ -1,0 +1,46 @@
+#!/bin/bash
+# LPM build script for xmodmap
+
+NAME="xmodmap"
+VERSION="1.0.11"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Utility for modifying keymaps and pointer button mappings in X"
+URL="https://xorg.freedesktop.org/"
+LICENSE="MIT"
+
+SOURCE=(
+  "https://www.x.org/archive//individual/app/${NAME}-${VERSION}.tar.xz"
+)
+
+REQUIRES=(
+  "glibc"
+  "libX11"
+)
+
+PROVIDES=("xmodmap")
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+    set -euxo pipefail
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    ./configure --prefix=/usr
+    make -j"$(nproc)"
+}
+
+check() { true; }
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    DESTDIR="$pkgdir" make install
+}

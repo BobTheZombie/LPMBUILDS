@@ -1,0 +1,44 @@
+NAME="db"
+VERSION="18.1.40"
+RELEASE="1"
+ARCH="x86_64"
+SUMMARY="Berkeley DB libraries and utilities"
+URL="https://www.oracle.com/database/technologies/related/berkeleydb.html"
+SOURCE=("http://download.oracle.com/berkeley-db/db-${VERSION}.tar.gz")
+LICENSE=("Sleepycat")
+
+REQUIRES=("glibc")
+PROVIDES=("db" "libdb.so")
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() {
+    set -euxo pipefail
+    tar -xf "$SRCROOT/db-${VERSION}.tar.gz" -C "$SRCROOT"
+    cd "$SRCROOT/db-${VERSION}/build_unix"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/db-${VERSION}/build_unix"
+    ../dist/configure \
+        --prefix=/usr \
+        --libdir=/usr/lib \
+        --includedir=/usr/include/db${VERSION%%.*} \
+        --enable-cxx \
+        --disable-stl \
+        --disable-static \
+        --disable-docs \
+        --disable-sql \
+        --disable-examples
+    make -j"$(nproc)"
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/db-${VERSION}/build_unix"
+
+    # only install libs, headers, utilities — skip broken docs
+    make DESTDIR="$pkgdir" install_lib install_include install_utilities
+}
+

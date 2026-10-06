@@ -1,0 +1,89 @@
+#!/bin/bash
+# LPM build script for gnome-session
+
+NAME="gnome-session"
+VERSION="47.0.1"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="GNOME session manager"
+URL="https://gitlab.gnome.org/GNOME/gnome-session"
+LICENSE=("GPL-2.0-or-later")
+
+SOURCE=(
+  "https://download.gnome.org/sources/gnome-session/47/gnome-session-${VERSION}.tar.xz"
+)
+
+SHA256SUMS=("SKIP")
+
+REQUIRES=(
+  "glibc"
+  "glib2"
+  "gtk3"
+  "systemd"
+  "dbus"
+  "json-glib"
+)
+
+BUILD_REQUIRES=(
+  "meson"
+  "ninja"
+  "pkgconf"
+  "gettext"
+  "glib2"
+  "gtk3"
+  "systemd"
+  "dbus"
+  "json-glib"
+)
+
+PROVIDES=(
+  "gnome-session"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+  
+  sed -i "/subdir('doc')/d" meson.build
+
+  rm -rf build
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  meson setup build \
+    --prefix=/usr \
+    --libdir=lib \
+    --buildtype=release \
+    -Ddefault_library=shared \
+    -Dman=false
+
+  ninja -C build
+}
+
+check() {
+  true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  DESTDIR="$pkgdir" ninja -C build install
+
+  test -x "$pkgdir/usr/bin/gnome-session"
+
+  for f in COPYING LICENSE; do
+    if [ -f "$f" ]; then
+      install -Dm644 "$f" \
+        "$pkgdir/usr/share/licenses/$NAME/$f"
+    fi
+  done
+}

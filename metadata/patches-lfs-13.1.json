@@ -1,0 +1,110 @@
+[
+  {
+    "package": "Bzip2",
+    "filename": "bzip2-1.0.8-install_docs-1.patch",
+    "url": "https://www.linuxfromscratch.org/patches/lfs/13.1/bzip2-1.0.8-install_docs-1.patch",
+    "sha256": "35e3bbd9642af51fef2a8a83afba040d272da42d7e3a251d8e43255a7b496702",
+    "included": true,
+    "validation": "applied",
+    "context_fuzz": false
+  },
+  {
+    "package": "Coreutils",
+    "filename": "coreutils-9.11-i18n-1.patch",
+    "url": "https://www.linuxfromscratch.org/patches/lfs/13.1/coreutils-9.11-i18n-1.patch",
+    "sha256": "7c2aecf9ae24b87b019595e382b9f41d2c96de7f95abe95ad8cacc7e2ce1bbcc",
+    "included": true,
+    "validation": "applied",
+    "context_fuzz": true
+  },
+  {
+    "package": "Expect",
+    "filename": "expect-5.45.4-gcc15-1.patch",
+    "url": "https://www.linuxfromscratch.org/patches/lfs/13.1/expect-5.45.4-gcc15-1.patch",
+    "sha256": "ab5fc0af9e2e0f80d7623c1a3a3dbeb1da3d8c9134276792199df401f9eb2cec",
+    "included": true,
+    "validation": "applied",
+    "context_fuzz": false
+  },
+  {
+    "package": "Glibc",
+    "filename": "glibc-fhs-1.patch",
+    "url": "https://www.linuxfromscratch.org/patches/lfs/13.1/glibc-fhs-1.patch",
+    "sha256": "643552db030e2f2d7ffde4f558e0f5f83d3fabf34a2e0e56ebdb49750ac27b0d",
+    "included": true,
+    "validation": "applied",
+    "context_fuzz": false
+  },
+  {
+    "package": "Glibc",
+    "filename": "glibc-2.44-upstream_fixes-1.patch",
+    "url": "https://www.linuxfromscratch.org/patches/lfs/13.1/glibc-2.44-upstream_fixes-1.patch",
+    "sha256": "500567ff0a22e295bfe3b55e9b397796f71a19f01e1ff7fb29c9189482ee1809",
+    "included": true,
+    "validation": "applied",
+    "context_fuzz": false
+  },
+  {
+    "package": "Kbd",
+    "filename": "kbd-2.10.0-backspace-1.patch",
+    "url": "https://www.linuxfromscratch.org/patches/lfs/13.1/kbd-2.10.0-backspace-1.patch",
+    "sha256": "8be28dcb11420624a500f2ea4fe975f771174bffee50e54ec8cd295a2dec104e",
+    "included": true,
+    "validation": "applied",
+    "context_fuzz": true
+  },
+  {
+    "package": "Python",
+    "filename": "Python-3.14.7-openssl_4-1.patch",
+    "url": "https://www.linuxfromscratch.org/patches/lfs/13.1/Python-3.14.7-openssl_4-1.patch",
+    "sha256": "707a0c457192ac2f3b5b8a51481bc5ebd12db22d57c1dbe0256138ee6e070792",
+    "included": true,
+    "validation": "applied",
+    "context_fuzz": false
+  },
+  {
+    "package": "Tar",
+    "filename": "tar-1.35-acl_fix-1.patch",
+    "url": "https://www.linuxfromscratch.org/patches/lfs/13.1/tar-1.35-acl_fix-1.patch",
+    "sha256": "51cadccfcb2f29cfdb4ec18015360100aa167179a72ece040a6a8612aeec5081",
+    "included": true,
+    "validation": "applied",
+    "context_fuzz": false
+  },
+  {
+    "package": "Zlib",
+    "filename": "36ff1be48ef696cc67b0855f7c8537ce0276210d.patch",
+    "url": "https://github.com/madler/zlib/commit/36ff1be48ef696cc67b0855f7c8537ce0276210d.patch",
+    "sha256": "af9ce272d3495a27c91e3d37ccfe1146d7e1847ded8b871d86ce3c1875d7cea7",
+    "included": true,
+    "validation": "applied",
+    "context_fuzz": false
+  },
+  {
+    "package": "OpenSSL",
+    "filename": "ca-dir.patch",
+    "url": "https://gitlab.archlinux.org/archlinux/packaging/packages/openssl/-/raw/main/ca-dir.patch",
+    "sha256": "0a32d9ca68e8d985ce0bfef6a4c20b46675e06178cc2d0bf6d91bd6865d648b7",
+    "included": true,
+    "validation": "applied",
+    "context_fuzz": true
+  },
+  {
+    "package": "Systemd",
+    "filename": "0001-Use-Arch-Linux-device-access-groups.patch",
+    "url": "https://gitlab.archlinux.org/archlinux/packaging/packages/systemd/-/raw/main/0001-Use-Arch-Linux-device-access-groups.patch",
+    "sha256": "3ed6376fa18f9f79413c49ca0a04543476649217365c27cd396c83e867a3dffc",
+    "included": true,
+    "validation": "applied",
+    "context_fuzz": false
+  },
+  {
+    "package": "Binutils",
+    "filename": "0001-strip-Don-t-treat-fat-IR-objects-as-plugin-object.patch",
+    "url": "https://gitlab.archlinux.org/archlinux/packaging/packages/binutils/-/raw/main/0001-strip-Don-t-treat-fat-IR-objects-as-plugin-object.patch",
+    "sha256": "cd1816becb0e992ebc09f2ff66050e4b92fad33f0b7acc833cf513f4e4791d1a",
+    "included": false,
+    "validation": "failed",
+    "context_fuzz": true
+  }
+]

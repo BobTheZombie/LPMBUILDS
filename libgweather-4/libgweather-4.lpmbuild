@@ -1,0 +1,68 @@
+#!/bin/bash
+# LPM build script for libgweather (libgweather-4)
+
+NAME="libgweather"
+VERSION="4.5.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="GNOME weather library (libgweather-4)"
+URL="https://gitlab.gnome.org/GNOME/libgweather"
+LICENSE=("LGPL-2.1-or-later")
+
+SOURCE=(
+  "https://download.gnome.org/sources/libgweather/4.5/libgweather-${VERSION}.tar.xz"
+)
+
+REQUIRES=(
+  "glibc"
+  "glib2"
+  "gtk4"
+  "libsoup"
+  "libxml2"
+  "iso-codes"
+  "gobject-introspection"
+  "gweather-locations"
+  "geocode-glib"
+)
+
+PROVIDES=(
+  "libgweather"
+  "libgweather-4"
+  "libgweather-4.so"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="libgweather-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  rm -rf build
+
+  meson setup build         --prefix=/usr         --libdir=lib         --buildtype=release         -Ddefault_library=shared         -Dgtk_doc=false         -Dtests=false         -Dintrospection=true
+
+  meson compile -C build
+}
+
+check() { true; }
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  DESTDIR="$pkgdir" meson install -C build
+
+  for f in COPYING LICENSE; do
+    if [ -f "$f" ]; then
+      install -Dm644 "$f" "$pkgdir/usr/share/licenses/$NAME/$f"
+    fi
+  done
+}

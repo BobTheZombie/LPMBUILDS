@@ -1,34 +1,50 @@
-# LPM build script for shadow
+#!/bin/bash
+# LFS 13.1-systemd baseline; see docs/lfs-13.1.md for patch provenance.
 NAME="shadow"
-VERSION="4.15"
+VERSION="4.20.2"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Password and account management tools"
-URL="https://github.com/shadow-maint/shadow"
-LICENSE=""
-SOURCE=()
-REQUIRES=("glibc" "pam" "libxcrypt")
+SUMMARY="Password and account management tool suite (full PAM version)"
+URL="https://github.com/shadow-maint/shadow/releases/download/4.20.2/shadow-4.20.2.tar.xz"
+LICENSE="BSD-3-Clause"
+SOURCE=("https://github.com/shadow-maint/shadow/releases/download/4.20.2/shadow-4.20.2.tar.xz" "useradd.defaults" "shadow.service" "shadow.timer" "shadow.sysusers" "shadow.tmpfiles")
+SHA256SUMS=("b89f432b75ae55a2d852b446d0365484795fdf533ab97d550e325fa15594a224" "b3056f0a7768f08b135f02bfbc6a88659f0c54cfbf3803f33a23d542b6b97f88" "31d12e406d0cfda69f50c8b4477ba97eb98c5c636eac64048542fb8c5e9d51ac" "736eb7b16fc2fff9c902d4823641114338f290a6825e66831f41c5474e994207" "29448220f2ecfeab0a1a7aae296f07ca522d0a75a5b20df30f83950f9d54531f" "c2faa81b894de452e6cd23660ad7e30a4e03d6a4eacb94ff209c6e578df05e61")
+PATCHES=()
+REQUIRES=("glibc" "libxcrypt" "pam" "audit" "libcap")
+BUILD_REQUIRES=("gcc" "make" "pkgconf" "docbook-xsl" "libxslt")
 PROVIDES=("shadow")
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
+
+_srcdir="shadow-4.20.2"
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    find man -name Makefile.in -exec sed -i -e 's/getspnam\.3 / /' -e 's/passwd\.5 / /' {} +
+    sed -i -e 's:#ENCRYPT_METHOD SHA512:ENCRYPT_METHOD YESCRYPT:' -e 's:/var/spool/mail:/var/mail:' etc/login.defs
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    ./configure --prefix=/usr --sysconfdir=/etc --sbindir=/usr/bin --disable-static --with-yescrypt --without-bcrypt --with-libpam --with-audit --with-fcaps --with-group-name-max-length=32
+    make -j"${JOBS:-$(nproc)}"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    make DESTDIR="$pkgdir" install
+    # util-linux owns login, su and runuser; coreutils owns groups.
+    rm -f "$pkgdir/usr/bin/"{login,su,groups} "$pkgdir/usr/share/man/man1/"{login,su,groups}.1
+    rm -f "$pkgdir/etc/pam.d/"{login,su}
+    install -Dm600 "$SRCROOT/useradd.defaults" "$pkgdir/etc/default/useradd"
+    for file in shadow.service shadow.timer; do
+        install -Dm644 "$SRCROOT/$file" "$pkgdir/usr/lib/systemd/system/$file"
+    done
+    install -Dm644 "$SRCROOT/shadow.sysusers" "$pkgdir/usr/lib/sysusers.d/shadow.conf"
+    install -Dm644 "$SRCROOT/shadow.tmpfiles" "$pkgdir/usr/lib/tmpfiles.d/shadow.conf"
+    rm -f "$pkgdir/usr/share/info/dir"
+    find "$pkgdir/usr/lib" -name "*.la" -delete 2>/dev/null || true
 }

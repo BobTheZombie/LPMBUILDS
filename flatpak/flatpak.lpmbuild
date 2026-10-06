@@ -1,0 +1,100 @@
+#!/bin/bash
+# LPM build script for Flatpak
+# Application sandboxing and distribution framework
+
+NAME="flatpak"
+VERSION="1.16.2"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Application sandboxing and distribution framework"
+URL="https://flatpak.org/"
+LICENSE="LGPL-2.1-or-later"
+
+SOURCE=(
+  "https://github.com/flatpak/flatpak/releases/download/${VERSION}/flatpak-${VERSION}.tar.xz"
+  "https://dl.flathub.org/repo/flathub.flatpakrepo"
+)
+
+REQUIRES=(
+  "glibc"
+  "glib2"
+  "libxml2"
+  "libarchive"
+  "libseccomp"
+  "libcap"
+  "libostree"
+  "dbus"
+  "systemd"
+
+
+  # Build deps
+  "meson"
+  "ninja"
+  "pkg-config"
+  "gcc"
+  "python"
+)
+
+PROVIDES=(
+  "flatpak"
+  "flatpak-session-helper"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    meson setup build \
+        --prefix=/usr \
+        --libdir=lib \
+        --buildtype=release \
+        -Ddbus_config_dir=/usr/share/dbus-1/system.d \
+        -Dselinux_module=disabled \
+        -Dsystem_dbus_proxy=xdg-dbus-proxy \
+        -Dtests=false 
+
+    meson compile -C build
+}
+
+check() {
+    # Flatpak has tests, but they’re heavy and not required for packaging
+    true
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    DESTDIR="$pkgdir" meson install -C build
+  
+    install -Dm644 "$SRCROOT/flathub.flatpakrepo" \
+  "$pkgdir/usr/share/flatpak/remotes.d/flathub.flatpakrepo"
+
+
+    # License
+    if [ -f COPYING ]; then
+        install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+    fi
+
+    # Strip ELF binaries/libs
+    if command -v strip >/dev/null 2>&1; then
+        find "$pkgdir/usr" -type f -exec sh -c '
+            case "$(file -b "$1")" in
+              *ELF*executable*|*ELF*shared\ object*)
+                  strip --strip-unneeded "$1" 2>/dev/null || true
+              ;;
+            esac
+        ' _ {} \;
+    fi
+}
+

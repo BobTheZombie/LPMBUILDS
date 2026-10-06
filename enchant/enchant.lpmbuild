@@ -1,0 +1,76 @@
+#!/bin/bash
+# LPM build script for enchant
+
+NAME="enchant"
+VERSION="2.8.12"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Spell checking library"
+URL="https://abiword.github.io/enchant/"
+LICENSE=("LGPL-2.1-or-later")
+
+SOURCE=(
+  "https://github.com/AbiWord/enchant/releases/download/v${VERSION}/enchant-${VERSION}.tar.gz"
+)
+
+SHA256SUMS=("SKIP")
+
+REQUIRES=(
+  "glibc"
+  "glib2"
+  "hunspell"
+)
+
+BUILD_REQUIRES=(
+  "meson"
+  "ninja"
+  "pkgconf"
+  "glib2"
+  "hunspell"
+)
+
+PROVIDES=(
+  "enchant"
+  "libenchant-2.so"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  rm -rf build
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+   local configure_options=(
+    --prefix=/usr
+    --sysconfdir=/etc
+    --localstatedir=/var
+    --disable-static
+    --enable-relocatable
+  )
+
+  ./configure "${configure_options[@]}"
+  sed -i -e 's/ -shared / -Wl,-O1,--as-needed\0/g' libtool
+  make
+
+}
+
+check() {
+  true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  make DESTDIR="$pkgdir" install
+}

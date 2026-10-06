@@ -1,0 +1,80 @@
+#!/bin/bash
+# LPM build script for gammastep
+
+NAME="gammastep"
+VERSION="2.0.11"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Adjust color temperature of your screen according to time of day"
+URL="https://gitlab.com/chinstrap/gammastep"
+LICENSE=("GPL-3.0-or-later")
+
+SOURCE=(
+  "https://gitlab.com/chinstrap/gammastep/-/archive/v${VERSION}/gammastep-v${VERSION}.tar.gz"
+)
+
+REQUIRES=(
+  "glibc"
+  "glib2"
+  "libX11"
+  "libxcb"
+  "wayland"
+  "geoclue"
+)
+
+BUILD_REQUIRES=(
+  "autoconf"
+  "automake"
+  "libtool"
+  "make"
+  "pkgconf"
+  "gettext"
+  "wayland-protocols"
+)
+
+PROVIDES=(
+  "gammastep"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  ./bootstrap
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  ./configure \
+    --prefix=/usr \
+    --disable-static
+
+  make -j"$(nproc)"
+}
+
+check() {
+  true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  make DESTDIR="$pkgdir" install
+
+  test -f "$pkgdir/usr/bin/gammastep"
+
+  for f in COPYING LICENSE; do
+    if [ -f "$f" ]; then
+      install -Dm644 "$f" \
+        "$pkgdir/usr/share/licenses/$NAME/$f"
+    fi
+  done
+}

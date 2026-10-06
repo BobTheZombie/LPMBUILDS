@@ -1,0 +1,104 @@
+#!/bin/bash
+
+NAME="gweather-locations"
+VERSION="4.4.4"
+RELEASE="2"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="GWeather locations + timezone database (data-only)"
+URL="https://gitlab.gnome.org/GNOME/libgweather"
+LICENSE=("GPL-2.0-or-later")
+
+SOURCE=(
+  "https://download.gnome.org/sources/libgweather/4.4/libgweather-${VERSION}.tar.xz"
+)
+
+REQUIRES=(
+  "glibc"
+  "glib2"
+  "libxml2"
+  "zlib"
+  "geocode-glib"
+)
+
+BUILD_REQUIRES=(
+  "meson"
+  "ninja"
+  "pkgconf"
+  "gettext"
+  "python"
+)
+
+PROVIDES=(
+  "gweather-locations"
+  "libgweather-locations"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  rm -rf build
+
+  meson setup build \
+    --prefix=/usr \
+    --libdir=lib \
+    --buildtype=release \
+    -Ddefault_library=shared \
+    -Dgtk_doc=false \
+    -Dintrospection=false \
+    -Dtests=false
+
+  meson compile -C build
+}
+
+check() {
+  true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  DESTDIR="$pkgdir" meson install -C build
+
+  test -f "$pkgdir/usr/share/libgweather-4/Locations.xml"
+  test -f "$pkgdir/usr/share/libgweather-4/locations.dtd"
+  test -f "$pkgdir/usr/lib/libgweather-4/Locations.bin"
+
+  rm -rf "$pkgdir/usr/include"
+  rm -rf "$pkgdir/usr/share/gir-1.0"
+  rm -rf "$pkgdir/usr/lib/girepository-1.0"
+  rm -rf "$pkgdir/usr/share/vala"
+  rm -f  "$pkgdir/usr/lib/libgweather-4.so"*
+
+  install -dm755 "$pkgdir/usr/lib/pkgconfig"
+
+  cat > "$pkgdir/usr/lib/pkgconfig/gweather-locations.pc" <<EOF
+prefix=/usr
+datadir=\${prefix}/share
+libdir=\${prefix}/lib
+
+Name: gweather-locations
+Description: Location and timezone database for libgweather
+Version: ${VERSION}
+Requires:
+Libs:
+Cflags:
+EOF
+
+  for f in COPYING LICENSE; do
+    if [ -f "$f" ]; then
+      install -Dm644 "$f" "$pkgdir/usr/share/licenses/$NAME/$f"
+    fi
+  done
+}

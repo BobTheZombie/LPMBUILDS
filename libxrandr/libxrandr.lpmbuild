@@ -8,24 +8,26 @@ URL="https://www.x.org/"
 LICENSE="MIT"
 SOURCE=("https://xorg.freedesktop.org/archive/individual/lib/libXrandr-${VERSION}.tar.xz")
 CHECKSUMS=("1ad5b065375f4a85915aa60611cc6407c060492a214d7f9daf214be752c3b4d3")
-REQUIRES=("glibc" "libx11" "libxext" "libxrender" "xorgproto")
+REQUIRES=("glibc" "libX11" "libXext" "libXrender" "xorgproto")
 PROVIDES=("libxrandr")
 CONFLICTS=()
 OBSOLETES=()
 RECOMMENDS=()
 SUGGESTS=()
 
-prepare() { set -euxo pipefail; cd "$SRCROOT"; }
+prepare() { set -euxo pipefail
+  cd "$SRCROOT/$NAME-$VERSION"
+}
 
 build() {
   set -euxo pipefail
-  cd "$SRCROOT"
+  cd "$SRCROOT/$NAME-$VERSION"
   ./configure --prefix=/usr --sysconfdir=/etc --disable-static
   make -j"$(nproc)"
 }
 
 staging() {
   set -euxo pipefail
-  cd "$SRCROOT"
+  cd "$SRCROOT/$NAME-$VERSION"
   make DESTDIR="$pkgdir" install
 }

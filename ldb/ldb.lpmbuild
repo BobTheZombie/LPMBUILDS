@@ -1,0 +1,77 @@
+#!/bin/bash
+# LPM build script for ldb
+
+NAME="ldb"
+VERSION="2.9.1"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="LDAP-like embedded database"
+URL="https://www.samba.org/"
+LICENSE=("GPL-3.0-or-later")
+
+SOURCE=(
+  "https://download.samba.org/pub/ldb/ldb-${VERSION}.tar.gz"
+)
+
+SHA256SUMS=("SKIP")
+
+REQUIRES=(
+  "glibc"
+  "talloc"
+  "tdb"
+  "tevent"
+)
+
+BUILD_REQUIRES=(
+  "python"
+  "pkgconf"
+  "talloc"
+  "tdb"
+  "tevent"
+)
+
+PROVIDES=(
+  "ldb"
+  "libldb.so"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  ./configure \
+    --prefix=/usr \
+    --libdir=/usr/lib
+
+  make -j"$(nproc)"
+}
+
+check() {
+  true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  make DESTDIR="$pkgdir" install
+
+  test -f "$pkgdir/usr/lib/libldb.so"
+
+  for f in COPYING LICENSE; do
+    if [ -f "$f" ]; then
+      install -Dm644 "$f" \
+        "$pkgdir/usr/share/licenses/$NAME/$f"
+    fi
+  done
+}

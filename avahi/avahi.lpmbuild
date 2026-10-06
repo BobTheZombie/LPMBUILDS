@@ -1,0 +1,125 @@
+#!/bin/bash
+# LPM build script for avahi
+# mDNS/DNS-SD service discovery (Bonjour-compatible)
+
+NAME="avahi"
+VERSION="0.9rc2"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="mDNS/DNS-SD service discovery (Bonjour-compatible)"
+URL="https://github.com/avahi/avahi"
+LICENSE=("LGPL-2.1-or-later")
+
+SOURCE=(
+  "git+https://github.com/avahi/avahi#tag=v${VERSION/[a-z]/-&}"
+  "0001-HACK-Install-fixes.patch"
+)
+
+REQUIRES=(
+  "glibc"
+  "dbus"
+  "expat"
+  "libdaemon"
+  "libcap"
+  "glib2"
+
+  # Build deps
+  "pkg-config"
+  "gcc"
+  "make"
+  "autoconf"
+  "automake"
+  "libtool"
+  "perl-XML-Parser"
+)
+
+PROVIDES=(
+  "avahi"
+  "avahi-daemon"
+  "libavahi-client.so"
+  "libavahi-common.so"
+  "libavahi-core.so"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}"
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+    
+  # CVE-2024-2699
+    git cherry-pick -n 78eab31128479f06e30beb8c1cbf99dd921e2524
+
+  # CVE-2024-52615
+   git cherry-pick -n 4e2e1ea0908d7e6ad7f38ae04fdcdf2411f8b942
+
+  # https://bugs.archlinux.org/task/47822
+    git apply -3 "$SRCROOT/0001-HACK-Install-fixes.patch"
+
+    NOCONFIGURE=1 ./autogen.sh
+    
+    
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    ./configure \
+    --prefix=/usr \
+    --sysconfdir=/etc \
+    --localstatedir=/var \
+    --sbindir=/usr/bin \
+    --runstatedir=/run \
+    --disable-mono \
+    --disable-qt5 \
+    --enable-compat-libdns_sd \
+    --with-autoipd-group=avahi \
+    --with-autoipd-user=avahi \
+    --with-avahi-priv-access-group=network \
+    --with-distro=none \
+    --with-systemdsystemunitdir=/usr/lib/systemd/system \
+    with_dbus_sys=/usr/share/dbus-1/system.d
+
+    make -j"$(nproc)"
+}
+
+check() {
+    true
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    make DESTDIR="$pkgdir" install
+
+    # Create expected runtime dirs
+    install -vdm755 "$pkgdir/etc/avahi"
+    install -vdm755 "$pkgdir/var/run/avahi-daemon" || true
+    
+    echo 'u avahi - "Avahi mDNS/DNS-SD daemon"' |
+    install -Dm644 /dev/stdin "$pkgdir/usr/lib/sysusers.d/$NAME.conf"
+
+
+    # License
+    if [ -f COPYING ]; then
+        install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+    elif [ -f LICENSE ]; then
+        install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$NAME/LICENSE"
+    fi
+
+    # Strip ELF binaries and shared libs
+    if command -v strip >/dev/null 2>&1; then
+        find "$pkgdir/usr" -type f -exec sh -c '
+            case "$(file -b "$1")" in
+              *ELF*shared\ object*|*ELF*executable*)
+                  strip --strip-unneeded "$1" 2>/dev/null || true
+              ;;
+            esac
+        ' _ {} \;
+    fi
+}

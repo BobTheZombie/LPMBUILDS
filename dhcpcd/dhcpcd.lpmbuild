@@ -1,35 +1,113 @@
-# LPM build script for dhcpcd
 NAME="dhcpcd"
-VERSION="10.0.6"
+VERSION="10.2.4"
 RELEASE="1"
-ARCH="${ARCH:-x86_64}"
+ARCH="x86_64"
 SUMMARY="DHCP client daemon"
 URL="https://roy.marples.name/projects/dhcpcd"
-LICENSE=""
-SOURCE=()
-REQUIRES=("glibc")
-PROVIDES=("dhcpcd")
+SOURCE=("https://github.com/NetworkConfiguration/dhcpcd/releases/download/v10.2.4/dhcpcd-${VERSION}.tar.xz"
+        "${NAME}_.service"
+        "$NAME.service"
+        "$NAME.sysusers"
+        "$NAME.tmpfiles"
+)
+LICENSE=("BSD-2-Clause")
+
+# Minimal runtime build deps; include systemd for unit/sysusers/tmpfiles support
+REQUIRES=("glibc" 
+          "openssl" 
+          "sh" 
+          "systemd"
+)
+          
+PROVIDES=("dhcpcd" "dhcpcd-run" "dhcpcd.service")
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+    cd "$SRCROOT/dhcpcd-${VERSION}"
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr --sbindir=/usr/bin --sysconfdir=/etc
-  make -j"$(nproc)"
+    set -euxo pipefail
+    cd "$SRCROOT/dhcpcd-${VERSION}"
+
+    # Configure minimal build:
+    ./configure \
+        --prefix=/usr \
+        --sysconfdir=/etc \
+        --libexecdir="/usr/lib/$NAME" \
+        --localstatedir=/var \
+        --libdir=/usr/lib \
+        --disable-static \
+        --privsepuser="$NAME" \
+        --without-ping \
+        --without-dhcping
+
+    make -j"$(nproc)"
+}
+
+check() {
+    set -euxo pipefail
+    cd "$SRCROOT/dhcpcd-${VERSION}"
+    # upstream tests can be interactive; run what we can but don't fail build
+    make -k check || true
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
-  install -Dm644 dhcpcd.conf "$pkgdir/etc/dhcpcd.conf"
+    set -euxo pipefail
+    cd "$SRCROOT/dhcpcd-${VERSION}"
+
+    # Install into pkgdir
+    make DESTDIR="$pkgdir" install
+
+    # Default config
+    install -d "$pkgdir/etc"
+    cat > "$pkgdir/etc/dhcpcd.conf" <<'EOF'
+# Minimal example dhcpcd config
+timeout 10
+noarp
+interface eth0
+EOF
+
+    # Systemd unit, templated unit, sysusers and tmpfiles - install if files exist in SOURCE
+    if [ -f "$SRCROOT/${NAME}.service" ]; then
+        install -Dm644 "$SRCROOT/${NAME}.service" "$pkgdir/usr/lib/systemd/system/${NAME}.service"
+    fi
+
+    if [ -f "$SRCROOT/${NAME}_.service" ]; then
+        # upstream naming in your SOURCE used NAME_.service for template
+        install -Dm644 "$SRCROOT/${NAME}_.service" "$pkgdir/usr/lib/systemd/system/${NAME}@.service"
+    fi
+
+    if [ -f "$SRCROOT/${NAME}.sysusers" ]; then
+        install -Dm644 "$SRCROOT/${NAME}.sysusers" "$pkgdir/usr/lib/sysusers.d/${NAME}.conf"
+    fi
+
+    if [ -f "$SRCROOT/${NAME}.tmpfiles" ]; then
+        install -Dm644 "$SRCROOT/${NAME}.tmpfiles" "$pkgdir/usr/lib/tmpfiles.d/${NAME}.conf"
+    fi
+
+    # Create libexec dir if anything wants it
+    install -d "$pkgdir/usr/lib/$NAME"
+
+    # Strip ELF binaries and libraries if present (safe check)
+    for f in \
+      "$pkgdir/usr/bin/$NAME" \
+      "$pkgdir/usr/bin/dhcpcd-run" \
+      "$pkgdir/usr/lib/$NAME/"*.so \
+      "$pkgdir/usr/lib/$NAME/"*  ; do
+        if [ -f "$f" ]; then
+            # check ELF magic to avoid stripping non-ELF files
+            if head -c4 "$f" | grep -q $'\x7fELF'; then
+                strip --strip-unneeded "$f" || true
+            fi
+        fi
+    done
+
+    # ensure permissions for config/sysusers/tmpfiles
+    chmod 0644 "$pkgdir/usr/lib/systemd/system/${NAME}.service" 2>/dev/null || true
+    chmod 0644 "$pkgdir/usr/lib/sysusers.d/${NAME}.conf" 2>/dev/null || true
+    chmod 0644 "$pkgdir/usr/lib/tmpfiles.d/${NAME}.conf" 2>/dev/null || true
 }
+

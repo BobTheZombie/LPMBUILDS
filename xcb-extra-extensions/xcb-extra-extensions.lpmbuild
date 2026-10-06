@@ -1,0 +1,30 @@
+#!/bin/bash
+# Meta package: xcb-extra-extensions
+
+NAME="xcb-extra-extensions"
+VERSION="1.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Meta package pulling in additional XCB extension libraries"
+URL="https://xcb.freedesktop.org/"
+LICENSE="MIT"
+
+REQUIRES=(
+  "libxcb-xfixes"
+  "libxcb-randr"
+  "libxcb-sync"
+  "libxcb-present"
+  "libxcb-xinput"
+)
+
+PROVIDES=("xcb-extra-extensions")
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() { true; }
+build() { true; }
+check() { true; }
+staging() {
+    mkdir -p "$pkgdir/usr/share/doc/$NAME"
+    echo "Meta package for XCB extension libraries" > "$pkgdir/usr/share/doc/$NAME/README"
+}

@@ -1,0 +1,34 @@
+NAME="system-toolchain"
+VERSION="1.0"
+RELEASE="1"
+ARCH="x86_64"
+SUMMARY="Meta-package providing compiler and core toolchain"
+URL="https://gitlab.com/lpm-org"
+SOURCE=()
+LICENSE=("GPL-2.0-or-later")
+
+REQUIRES=(
+  "linux-headers"
+  "glibc"
+  "binutils"
+  "gmp"
+  "mpfr"
+  "mpc"
+  "isl"
+  "gcc"
+  "make"
+  "pkgconf"
+)
+
+PROVIDES=("system-toolchain")
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() { true; }
+build() { true; }
+
+staging() {
+    mkdir -p "$pkgdir"
+    echo "system-toolchain ${VERSION}-${RELEASE}" > "$pkgdir/.system-toolchain"
+}
+

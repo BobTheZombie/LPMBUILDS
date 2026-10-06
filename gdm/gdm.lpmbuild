@@ -1,0 +1,125 @@
+#!/bin/bash
+# LPM build script for GDM
+
+NAME="gdm"
+VERSION="47.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="GNOME Display Manager"
+URL="https://gitlab.gnome.org/GNOME/gdm"
+LICENSE=("GPL-2.0-or-later")
+
+SOURCE=(
+  "https://download.gnome.org/sources/gdm/47/gdm-${VERSION}.tar.xz"
+)
+
+SHA256SUMS=("SKIP")
+
+REQUIRES=(
+  "glibc"
+  "glib2"
+  "gtk4"
+  "systemd"
+  "dbus"
+  "mesa"
+  "wayland"
+  "mutter"
+  "gnome-session"
+  "gnome-shell"
+  "gsettings-desktop-schemas"
+  "pam"
+  "accountsservice"
+)
+
+BUILD_REQUIRES=(
+  "meson"
+  "ninja"
+  "pkgconf"
+  "gettext"
+  "glib2"
+  "gtk4"
+  "systemd"
+  "dbus"
+  "wayland"
+  "gobject-introspection"
+  "accountsservice"
+)
+
+PROVIDES=(
+  "gdm"
+  "display-manager.service"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  rm -rf build
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  export XML_CATALOG_FILES=/etc/xml/catalog
+
+  meson setup build \
+    --prefix=/usr \
+    --libdir=lib \
+    --buildtype=release \
+    -Ddefault_library=shared \
+    -Dsystemd=true \
+    -Ddbus-sys="/usr/share/dbus-1/system.d"
+    -Ddefault-pam-config=arch # we use arch's pam policy 
+    -Dselinux=disabled \
+    -Dplymouth=disabled \
+    -Duser-display-server=true \
+    -Dwayland-support=true \
+    -Dx11-support=false \
+    -Dgdm-xsession=true \
+    -Drun-dir=/run/gdm
+
+  ninja -C build
+}
+
+check() {
+  true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  DESTDIR="$pkgdir" ninja -C build install
+
+  test -x "$pkgdir/usr/bin/gdm"
+  test -f "$pkgdir/usr/lib/systemd/system/gdm.service"
+
+  install -dm755 "$pkgdir/etc/gdm"
+
+  cat > "$pkgdir/etc/gdm/custom.conf" <<'EOF'
+[daemon]
+WaylandEnable=true
+DefaultSession=budgie-desktop
+
+[security]
+
+[xdmcp]
+
+[chooser]
+
+[debug]
+EOF
+
+  for f in COPYING LICENSE; do
+    if [ -f "$f" ]; then
+      install -Dm644 "$f" \
+        "$pkgdir/usr/share/licenses/$NAME/$f"
+    fi
+  done
+}

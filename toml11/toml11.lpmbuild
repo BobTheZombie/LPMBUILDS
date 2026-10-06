@@ -1,0 +1,72 @@
+#!/bin/bash
+# LPM build script for toml11
+
+NAME="toml11"
+VERSION="4.4.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="TOML parser and serializer for C++11"
+URL="https://github.com/ToruNiina/toml11"
+LICENSE=("MIT")
+
+SOURCE=(
+  "https://github.com/ToruNiina/toml11/archive/refs/tags/v${VERSION}.tar.gz"
+)
+
+SHA256SUMS=("SKIP")
+
+REQUIRES=()
+
+BUILD_REQUIRES=(
+  "cmake"
+  "ninja"
+)
+
+PROVIDES=(
+  "toml11"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  rm -rf build
+  mkdir -p build
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir/build"
+
+  cmake .. -G Ninja \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DCMAKE_INSTALL_LIBDIR=lib \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DTOML11_BUILD_TEST=OFF \
+    -DTOML11_BUILD_EXAMPLE=OFF
+
+  ninja
+}
+
+check() {
+  true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir/build"
+
+  DESTDIR="$pkgdir" cmake --install .
+
+  for f in LICENSE COPYING; do
+    if [ -f "$SRCROOT/$_srcdir/$f" ]; then
+      install -Dm644 "$SRCROOT/$_srcdir/$f" \
+        "$pkgdir/usr/share/licenses/$NAME/$f"
+    fi
+  done
+}

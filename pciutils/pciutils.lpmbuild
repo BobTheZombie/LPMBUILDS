@@ -1,0 +1,93 @@
+#!/bin/bash
+# LPM build script for pciutils
+
+NAME="pciutils"
+VERSION="3.13.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="PCI bus configuration space access library and utilities"
+URL="https://mj.ucw.cz/sw/pciutils/"
+LICENSE=("GPL-2.0-or-later")
+
+SOURCE=(
+  "https://mj.ucw.cz/download/linux/pci/pciutils-${VERSION}.tar.gz"
+)
+
+REQUIRES=(
+  "glibc"
+  "hwdata"
+  "zlib"
+)
+
+BUILD_REQUIRES=(
+  "make"
+  "pkgconf"
+  "linux-headers"
+  "zlib"
+)
+
+PROVIDES=(
+  "pciutils"
+  "libpci.so"
+  "lspci"
+  "setpci"
+  "update-pciids"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  make \
+    PREFIX=/usr \
+    SHAREDIR=/usr/share/hwdata \
+    ZLIB=yes \
+    DNS=yes \
+    HWDB=yes \
+    LIBKMOD=no \
+    SHARED=yes \
+    IDSDIR=/usr/share/hwdata \
+    -j"$(nproc)"
+}
+
+check() {
+  true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  make install \
+    PREFIX=/usr \
+    SHAREDIR=/usr/share/hwdata \
+    IDSDIR=/usr/share/hwdata \
+    DESTDIR="$pkgdir"
+
+  test -f "$pkgdir/usr/bin/lspci"
+  test -f "$pkgdir/usr/bin/setpci"
+  test -f "$pkgdir/usr/lib/libpci.so"
+
+  install -dm755 "$pkgdir/usr/share/misc"
+
+  # Compatibility symlink
+  ln -sf ../hwdata/pci.ids "$pkgdir/usr/share/misc/pci.ids"
+
+  for f in COPYING LICENSE; do
+    if [ -f "$f" ]; then
+      install -Dm644 "$f" \
+        "$pkgdir/usr/share/licenses/$NAME/$f"
+    fi
+  done
+}
+

@@ -1,0 +1,93 @@
+#!/bin/bash
+# LPM build script for gjs
+# GNOME JavaScript bindings (SpiderMonkey) used by GNOME Shell and Budgie components
+
+NAME="gjs"
+VERSION="1.82.1"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="GNOME JavaScript bindings (GJS)"
+URL="https://gitlab.gnome.org/GNOME/gjs"
+LICENSE=("MIT" "LGPL-2.1-or-later")
+
+SOURCE=(
+  "https://download.gnome.org/sources/gjs/1.82/gjs-${VERSION}.tar.xz"
+)
+
+REQUIRES=(
+  "glibc"
+  "glib2"
+  "gobject-introspection"
+  "cairo"
+  "pango"
+  "gdk-pixbuf2"
+  "atk"
+  "gtk3"
+  "readline"
+  "libffi"
+  "zlib"
+  "xz"
+  "dbus"
+  "mozjs"
+
+  # Build
+  "meson"
+  "ninja"
+  "pkg-config"
+  "python"
+)
+
+PROVIDES=(
+  "gjs"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="gjs-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  meson setup build \
+    --prefix=/usr \
+    --libdir=lib \
+    --buildtype=release \
+    -Dinstalled_tests=false \
+    -Dsystemtap=false \
+    -Dskip_dbus_tests=true
+
+  meson compile -C build
+}
+
+check() { true; }
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  DESTDIR="$pkgdir" meson install -C build
+
+  # License
+  if [ -f COPYING ]; then
+    install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+  fi
+  if [ -f LICENSES/MIT.txt ]; then
+    install -Dm644 LICENSES/MIT.txt "$pkgdir/usr/share/licenses/$NAME/MIT.txt"
+  fi
+
+  # Strip
+  if command -v strip >/dev/null 2>&1; then
+    find "$pkgdir/usr" -type f -exec sh -c '
+      case "$(file -b "$1")" in
+        *ELF*executable*|*ELF*shared\ object*) strip --strip-unneeded "$1" 2>/dev/null || true ;;
+      esac
+    ' _ {} \;
+  fi
+}

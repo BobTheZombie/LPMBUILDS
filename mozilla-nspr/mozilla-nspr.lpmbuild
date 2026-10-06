@@ -1,0 +1,125 @@
+#!/bin/bash
+
+NAME="mozilla-nspr"
+VERSION="4.40"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+
+SUMMARY="Netscape Portable Runtime"
+URL="https://firefox-source-docs.mozilla.org/nspr/"
+LICENSE=("MPL-2.0")
+
+SOURCE=(
+    "https://archive.mozilla.org/pub/nspr/releases/v${VERSION}/src/nspr-${VERSION}.tar.gz"
+)
+
+SHA256SUMS=("SKIP")
+PATCHES=()
+
+REQUIRES=(
+    "glibc"
+)
+
+BUILD_REQUIRES=(
+    "bash"
+    "gcc"
+    "make"
+    "pkgconf"
+)
+
+PROVIDES=(
+    "nspr"
+    "mozilla-nspr"
+    "libnspr4.so"
+    "libplc4.so"
+    "libplds4.so"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}/nspr"
+
+    test -f "$SRCDIR/configure"
+    test -f "$SRCDIR/pr/src/misc/Makefile.in"
+    test -f "$SRCDIR/config/rules.mk"
+
+    cd "$SRCDIR"
+
+    #
+    # Do not install the obsolete compile-et.pl and compile-et2.pl scripts.
+    #
+
+    sed -i \
+        '/^RELEASE/s|^|#|' \
+        pr/src/misc/Makefile.in
+
+    #
+    # NSPR consumers use the shared libraries. Avoid installing duplicate
+    # static archives.
+    #
+
+    sed -i \
+        's|$(LIBRARY) ||' \
+        config/rules.mk
+}
+
+build() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}/nspr"
+    BUILDDIR="$SRCROOT/${NAME}-${VERSION}-build"
+
+    rm -rf "$BUILDDIR"
+    mkdir -p "$BUILDDIR"
+
+    cd "$BUILDDIR"
+
+    "$SRCDIR/configure" \
+        --prefix=/usr \
+        --libdir=/usr/lib \
+        --includedir=/usr/include/nspr \
+        --with-mozilla \
+        --with-pthreads \
+        --enable-optimize \
+        --disable-debug \
+        --enable-64bit
+
+    make -j"$(nproc)"
+}
+
+check() {
+    true
+}
+
+staging() {
+    set -euxo pipefail
+
+    BUILDDIR="$SRCROOT/${NAME}-${VERSION}-build"
+
+    cd "$BUILDDIR"
+
+    make DESTDIR="$pkgdir" install
+
+    #
+    # Verify the complete NSPR runtime and development payload.
+    #
+
+    test -f "$pkgdir/usr/lib/libnspr4.so"
+    test -f "$pkgdir/usr/lib/libplc4.so"
+    test -f "$pkgdir/usr/lib/libplds4.so"
+
+    test -f "$pkgdir/usr/include/nspr/nspr.h"
+    test -x "$pkgdir/usr/bin/nspr-config"
+
+    #
+    # NSPR should not ship static archives in the normal runtime package.
+    #
+
+    test ! -e "$pkgdir/usr/lib/libnspr4.a"
+    test ! -e "$pkgdir/usr/lib/libplc4.a"
+    test ! -e "$pkgdir/usr/lib/libplds4.a"
+}

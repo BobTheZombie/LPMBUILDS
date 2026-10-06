@@ -1,34 +1,41 @@
-# LPM build script for file
+#!/bin/bash
+# LFS 13.1-systemd baseline; see docs/lfs-13.1.md for patch provenance.
 NAME="file"
-VERSION="5.45"
+VERSION="5.48"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="File type identification"
-URL="https://astron.com/pub/file/"
-LICENSE=""
-SOURCE=()
+URL="https://astron.com/pub/file/file-5.48.tar.gz"
+LICENSE=("BSD-2-Clause")
+SOURCE=("https://astron.com/pub/file/file-5.48.tar.gz")
+SHA256SUMS=("ed14656883b23a364b4057c05595d93252da9bc473d30106519519d0da141283")
+PATCHES=()
 REQUIRES=("glibc")
+BUILD_REQUIRES=("gcc" "make" "pkgconf")
 PROVIDES=("file")
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
+
+_srcdir="file-5.48"
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    :
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    ./configure --prefix=/usr
+    make -j"${JOBS:-$(nproc)}"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    make DESTDIR="$pkgdir" install
+
+    rm -f "$pkgdir/usr/share/info/dir"
+    find "$pkgdir/usr/lib" -name "*.la" -delete 2>/dev/null || true
 }

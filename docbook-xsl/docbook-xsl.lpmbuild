@@ -1,0 +1,85 @@
+#!/bin/bash
+# LPM build script for docbook-xsl
+
+NAME="docbook-xsl"
+VERSION="1.79.2"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="XML stylesheets for DocBook transformations"
+URL="https://docbook.org/"
+LICENSE=("LicenseRef-docbook-XSL")
+
+SOURCE=(
+  "https://github.com/docbook/xslt10-stylesheets/releases/download/release%2F${VERSION}/docbook-xsl-${VERSION}.tar.bz2"
+)
+
+REQUIRES=(
+  "libxml2"
+  "libxslt"
+)
+
+BUILD_REQUIRES=(
+  "tar"
+)
+
+PROVIDES=(
+  "docbook-xsl"
+  "docbook-xsl-nons"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+}
+
+build() {
+  true
+}
+
+check() {
+  true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  local xslroot="$pkgdir/usr/share/xml/docbook/xsl-stylesheets-${VERSION}"
+  local catalog="$pkgdir/etc/xml/catalog"
+
+  install -dm755 "$xslroot"
+  cp -a ./* "$xslroot/"
+
+  install -dm755 "$pkgdir/usr/share/xml/docbook"
+  ln -s "xsl-stylesheets-${VERSION}" \
+    "$pkgdir/usr/share/xml/docbook/xsl-stylesheets"
+
+  install -dm755 "$pkgdir/etc/xml"
+
+  cat > "$catalog" <<EOF
+<?xml version="1.0"?>
+<!DOCTYPE catalog PUBLIC "-//OASIS//DTD Entity Resolution XML Catalog V1.0//EN"
+ "http://www.oasis-open.org/committees/entity/release/1.0/catalog.dtd">
+<catalog xmlns="urn:oasis:names:tc:entity:xmlns:xml:catalog">
+  <rewriteURI uriStartString="http://docbook.sourceforge.net/release/xsl/current/" rewritePrefix="/usr/share/xml/docbook/xsl-stylesheets/"/>
+  <rewriteURI uriStartString="https://docbook.sourceforge.net/release/xsl/current/" rewritePrefix="/usr/share/xml/docbook/xsl-stylesheets/"/>
+  <rewriteURI uriStartString="http://docbook.sourceforge.net/release/xsl/${VERSION}/" rewritePrefix="/usr/share/xml/docbook/xsl-stylesheets-${VERSION}/"/>
+  <rewriteURI uriStartString="https://docbook.sourceforge.net/release/xsl/${VERSION}/" rewritePrefix="/usr/share/xml/docbook/xsl-stylesheets-${VERSION}/"/>
+  <rewriteURI uriStartString="http://cdn.docbook.org/release/xsl/current/" rewritePrefix="/usr/share/xml/docbook/xsl-stylesheets/"/>
+  <rewriteURI uriStartString="https://cdn.docbook.org/release/xsl/current/" rewritePrefix="/usr/share/xml/docbook/xsl-stylesheets/"/>
+  <rewriteURI uriStartString="http://cdn.docbook.org/release/xsl/${VERSION}/" rewritePrefix="/usr/share/xml/docbook/xsl-stylesheets-${VERSION}/"/>
+  <rewriteURI uriStartString="https://cdn.docbook.org/release/xsl/${VERSION}/" rewritePrefix="/usr/share/xml/docbook/xsl-stylesheets-${VERSION}/"/>
+</catalog>
+EOF
+
+  ln -sfn "xsl-stylesheets-${VERSION}" \
+  "$pkgdir/usr/share/xml/docbook/xsl-stylesheets"
+
+  install -dm755 "$pkgdir/usr/share/licenses/$NAME"
+  install -m644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+}

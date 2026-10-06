@@ -1,0 +1,9 @@
+# /etc/lpm/repos.d/official.repo
+
+[repo]
+name = official
+enabled = true
+priority = 10
+index = https://gitlab.com/lpm-org/packages/-/raw/main/index.json
+lpmbuild_root = https://gitlab.com/lpm-org/packages/-/raw/main
+package_root =

@@ -1,0 +1,163 @@
+NAME="openjpeg2"
+VERSION="2.5.3"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+
+SUMMARY="JPEG 2000 image compression library"
+URL="https://www.openjpeg.org/"
+LICENSE=("BSD-2-Clause")
+
+SOURCE=(
+    "https://github.com/uclouvain/openjpeg/archive/refs/tags/v${VERSION}.tar.gz"
+)
+
+SHA256SUMS=("SKIP")
+PATCHES=()
+
+REQUIRES=(
+    "glibc"
+    "libpng"
+    "libtiff"
+    "libjpeg"
+    "zlib"
+)
+
+BUILD_REQUIRES=(
+    "cmake"
+    "ninja"
+    "pkgconf"
+)
+
+PROVIDES=(
+    "openjpeg2"
+    "openjpeg"
+    "libopenjp2"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    BUILDDIR="$SRCROOT/${NAME}-${VERSION}-build"
+
+    cd "$SRCDIR"
+
+    rm -rf "$BUILDDIR"
+}
+
+build() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    BUILDDIR="$SRCROOT/${NAME}-${VERSION}-build"
+
+    cd "$SRCDIR"
+
+    cmake \
+        -S "$SRCDIR" \
+        -B "$BUILDDIR" \
+        -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DCMAKE_INSTALL_INCLUDEDIR=include \
+        -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+        -DBUILD_SHARED_LIBS=ON \
+        -DBUILD_STATIC_LIBS=OFF \
+        -DBUILD_CODEC=ON \
+        -DBUILD_DOC=OFF \
+        -DBUILD_TESTING=OFF \
+        -DBUILD_UNIT_TESTS=OFF
+
+    cmake \
+        --build "$BUILDDIR" \
+        -j"$(nproc)"
+}
+
+check() {
+    true
+}
+
+staging() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    BUILDDIR="$SRCROOT/${NAME}-${VERSION}-build"
+
+    cd "$SRCDIR"
+
+    DESTDIR="$pkgdir" \
+        cmake --install "$BUILDDIR"
+
+    #
+    # Shared JPEG 2000 library
+    #
+
+    test -n "$(
+        find "$pkgdir/usr/lib" \
+            -name 'libopenjp2.so*' \
+            -print -quit
+    )"
+
+    #
+    # Headers
+    #
+    # OpenJPEG puts these under a versioned openjpeg-* directory.
+    #
+
+    test -n "$(
+        find "$pkgdir/usr/include" \
+            -type f \
+            -name 'openjpeg.h' \
+            -print -quit
+    )"
+
+    #
+    # pkg-config metadata.
+    # FFmpeg uses libopenjp2.pc for --enable-libopenjpeg.
+    #
+
+    test -f "$pkgdir/usr/lib/pkgconfig/libopenjp2.pc"
+
+    #
+    # OpenJPEG utilities
+    #
+
+    if [ -e "$pkgdir/usr/bin/opj_decompress" ]; then
+        test -x "$pkgdir/usr/bin/opj_decompress"
+    fi
+
+    if [ -e "$pkgdir/usr/bin/opj_compress" ]; then
+        test -x "$pkgdir/usr/bin/opj_compress"
+    fi
+
+    if [ -e "$pkgdir/usr/bin/opj_dump" ]; then
+        test -x "$pkgdir/usr/bin/opj_dump"
+    fi
+
+    #
+    # Don't retain static libraries.
+    #
+
+    find "$pkgdir/usr/lib" \
+        -type f \
+        \( -name '*.a' -o -name '*.la' \) \
+        -delete 2>/dev/null || true
+
+    #
+    # License
+    #
+
+    if [ -f "$SRCDIR/LICENSE" ]; then
+        install -Dm644 \
+            "$SRCDIR/LICENSE" \
+            "$pkgdir/usr/share/licenses/${NAME}/LICENSE"
+    fi
+
+    echo "==> ${NAME} ${VERSION} staging complete"
+}

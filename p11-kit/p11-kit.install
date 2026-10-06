@@ -1,0 +1,44 @@
+NAME="p11-kit"
+VERSION="0.25.5"
+RELEASE="1"
+ARCH="x86_64"
+SUMMARY="Library to load and enumerate PKCS#11 modules"
+URL="https://p11-glue.github.io/p11-glue/p11-kit.html"
+SOURCE=("https://github.com/p11-glue/p11-kit/releases/download/${VERSION}/p11-kit-${VERSION}.tar.xz")
+LICENSE=("BSD-3-Clause" "GPL-2.0-or-later")
+
+REQUIRES=("glibc" "libtasn1")
+PROVIDES=("p11-kit" "libp11-kit.so")
+CONFLICTS=()
+OBSOLETES=()
+
+install=p11-kit.install
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/p11-kit-${VERSION}"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/p11-kit-${VERSION}"
+    ./configure \
+        --prefix=/usr \
+        --libdir=/usr/lib \
+        --sysconfdir=/etc \
+        --disable-static
+    make -j"$(nproc)"
+}
+
+check() {
+    set -euxo pipefail
+    cd "$SRCROOT/p11-kit-${VERSION}"
+    make check || true
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/p11-kit-${VERSION}"
+    make DESTDIR="$pkgdir" install
+}
+

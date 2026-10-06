@@ -1,0 +1,76 @@
+#!/bin/bash
+# LPM build script for libdisplay-info
+
+NAME="libdisplay-info"
+VERSION="0.3.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="EDID and DisplayID library"
+URL="https://gitlab.freedesktop.org/emersion/libdisplay-info"
+LICENSE=("MIT")
+
+SOURCE=(
+  "https://gitlab.freedesktop.org/emersion/libdisplay-info/-/releases/${VERSION}/downloads/libdisplay-info-${VERSION}.tar.xz"
+)
+
+REQUIRES=(
+  "glibc"
+)
+
+BUILD_REQUIRES=(
+  "meson"
+  "ninja"
+  "pkgconf"
+  "python"
+  "hwdata"
+)
+
+PROVIDES=(
+  "libdisplay-info"
+  "libdisplay-info.so"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  rm -rf build
+
+  meson setup build \
+    --prefix=/usr \
+    --libdir=lib \
+    --buildtype=release \
+    -Ddefault_library=shared
+
+  meson compile -C build
+}
+
+check() {
+  true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  DESTDIR="$pkgdir" meson install -C build
+
+  test -f "$pkgdir/usr/lib/pkgconfig/libdisplay-info.pc"
+  test -f "$pkgdir/usr/lib/libdisplay-info.so"
+
+  for f in LICENSE COPYING; do
+    if [ -f "$f" ]; then
+      install -Dm644 "$f" "$pkgdir/usr/share/licenses/$NAME/$f"
+    fi
+  done
+}

@@ -1,34 +1,49 @@
-# LPM build script for zlib
+#!/bin/bash
+# LFS 13.1-systemd baseline; see docs/lfs-13.1.md for patch provenance.
 NAME="zlib"
-VERSION="1.3.1"
+VERSION="1.3.2"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="Compression library"
-URL="https://zlib.net/"
-LICENSE=""
-SOURCE=()
+URL="https://zlib.net/fossils/zlib-1.3.2.tar.gz"
+LICENSE=("Zlib")
+SOURCE=("https://zlib.net/fossils/zlib-1.3.2.tar.gz" "36ff1be48ef696cc67b0855f7c8537ce0276210d.patch")
+SHA256SUMS=("bb329a0a2cd0274d05519d61c667c062e06990d72e125ee2dfa8de64f0119d16" "af9ce272d3495a27c91e3d37ccfe1146d7e1847ded8b871d86ce3c1875d7cea7")
+PATCHES=()
 REQUIRES=("glibc")
-PROVIDES=("zlib")
+BUILD_REQUIRES=("gcc" "make" "pkgconf" "autoconf" "automake" "libtool")
+PROVIDES=("zlib" "minizip" "libminizip.so")
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
+
+_srcdir="zlib-1.3.2"
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    patch --batch --forward -Np1 -i "$SRCROOT/36ff1be48ef696cc67b0855f7c8537ce0276210d.patch"
+    :
+    cd contrib/minizip
+    cp ../README.contrib readme.txt
+    autoreconf -fiv
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    ./configure --prefix=/usr
+    make -j"${JOBS:-$(nproc)}"
+    cd contrib/minizip
+    ./configure --prefix=/usr --disable-static
+    make -j"${JOBS:-$(nproc)}"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    make DESTDIR="$pkgdir" install
+    make -C contrib/minizip DESTDIR="$pkgdir" install
+
+    rm -f "$pkgdir/usr/share/info/dir"
+    find "$pkgdir/usr/lib" -name "*.la" -delete 2>/dev/null || true
 }

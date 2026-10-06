@@ -1,0 +1,29 @@
+NAME="gvdb"
+VERSION="1.1.1"
+RELEASE="1"
+ARCH="x86_64"
+SUMMARY="GVariant database builder for GSettings and dconf"
+URL="https://gitlab.gnome.org/GNOME/gvdb"
+LICENSE=("LGPL-2.1-or-later")
+SOURCE=("https://download.gnome.org/sources/gvdb/${VERSION%.*}/gvdb-${VERSION}.tar.xz")
+
+REQUIRES=("glib2" "pkgconf")
+
+prepare() {
+    cd "gvdb-${VERSION}"
+}
+
+build() {
+    cd "gvdb-${VERSION}"
+    meson setup build \
+        --prefix=/usr \
+        --buildtype=release \
+        -Dtests=false
+    ninja -C build
+}
+
+package() {
+    cd "gvdb-${VERSION}"
+    DESTDIR="$PKGDIR" ninja -C build install
+}
+

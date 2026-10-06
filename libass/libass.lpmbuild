@@ -1,0 +1,115 @@
+# LPM build script for libass
+
+NAME="libass"
+VERSION="0.17.4"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Portable ASS/SSA subtitle renderer"
+URL="https://github.com/libass/libass"
+LICENSE=("ISC")
+
+SOURCE=(
+    "https://github.com/libass/libass/releases/download/${VERSION}/libass-${VERSION}.tar.xz"
+)
+
+SHA256SUMS=("SKIP")
+PATCHES=()
+
+REQUIRES=(
+    "glibc"
+    "fontconfig"
+    "freetype"
+    "fribidi"
+    "harfbuzz"
+)
+
+BUILD_REQUIRES=(
+    "pkgconf"
+    "nasm"
+    "make"
+)
+
+PROVIDES=(
+    "libass"
+    "libass.so"
+    "libass.pc"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+    set -euxo pipefail
+
+    cd "$SRCROOT/libass-${VERSION}"
+}
+
+build() {
+    set -euxo pipefail
+
+    cd "$SRCROOT/libass-${VERSION}"
+
+    ./configure \
+        --prefix=/usr \
+        --libdir=/usr/lib \
+        --includedir=/usr/include \
+        --disable-static \
+        --enable-shared \
+        --enable-fontconfig \
+        --enable-harfbuzz
+
+    make -j"$(nproc)"
+}
+
+check() {
+    set -euxo pipefail
+
+    cd "$SRCROOT/libass-${VERSION}"
+
+    make -k check || true
+}
+
+staging() {
+    set -euxo pipefail
+
+    cd "$SRCROOT/libass-${VERSION}"
+
+    make DESTDIR="$pkgdir" install
+
+    #
+    # Verify library
+    #
+
+    test -n "$(
+        find "$pkgdir/usr/lib" \
+            -name 'libass.so*' \
+            -print -quit
+    )"
+
+    #
+    # Verify headers
+    #
+
+    test -f "$pkgdir/usr/include/ass/ass.h"
+    test -f "$pkgdir/usr/include/ass/ass_types.h"
+
+    #
+    # Verify pkg-config metadata.
+    # This is what FFmpeg uses to discover libass.
+    #
+
+    test -f "$pkgdir/usr/lib/pkgconfig/libass.pc"
+
+    #
+    # License
+    #
+
+    if [ -f COPYING ]; then
+        install -Dm644 COPYING \
+            "$pkgdir/usr/share/licenses/libass/COPYING"
+    fi
+
+    echo "==> libass ${VERSION} staging complete"
+}

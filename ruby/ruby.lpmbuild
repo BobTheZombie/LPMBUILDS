@@ -1,0 +1,94 @@
+#!/bin/bash
+# LPM build script for Ruby
+
+NAME="ruby"
+VERSION="3.4.4"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Dynamic open source programming language"
+URL="https://www.ruby-lang.org/"
+LICENSE=("Ruby" "BSD-2-Clause")
+
+SOURCE=(
+  "https://cache.ruby-lang.org/pub/ruby/${VERSION%.*}/ruby-${VERSION}.tar.xz"
+)
+
+SHA256SUMS=("SKIP")
+
+REQUIRES=(
+  "glibc"
+  "zlib"
+  "openssl"
+  "libyaml"
+  "readline"
+  "gdbm"
+  "libffi"
+)
+
+BUILD_REQUIRES=(
+  "gcc"
+  "make"
+  "pkgconf"
+  "rust"
+  "zlib"
+  "openssl"
+  "libyaml"
+  "readline"
+  "gdbm"
+  "libffi"
+)
+
+PROVIDES=(
+  "ruby"
+  "ruby-interpreter"
+  "libruby.so"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  export CFLAGS="${CFLAGS:-} -O2 -pipe -fPIC"
+  export CXXFLAGS="${CXXFLAGS:-} -O2 -pipe -fPIC"
+
+  ./configure \
+    --prefix=/usr \
+    --libdir=/usr/lib \
+    --enable-shared \
+    --disable-install-doc \
+    --with-openssl-dir=/usr \
+    --with-readline-dir=/usr
+
+  make -j"$(nproc)"
+}
+
+check() {
+  true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  make DESTDIR="$pkgdir" install
+
+  test -x "$pkgdir/usr/bin/ruby"
+  find "$pkgdir/usr/lib" -name 'libruby*.so*' | grep -q .
+
+  for f in COPYING BSDL LEGAL NEWS; do
+    if [ -f "$f" ]; then
+      install -Dm644 "$f" \
+        "$pkgdir/usr/share/licenses/$NAME/$f"
+    fi
+  done
+}

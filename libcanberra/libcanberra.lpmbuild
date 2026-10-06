@@ -1,0 +1,88 @@
+#!/bin/bash
+# LPM build script for libcanberra
+# XDG sound event library (used by many desktops, incl. Budgie)
+
+NAME="libcanberra"
+VERSION="0.30"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="XDG sound event library (desktop event sounds)"
+URL="http://0pointer.de/lennart/projects/libcanberra/"
+LICENSE=("LGPL-2.1-or-later")
+
+SOURCE=(
+  "http://0pointer.de/lennart/projects/libcanberra/libcanberra-${VERSION}.tar.xz"
+)
+
+REQUIRES=(
+  "glibc"
+  "libtool"
+  "gettext"
+  "pkg-config"
+  "glib2"
+  "libvorbis"
+  "libogg"
+  "alsa-lib"
+  "pulseaudio"
+)
+
+PROVIDES=(
+  "libcanberra"
+  "libcanberra.so"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+  # libcanberra is autoconf-based
+  autoreconf -fi || true
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  ./configure \
+    --prefix=/usr \
+    --libdir=/usr/lib \
+    --sysconfdir=/etc \
+    --localstatedir=/var \
+    --disable-static \
+    --disable-oss \
+    --disable-gtk-doc \
+    --enable-pulse \
+    --enable-alsa
+
+  make -j"$(nproc)"
+}
+
+check() {
+  true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  make DESTDIR="$pkgdir" install
+
+  # License
+  if [ -f COPYING ]; then
+    install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+  fi
+
+  # Strip ELF binaries/libs
+  if command -v strip >/dev/null 2>&1; then
+    find "$pkgdir/usr" -type f -exec sh -c '
+      case "$(file -b "$1")" in
+        *ELF*executable*|*ELF*shared\ object*) strip --strip-unneeded "$1" 2>/dev/null || true ;;
+      esac
+    ' _ {} \;
+  fi
+}
+

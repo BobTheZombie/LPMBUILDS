@@ -1,0 +1,41 @@
+NAME="libtasn1"
+VERSION="4.20.0"
+RELEASE="1"
+ARCH="x86_64"
+SUMMARY="ASN.1 library for encoding/decoding DER/BER structures"
+URL="https://www.gnu.org/software/libtasn1/"
+SOURCE=("https://ftp.wayne.edu/gnu/libtasn1/libtasn1-${VERSION}.tar.gz")
+LICENSE=("GPL-3.0-or-later" "LGPL-2.1-or-later")
+
+REQUIRES=("glibc")
+PROVIDES=("libtasn1" "libtasn1.so")
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/libtasn1-${VERSION}"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/libtasn1-${VERSION}"
+    ./configure \
+        --prefix=/usr \
+        --libdir=/usr/lib \
+        --disable-static
+    make -j"$(nproc)"
+}
+
+check() {
+    set -euxo pipefail
+    cd "$SRCROOT/libtasn1-${VERSION}"
+    make check || true
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/libtasn1-${VERSION}"
+    make DESTDIR="$pkgdir" install
+}
+

@@ -1,0 +1,43 @@
+NAME="shared-mime-info"
+VERSION="2.4"
+RELEASE="1"
+ARCH="x86_64"
+SUMMARY="MIME type database from the freedesktop.org project"
+URL="https://freedesktop.org/wiki/Software/shared-mime-info/"
+SOURCE=("https://gitlab.freedesktop.org/xdg/shared-mime-info/-/archive/${VERSION}/shared-mime-info-${VERSION}.tar.gz")
+LICENSE=("GPL-2.0-or-later")
+
+REQUIRES=("glib2" "libxml2")
+PROVIDES=("shared-mime-info" "update-mime-database")
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/shared-mime-info-${VERSION}"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/shared-mime-info-${VERSION}"
+    meson setup build \
+        --prefix=/usr \
+        --libdir=lib \
+        -Dupdate-mimedb=true \
+        -Dxdgmime-path=${SRCROOT}/xdgmime \
+        -Dbuild-tests=false
+    ninja -C build -j"$(nproc)"
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/shared-mime-info-${VERSION}"
+    DESTDIR="$pkgdir" ninja -C build install
+
+    # Create /usr/share/mime dir if not present
+    install -d "$pkgdir/usr/share/mime"
+
+    # Trigger postinstall DB rebuild hint
+    echo "[postinstall] Run 'update-mime-database /usr/share/mime' after installation."
+}
+

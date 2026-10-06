@@ -1,34 +1,41 @@
-# LPM build script for gdbm
+#!/bin/bash
+# LFS 13.1-systemd baseline; see docs/lfs-13.1.md for patch provenance.
 NAME="gdbm"
-VERSION="1.24"
-RELEASE="1"
+VERSION="1.26"
+RELEASE="2"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="GNU dbm key-value store"
-URL="https://www.gnu.org/software/gdbm/"
-LICENSE=""
-SOURCE=()
+SUMMARY="GNU dbm key/value database library"
+URL="https://ftpmirror.gnu.org/gdbm/gdbm-1.26.tar.gz"
+LICENSE="GPL-3.0-or-later"
+SOURCE=("https://ftpmirror.gnu.org/gdbm/gdbm-1.26.tar.gz")
+SHA256SUMS=("6a24504a14de4a744103dcb936be976df6fbe88ccff26065e54c1c47946f4a5e")
+PATCHES=()
 REQUIRES=("glibc")
+BUILD_REQUIRES=("gcc" "make" "pkgconf")
 PROVIDES=("gdbm")
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
+
+_srcdir="gdbm-1.26"
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    :
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    ./configure --prefix=/usr --disable-static --enable-libgdbm-compat
+    make -j"${JOBS:-$(nproc)}"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    make DESTDIR="$pkgdir" install
+
+    rm -f "$pkgdir/usr/share/info/dir"
+    find "$pkgdir/usr/lib" -name "*.la" -delete 2>/dev/null || true
 }

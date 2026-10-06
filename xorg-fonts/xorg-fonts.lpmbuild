@@ -1,0 +1,79 @@
+#!/bin/bash
+# Meta package for X.Org font stack (core + legacy)
+
+NAME="xorg-fonts"
+VERSION="1.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Meta package pulling in X.Org font packages (core and legacy bitmap fonts)"
+URL="https://www.x.org/"
+LICENSE="MIT"
+
+REQUIRES=(
+  "font-util"
+  "encodings"
+  "font-alias"
+  "font-adobe-utopia-type1"
+  "font-bh-ttf"
+  "font-bh-type1"
+  "font-ibm-type1"
+  "font-misc-ethiopic"
+  "font-xfree86-type1"
+  "bdftopcf"
+  "font-adobe-100dpi"
+  "font-adobe-75dpi"
+  "font-jis-misc"
+  "font-daewoo-misc"
+  "font-isas-misc"
+  "font-misc-misc"
+  "xcursor-themes"
+)
+
+PROVIDES=("xorg-fonts")
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() {
+    true
+}
+
+build() {
+    true
+}
+
+check() {
+    true
+}
+
+staging() {
+    mkdir -p "$pkgdir/usr/share/doc/$NAME"
+    cat > "$pkgdir/usr/share/doc/$NAME/README" << 'EOF'
+xorg-fonts meta package
+# Package definitions
+
+This meta package pulls in the X.Org core font packages and legacy bitmap
+fonts, including:
+
+  - font-util
+  - encodings
+  - font-alias
+  - font-adobe-utopia-type1
+  - font-bh-ttf
+  - font-bh-type1
+  - font-ibm-type1
+  - font-misc-ethiopic
+  - font-xfree86-type1
+
+and legacy bitmap font sets:
+
+  - bdftopcf
+  - font-adobe-100dpi
+  - font-adobe-75dpi
+  - font-jis-misc
+  - font-daewoo-misc
+  - font-isas-misc
+  - font-misc-misc
+
+as well as xcursor-themes to provide basic X cursor themes.
+EOF
+}

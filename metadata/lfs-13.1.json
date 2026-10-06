@@ -1,0 +1,1010 @@
+{
+  "book": "13.1-systemd",
+  "source_commit": "adde13683f091cb9bd519be085bae35408632224",
+  "packages": [
+    {
+      "package": "acl",
+      "version": "2.4.0",
+      "upstream_version": "2.4.0",
+      "filename": "acl-2.4.0.tar.xz",
+      "url": "https://download.savannah.gnu.org/releases/acl/acl-2.4.0.tar.xz",
+      "sha256": "e661131456d2708a01c614a0f400e11d7d1bfaeb6f3e74b75bb980b72f0161a3",
+      "md5": "e289f370161698a96f50b2a3fdadf411",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "attr",
+      "version": "2.6.0",
+      "upstream_version": "2.6.0",
+      "filename": "attr-2.6.0.tar.gz",
+      "url": "https://download.savannah.gnu.org/releases/attr/attr-2.6.0.tar.gz",
+      "sha256": "d42fa374513180bb48cb11a46696f488240e5124ff1e6ad88b0abff706985612",
+      "md5": "910a09c3ae0a211569d180586371cf7e",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "autoconf",
+      "version": "2.73",
+      "upstream_version": "2.73",
+      "filename": "autoconf-2.73.tar.xz",
+      "url": "https://ftpmirror.gnu.org/autoconf/autoconf-2.73.tar.xz",
+      "sha256": "9fd672b1c8425fac2fa67fa0477b990987268b90ff36d5f016dae57be0d6b52e",
+      "md5": "9cbad9a116ef845bafeed8e7bc771bf4",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "automake",
+      "version": "1.18.1",
+      "upstream_version": "1.18.1",
+      "filename": "automake-1.18.1.tar.xz",
+      "url": "https://ftpmirror.gnu.org/automake/automake-1.18.1.tar.xz",
+      "sha256": "168aa363278351b89af56684448f525a5bce5079d0b6842bd910fdd3f1646887",
+      "md5": "cea31dbf1120f890cbf2a3032cfb9a68",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "bash",
+      "version": "5.3",
+      "upstream_version": "5.3",
+      "filename": "bash-5.3.tar.gz",
+      "url": "https://ftpmirror.gnu.org/bash/bash-5.3.tar.gz",
+      "sha256": "0d5cd86965f869a26cf64f4b71be7b96f90a3ba8b3d74e27e8e9d9d5550f31ba",
+      "md5": "977c8c0c5ae6309191e7768e28ebc951",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "bc",
+      "version": "7.0.3",
+      "upstream_version": "7.0.3",
+      "filename": "bc-7.0.3.tar.xz",
+      "url": "https://github.com/gavinhoward/bc/releases/download/7.0.3/bc-7.0.3.tar.xz",
+      "sha256": "91eb74caed0ee6655b669711a4f350c25579778694df248e28363318e03c7fc4",
+      "md5": "ad4db5a0eb4fdbb3f6813be4b6b3da74",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "binutils",
+      "version": "2.47",
+      "upstream_version": "2.47",
+      "filename": "binutils-2.47.tar.xz",
+      "url": "https://sourceware.org/pub/binutils/releases/binutils-2.47.tar.xz",
+      "sha256": "154ab23b60070e8f27013c22977f1129425d67d1e8acd6e13010e617811e4cff",
+      "md5": "d772acfbd55a81644e9fe7b8189cd2a5",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "bison",
+      "version": "3.8.2",
+      "upstream_version": "3.8.2",
+      "filename": "bison-3.8.2.tar.xz",
+      "url": "https://ftpmirror.gnu.org/bison/bison-3.8.2.tar.xz",
+      "sha256": "9bba0214ccf7f1079c5d59210045227bcf619519840ebfa80cd3849cff5a5bf2",
+      "md5": "c28f119f405a2304ff0a7ccdcc629713",
+      "patches": [],
+      "release": "2"
+    },
+    {
+      "package": "bzip2",
+      "version": "1.0.8",
+      "upstream_version": "1.0.8",
+      "filename": "bzip2-1.0.8.tar.gz",
+      "url": "https://www.sourceware.org/pub/bzip2/bzip2-1.0.8.tar.gz",
+      "sha256": "ab5a03176ee106d3f0fa90e381da478ddae405918153cca248e682cd0c4a2269",
+      "md5": "67e051268d0c475ea773822f7500d0e5",
+      "patches": [
+        "bzip2-1.0.8-install_docs-1.patch"
+      ],
+      "release": "2"
+    },
+    {
+      "package": "coreutils",
+      "version": "9.11",
+      "upstream_version": "9.11",
+      "filename": "coreutils-9.11.tar.xz",
+      "url": "https://ftpmirror.gnu.org/coreutils/coreutils-9.11.tar.xz",
+      "sha256": "394024eda0a5955217ceda9cd1201e65dc8fa3aa29c2951135a49521d57c3cc3",
+      "md5": "e52e9857e4aa9ae38ef32f8ed6a27604",
+      "patches": [
+        "coreutils-9.11-i18n-1.patch"
+      ],
+      "release": "1"
+    },
+    {
+      "package": "dbus",
+      "version": "1.16.2",
+      "upstream_version": "1.16.2",
+      "filename": "dbus-1.16.2.tar.xz",
+      "url": "https://dbus.freedesktop.org/releases/dbus/dbus-1.16.2.tar.xz",
+      "sha256": "0ba2a1a4b16afe7bceb2c07e9ce99a8c2c3508e5dec290dbb643384bd6beb7e2",
+      "md5": "97832e6f0a260936d28536e5349c22e5",
+      "patches": [],
+      "release": "2"
+    },
+    {
+      "package": "dejagnu",
+      "version": "1.6.3",
+      "upstream_version": "1.6.3",
+      "filename": "dejagnu-1.6.3.tar.gz",
+      "url": "https://ftpmirror.gnu.org/dejagnu/dejagnu-1.6.3.tar.gz",
+      "sha256": "87daefacd7958b4a69f88c6856dbd1634261963c414079d0c371f589cd66a2e3",
+      "md5": "68c5208c58236eba447d7d6d1326b821",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "diffutils",
+      "version": "3.12",
+      "upstream_version": "3.12",
+      "filename": "diffutils-3.12.tar.xz",
+      "url": "https://ftpmirror.gnu.org/diffutils/diffutils-3.12.tar.xz",
+      "sha256": "7c8b7f9fc8609141fdea9cece85249d308624391ff61dedaf528fcb337727dfd",
+      "md5": "d1b18b20868fb561f77861cd90b05de4",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "e2fsprogs",
+      "version": "1.47.4",
+      "upstream_version": "1.47.4",
+      "filename": "e2fsprogs-1.47.4.tar.gz",
+      "url": "https://downloads.sourceforge.net/project/e2fsprogs/e2fsprogs/v1.47.4/e2fsprogs-1.47.4.tar.gz",
+      "sha256": "2cec05f39c20ee621f14926195664e66e6017190ac8e4bbdb16d86082e43c5da",
+      "md5": "733a93bc688314834ff2d10530ff4dc4",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "elfutils",
+      "version": "0.195",
+      "upstream_version": "0.195",
+      "filename": "elfutils-0.195.tar.bz2",
+      "url": "https://sourceware.org/ftp/elfutils/0.195/elfutils-0.195.tar.bz2",
+      "sha256": "37629fdf7f1f3dc2818e138fca2b8094177d6c2d0f701d3bb650a561218dc026",
+      "md5": "3e8ef51c43beceddbbb74879549cf72c",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "expat",
+      "version": "2.8.3",
+      "upstream_version": "2.8.3",
+      "filename": "expat-2.8.3.tar.xz",
+      "url": "https://github.com/libexpat/libexpat/releases/download/R_2_8_3/expat-2.8.3.tar.xz",
+      "sha256": "f6256df90c906773d344da084402b7d3e4f22ed41b1a59c989098a83d3ea0c85",
+      "md5": "1747f5a57b191f0373baeb5adc8078ca",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "expect",
+      "version": "5.45.4",
+      "upstream_version": "5.45.4",
+      "filename": "expect5.45.4.tar.gz",
+      "url": "https://prdownloads.sourceforge.net/expect/expect5.45.4.tar.gz",
+      "sha256": "49a7da83b0bdd9f46d04a04deec19c7767bb9a323e40c4781f89caf760b92c34",
+      "md5": "00fce8de158422f5ccd2666512329bd2",
+      "patches": [
+        "expect-5.45.4-gcc15-1.patch"
+      ],
+      "release": "1"
+    },
+    {
+      "package": "file",
+      "version": "5.48",
+      "upstream_version": "5.48",
+      "filename": "file-5.48.tar.gz",
+      "url": "https://astron.com/pub/file/file-5.48.tar.gz",
+      "sha256": "ed14656883b23a364b4057c05595d93252da9bc473d30106519519d0da141283",
+      "md5": "423686e97f731d8c24e9cd1a22b03dec",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "findutils",
+      "version": "4.11.0",
+      "upstream_version": "4.11.0",
+      "filename": "findutils-4.11.0.tar.xz",
+      "url": "https://ftpmirror.gnu.org/findutils/findutils-4.11.0.tar.xz",
+      "sha256": "bfd19cb06cc71f3352d567e90284d8cdac02ac89774bbeadf0b533b0c11432fd",
+      "md5": "512c6875ed84034dca240c4bc9380b96",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "flex",
+      "version": "2.6.4",
+      "upstream_version": "2.6.4",
+      "filename": "flex-2.6.4.tar.gz",
+      "url": "https://github.com/westes/flex/releases/download/v2.6.4/flex-2.6.4.tar.gz",
+      "sha256": "e87aae032bf07c26f85ac0ed3250998c37621d95f8bd748b31f15b33c45ee995",
+      "md5": "2882e3179748cc9f9c23ec593d6adc8d",
+      "patches": [],
+      "release": "2"
+    },
+    {
+      "package": "python-flit-core",
+      "version": "4.0.2",
+      "upstream_version": "4.0.2",
+      "filename": "flit_core-4.0.2.tar.gz",
+      "url": "https://pypi.org/packages/source/f/flit-core/flit_core-4.0.2.tar.gz",
+      "sha256": "b6929defd93884b584d7c87829e0e7b5c26ed6be17b0b873979019314aa841c8",
+      "md5": "89ebb783230fc8db6c1d2a39644b7085",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "gawk",
+      "version": "5.4.1",
+      "upstream_version": "5.4.1",
+      "filename": "gawk-5.4.1.tar.xz",
+      "url": "https://ftpmirror.gnu.org/gawk/gawk-5.4.1.tar.xz",
+      "sha256": "07f6f7342b7febe4313fc2c2542ad93d64fe20ad8717200109f105a826f5fd37",
+      "md5": "d379c2110e7a3e15347dd5559a41ad64",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "gcc",
+      "version": "16.2.0",
+      "upstream_version": "16.2.0",
+      "filename": "gcc-16.2.0.tar.xz",
+      "url": "https://ftpmirror.gnu.org/gcc/gcc-16.2.0/gcc-16.2.0.tar.xz",
+      "sha256": "e6738e29597f733270731aa90600f37ffdc045079dfc27ec7e8192cc81085c3e",
+      "md5": "19b777fb19ea4982731392481306f0d3",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "gdbm",
+      "version": "1.26",
+      "upstream_version": "1.26",
+      "filename": "gdbm-1.26.tar.gz",
+      "url": "https://ftpmirror.gnu.org/gdbm/gdbm-1.26.tar.gz",
+      "sha256": "6a24504a14de4a744103dcb936be976df6fbe88ccff26065e54c1c47946f4a5e",
+      "md5": "aaa600665bc89e2febb3c7bd90679115",
+      "patches": [],
+      "release": "2"
+    },
+    {
+      "package": "gettext",
+      "version": "1.0",
+      "upstream_version": "1.0",
+      "filename": "gettext-1.0.tar.xz",
+      "url": "https://ftpmirror.gnu.org/gettext/gettext-1.0.tar.xz",
+      "sha256": "71132a3fb71e68245b8f2ac4e9e97137d3e5c02f415636eb508ae607bc01add7",
+      "md5": "dc8b2911535929cec1e263706b0a13a1",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "glibc",
+      "version": "2.44",
+      "upstream_version": "2.44",
+      "filename": "glibc-2.44.tar.xz",
+      "url": "https://ftpmirror.gnu.org/glibc/glibc-2.44.tar.xz",
+      "sha256": "37f600f2bef3c5e8300147059568b2a2e40a7ad6ccc65ce942556d49429cc667",
+      "md5": "7677da43ef759c68e005f5d4c37986a6",
+      "patches": [
+        "glibc-fhs-1.patch",
+        "glibc-2.44-upstream_fixes-1.patch"
+      ],
+      "release": "1"
+    },
+    {
+      "package": "gmp",
+      "version": "6.3.0",
+      "upstream_version": "6.3.0",
+      "filename": "gmp-6.3.0.tar.xz",
+      "url": "https://ftpmirror.gnu.org/gmp/gmp-6.3.0.tar.xz",
+      "sha256": "a3c2b80201b89e68616f4ad30bc66aee4927c3ce50e33929ca819d5c43538898",
+      "md5": "956dc04e864001a9c22429f761f2c283",
+      "patches": [],
+      "release": "2"
+    },
+    {
+      "package": "gperf",
+      "version": "3.3",
+      "upstream_version": "3.3",
+      "filename": "gperf-3.3.tar.gz",
+      "url": "https://ftpmirror.gnu.org/gperf/gperf-3.3.tar.gz",
+      "sha256": "fd87e0aba7e43ae054837afd6cd4db03a3f2693deb3619085e6ed9d8d9604ad8",
+      "md5": "31753b021ea78a21f154bf9eecb8b079",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "grep",
+      "version": "3.12",
+      "upstream_version": "3.12",
+      "filename": "grep-3.12.tar.xz",
+      "url": "https://ftpmirror.gnu.org/grep/grep-3.12.tar.xz",
+      "sha256": "2649b27c0e90e632eadcd757be06c6e9a4f48d941de51e7c0f83ff76408a07b9",
+      "md5": "5d9301ed9d209c4a88c8d3a6fd08b9ac",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "groff",
+      "version": "1.24.1",
+      "upstream_version": "1.24.1",
+      "filename": "groff-1.24.1.tar.gz",
+      "url": "https://ftpmirror.gnu.org/groff/groff-1.24.1.tar.gz",
+      "sha256": "74e2819795b6aff431aeac983d63a9c8968eeaba2a2eba7df8ba4c7b41e7cfd8",
+      "md5": "d9d996af3d05ebab934380be708ea584",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "grub",
+      "version": "2.14",
+      "upstream_version": "2.14",
+      "filename": "grub-2.14.tar.xz",
+      "url": "https://ftpmirror.gnu.org/grub/grub-2.14.tar.xz",
+      "sha256": "bc8d3c73535b8838d8c8e2654d73edc4e6ae8c8acdb45d5df5dc9a1547446d43",
+      "md5": "383f9effad01c235d2535357ff717543",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "gzip",
+      "version": "1.14",
+      "upstream_version": "1.14",
+      "filename": "gzip-1.14.tar.xz",
+      "url": "https://ftpmirror.gnu.org/gzip/gzip-1.14.tar.xz",
+      "sha256": "01a7b881bd220bfdf615f97b8718f80bdfd3f6add385b993dcf6efd14e8c0ac6",
+      "md5": "4bf5a10f287501ee8e8ebe00ef62b2c2",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "iana-etc",
+      "version": "20260805",
+      "upstream_version": "20260805",
+      "filename": "iana-etc-20260805.tar.gz",
+      "url": "https://github.com/Mic92/iana-etc/releases/download/20260805/iana-etc-20260805.tar.gz",
+      "sha256": "29270860664e324107537f32ea476a333ca52d71b59c74bc06ecc3b0fa9cf490",
+      "md5": "f6d2619cfac3a68f91392e28fe4067c3",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "inetutils",
+      "version": "2.8",
+      "upstream_version": "2.8",
+      "filename": "inetutils-2.8.tar.gz",
+      "url": "https://ftpmirror.gnu.org/inetutils/inetutils-2.8.tar.gz",
+      "sha256": "57b3cf4f77555992881e5ba2a09a63b05aa2c56342a60ed4305b5f45938390b5",
+      "md5": "f0f9ad13045a67da9c882148f9efae6b",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "iproute2",
+      "version": "7.1.0",
+      "upstream_version": "7.1.0",
+      "filename": "iproute2-7.1.0.tar.xz",
+      "url": "https://www.kernel.org/pub/linux/utils/net/iproute2/iproute2-7.1.0.tar.xz",
+      "sha256": "fd9fa1b95809417157ca83dd72957e3261bdbce896353cb936f80af0b33a4b5c",
+      "md5": "4f322144fb9a0877c5f9ef71b2f11180",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "python-jinja2",
+      "version": "3.1.6",
+      "upstream_version": "3.1.6",
+      "filename": "jinja2-3.1.6.tar.gz",
+      "url": "https://pypi.org/packages/source/J/Jinja2/jinja2-3.1.6.tar.gz",
+      "sha256": "0137fb05990d35f1275a587e9aee6d56da821fc83491a0fb838183be43f66d6d",
+      "md5": "66d4c25ff43d1deaf9637ccda523dec8",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "kbd",
+      "version": "2.10.0",
+      "upstream_version": "2.10.0",
+      "filename": "kbd-2.10.0.tar.xz",
+      "url": "https://www.kernel.org/pub/linux/utils/kbd/kbd-2.10.0.tar.xz",
+      "sha256": "6e5ca4f8d76ee9e3a8db700b667f13e12aac9933828a64e1aaad93d26be9b479",
+      "md5": "77ff950dfa4c34fdf41125547bfa831a",
+      "patches": [
+        "kbd-2.10.0-backspace-1.patch"
+      ],
+      "release": "1"
+    },
+    {
+      "package": "kmod",
+      "version": "34.2",
+      "upstream_version": "34.2",
+      "filename": "kmod-34.2.tar.xz",
+      "url": "https://www.kernel.org/pub/linux/utils/kernel/kmod/kmod-34.2.tar.xz",
+      "sha256": "5a5d5073070cc7e0c7a7a3c6ec2a0e1780850c8b47b3e3892226b93ffcb9cb54",
+      "md5": "36f2cc483745e81ede3406fa55e1065a",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "less",
+      "version": "704",
+      "upstream_version": "704",
+      "filename": "less-704.tar.gz",
+      "url": "https://www.greenwoodsoftware.com/less/less-704.tar.gz",
+      "sha256": "20a0b0a2bb2525fa53c7eee9beb854b4c9cf172eabb209af7020743547bfe9fb",
+      "md5": "c4c9eea5b1862783b078c67ca67c9185",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "libcap",
+      "version": "2.78",
+      "upstream_version": "2.78",
+      "filename": "libcap-2.78.tar.xz",
+      "url": "https://www.kernel.org/pub/linux/libs/security/linux-privs/libcap2/libcap-2.78.tar.xz",
+      "sha256": "0d621e562fd932ccf67b9660fb018e468a683d7b827541df27813228c996bb11",
+      "md5": "0ff11419aa4813c0a0f84fe67bf3b39e",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "libffi",
+      "version": "3.8.0",
+      "upstream_version": "3.8.0",
+      "filename": "libffi-3.8.0.tar.gz",
+      "url": "https://github.com/libffi/libffi/releases/download/v3.8.0/libffi-3.8.0.tar.gz",
+      "sha256": "7da3e2d9a171eb0a038f592ecad3ff2bb2550f3496d87b3b29ad0cf4430c0db4",
+      "md5": "96fe46f2a7bb82559b35a268a2c000ba",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "libpipeline",
+      "version": "1.5.8",
+      "upstream_version": "1.5.8",
+      "filename": "libpipeline-1.5.8.tar.gz",
+      "url": "https://download.savannah.gnu.org/releases/libpipeline/libpipeline-1.5.8.tar.gz",
+      "sha256": "1b1203ca152ccd63983c3f2112f7fe6fa5afd453218ede5153d1b31e11bb8405",
+      "md5": "17ac6969b2015386bcb5d278a08a40b5",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "libtool",
+      "version": "2.6.2",
+      "upstream_version": "2.6.2",
+      "filename": "libtool-2.6.2.tar.xz",
+      "url": "https://ftpmirror.gnu.org/libtool/libtool-2.6.2.tar.xz",
+      "sha256": "2ef1067c16c97db930fd740cc9bc3d3ba9a583804ae5ac42cc3e8719e49e191e",
+      "md5": "87743862e6cabfb9e76651bc64e31e5c",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "libxcrypt",
+      "version": "4.5.2",
+      "upstream_version": "4.5.2",
+      "filename": "libxcrypt-4.5.2.tar.xz",
+      "url": "https://github.com/besser82/libxcrypt/releases/download/v4.5.2/libxcrypt-4.5.2.tar.xz",
+      "sha256": "71513a31c01a428bccd5367a32fd95f115d6dac50fb5b60c779d5c7942aec071",
+      "md5": "25e888919ddcd153a07daa95224fa436",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "linux",
+      "version": "7.1.8",
+      "upstream_version": "7.1.8",
+      "filename": "linux-7.1.8.tar.xz",
+      "url": "https://www.kernel.org/pub/linux/kernel/v7.x/linux-7.1.8.tar.xz",
+      "sha256": "ff01dcb449279d5b4cfccdb01fee639cf5ff1803f1749a77844dd33915422c49",
+      "md5": "807584f564568b40162e9e4a72bf191f",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "lz4",
+      "version": "1.10.0",
+      "upstream_version": "1.10.0",
+      "filename": "lz4-1.10.0.tar.gz",
+      "url": "https://github.com/lz4/lz4/releases/download/v1.10.0/lz4-1.10.0.tar.gz",
+      "sha256": "537512904744b35e232912055ccf8ec66d768639ff3abe5788d90d792ec5f48b",
+      "md5": "dead9f5f1966d9ae56e1e32761e4e675",
+      "patches": [],
+      "release": "2"
+    },
+    {
+      "package": "m4",
+      "version": "1.4.21",
+      "upstream_version": "1.4.21",
+      "filename": "m4-1.4.21.tar.xz",
+      "url": "https://ftpmirror.gnu.org/m4/m4-1.4.21.tar.xz",
+      "sha256": "f25c6ab51548a73a75558742fb031e0625d6485fe5f9155949d6486a2408ab66",
+      "md5": "8051eef7239b2f187791f2ab0034d6b7",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "make",
+      "version": "4.4.1",
+      "upstream_version": "4.4.1",
+      "filename": "make-4.4.1.tar.gz",
+      "url": "https://ftpmirror.gnu.org/make/make-4.4.1.tar.gz",
+      "sha256": "dd16fb1d67bfab79a72f5e8390735c49e3e8e70b4945a15ab1f81ddb78658fb3",
+      "md5": "c8469a3713cbbe04d955d4ae4be23eeb",
+      "patches": [],
+      "release": "2"
+    },
+    {
+      "package": "man-db",
+      "version": "2.13.1",
+      "upstream_version": "2.13.1",
+      "filename": "man-db-2.13.1.tar.xz",
+      "url": "https://download.savannah.gnu.org/releases/man-db/man-db-2.13.1.tar.xz",
+      "sha256": "8afebb6f7eb6bb8542929458841f5c7e6f240e30c86358c1fbcefbea076c87d9",
+      "md5": "b6335533cbeac3b24cd7be31fdee8c83",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "man-pages",
+      "version": "6.18",
+      "upstream_version": "6.18",
+      "filename": "man-pages-6.18.tar.xz",
+      "url": "https://www.kernel.org/pub/linux/docs/man-pages/man-pages-6.18.tar.xz",
+      "sha256": "c934fadc8b59748c68227a34f6581d2ddf8282b73cdcd52546c8cd88b74b24d1",
+      "md5": "44915a91e4a28161dc421636a193fb3a",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "python-markupsafe",
+      "version": "3.0.3",
+      "upstream_version": "3.0.3",
+      "filename": "markupsafe-3.0.3.tar.gz",
+      "url": "https://pypi.org/packages/source/M/MarkupSafe/markupsafe-3.0.3.tar.gz",
+      "sha256": "722695808f4b6457b320fdc131280796bdceb04ab50fe1795cd540799ebe1698",
+      "md5": "13a73126d25afa72a1ff0daed072f5fe",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "meson",
+      "version": "1.12.0",
+      "upstream_version": "1.12.0",
+      "filename": "meson-1.12.0.tar.gz",
+      "url": "https://github.com/mesonbuild/meson/releases/download/1.12.0/meson-1.12.0.tar.gz",
+      "sha256": "88afe0c20e52030218924ac37d0c81c59b4b5f3ae3752c8c6d7470c7d365886c",
+      "md5": "9f943c267d63016012efcb0f31ecdd7d",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "mpc",
+      "version": "1.4.1",
+      "upstream_version": "1.4.1",
+      "filename": "mpc-1.4.1.tar.xz",
+      "url": "https://ftpmirror.gnu.org/mpc/mpc-1.4.1.tar.xz",
+      "sha256": "91204cd32f164bd3b7c992d4a6a8ce6519511aadab30f78b6982d0bf8d73e931",
+      "md5": "40c5fba305125279ea46041160e81daf",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "mpdecimal",
+      "version": "4.0.1",
+      "upstream_version": "4.0.1",
+      "filename": "mpdecimal-4.0.1.tar.gz",
+      "url": "https://www.bytereef.org/software/mpdecimal/releases/mpdecimal-4.0.1.tar.gz",
+      "sha256": "96d33abb4bb0070c7be0fed4246cd38416188325f820468214471938545b1ac8",
+      "md5": "3d4412579b1edc1047efab151889cca9",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "mpfr",
+      "version": "4.2.2",
+      "upstream_version": "4.2.2",
+      "filename": "mpfr-4.2.2.tar.xz",
+      "url": "https://ftpmirror.gnu.org/mpfr/mpfr-4.2.2.tar.xz",
+      "sha256": "b67ba0383ef7e8a8563734e2e889ef5ec3c3b898a01d00fa0a6869ad81c6ce01",
+      "md5": "7c32c39b8b6e3ae85f25156228156061",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "ncurses",
+      "version": "6.6",
+      "upstream_version": "6.6",
+      "filename": "ncurses-6.6.tar.gz",
+      "url": "https://invisible-mirror.net/archives/ncurses/ncurses-6.6.tar.gz",
+      "sha256": "355b4cbbed880b0381a04c46617b7656e362585d52e9cf84a67e2009b749ff11",
+      "md5": "dd45bf6854430af403452a7a6a40652c",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "ninja",
+      "version": "1.13.2",
+      "upstream_version": "1.13.2",
+      "filename": "ninja-1.13.2.tar.gz",
+      "url": "https://github.com/ninja-build/ninja/archive/v1.13.2/ninja-1.13.2.tar.gz",
+      "sha256": "974d6b2f4eeefa25625d34da3cb36bdcebe7fbce40f4c16ac0835fd1c0cbae17",
+      "md5": "76c00637fde44909cd7d56f8d73f2042",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "openssl",
+      "version": "4.0.1",
+      "upstream_version": "4.0.1",
+      "filename": "openssl-4.0.1.tar.gz",
+      "url": "https://github.com/openssl/openssl/releases/download/openssl-4.0.1/openssl-4.0.1.tar.gz",
+      "sha256": "2db3f3a0d6ea4b59e1f094ace2c8cd536dffb87cdc39084c5afa1e6f7f37dd09",
+      "md5": "07e316afe26b61e72206b81706b497bb",
+      "patches": [
+        "ca-dir.patch"
+      ],
+      "release": "1"
+    },
+    {
+      "package": "python-packaging",
+      "version": "26.3",
+      "upstream_version": "26.3",
+      "filename": "packaging-26.3.tar.gz",
+      "url": "https://files.pythonhosted.org/packages/source/p/packaging/packaging-26.3.tar.gz",
+      "sha256": "94edc256424af38762eb31306eed28beb9f0efc50a8837492c9d6fd6004aed79",
+      "md5": "c6809ec56986682ceffe573b8778a1ce",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "patch",
+      "version": "2.8",
+      "upstream_version": "2.8",
+      "filename": "patch-2.8.tar.xz",
+      "url": "https://ftpmirror.gnu.org/patch/patch-2.8.tar.xz",
+      "sha256": "f87cee69eec2b4fcbf60a396b030ad6aa3415f192aa5f7ee84cad5e11f7f5ae3",
+      "md5": "149327a021d41c8f88d034eab41c039f",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "pcre2",
+      "version": "10.47",
+      "upstream_version": "10.47",
+      "filename": "pcre2-10.47.tar.bz2",
+      "url": "https://github.com/PCRE2Project/pcre2/releases/download/pcre2-10.47/pcre2-10.47.tar.bz2",
+      "sha256": "47fe8c99461250d42f89e6e8fdaeba9da057855d06eb7fc08d9ca03fd08d7bc7",
+      "md5": "aded5840ab5a7d772dd4e16fc294b665",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "perl",
+      "version": "5.44.0",
+      "upstream_version": "5.44.0",
+      "filename": "perl-5.44.0.tar.xz",
+      "url": "https://www.cpan.org/src/5.0/perl-5.44.0.tar.xz",
+      "sha256": "505cf43912e9480495c344c70260452e32aa2a73c546a026b3f100053b23ce91",
+      "md5": "55761cf1543af326492fd194647796d1",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "pkgconf",
+      "version": "3.0.5",
+      "upstream_version": "3.0.5",
+      "filename": "pkgconf-3.0.5.tar.xz",
+      "url": "https://distfiles.ariadne.space/pkgconf/pkgconf-3.0.5.tar.xz",
+      "sha256": "3acd3a8a3cce65a8d620321855d92fb602e026cbe8e13ee36bdec58483b59ace",
+      "md5": "18c528161e6b04ae36dc981af8c4d97e",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "procps-ng",
+      "version": "4.0.7",
+      "upstream_version": "4.0.7",
+      "filename": "procps-ng-4.0.7.tar.xz",
+      "url": "https://sourceforge.net/projects/procps-ng/files/Production/procps-ng-4.0.7.tar.xz",
+      "sha256": "9d2021f47a4501c667862c9942a92d1953694b21d11bcd1702e83eb594e3d67d",
+      "md5": "d47bdda51c4bd595a1ab21b8e538bcb3",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "psmisc",
+      "version": "23.7",
+      "upstream_version": "23.7",
+      "filename": "psmisc-23.7.tar.xz",
+      "url": "https://sourceforge.net/projects/psmisc/files/psmisc/psmisc-23.7.tar.xz",
+      "sha256": "58c55d9c1402474065adae669511c191de374b0871eec781239ab400b907c327",
+      "md5": "53eae841735189a896d614cba440eb10",
+      "patches": [],
+      "release": "2"
+    },
+    {
+      "package": "python",
+      "version": "3.14.7",
+      "upstream_version": "3.14.7",
+      "filename": "Python-3.14.7.tar.xz",
+      "url": "https://www.python.org/ftp/python/3.14.7/Python-3.14.7.tar.xz",
+      "sha256": "3b48dac8fb59f62eaa67ac83c1eb12bda1b7a08406dd286e252c11a66be27f81",
+      "md5": "a4c4c2991b4126e227073c2d9445f432",
+      "patches": [
+        "Python-3.14.7-openssl_4-1.patch"
+      ],
+      "release": "1"
+    },
+    {
+      "package": "readline",
+      "version": "8.3",
+      "upstream_version": "8.3",
+      "filename": "readline-8.3.tar.gz",
+      "url": "https://ftpmirror.gnu.org/readline/readline-8.3.tar.gz",
+      "sha256": "fe5383204467828cd495ee8d1d3c037a7eba1389c22bc6a041f627976f9061cc",
+      "md5": "25a73bfb2a3ad7146c5e9d4408d9f6cd",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "sed",
+      "version": "4.10",
+      "upstream_version": "4.10",
+      "filename": "sed-4.10.tar.xz",
+      "url": "https://ftpmirror.gnu.org/sed/sed-4.10.tar.xz",
+      "sha256": "b8e72182b2ec96a3574e2998c47b7aaa64cc20ce000d8e9ac313cc07cecf28c7",
+      "md5": "c70dc5372db95c816442ffedf77a0d0f",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "python-setuptools",
+      "version": "84.0.0",
+      "upstream_version": "84.0.0",
+      "filename": "setuptools-84.0.0.tar.gz",
+      "url": "https://pypi.org/packages/source/s/setuptools/setuptools-84.0.0.tar.gz",
+      "sha256": "f4695c21257f0d9b537ec2692c941d02ee143b7cc1276941349a546573b2ef73",
+      "md5": "c6919a4b0862ca30604559e163a6cce9",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "shadow",
+      "version": "4.20.2",
+      "upstream_version": "4.20.2",
+      "filename": "shadow-4.20.2.tar.xz",
+      "url": "https://github.com/shadow-maint/shadow/releases/download/4.20.2/shadow-4.20.2.tar.xz",
+      "sha256": "b89f432b75ae55a2d852b446d0365484795fdf533ab97d550e325fa15594a224",
+      "md5": "f52e717bd330818c67bd57c897ec5a8e",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "sqlite",
+      "version": "3.53.4",
+      "upstream_version": "3530400",
+      "filename": "sqlite-autoconf-3530400.tar.gz",
+      "url": "https://sqlite.org/2026/sqlite-autoconf-3530400.tar.gz",
+      "sha256": "0e9483900e92cd5de8fd48d16bf9200145a61f7fd5be542a5ac81d8a9516eb9c",
+      "md5": "ee54db5a5b04e77d4883ce0c051a1eba",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "systemd",
+      "version": "261.2",
+      "upstream_version": "261.2",
+      "filename": "systemd-261.2.tar.gz",
+      "url": "https://github.com/systemd/systemd/archive/v261.2/systemd-261.2.tar.gz",
+      "sha256": "ed1059ff964f5df35b6056434cc17cc83f86dc913f10489948a0b19b6081c5ec",
+      "md5": "e3f04ccc83a28ec5e80c5432bb8329f5",
+      "patches": [
+        "0001-Use-Arch-Linux-device-access-groups.patch"
+      ],
+      "release": "1"
+    },
+    {
+      "package": "tar",
+      "version": "1.35",
+      "upstream_version": "1.35",
+      "filename": "tar-1.35.tar.xz",
+      "url": "https://ftpmirror.gnu.org/tar/tar-1.35.tar.xz",
+      "sha256": "4d62ff37342ec7aed748535323930c7cf94acf71c3591882b26a7ea50f3edc16",
+      "md5": "a2d8042658cfd8ea939e6d911eaf4152",
+      "patches": [
+        "tar-1.35-acl_fix-1.patch"
+      ],
+      "release": "2"
+    },
+    {
+      "package": "tcl",
+      "version": "8.6.18",
+      "upstream_version": "8.6.18",
+      "filename": "tcl8.6.18-src.tar.gz",
+      "url": "https://downloads.sourceforge.net/tcl/tcl8.6.18-src.tar.gz",
+      "sha256": "14f9af32b1767ff718477a8f974ad03c34341097e6b43f4ce54644ee974e268e",
+      "md5": "acfe0c9f7d0c626ecf026e834a888da6",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "texinfo",
+      "version": "7.3",
+      "upstream_version": "7.3",
+      "filename": "texinfo-7.3.tar.xz",
+      "url": "https://ftpmirror.gnu.org/texinfo/texinfo-7.3.tar.xz",
+      "sha256": "51f74eb0f51cfa9873b85264dfdd5d46e8957ec95b88f0fb762f63d9e164c72e",
+      "md5": "915a09fcdfc2bf0f5ecf9e556d5698ff",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "tzdata",
+      "version": "2026c",
+      "upstream_version": "2026c",
+      "filename": "tzdata2026c.tar.gz",
+      "url": "https://www.iana.org/time-zones/repository/releases/tzdata2026c.tar.gz",
+      "sha256": "e4a178a4477f3d0ea77cc31828ff72aa38feff8d61aa13e7e99e142e9d902be4",
+      "md5": "bff7174205cefab793e3b24271ef2f45",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "util-linux",
+      "version": "2.42.2",
+      "upstream_version": "2.42.2",
+      "filename": "util-linux-2.42.2.tar.xz",
+      "url": "https://www.kernel.org/pub/linux/utils/util-linux/v2.42/util-linux-2.42.2.tar.xz",
+      "sha256": "03a05d3adf9602ef128f2da05b84b3205ce60c351e5737c0370f74000679ce8a",
+      "md5": "1d70131b70abda3dec3b37e282a20c96",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "vim",
+      "version": "9.2.1025",
+      "upstream_version": "9.2.1025",
+      "filename": "vim-9.2.1025.tar.gz",
+      "url": "https://github.com/vim/vim/archive/v9.2.1025/vim-9.2.1025.tar.gz",
+      "sha256": "cb0dbf701f8550bb54940304fa4d8b875e078db84967e5b36a0eb7ebe8a6d0cc",
+      "md5": "060c9c0d7e2bdb5e5d80daad596cae02",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "python-wheel",
+      "version": "0.48.0",
+      "upstream_version": "0.48.0",
+      "filename": "wheel-0.48.0.tar.gz",
+      "url": "https://pypi.org/packages/source/w/wheel/wheel-0.48.0.tar.gz",
+      "sha256": "94800765601e9171bf5d58d066e640662842bcedcbab982b2c90787a2c987322",
+      "md5": "f668e4885de814378b332eceea04a8a0",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "xz",
+      "version": "5.8.3",
+      "upstream_version": "5.8.3",
+      "filename": "xz-5.8.3.tar.xz",
+      "url": "https://github.com//tukaani-project/xz/releases/download/v5.8.3/xz-5.8.3.tar.xz",
+      "sha256": "fff1ffcf2b0da84d308a14de513a1aa23d4e9aa3464d17e64b9714bfdd0bbfb6",
+      "md5": "a02753f34e5546d20213b87f876a0933",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "zlib",
+      "version": "1.3.2",
+      "upstream_version": "1.3.2",
+      "filename": "zlib-1.3.2.tar.gz",
+      "url": "https://zlib.net/fossils/zlib-1.3.2.tar.gz",
+      "sha256": "bb329a0a2cd0274d05519d61c667c062e06990d72e125ee2dfa8de64f0119d16",
+      "md5": "a1e6c958597af3c67d162995a342138a",
+      "patches": [
+        "36ff1be48ef696cc67b0855f7c8537ce0276210d.patch"
+      ],
+      "release": "1"
+    },
+    {
+      "package": "zstd",
+      "version": "1.5.7",
+      "upstream_version": "1.5.7",
+      "filename": "zstd-1.5.7.tar.gz",
+      "url": "https://github.com/facebook/zstd/releases/download/v1.5.7/zstd-1.5.7.tar.gz",
+      "sha256": "eb33e51f49a15e023950cd7825ca74a4a2b43db8354825ac24fc1b7ee09e6fa3",
+      "md5": "780fc1896922b1bc52a4e90980cdda48",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "gcc-libs",
+      "version": "16.2.0",
+      "upstream_version": "16.2.0",
+      "filename": "gcc-16.2.0.tar.xz",
+      "url": "https://ftpmirror.gnu.org/gcc/gcc-16.2.0/gcc-16.2.0.tar.xz",
+      "sha256": "e6738e29597f733270731aa90600f37ffdc045079dfc27ec7e8192cc81085c3e",
+      "md5": "19b777fb19ea4982731392481306f0d3",
+      "patches": [],
+      "release": "1"
+    },
+    {
+      "package": "linux-headers",
+      "version": "7.1.8",
+      "upstream_version": "7.1.8",
+      "filename": "linux-7.1.8.tar.xz",
+      "url": "https://www.kernel.org/pub/linux/kernel/v7.x/linux-7.1.8.tar.xz",
+      "sha256": "ff01dcb449279d5b4cfccdb01fee639cf5ff1803f1749a77844dd33915422c49",
+      "md5": "807584f564568b40162e9e4a72bf191f",
+      "patches": [],
+      "release": "1"
+    }
+  ],
+  "resolved_merge_conflicts": [
+    "bzip2/bzip2.lpmbuild",
+    "zlib/zlib.lpmbuild",
+    "pkgconf/pkgconf.lpmbuild",
+    "ncurses/ncurses.lpmbuild",
+    "xz/xz.lpmbuild",
+    "libcap/libcap.lpmbuild",
+    "mpc/mpc.lpmbuild",
+    "gmp/gmp.lpmbuild",
+    "zstd/zstd.lpmbuild",
+    "coreutils/coreutils.lpmbuild",
+    "grep/grep.lpmbuild",
+    "libffi/libffi.lpmbuild",
+    "lpm/lpm.lpmbuild",
+    "glibc/glibc.lpmbuild",
+    "kmod/kmod.lpmbuild",
+    "mpfr/mpfr.lpmbuild",
+    "tar/tar.lpmbuild",
+    "binutils/binutils.lpmbuild",
+    "findutils/findutils.lpmbuild",
+    "sed/sed.lpmbuild",
+    "gawk/gawk.lpmbuild",
+    "expat/expat.lpmbuild",
+    "readline/readline.lpmbuild",
+    "bash/bash.lpmbuild",
+    "file/file.lpmbuild",
+    "gcc/gcc.lpmbuild"
+  ],
+  "source_mirror": "https://ftp.osuosl.org/pub/lfs/lfs-packages/13.1/",
+  "compatibility_packages": [
+    {
+      "package": "util-linux-libs-extra",
+      "version": "2.42.2",
+      "requires": "util-linux-libs"
+    },
+    {
+      "package": "libcom_err",
+      "version": "1.47.4",
+      "requires": "e2fsprogs"
+    },
+    {
+      "package": "udev",
+      "version": "261.2",
+      "requires": "systemd"
+    },
+    {
+      "package": "libudev",
+      "version": "261.2",
+      "requires": "systemd"
+    }
+  ],
+  "additional_packages": [
+    {
+      "package": "libmnl",
+      "version": "1.0.5",
+      "url": "https://www.netfilter.org/projects/libmnl/files/libmnl-1.0.5.tar.bz2",
+      "sha256": "274b9b919ef3152bfb3da3a13c950dd60d6e2bcd54230ffeca298d03b40d0525"
+    }
+  ]
+}

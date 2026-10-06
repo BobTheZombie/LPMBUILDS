@@ -1,0 +1,69 @@
+#!/bin/bash
+
+NAME="orbit2"
+VERSION="2.14.19"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="CORBA ORB implementation used by old GNOME stack"
+URL="https://download.gnome.org/sources/ORBit2/"
+LICENSE=("LGPL-2.1-or-later")
+
+SOURCE=(
+  "https://download.gnome.org/sources/ORBit2/2.14/ORBit2-${VERSION}.tar.bz2"
+)
+
+SHA256SUMS=("SKIP")
+
+REQUIRES=(
+  "glib2"
+  "libidl2"
+)
+
+BUILD_REQUIRES=(
+  "make"
+  "pkgconf"
+  "glib2"
+  "libidl2"
+)
+
+PROVIDES=(
+  "orbit2"
+  "libORBit-2.so"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+  
+  export CFLAGS="${CFLAGS:-} -Wno-error=implicit-function-declaration"
+  export LDFLAGS="${LDFLAGS:-} -Wl,-rpath-link,/usr/lib -L/usr/lib"
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  ./configure \
+    --prefix=/usr \
+    --sysconfdir=/etc \
+    --libdir=/usr/lib \
+    --disable-static
+
+  make -j"$(nproc)"
+}
+
+check() { true; }
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  make DESTDIR="$pkgdir" install
+
+  test -f "$pkgdir/usr/lib/libORBit-2.so"
+}

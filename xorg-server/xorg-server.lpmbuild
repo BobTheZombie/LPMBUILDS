@@ -1,36 +1,143 @@
-# LPM build script for xorg-server
+#!/bin/bash
+# LPM build script for X.Org X server (Xorg)
+# Version: 21.1.21
+
 NAME="xorg-server"
-VERSION="21.1.13"
+VERSION="21.1.21"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Xorg X server"
+SUMMARY="X.Org X11 server"
 URL="https://www.x.org/"
 LICENSE="MIT"
-SOURCE=("https://xorg.freedesktop.org/archive/individual/xserver/xorg-server-${VERSION}.tar.xz")
-CHECKSUMS=("b45a02d5943f72236a360d3cc97e75134aa4f63039ff88c04686b508a3dc740c")
-REQUIRES=("glibc" "xorgproto" "libx11" "libxext" "libxau" "libxdmcp" "libxcb" "mesa" "libdrm" "pixman" "libxfont2" "libxkbfile" "xkbcomp" "libinput")
-PROVIDES=("xorg-server")
+
+SOURCE=(
+  "https://xorg.freedesktop.org/archive/individual/xserver/xorg-server-${VERSION}.tar.xz"
+  "xvfb-run" # with updates from FC master
+  "xvfb-run.1"
+
+)
+
+# Base runtime / build deps 
+REQUIRES=(
+  "glibc"
+  "xorgproto"          
+  "pixman"
+
+  "libX11"
+  "libXext"
+  "libXfixes"
+  "libXrender"
+  "libXrandr"
+  "libXcursor"
+  "libXinerama"
+  "libXv"
+  "libXi"
+  "libxkbfile"
+  "libXau"
+  "libXdmcp"
+  "libxcb"
+  "libxcvt"
+
+  "mesa"           
+  "libdrm"
+  "libepoxy"
+
+  "systemd"   
+  "libtirpc"
+  "zlib"
+
+  "xkbcomp"
+  "xkeyboard-config"
+
+  # build tooling
+  "pkg-config"
+  "meson"
+  "ninja"
+)
+
+PROVIDES=(
+  "xorg-server"
+  "Xorg"
+  "Xvfb"
+  "Xephyr"
+)
+
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=("xinit")
-SUGGESTS=()
+
+_srcdir="xorg-server-${VERSION}"
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
+    set -euxo pipefail
+    cd "$SRCROOT"
+    mkdir -p "$_srcdir/build"
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var \
-    --enable-glamor --enable-install-setuid --enable-suid-wrapper \
-    --enable-xwayland --with-os-vendor=LPM
-  make -j"$(nproc)"
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    : "${CC:=cc}"
+    : "${CXX:=c++}"
+
+    # Keep Xorg + Xvfb + Xephyr; Xwayland is built from its own tarball
+    meson setup build \
+        --prefix=/usr \
+        --libdir=lib \
+        --buildtype=release \
+        -Ddefault_library=shared \
+        -Dxorg=true \
+        -Dxvfb=true \
+        -Dxephyr=true \
+        -Dglamor=true \
+        -Dudev=true \
+        -Dipv6=true \
+        -Dxdmcp=true \
+        -Dxcsecurity=true \
+        -Dsystemd_logind=true \
+        -Dsuid_wrapper=true \
+        -Dxkb_dir=/usr/share/X11/xkb \
+        -Dxkb_output_dir=/var/lib/xkb
+
+    ninja -C build -j"$(nproc)"
+}
+
+check() {
+    # Full test suite is heavy; you can enable later with:
+    #   ninja -C build test
+    true
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    DESTDIR="$pkgdir" ninja -C build install
+    
+    install -m755 "${SRCROOT}/xvfb-run" "${pkgdir}/usr/bin/"
+    install -m644 "${SRCROOT}/xvfb-run.1" "${pkgdir}/usr/share/man/man1/"
+
+
+    # Install license / docs
+    if [ -f COPYING ]; then
+        install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+    fi
+    if [ -f README ]; then
+        install -Dm644 README "$pkgdir/usr/share/doc/$NAME/README"
+    fi
+
+    # Create default log dir, matching traditional layout
+    install -d -m 0755 "$pkgdir/var/log"
+
+    # Strip ELF binaries / libs
+    if command -v strip >/dev/null 2>&1; then
+        find "$pkgdir/usr" -type f -exec sh -c '
+            case "$(file -b "$1")" in
+              *ELF*executable*|*ELF*shared\ object*)
+                  strip --strip-unneeded "$1" 2>/dev/null || true
+              ;;
+            esac
+        ' _ {} \;
+    fi
 }
+

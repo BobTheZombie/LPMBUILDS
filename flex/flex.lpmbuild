@@ -1,34 +1,41 @@
-# LPM build script for flex
+#!/bin/bash
+# LFS 13.1-systemd baseline; see docs/lfs-13.1.md for patch provenance.
 NAME="flex"
 VERSION="2.6.4"
-RELEASE="1"
+RELEASE="2"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="Fast lexical analyzer generator"
-URL="https://github.com/westes/flex"
-LICENSE=""
-SOURCE=()
+URL="https://github.com/westes/flex/releases/download/v2.6.4/flex-2.6.4.tar.gz"
+LICENSE=("BSD-2-Clause")
+SOURCE=("https://github.com/westes/flex/releases/download/v2.6.4/flex-2.6.4.tar.gz")
+SHA256SUMS=("e87aae032bf07c26f85ac0ed3250998c37621d95f8bd748b31f15b33c45ee995")
+PATCHES=()
 REQUIRES=("glibc" "m4")
+BUILD_REQUIRES=("gcc" "make" "pkgconf")
 PROVIDES=("flex")
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
+
+_srcdir="flex-2.6.4"
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    :
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    ./configure --prefix=/usr
+    make -j"${JOBS:-$(nproc)}"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euo pipefail
+    cd "$SRCROOT/$_srcdir"
+    make DESTDIR="$pkgdir" install
+    ln -sf flex "$pkgdir/usr/bin/lex"
+    rm -f "$pkgdir/usr/share/info/dir"
+    find "$pkgdir/usr/lib" -name "*.la" -delete 2>/dev/null || true
 }
