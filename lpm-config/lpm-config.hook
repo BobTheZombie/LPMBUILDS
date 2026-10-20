@@ -1,0 +1,11 @@
+[Trigger]
+Type = Package
+Operation = Install
+Operation = Upgrade
+Target = lpm-config
+
+[Action]
+Description = Seeding missing LPM Linux system defaults...
+When = PostTransaction
+Exec = /usr/libexec/lpm-config/apply
+NeedsTargets = false
