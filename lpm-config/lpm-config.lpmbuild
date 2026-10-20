@@ -10,13 +10,13 @@ LICENSE=("MIT")
 
 SOURCE=(
   "lpm-config-init" "lpm-config.hook"
-  "profile" "path.sh" "skel.profile" "skel.bash_profile" "skel.bashrc"
+  "profile" "path.sh" "skel.profile" "skel.bash_profile" "skel.bashrc" "skel.bash_logout"
   "useradd" "login.defs" "nsswitch.conf" "hosts" "issue" "motd"
   "locale.conf" "user-dirs.defaults" "README.md"
 )
 SHA256SUMS=(
   "SKIP" "SKIP" "SKIP" "SKIP" "SKIP" "SKIP" "SKIP" "SKIP"
-  "SKIP" "SKIP" "SKIP" "SKIP" "SKIP" "SKIP" "SKIP" "SKIP"
+  "SKIP" "SKIP" "SKIP" "SKIP" "SKIP" "SKIP" "SKIP" "SKIP" "SKIP"
 )
 PATCHES=()
 REQUIRES=("bash" "coreutils" "shadow")
@@ -48,6 +48,7 @@ staging() {
     "skel.profile:etc/skel/.profile" \
     "skel.bash_profile:etc/skel/.bash_profile" \
     "skel.bashrc:etc/skel/.bashrc" \
+    "skel.bash_logout:etc/skel/.bash_logout" \
     "useradd:etc/default/useradd" \
     "login.defs:etc/login.defs" \
     "nsswitch.conf:etc/nsswitch.conf" \
