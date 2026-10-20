@@ -1,0 +1,129 @@
+#!/bin/sh
+# Seed LPM Linux defaults only when missing. Never reset existing /etc files.
+set -eu
+umask 022
+
+root=${LPM_ROOT:-/}
+dry_run=0
+verify=0
+usage() {
+    cat <<'USAGE'
+Usage: lpm-config-init [--root /target] [--dry-run | --verify]
+  --root     target filesystem root (defaults to LPM_ROOT or /)
+  --dry-run  list files that would be created
+  --verify   report missing defaults; exit nonzero if any are missing
+Existing files and symlinks are always preserved.
+USAGE
+}
+while [ "$#" -gt 0 ]; do
+    case $1 in
+        --root)
+            [ "$#" -ge 2 ] || { echo "Missing value after --root" >&2; exit 2; }
+            root=$2; shift 2 ;;
+        --dry-run) dry_run=1; shift ;;
+        --verify) verify=1; shift ;;
+        --help|-h) usage; exit 0 ;;
+        *) echo "Unknown argument: $1" >&2; usage >&2; exit 2 ;;
+    esac
+done
+if [ "$dry_run" -eq 1 ] && [ "$verify" -eq 1 ]; then
+    echo "--dry-run and --verify cannot be combined" >&2; exit 2
+fi
+case $root in
+    /*) ;;
+    *) echo "Root must be absolute: $root" >&2; exit 2 ;;
+esac
+[ -d "$root" ] || { echo "Missing root directory: $root" >&2; exit 2; }
+root=$(CDPATH= cd "$root" && pwd -P)
+prefix=${root%/}
+defaults="$prefix/usr/share/lpm-config/defaults"
+[ -d "$defaults" ] || { echo "Missing lpm-config templates: $defaults" >&2; exit 2; }
+
+missing=0
+created=0
+preserved=0
+
+# Fail closed on symlinked parent paths; never write outside the target root.
+safe_parent() {
+    check_path=$1
+    check_parent=${check_path%/*}
+    while [ -n "$check_parent" ] && [ "$check_parent" != "$root" ]; do
+        if [ -L "$check_parent" ]; then
+            echo "Refusing symlinked parent: $check_parent" >&2
+            return 1
+        fi
+        check_parent=${check_parent%/*}
+    done
+}
+
+seed() {
+    relative=$1
+    source="$defaults/$relative"
+    target="$prefix/$relative"
+    [ -f "$source" ] || { echo "Template missing: $source" >&2; exit 1; }
+    if [ -e "$target" ] || [ -L "$target" ]; then
+        preserved=$((preserved + 1))
+        return
+    fi
+    missing=$((missing + 1))
+    if [ "$verify" -eq 1 ] || [ "$dry_run" -eq 1 ]; then
+        echo "MISSING: /$relative"
+        return
+    fi
+    safe_parent "$target"
+    mkdir -p "${target%/*}"
+    # noclobber guards against an existing file being replaced.
+    (set -C; cat "$source" > "$target")
+    chmod 0644 "$target"
+    created=$((created + 1))
+    echo "CREATED: /$relative"
+}
+
+for relative in \
+    etc/profile \
+    etc/profile.d/10-lpm-path.sh \
+    etc/skel/.profile \
+    etc/skel/.bash_profile \
+    etc/skel/.bashrc \
+    etc/default/useradd \
+    etc/login.defs \
+    etc/nsswitch.conf \
+    etc/hosts \
+    etc/issue \
+    etc/motd \
+    etc/locale.conf \
+    etc/xdg/user-dirs.defaults
+do
+    seed "$relative"
+done
+
+shells="$prefix/etc/shells"
+if [ -e "$shells" ] || [ -L "$shells" ]; then
+    preserved=$((preserved + 1))
+else
+    missing=$((missing + 1))
+    if [ "$verify" -eq 1 ] || [ "$dry_run" -eq 1 ]; then
+        echo "MISSING: /etc/shells"
+    else
+        safe_parent "$shells"
+        mkdir -p "$prefix/etc"
+        (
+            set -C
+            {
+                echo "# Valid login shells installed on LPM Linux"
+                for s in /bin/sh /usr/bin/sh /bin/bash /usr/bin/bash \
+                         /bin/zsh /usr/bin/zsh /usr/bin/fish; do
+                    [ -x "$prefix$s" ] && echo "$s"
+                done
+            } > "$shells"
+        )
+        chmod 0644 "$shells"
+        created=$((created + 1))
+        echo "CREATED: /etc/shells"
+    fi
+fi
+
+echo "lpm-config: created=$created preserved=$preserved missing=$missing"
+if [ "$verify" -eq 1 ] && [ "$missing" -ne 0 ]; then
+    exit 1
+fi
