@@ -19,6 +19,7 @@ cp "$pkg/path.sh" "$template/etc/profile.d/10-lpm-path.sh"
 cp "$pkg/skel.profile" "$template/etc/skel/.profile"
 cp "$pkg/skel.bash_profile" "$template/etc/skel/.bash_profile"
 cp "$pkg/skel.bashrc" "$template/etc/skel/.bashrc"
+cp "$pkg/skel.bash_logout" "$template/etc/skel/.bash_logout"
 cp "$pkg/useradd" "$template/etc/default/useradd"
 cp "$pkg/login.defs" "$template/etc/login.defs"
 cp "$pkg/nsswitch.conf" "$template/etc/nsswitch.conf"
@@ -52,4 +53,14 @@ rm "$root/etc/hosts"
 ln -s /dev/null "$root/etc/hosts"
 sh "$pkg/lpm-config-init" --root "$root" > "$tmp/symlink.log"
 [ -L "$root/etc/hosts" ] || exit 1
+# Missing nested defaults must not escape through symlinked parent directories.
+rm "$root/etc/xdg/user-dirs.defaults"
+rmdir "$root/etc/xdg"
+mkdir -p "$tmp/escaped"
+ln -s "$tmp/escaped" "$root/etc/xdg"
+if sh "$pkg/lpm-config-init" --root "$root" > "$tmp/escape.log" 2>&1; then
+    echo "symlinked parent should be rejected" >&2
+    exit 1
+fi
+[ ! -e "$tmp/escaped/user-dirs.defaults" ] || exit 1
 echo "PASS: seeding is safe, idempotent and validates missing defaults"
