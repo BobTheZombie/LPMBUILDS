@@ -7,7 +7,7 @@ Non-destructive baseline configuration for LPM Linux, designed to complement
 
 On initial installation, its LPM package transaction hook creates missing:
 - /etc/profile, /etc/profile.d/10-lpm-path.sh
-- /etc/skel/.profile, .bash_profile and .bashrc for future user homes
+- /etc/skel/.profile, .bash_profile and .bashrc, .bash_logout for future user homes
 - /etc/default/useradd, /etc/login.defs (only if shadow has not installed them)
 - /etc/shells, listing only executable shells found on the target
 - /etc/nsswitch.conf, /etc/hosts, /etc/issue, /etc/motd, /etc/locale.conf
