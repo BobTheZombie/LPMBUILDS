@@ -85,6 +85,7 @@ for relative in \
     etc/skel/.profile \
     etc/skel/.bash_profile \
     etc/skel/.bashrc \
+    etc/skel/.bash_logout \
     etc/default/useradd \
     etc/login.defs \
     etc/nsswitch.conf \
