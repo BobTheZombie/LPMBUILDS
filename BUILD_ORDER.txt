@@ -36,6 +36,7 @@ systemd
 dbus-broker
 ca-certificates
 lpm
+lpm-config
 qt5-base
 qt5-declarative
 qt5-svg
