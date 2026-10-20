@@ -113,7 +113,9 @@ else
                 echo "# Valid login shells installed on LPM Linux"
                 for s in /bin/sh /usr/bin/sh /bin/bash /usr/bin/bash \
                          /bin/zsh /usr/bin/zsh /usr/bin/fish; do
-                    [ -x "$prefix$s" ] && echo "$s"
+                    if [ -x "$prefix$s" ]; then
+                        echo "$s"
+                    fi
                 done
             } > "$shells"
         )
