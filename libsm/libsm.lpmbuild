@@ -9,6 +9,7 @@ LICENSE="MIT"
 SOURCE=("https://xorg.freedesktop.org/archive/individual/lib/libSM-${VERSION}.tar.xz")
 CHECKSUMS=("fdcbe51e4d1276b1183da77a8a4e74a137ca203e0bcfb20972dd5f3347e97b84")
 REQUIRES=("glibc" "libice" "xorgproto")
+BUILD_REQUIRES=("xtrans")
 PROVIDES=("libsm")
 CONFLICTS=()
 OBSOLETES=()
