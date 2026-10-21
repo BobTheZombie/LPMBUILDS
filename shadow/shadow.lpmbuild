@@ -1,7 +1,7 @@
 # LPM build script for shadow
 NAME="shadow"
 VERSION="4.15"
-RELEASE="1"
+RELEASE="2"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="Password and account management tools"
 URL="https://github.com/shadow-maint/shadow"
@@ -23,7 +23,10 @@ prepare() {
 build() {
   set -euxo pipefail
   cd "$SRCROOT"
-  ./configure --prefix=/usr
+  ./configure \
+    --prefix=/usr \
+    --sysconfdir=/etc \
+    --without-libbsd
   make -j"$(nproc)"
 }
 
