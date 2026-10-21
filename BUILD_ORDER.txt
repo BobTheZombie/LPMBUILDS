@@ -55,6 +55,7 @@ kf6-tier2
 kf6-tier3
 pixman
 xorgproto
+xtrans
 libxau
 libxdmcp
 libxcb

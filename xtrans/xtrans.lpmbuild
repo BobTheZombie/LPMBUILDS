@@ -1,0 +1,46 @@
+#!/bin/bash
+# X.Org transport headers and pkg-config metadata
+NAME="xtrans"
+VERSION="1.6.0"
+RELEASE="1"
+ARCH="any"
+
+SUMMARY="X.Org transport abstraction headers and pkg-config metadata"
+URL="https://xorg.freedesktop.org/"
+LICENSE=("HPND" "HPND-sell-variant" "MIT" "MIT-open-group" "X11")
+
+SOURCE=(
+    "https://xorg.freedesktop.org/archive/individual/lib/xtrans-${VERSION}.tar.xz"
+)
+SHA256SUMS=(
+    "faafea166bf2451a173d9d593352940ec6404145c5d1da5c213423ce4d359e92"
+)
+PATCHES=()
+REQUIRES=()
+BUILD_REQUIRES=("pkgconf")
+PROVIDES=("xtrans")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+    set -euxo pipefail
+    test -f "$SRCROOT/xtrans-$VERSION/configure"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/xtrans-$VERSION"
+    ./configure --prefix=/usr
+    make -j"$(nproc)"
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/xtrans-$VERSION"
+    make DESTDIR="$pkgdir" install
+    install -Dm644 COPYING "$pkgdir/usr/share/licenses/xtrans/COPYING"
+    test -f "$pkgdir/usr/share/pkgconfig/xtrans.pc"
+    test -f "$pkgdir/usr/include/X11/Xtrans/Xtrans.h"
+}
