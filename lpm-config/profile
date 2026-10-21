@@ -1,0 +1,13 @@
+# LPM Linux: system-wide POSIX login shell defaults.
+# This file is installed only if /etc/profile is absent.
+if [ -z "$PATH" ]; then
+    PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    export PATH
+fi
+umask 022
+if [ -d /etc/profile.d ]; then
+    for file in /etc/profile.d/*.sh; do
+        [ -r "$file" ] && . "$file"
+    done
+    unset file
+fi

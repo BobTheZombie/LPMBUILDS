@@ -1,0 +1,69 @@
+#!/bin/bash
+# LPM Linux default configuration package. Never stage mutable account databases.
+NAME="lpm-config"
+VERSION="1.0.0"
+RELEASE="1"
+ARCH="any"
+SUMMARY="Safe system defaults, shell skeletons, and account provisioning configuration for LPM Linux"
+URL="https://github.com/BobTheZombie/LPMBUILDS"
+LICENSE=("MIT")
+
+SOURCE=(
+  "lpm-config-init" "lpm-config.hook"
+  "profile" "path.sh" "skel.profile" "skel.bash_profile" "skel.bashrc" "skel.bash_logout"
+  "useradd" "login.defs" "nsswitch.conf" "hosts" "issue" "motd"
+  "locale.conf" "user-dirs.defaults" "README.md"
+)
+SHA256SUMS=(
+  "SKIP" "SKIP" "SKIP" "SKIP" "SKIP" "SKIP" "SKIP" "SKIP"
+  "SKIP" "SKIP" "SKIP" "SKIP" "SKIP" "SKIP" "SKIP" "SKIP" "SKIP"
+)
+PATCHES=()
+REQUIRES=("bash" "coreutils" "shadow")
+BUILD_REQUIRES=()
+PROVIDES=("lpm-config")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+  set -euo pipefail
+  local f
+  for f in "${SOURCE[@]}"; do
+    test -f "$SRCROOT/$f" || { echo "Missing source: $f" >&2; return 1; }
+  done
+}
+build() { :; }
+check() { sh -n "$SRCROOT/lpm-config-init"; }
+staging() {
+  set -euo pipefail
+  install -Dm755 "$SRCROOT/lpm-config-init" "$pkgdir/usr/libexec/lpm-config/apply"
+  install -Dm644 "$SRCROOT/lpm-config.hook" "$pkgdir/usr/share/liblpm/hooks/lpm-config.hook"
+
+  local pair f dest
+  for pair in \
+    "profile:etc/profile" \
+    "path.sh:etc/profile.d/10-lpm-path.sh" \
+    "skel.profile:etc/skel/.profile" \
+    "skel.bash_profile:etc/skel/.bash_profile" \
+    "skel.bashrc:etc/skel/.bashrc" \
+    "skel.bash_logout:etc/skel/.bash_logout" \
+    "useradd:etc/default/useradd" \
+    "login.defs:etc/login.defs" \
+    "nsswitch.conf:etc/nsswitch.conf" \
+    "hosts:etc/hosts" \
+    "issue:etc/issue" \
+    "motd:etc/motd" \
+    "locale.conf:etc/locale.conf" \
+    "user-dirs.defaults:etc/xdg/user-dirs.defaults"
+  do
+    dest="${pair#*:}"
+    f="${pair%%:*}"
+    install -Dm644 "$SRCROOT/$f" "$pkgdir/usr/share/lpm-config/defaults/$dest"
+  done
+  install -Dm644 "$SRCROOT/README.md" "$pkgdir/usr/share/doc/lpm-config/README.md"
+  # No mutable /etc file is package-owned. Provisioning is via install hook.
+  test ! -e "$pkgdir/etc/skel/.bashrc"
+  test -x "$pkgdir/usr/libexec/lpm-config/apply"
+}
