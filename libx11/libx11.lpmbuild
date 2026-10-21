@@ -9,6 +9,7 @@ LICENSE="MIT"
 SOURCE=("https://xorg.freedesktop.org/archive/individual/lib/libX11-${VERSION}.tar.xz")
 CHECKSUMS=("779d8f111d144ef93e2daa5f23a762ce9555affc99592844e71c4243d3bd3262")
 REQUIRES=("glibc" "xorgproto" "libxcb" "libxau" "libxdmcp")
+BUILD_REQUIRES=("xtrans")
 PROVIDES=("libx11")
 CONFLICTS=()
 OBSOLETES=()
