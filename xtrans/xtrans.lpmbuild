@@ -26,19 +26,19 @@ SUGGESTS=()
 
 prepare() {
     set -euxo pipefail
-    test -f "$SRCROOT/configure"
+    test -f "$SRCROOT/xtrans-$VERSION/configure"
 }
 
 build() {
     set -euxo pipefail
-    cd "$SRCROOT"
+    cd "$SRCROOT/xtrans-$VERSION"
     ./configure --prefix=/usr
     make -j"$(nproc)"
 }
 
 staging() {
     set -euxo pipefail
-    cd "$SRCROOT"
+    cd "$SRCROOT/xtrans-$VERSION"
     make DESTDIR="$pkgdir" install
     install -Dm644 COPYING "$pkgdir/usr/share/licenses/xtrans/COPYING"
     test -f "$pkgdir/usr/share/pkgconfig/xtrans.pc"
