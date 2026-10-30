@@ -103,7 +103,7 @@ def main():
         else:
             print('WARNING: Could not find safe insertion point for SDDM Wayland flag')
     # Pin KDE's published 6.8.1 tarball digest and use KDE install-dir semantics.
-    text = re.sub(r'(?ms)^SHA256SUMS=\\s*\\(.*?\\)',
+    text = re.sub(r'(?ms)^SHA256SUMS=\s*\(.*?\)',
                   'SHA256SUMS=("e2abb7e5b5fc8d59fe369d3ab4ea776e10684af0fb1a8a3275e9df64eff97d20")',
                   text, count=1)
     text = text.replace('-DCMAKE_INSTALL_LIBDIR=lib', '-DKDE_INSTALL_LIBDIR=lib')
@@ -116,7 +116,7 @@ def main():
         else:
             marker = '-DBUILD_TESTING=OFF'
             if marker in text:
-                text = text.replace(marker, opt + ' \\\\n        ' + marker, 1)
+                text = text.replace(marker, opt + ' ' + chr(92) + chr(10) + '        ' + marker, 1)
     text = text.replace('source digests MUST be locked before building.',
                         'source digest locked to KDE 6.8.1 release manifest.')
     a.recipe.write_text(text)
