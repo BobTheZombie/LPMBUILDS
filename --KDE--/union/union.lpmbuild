@@ -1,9 +1,9 @@
 #!/bin/bash
-# KDE Union 6.8.1; CSS input disabled until cxx-rust-cssparser is packaged.
+# KDE Union 6.8.1; CSS input enabled through the Rust-backed cxx-rust-cssparser.
 # Produces actual Union libraries and UnionConfig.cmake.
 NAME="union"
 VERSION="6.8.1"
-RELEASE="1"
+RELEASE="2"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="KDE Union shared Qt Quick and Qt Widgets style engine"
 URL="https://invent.kde.org/plasma/union"
@@ -13,17 +13,17 @@ SHA256SUMS=("abea413c79fe9a52337a9b8a50ee8fb29be7ed38bd764eb7555d724e99b39f00")
 PATCHES=()
 REQUIRES=("qt6-base" "qt6-declarative" "qt6-shadertools"
           "kcoreaddons6" "kguiaddons6" "kconfig6" "kiconthemes6"
-          "kcolorscheme6" "kirigami6")
+          "kcolorscheme6" "kirigami6" "cxx-rust-cssparser")
 BUILD_REQUIRES=("cmake" "ninja" "pkgconf" "extra-cmake-modules"
                 "qt6-base" "qt6-declarative" "qt6-shadertools"
                 "kcoreaddons6" "kguiaddons6" "kconfig6" "kiconthemes6"
-                "kcolorscheme6" "kirigami6")
+                "kcolorscheme6" "kirigami6" "cxx-rust-cssparser")
 REQUIRES_PYTHON_DEPENDENCIES=()
 PROVIDES=()
 CONFLICTS=()
 OBSOLETES=()
 RECOMMENDS=()
-SUGGESTS=("cxx-rust-cssparser")
+SUGGESTS=()
 prepare() {
     set -euxo pipefail
     test -f "$SRCROOT/${NAME}-${VERSION}/CMakeLists.txt"
@@ -31,7 +31,20 @@ prepare() {
 build() {
     set -euxo pipefail
     local src="$SRCROOT/${NAME}-${VERSION}"
-    cmake -S "$src" -B "$src/build" -G Ninja         -DCMAKE_BUILD_TYPE=Release         -DCMAKE_INSTALL_PREFIX=/usr         -DKDE_INSTALL_LIBDIR=lib         -DBUILD_TESTING=OFF         -DBUILD_EXAMPLES=OFF         -DBUILD_TOOLS=OFF         -DBUILD_WITH_KDEFRAMEWORKS=ON         -DBUILD_PLATFORM_PLASMA=ON         -DBUILD_INPUT_CSS=OFF         -DBUILD_INPUT_PLASMASVG=OFF         -DBUILD_OUTPUT_QTQUICK=ON         -DBUILD_OUTPUT_KIRIGAMI=ON         -DBUILD_OUTPUT_QTWIDGETS=ON
+    cmake -S "$src" -B "$src/build" -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DKDE_INSTALL_LIBDIR=lib \
+        -DBUILD_TESTING=OFF \
+        -DBUILD_EXAMPLES=OFF \
+        -DBUILD_TOOLS=OFF \
+        -DBUILD_WITH_KDEFRAMEWORKS=ON \
+        -DBUILD_PLATFORM_PLASMA=ON \
+        -DBUILD_INPUT_CSS=ON \
+        -DBUILD_INPUT_PLASMASVG=OFF \
+        -DBUILD_OUTPUT_QTQUICK=ON \
+        -DBUILD_OUTPUT_KIRIGAMI=ON \
+        -DBUILD_OUTPUT_QTWIDGETS=ON
     cmake --build "$src/build" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
 }
 staging() {
