@@ -20,7 +20,14 @@ def array(text, field):
     lex = shlex.shlex(match.group(1), posix=True)
     lex.whitespace_split = True
     lex.commenters = '#'
-    return match, list(lex)
+    try:
+        return match, list(lex)
+    except ValueError:
+        # Some source recipes use shell expansions with internal ')' characters.
+        # Ignore unparseable provider aliases rather than evaluating shell code.
+        if field == 'PROVIDES':
+            return match, []
+        raise
 
 def provider_index(root):
     index = {}
