@@ -11,9 +11,7 @@ LICENSE=("SEE-UPSTREAM")
 SOURCE=(
     "https://download.kde.org/stable/plasma/6.8.1/plasma-workspace-6.8.1.tar.xz"
 )
-SHA256SUMS=(
-    "SKIP"
-)
+SHA256SUMS=("e2abb7e5b5fc8d59fe369d3ab4ea776e10684af0fb1a8a3275e9df64eff97d20")
 PATCHES=()
 REQUIRES=(
     "qt6-base"
@@ -188,7 +186,9 @@ build() {
         -DCMAKE_INSTALL_PREFIX=/usr \
         -DKDE_INSTALL_LIBDIR=lib \
         -DINSTALL_SDDM_WAYLAND_SESSION=ON \
-        -DWITH_X11=ON \\n        -DWITH_X11_SESSION=OFF \\n        -DBUILD_TESTING=OFF \
+        -DWITH_X11=ON \
+        -DWITH_X11_SESSION=OFF \
+        -DBUILD_TESTING=OFF \
         -DBUILD_SHARED_LIBS=ON \
         -DKDE_INSTALL_USE_QT_SYS_PATHS=ON
     cmake --build "$builddir" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
