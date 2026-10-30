@@ -16,7 +16,7 @@ packages and placeholder-only providers. It does not invent, silently remove,
 or pretend to have compiled a missing dependency.
 
 Run manually using Actions > Synchronize GitLab LPM package recipes >
-Run workflow. Also scheduled daily. Initial workflow commit triggers a sync.
+Run workflow. Changes to the workflow and synchronization tools also trigger a run. Automatic daily sync is disabled until the missing Plasma requirements are addressed.
 
 Limitations:
 - GitLab must be publicly readable by GitHub Actions.
