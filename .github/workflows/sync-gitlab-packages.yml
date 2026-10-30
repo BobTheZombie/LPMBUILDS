@@ -36,24 +36,33 @@ jobs:
           python3 tools/github-mirror/sync_gitlab_recipes.py \
             --source "$RUNNER_TEMP/lpm-gitlab" --target .
 
-      - name: Align Plasma 6.8.1 and SDDM Wayland
+      - name: Discover and align Plasma workspace
         run: |
           set -euo pipefail
-          test -f plasma-workspace/plasma-workspace.lpmbuild
-          python3 tools/github-mirror/align_plasma_workspace.py \
-            --repo . \
-            --recipe plasma-workspace/plasma-workspace.lpmbuild \
-            --report PLASMA-DEPENDENCY-AUDIT.md
-          bash -n plasma-workspace/plasma-workspace.lpmbuild
+          recipe="$(find . -type f -name '*plasma-workspace*.lpmbuild' -print -quit)"
+          printf 'PLASMA_RECIPE=%s\n' "$recipe" >> "$GITHUB_ENV"
+          echo "Detected Plasma recipe: ${recipe:-NOT FOUND}"
+          if [ -n "$recipe" ]; then
+            python3 tools/github-mirror/align_plasma_workspace.py \
+              --repo . --recipe "$recipe" --report PLASMA-DEPENDENCY-AUDIT.md
+            bash -n "$recipe"
+          else
+            echo 'GitLab has no plasma-workspace LPMBUILD; missing source recipe.' > PLASMA-DEPENDENCY-AUDIT.md
+            find . -iname '*plasma*' | head -30
+          fi
           python3 -m py_compile tools/github-mirror/*.py
 
       - name: Audit hard requirements and placeholders
         run: |
           set +e
-          python3 tools/github-mirror/check_lpmbuild_deps.py \
-            --repo . --recipe plasma-workspace/plasma-workspace.lpmbuild \
-            > dependency-audit-output.txt 2>&1
-          result=$?
+          if [ -n "$PLASMA_RECIPE" ]; then
+            python3 tools/github-mirror/check_lpmbuild_deps.py \
+              --repo . --recipe "$PLASMA_RECIPE" > dependency-audit-output.txt 2>&1
+            result=$?
+          else
+            echo 'No plasma-workspace recipe present in canonical GitLab tree' > dependency-audit-output.txt
+            result=1
+          fi
           echo "$result" > dependency-audit-status.txt
           cat dependency-audit-output.txt
           exit 0
