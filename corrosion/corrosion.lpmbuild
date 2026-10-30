@@ -1,0 +1,41 @@
+#!/bin/bash
+# Corrosion 0.6.1: installed CMake modules integrating Cargo/Rust
+NAME="corrosion"
+VERSION="0.6.1"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Corrosion CMake integration for Rust Cargo projects"
+URL="https://github.com/corrosion-rs/corrosion"
+LICENSE=("MIT")
+SOURCE=("https://github.com/corrosion-rs/corrosion/archive/refs/tags/v${VERSION}.tar.gz")
+SHA256SUMS=("SKIP") # TODO: pin independently verified digest
+PATCHES=()
+REQUIRES=("cmake" "rust")
+BUILD_REQUIRES=("cmake" "ninja" "rust")
+REQUIRES_PYTHON_DEPENDENCIES=()
+PROVIDES=("cmake-corrosion")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+prepare() {
+    set -euxo pipefail
+    test -f "$SRCROOT/${NAME}-${VERSION}/CMakeLists.txt"
+}
+build() {
+    set -euxo pipefail
+    local src="$SRCROOT/${NAME}-${VERSION}"
+    cmake -S "$src" -B "$src/build" -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DCORROSION_INSTALL_ONLY=ON \
+        -DCORROSION_BUILD_TESTS=OFF
+    cmake --build "$src/build" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+staging() {
+    set -euxo pipefail
+    DESTDIR="$pkgdir" cmake --install "$SRCROOT/${NAME}-${VERSION}/build"
+    test -f "$pkgdir/usr/lib/cmake/Corrosion/CorrosionConfig.cmake"
+    test -f "$pkgdir/usr/share/cmake/Corrosion.cmake"
+}
