@@ -8,8 +8,16 @@ import shlex
 HARD_BUILD = """qt6-base qt6-declarative qt6-location qt6-positioning qt6-svg
 qt6-shadertools qt6-wayland qcoro libplasma kwayland plasma-activities
 plasma-activities-stats libksysguard libkscreen layer-shell-qt knighttime
-union kwin plasma-wayland-protocols dbus libudev wayland libqalculate
-libcanberra zlib extra-cmake-modules cmake ninja pkgconf""".split()
+union kwin kscreenlocker plasma-wayland-protocols dbus libudev wayland
+libqalculate libcanberra zlib extra-cmake-modules cmake ninja pkgconf
+karchive6 kauth6 kcoreaddons6 kcrash6 kdbusaddons6 kdeclarative6
+kglobalaccel6 kguiaddons6 kholidays6 ki18n6 kiconthemes6 kidletime6
+kitemmodels6 kcmutils6 kded6 kio6 knewstuff6 knotifications6 kpackage6
+kparts6 prison6 krunner6 kstatusnotifieritem6 ksvg6 ktexteditor6
+ktextwidgets6 kwallet6 kcolorscheme6 kservice6
+libice libsm libx11 libxau libxcursor libxfixes libxft
+libxrender libxtst libxcb xcb-util xcb-util-cursor xcb-util-image
+networkmanager-qt polkit-qt6 pipewire""".split()
 OPTIONAL = "flatpak accountsservice pipewire appstream".split()
 BUILD_ONLY = {"cmake", "ninja", "pkgconf", "extra-cmake-modules", "plasma-wayland-protocols"}
 
@@ -94,6 +102,23 @@ def main():
                     + '-DINSTALL_SDDM_WAYLAND_SESSION=ON \\\n' + text[match.start():])
         else:
             print('WARNING: Could not find safe insertion point for SDDM Wayland flag')
+    # Pin KDE's published 6.8.1 tarball digest and use KDE install-dir semantics.
+    text = re.sub(r'(?ms)^SHA256SUMS=\\s*\\(.*?\\)',
+                  'SHA256SUMS=("e2abb7e5b5fc8d59fe369d3ab4ea776e10684af0fb1a8a3275e9df64eff97d20")',
+                  text, count=1)
+    text = text.replace('-DCMAKE_INSTALL_LIBDIR=lib', '-DKDE_INSTALL_LIBDIR=lib')
+    # Preserve X11 application compatibility; disable only the X11 login session.
+    options = ('-DWITH_X11=ON', '-DWITH_X11_SESSION=OFF')
+    for opt in options:
+        key = opt.split('=')[0]
+        if key + '=' in text:
+            text = re.sub(re.escape(key) + r'=(?:ON|OFF)', opt, text)
+        else:
+            marker = '-DBUILD_TESTING=OFF'
+            if marker in text:
+                text = text.replace(marker, opt + ' \\\\n        ' + marker, 1)
+    text = text.replace('source digests MUST be locked before building.',
+                        'source digest locked to KDE 6.8.1 release manifest.')
     a.recipe.write_text(text)
     lines = ['# Plasma Workspace 6.8.1 dependency audit', '',
              f'Indexed {len(index)} NAME / PROVIDES identifiers.', '',
