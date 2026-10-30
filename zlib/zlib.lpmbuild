@@ -1,34 +1,302 @@
-# LPM build script for zlib
+#!/bin/bash
+# LPM build script for zlib and bundled minizip
+
 NAME="zlib"
-VERSION="1.3.1"
-RELEASE="1"
+VERSION="1.3.2"
+RELEASE="3"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Compression library"
+
+SUMMARY="Compression library implementing the deflate algorithm"
 URL="https://zlib.net/"
-LICENSE=""
-SOURCE=()
-REQUIRES=("glibc")
-PROVIDES=("zlib")
+LICENSE=("Zlib")
+
+SOURCE=(
+    "https://zlib.net/fossils/zlib-${VERSION}.tar.gz"
+    "https://github.com/madler/zlib/commit/36ff1be48ef696cc67b0855f7c8537ce0276210d.patch"
+)
+
+SHA256SUMS=(
+    "bb329a0a2cd0274d05519d61c667c062e06990d72e125ee2dfa8de64f0119d16"
+    "SKIP"
+)
+
+PATCHES=(
+    "36ff1be48ef696cc67b0855f7c8537ce0276210d.patch"
+)
+
+REQUIRES=(
+    "glibc"
+)
+
+BUILD_REQUIRES=(
+
+)
+
+PROVIDES=(
+    "zlib"
+    "libz.so"
+    "libz.so.1"
+    "zlib.pc"
+    "minizip"
+    "libminizip.so"
+    "libminizip.so.1"
+    "minizip.pc"
+)
+
 CONFLICTS=()
 OBSOLETES=()
 RECOMMENDS=()
 SUGGESTS=()
 
+BUILD_OPTIONS=(
+    "@--stripping"
+    "@--optimize=2"
+)
+
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    MINIZIPDIR="$SRCDIR/contrib/minizip"
+
+    test -f "$SRCDIR/configure"
+    test -f "$SRCDIR/zlib.h"
+    test -f "$SRCDIR/zconf.h"
+
+    test -f "$MINIZIPDIR/configure.ac"
+    test -f "$MINIZIPDIR/Makefile.am"
+    test -f "$MINIZIPDIR/ioapi.c"
+    test -f "$MINIZIPDIR/mztools.c"
+    test -f "$MINIZIPDIR/unzip.c"
+    test -f "$MINIZIPDIR/zip.c"
+
+    cd "$SRCDIR"
+    make distclean 2>/dev/null || true
+
+    cd "$MINIZIPDIR"
+    make distclean 2>/dev/null || true
+
+    autoreconf -fiv
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    MINIZIPDIR="$SRCDIR/contrib/minizip"
+
+    #
+    # Build zlib.
+    #
+
+    cd "$SRCDIR"
+
+    ./configure \
+        --prefix=/usr \
+        --libdir=/usr/lib \
+        --shared
+
+    make -j"$(nproc)"
+
+    #
+    # Build bundled minizip against this zlib build.
+    #
+
+    cd "$MINIZIPDIR"
+
+    PKG_CONFIG_PATH="$SRCDIR${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}" \
+    CPPFLAGS="-I$SRCDIR ${CPPFLAGS:-}" \
+    LDFLAGS="-L$SRCDIR -Wl,-rpath-link,$SRCDIR ${LDFLAGS:-}" \
+        ./configure \
+            --prefix=/usr \
+            --libdir=/usr/lib \
+            --disable-static \
+            --enable-shared
+
+    make -j"$(nproc)"
+}
+
+check() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    MINIZIPDIR="$SRCDIR/contrib/minizip"
+
+    #
+    # The full test suites are disabled during bootstrap. Validate the
+    # essential shared libraries and their linkage instead.
+    #
+
+    test -f "$SRCDIR/libz.so.${VERSION}"
+
+    ZLIB_DYNAMIC="$(
+        readelf -d "$SRCDIR/libz.so.${VERSION}"
+    )"
+
+    printf '%s\n' "$ZLIB_DYNAMIC" |
+        grep -F 'Library soname: [libz.so.1]' >/dev/null
+
+    MINIZIP_LIBRARY="$(
+        find "$MINIZIPDIR/.libs" \
+            -maxdepth 1 \
+            -type f \
+            -name 'libminizip.so.*' \
+            -print \
+            -quit
+    )"
+
+    test -n "$MINIZIP_LIBRARY"
+    test -f "$MINIZIP_LIBRARY"
+
+    MINIZIP_DYNAMIC="$(
+        readelf -d "$MINIZIP_LIBRARY"
+    )"
+
+    printf '%s\n' "$MINIZIP_DYNAMIC" |
+        grep -F 'Library soname: [libminizip.so.1]' >/dev/null
+
+    printf '%s\n' "$MINIZIP_DYNAMIC" |
+        grep -F 'Shared library: [libz.so.1]' >/dev/null
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    MINIZIPDIR="$SRCDIR/contrib/minizip"
+
+    #
+    # Install zlib.
+    #
+
+    make \
+        -C "$SRCDIR" \
+        DESTDIR="$pkgdir" \
+        install
+
+    #
+    # Install libminizip, its headers and pkg-config metadata.
+    #
+
+    make \
+        -C "$MINIZIPDIR" \
+        DESTDIR="$pkgdir" \
+        install
+
+    #
+    # This package supplies shared libraries only.
+    #
+
+    find "$pkgdir/usr/lib" \
+        -type f \
+        \( -name '*.la' -o -name '*.a' \) \
+        -delete
+
+    #
+    # Validate zlib.
+    #
+
+    test -L "$pkgdir/usr/lib/libz.so"
+    test -L "$pkgdir/usr/lib/libz.so.1"
+    test -f "$pkgdir/usr/lib/libz.so.${VERSION}"
+
+    test -f "$pkgdir/usr/include/zlib.h"
+    test -f "$pkgdir/usr/include/zconf.h"
+    test -f "$pkgdir/usr/lib/pkgconfig/zlib.pc"
+
+    ZLIB_DYNAMIC="$(
+        readelf -d "$pkgdir/usr/lib/libz.so.${VERSION}"
+    )"
+
+    printf '%s\n' "$ZLIB_DYNAMIC" |
+        grep -F 'Library soname: [libz.so.1]' >/dev/null
+
+    #
+    # Validate minizip.
+    #
+
+    test -L "$pkgdir/usr/lib/libminizip.so"
+    test -L "$pkgdir/usr/lib/libminizip.so.1"
+
+    MINIZIP_LIBRARY="$(
+        find "$pkgdir/usr/lib" \
+            -maxdepth 1 \
+            -type f \
+            -name 'libminizip.so.1.*' \
+            -print \
+            -quit
+    )"
+
+    test -n "$MINIZIP_LIBRARY"
+    test -f "$MINIZIP_LIBRARY"
+
+    for HEADER in \
+        crypt.h \
+        ints.h \
+        ioapi.h \
+        mztools.h \
+        unzip.h \
+        zip.h
+    do
+        if [ ! -f "$pkgdir/usr/include/minizip/$HEADER" ]; then
+            echo "[ERROR] Missing minizip header: $HEADER" >&2
+            return 1
+        fi
+    done
+
+    test -f "$pkgdir/usr/lib/pkgconfig/minizip.pc"
+
+    MINIZIP_DYNAMIC="$(
+        readelf -d "$MINIZIP_LIBRARY"
+    )"
+
+    printf '%s\n' "$MINIZIP_DYNAMIC" |
+        grep -F 'Library soname: [libminizip.so.1]' >/dev/null
+
+    printf '%s\n' "$MINIZIP_DYNAMIC" |
+        grep -F 'Shared library: [libz.so.1]' >/dev/null
+
+    #
+    # Validate exported minizip API symbols.
+    #
+
+    MINIZIP_SYMBOLS="$(
+        readelf -Ws "$MINIZIP_LIBRARY"
+    )"
+
+    printf '%s\n' "$MINIZIP_SYMBOLS" |
+        grep -E '[[:space:]]unzOpen64$' >/dev/null
+
+    printf '%s\n' "$MINIZIP_SYMBOLS" |
+        grep -E '[[:space:]]zipOpen64$' >/dev/null
+
+    #
+    # Validate pkg-config metadata.
+    #
+
+    grep -F -- '-lz' \
+        "$pkgdir/usr/lib/pkgconfig/zlib.pc" >/dev/null
+
+    grep -F -- '-lminizip' \
+        "$pkgdir/usr/lib/pkgconfig/minizip.pc" >/dev/null
+
+    #
+    # Licensing.
+    #
+
+    install -Dm644 \
+        "$SRCDIR/LICENSE" \
+        "$pkgdir/usr/share/licenses/$NAME/LICENSE"
+
+    if [ -f "$MINIZIPDIR/LICENSE.Info-ZIP" ]; then
+        install -Dm644 \
+            "$MINIZIPDIR/LICENSE.Info-ZIP" \
+            "$pkgdir/usr/share/licenses/$NAME/LICENSE.Info-ZIP"
+    fi
 }
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("bb329a0a2cd0274d05519d61c667c062e06990d72e125ee2dfa8de64f0119d16" "af9ce272d3495a27c91e3d37ccfe1146d7e1847ded8b871d86ce3c1875d7cea7")

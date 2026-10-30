@@ -1,0 +1,98 @@
+#!/bin/bash
+# LPM build script for greetd (Wayland/X11 login/display manager)
+
+NAME="greetd"
+VERSION="0.10.3"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="A minimal and flexible login manager daemon for Wayland and X"
+URL="https://github.com/apognu/greetd"
+LICENSE=("GPL-3.0-or-later")
+
+SOURCE=(
+  "https://github.com/kennylevinsen/greetd/archive/refs/tags/${VERSION}.tar.gz"
+  "greetd.pam"
+  "greetd.sysusers"
+  "greetd.tmpfiles"
+  "greetd.toml"
+)
+
+# Runtime deps
+REQUIRES=(
+  "glibc"
+  "pam"
+  "systemd"
+)
+
+# Build deps (if LPM doesn’t separate makedeps, keep them here)
+REQUIRES+=(
+  "rust"
+  "cargo"
+  "pkg-config"
+  "gcc"
+)
+
+PROVIDES=(
+  "greetd"
+  "agreety"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="greetd-${VERSION}"
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+    # No autoconf/meson here; cargo-only project
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    # Ensure we use release build and locked deps
+    : "${CARGO_HOME:=$HOME/.cargo}"
+    export CARGO_HOME
+
+    cargo build --release --all-features
+}
+
+check() {
+    # greetd has tests, but they aren't required for packaging
+    true
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+        install -Dm0755 -t "$pkgdir/usr/bin/" "target/release/$NAME"
+	install -Dm0644 -t "$pkgdir/usr/lib/systemd/system/" "$NAME.service"
+	install -Dm0644 "$SRCROOT/$NAME.toml" "$pkgdir/etc/greetd/config.toml"
+	install -Dm0644 "$SRCROOT/$NAME.pam" "$pkgdir/etc/pam.d/$NAME"
+	install -Dm0644 "$SRCROOT/$NAME.sysusers" "$pkgdir/usr/lib/sysusers.d/$NAME.conf"
+        install -Dm0644 "$SRCROOT/$NAME.tmpfiles" "$pkgdir/usr/lib/tmpfiles.d/$NAME.conf"
+
+
+ 
+
+    # Strip binaries
+    if command -v strip >/dev/null 2>&1; then
+        find "$pkgdir/usr/bin" -type f -exec sh -c '
+            case "$(file -b "$1")" in
+              *ELF*executable*)
+                  strip --strip-unneeded "$1" 2>/dev/null || true
+              ;;
+            esac
+        ' _ {} \;
+    fi
+}
+
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("ee5cb70e0add4ca9c9fe57e47581ab0002d44c07743fb5492469f3b570db640b" "993a3096c2b113e6800f2abbd5d4233ebf1a97eef423990d3187d665d3490b92" "896b7c9b5ec9c9c5795842db9b0f0d792b9d0ceda35891c5c169a9150795b8d1" "9e129a9668f63472e3289b8a3e45f7466f50b83ea769d88d567a4445efab0ce3" "633607dc4e4febf26a2a8f29f4a4128547896f50470c35eecbbaa072d14cc8f9")

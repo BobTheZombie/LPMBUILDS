@@ -1,34 +1,413 @@
+#!/bin/bash
 # LPM build script for ncurses
+
 NAME="ncurses"
-VERSION="6.5"
-RELEASE="1"
+VERSION="6.6"
+RELEASE="2"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Text-based UI library"
+
+SUMMARY="Character terminal handling library with wide-character support"
 URL="https://invisible-island.net/ncurses/"
-LICENSE=""
-SOURCE=()
-REQUIRES=("glibc")
-PROVIDES=("ncurses")
+LICENSE=("MIT")
+
+SOURCE=(
+    "https://ftp.wayne.edu/gnu/ncurses/ncurses-${VERSION}.tar.gz"
+)
+
+SHA256SUMS=(
+    "SKIP"
+)
+
+PATCHES=()
+
+REQUIRES=(
+    "glibc"
+)
+
+BUILD_REQUIRES=(
+    "glibc"
+    "make"
+    "pkgconf"
+)
+
+PROVIDES=(
+    "ncurses"
+    "ncursesw"
+    "libcurses.so"
+    "libform.so"
+    "libformw.so"
+    "libmenu.so"
+    "libmenuw.so"
+    "libncurses.so"
+    "libncursesw.so"
+    "libpanel.so"
+    "libpanelw.so"
+    "libtinfo.so"
+)
+
 CONFLICTS=()
 OBSOLETES=()
 RECOMMENDS=()
 SUGGESTS=()
 
+BUILD_OPTIONS=(
+    "@--stripping"
+    "@--optimize=2"
+)
+
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+
+    test -f "$SRCDIR/configure"
+    test -f "$SRCDIR/Makefile.in"
+    test -f "$SRCDIR/COPYING"
+    test -d "$SRCDIR/include"
+    test -d "$SRCDIR/ncurses"
+
+    cd "$SRCDIR"
+
+    make distclean 2>/dev/null || true
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+
+    cd "$SRCDIR"
+
+    ./configure \
+        --prefix=/usr \
+        --bindir=/usr/bin \
+        --libdir=/usr/lib \
+        --includedir=/usr/include \
+        --datadir=/usr/share \
+        --mandir=/usr/share/man \
+        --with-shared \
+        --with-cxx-shared \
+        --with-termlib=tinfo \
+        --with-ticlib=tic \
+        --with-xterm-kbs=del \
+        --with-manpage-format=normal \
+        --enable-widec \
+        --enable-overwrite \
+        --enable-pc-files \
+        --with-pkg-config-libdir=/usr/lib/pkgconfig \
+        --enable-ext-colors \
+        --enable-ext-mouse \
+        --enable-sp-funcs \
+        --enable-sigwinch \
+        --enable-pthreads-eintr \
+        --without-ada \
+        --without-debug \
+        --without-normal \
+        --disable-stripping
+
+    make -j"$(nproc)"
+}
+
+check() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+
+    #
+    # Skip the interactive ncurses test suite during bootstrap builds.
+    #
+
+    test -x "$SRCDIR/progs/tic"
+    test -x "$SRCDIR/progs/infocmp"
+
+    LIBNCURSESW="$(
+        find "$SRCDIR/lib" \
+            -maxdepth 1 \
+            -type f \
+            -name 'libncursesw.so.*' \
+            -print \
+            -quit
+    )"
+
+    if [ -z "$LIBNCURSESW" ] || [ ! -f "$LIBNCURSESW" ]; then
+        echo "[ERROR] Missing wide-character ncurses library" >&2
+        return 1
+    fi
+
+    NCURSES_HEADER="$SRCDIR/.lpm-ncurses-header"
+
+    readelf -h "$LIBNCURSESW" > "$NCURSES_HEADER"
+    grep -Fq 'ELF64' "$NCURSES_HEADER"
+
+    rm -f "$NCURSES_HEADER"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+
+    cd "$SRCDIR"
+
+    make \
+        DESTDIR="$pkgdir" \
+        install
+
+    #
+    # Remove static and Libtool libraries.
+    #
+
+    find "$pkgdir/usr/lib" \
+        -type f \
+        \( -name '*.a' -o -name '*.la' \) \
+        -delete
+
+    #
+    # Provide narrow-name runtime compatibility through the wide-character
+    # ABI.
+    #
+
+    for LIBRARY in \
+        ncurses \
+        form \
+        menu \
+        panel
+    do
+        if [ ! -e "$pkgdir/usr/lib/lib${LIBRARY}w.so.6" ]; then
+            echo "[ERROR] Missing wide library: lib${LIBRARY}w.so.6" >&2
+            return 1
+        fi
+
+        ln -sfn \
+            "lib${LIBRARY}w.so.6" \
+            "$pkgdir/usr/lib/lib${LIBRARY}.so.6"
+    done
+
+    #
+    # Provide narrow-name development linker scripts.
+    #
+
+    for LIBRARY in \
+        ncurses \
+        form \
+        menu \
+        panel
+    do
+        printf '%s\n' \
+            "INPUT(-l${LIBRARY}w)" \
+            > "$pkgdir/usr/lib/lib${LIBRARY}.so"
+    done
+
+    printf '%s\n' \
+        'INPUT(-lncursesw)' \
+        > "$pkgdir/usr/lib/libcurses.so"
+
+    #
+    # Provide pkg-config compatibility aliases.
+    #
+
+    for MODULE in \
+        ncurses \
+        form \
+        menu \
+        panel
+    do
+        if [ ! -f "$pkgdir/usr/lib/pkgconfig/${MODULE}w.pc" ]; then
+            echo "[ERROR] Missing wide pkg-config module: ${MODULE}w.pc" >&2
+            return 1
+        fi
+
+        ln -sfn \
+            "${MODULE}w.pc" \
+            "$pkgdir/usr/lib/pkgconfig/${MODULE}.pc"
+    done
+
+    #
+    # Ensure traditional headers are available.
+    #
+
+    test -f "$pkgdir/usr/include/curses.h"
+    test -f "$pkgdir/usr/include/ncurses.h"
+
+    #
+    # Expose wide-character interfaces regardless of feature-test macro
+    # selection, matching the LFS configuration.
+    #
+
+    sed -i \
+        -e 's/^#if.*XOPEN.*$/#if 1/' \
+        "$pkgdir/usr/include/curses.h"
+
+    #
+    # Validate command-line utilities.
+    #
+
+    for PROGRAM in \
+        captoinfo \
+        clear \
+        infocmp \
+        infotocap \
+        ncursesw6-config \
+        reset \
+        tabs \
+        tic \
+        toe \
+        tput \
+        tset
+    do
+        if [ ! -x "$pkgdir/usr/bin/$PROGRAM" ]; then
+            echo "[ERROR] Missing ncurses utility: $PROGRAM" >&2
+            return 1
+        fi
+    done
+
+    #
+    # Validate wide-character shared libraries.
+    #
+
+    for LIBRARY in \
+        libncursesw.so.6 \
+        libformw.so.6 \
+        libmenuw.so.6 \
+        libpanelw.so.6 \
+        libtinfo.so.6
+    do
+        if [ ! -e "$pkgdir/usr/lib/$LIBRARY" ]; then
+            echo "[ERROR] Missing ncurses library: $LIBRARY" >&2
+            return 1
+        fi
+    done
+
+    #
+    # Validate narrow-name compatibility links.
+    #
+
+    for LIBRARY in \
+        libncurses.so.6 \
+        libform.so.6 \
+        libmenu.so.6 \
+        libpanel.so.6
+    do
+        if [ ! -L "$pkgdir/usr/lib/$LIBRARY" ]; then
+            echo "[ERROR] Missing compatibility library: $LIBRARY" >&2
+            return 1
+        fi
+    done
+
+    #
+    # Locate and validate the real wide-character library.
+    #
+
+    LIBNCURSESW="$(
+        find "$pkgdir/usr/lib" \
+            -maxdepth 1 \
+            -type f \
+            -name 'libncursesw.so.6.*' \
+            -print \
+            -quit
+    )"
+
+    if [ -z "$LIBNCURSESW" ] || [ ! -f "$LIBNCURSESW" ]; then
+        echo "[ERROR] Missing real libncursesw shared library" >&2
+        return 1
+    fi
+
+    NCURSES_HEADER="$SRCDIR/.lpm-ncurses-header"
+    NCURSES_DYNAMIC="$SRCDIR/.lpm-ncurses-dynamic"
+
+    readelf -h "$LIBNCURSESW" > "$NCURSES_HEADER"
+    grep -Fq 'ELF64' "$NCURSES_HEADER"
+
+    readelf -d "$LIBNCURSESW" > "$NCURSES_DYNAMIC"
+    grep -Fq \
+        'Library soname: [libncursesw.so.6]' \
+        "$NCURSES_DYNAMIC"
+
+    rm -f \
+        "$NCURSES_HEADER" \
+        "$NCURSES_DYNAMIC"
+
+    #
+    # Validate pkg-config metadata.
+    #
+
+    for MODULE in \
+        ncursesw \
+        formw \
+        menuw \
+        panelw \
+        tinfo
+    do
+        if [ ! -f "$pkgdir/usr/lib/pkgconfig/$MODULE.pc" ]; then
+            echo "[ERROR] Missing pkg-config module: $MODULE.pc" >&2
+            return 1
+        fi
+    done
+
+    NCURSES_PC_VERSION="$(
+        PKG_CONFIG_PATH= \
+        PKG_CONFIG_LIBDIR="$pkgdir/usr/lib/pkgconfig" \
+        pkgconf \
+            --modversion \
+            ncursesw
+    )"
+
+    case "$NCURSES_PC_VERSION" in
+        "$VERSION"|"$VERSION".[0-9]*)
+            echo "[OK] ncurses pkg-config version: $NCURSES_PC_VERSION"
+            ;;
+        *)
+            echo "[ERROR] Unexpected ncurses pkg-config version: $NCURSES_PC_VERSION" >&2
+            return 1
+            ;;
+    esac
+
+    #
+    # Validate compatibility pkg-config aliases.
+    #
+
+    for MODULE in \
+        ncurses \
+        form \
+        menu \
+        panel
+    do
+        if [ ! -L "$pkgdir/usr/lib/pkgconfig/$MODULE.pc" ]; then
+            echo "[ERROR] Missing pkg-config compatibility alias: $MODULE.pc" >&2
+            return 1
+        fi
+    done
+
+    #
+    # Validate terminal database installation.
+    #
+
+    test -d "$pkgdir/usr/share/terminfo"
+
+    TERMINFO_ENTRY="$(
+        find "$pkgdir/usr/share/terminfo" \
+            -type f \
+            -print \
+            -quit
+    )"
+
+    if [ -z "$TERMINFO_ENTRY" ]; then
+        echo "[ERROR] Empty terminfo database" >&2
+        return 1
+    fi
+
+
+    #
+    # Install licensing information.
+    #
+
+    install -Dm644 \
+        "$SRCDIR/COPYING" \
+        "$pkgdir/usr/share/licenses/$NAME/COPYING"
 }
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("355b4cbbed880b0381a04c46617b7656e362585d52e9cf84a67e2009b749ff11")

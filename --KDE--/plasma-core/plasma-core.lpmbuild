@@ -1,0 +1,67 @@
+#!/bin/bash
+# LPM Linux: KDE Plasma 6.8.1 package chain
+# Generated 2026-10-25; source digests MUST be locked before building.
+NAME="plasma-core"
+VERSION="6.8.1"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Minimal KDE Plasma 6 Wayland desktop for LPM"
+URL="https://kde.org"
+LICENSE=("SEE-UPSTREAM")
+SOURCE=()
+SHA256SUMS=()
+PATCHES=()
+REQUIRES=(
+    "qt6-base"
+    "qt6-declarative"
+    "qt6-svg"
+    "qt6-wayland"
+    "qt6-shadertools"
+    "qt6-multimedia"
+    "plasma-wayland-protocols"
+    "polkit-qt6"
+    "kwin"
+    "plasma-workspace"
+    "plasma-desktop"
+    "libplasma"
+    "plasma-integration"
+    "plasma-nm"
+    "plasma-pa"
+    "powerdevil"
+    "polkit-kde-agent-1"
+    "kscreen"
+    "kscreenlocker"
+    "libkscreen"
+    "breeze"
+    "breeze-icons6"
+    "ocean-sound-theme"
+    "systemsettings"
+    "kde-cli-tools"
+    "xdg-desktop-portal-kde"
+    "sddm"
+    "plasma5support"
+    "kglobalacceld"
+    "pipewire"
+    "wireplumber"
+    "upower"
+    "power-profiles-daemon"
+    "polkit"
+    "dbus"
+    "xdg-desktop-portal"
+    "xorg-xwayland"
+    "networkmanager"
+    "mesa"
+    "wayland"
+)
+BUILD_REQUIRES=()
+REQUIRES_PYTHON_DEPENDENCIES=()
+PROVIDES=()
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+# No payload is intentional: LPM recognizes this as a dependency meta-package.
+prepare() { :; }
+build() { :; }
+staging() { :; }

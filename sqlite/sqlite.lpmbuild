@@ -1,34 +1,196 @@
-# LPM build script for sqlite
+#!/bin/bash
+# LPM build script for SQLite
+
 NAME="sqlite"
-VERSION="3.46.0"
+VERSION="3.53.4"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="SQLite embedded DB"
-URL="https://sqlite.org/"
-LICENSE=""
-SOURCE=()
-REQUIRES=("glibc" "readline" "zlib")
-PROVIDES=("sqlite")
+
+SUMMARY="Self-contained SQL database engine"
+URL="https://www.sqlite.org/"
+LICENSE=("Public-Domain")
+
+SQLITE_YEAR="2026"
+SQLITE_SOURCE_VERSION="3530400"
+
+SOURCE=(
+    "https://www.sqlite.org/${SQLITE_YEAR}/sqlite-autoconf-${SQLITE_SOURCE_VERSION}.tar.gz"
+)
+
+SHA256SUMS=(
+    "0e9483900e92cd5de8fd48d16bf9200145a61f7fd5be542a5ac81d8a9516eb9c"
+)
+
+PATCHES=()
+
+REQUIRES=(
+    "glibc"
+    "readline"
+    "zlib"
+)
+
+BUILD_REQUIRES=(
+    "gcc-libs"
+    "glibc"
+    "make"
+    "readline"
+    "zlib"
+)
+
+PROVIDES=(
+    "sqlite"
+    "sqlite3"
+    "libsqlite3"
+    "libsqlite3.so"
+    "libsqlite3.so.0"
+)
+
 CONFLICTS=()
 OBSOLETES=()
 RECOMMENDS=()
 SUGGESTS=()
 
+BUILD_OPTIONS=(
+    "@--stripping"
+    "@--optimize=2"
+)
+
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+
+    # The official amalgamation archive uses its numeric release identifier
+    # as the source directory. Normalize it to LPM's standard package path.
+    if [ -d "$SRCROOT/sqlite-autoconf-${SQLITE_SOURCE_VERSION}" ]; then
+        if [ -e "$SRCROOT/${NAME}-${VERSION}" ]; then
+            echo "[ERROR] Both SQLite source directories already exist" >&2
+            return 1
+        fi
+
+        mv \
+            "$SRCROOT/sqlite-autoconf-${SQLITE_SOURCE_VERSION}" \
+            "$SRCROOT/${NAME}-${VERSION}"
+    fi
+
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    test -x configure
+    test -f sqlite3.c
+    test -f sqlite3.h
+    test -f sqlite3ext.h
+    test -f shell.c
+    test -f README.txt
+
+    make distclean 2>/dev/null || true
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+    set -euxo pipefail
+
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    export CPPFLAGS="${CPPFLAGS:-} \
+        -DSQLITE_ENABLE_COLUMN_METADATA=1 \
+        -DSQLITE_ENABLE_UNLOCK_NOTIFY=1 \
+        -DSQLITE_ENABLE_FTS3_PARENTHESIS=1 \
+        -DSQLITE_SECURE_DELETE=1 \
+        -DSQLITE_ENABLE_STMTVTAB=1 \
+        -DSQLITE_ENABLE_STAT4=1 \
+        -DSQLITE_ENABLE_BYTECODE_VTAB=1 \
+        -DSQLITE_MAX_VARIABLE_NUMBER=250000 \
+        -DSQLITE_MAX_EXPR_DEPTH=10000"
+
+    export CFLAGS="${CFLAGS:--O2 -pipe}"
+
+    ./configure \
+        --prefix=/usr \
+        --bindir=/usr/bin \
+        --libdir=/usr/lib \
+        --includedir=/usr/include \
+        --mandir=/usr/share/man \
+        --enable-shared \
+        --disable-static \
+        --disable-static-shell \
+        --disable-rpath \
+        --all \
+        --fts3 \
+        --update-limit \
+        --scanstatus \
+        --soname=legacy
+
+    make -j"$(nproc)"
+}
+
+check() {
+    set -euxo pipefail
+
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    test -x sqlite3
+    test -f libsqlite3.so
+
+    VERSION_OUTPUT=".lpm-sqlite-version"
+    FEATURE_OUTPUT=".lpm-sqlite-features"
+    SQL_OUTPUT=".lpm-sqlite-smoke"
+
+    LD_PRELOAD="$PWD/libsqlite3.so" \
+    LD_LIBRARY_PATH="$PWD${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
+        ./sqlite3 ':memory:' 'SELECT sqlite_version();' \
+        > "$VERSION_OUTPUT"
+
+    grep -Fxq "$VERSION" "$VERSION_OUTPUT"
+
+    LD_PRELOAD="$PWD/libsqlite3.so" \
+    LD_LIBRARY_PATH="$PWD${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
+        ./sqlite3 ':memory:' 'PRAGMA compile_options;' \
+        > "$FEATURE_OUTPUT"
+
+    for FEATURE in \
+        ENABLE_COLUMN_METADATA \
+        ENABLE_FTS5 \
+        ENABLE_RTREE \
+        ENABLE_SESSION \
+        ENABLE_STAT4 \
+        ENABLE_STMT_SCANSTATUS \
+        SECURE_DELETE
+    do
+        grep -Fxq "$FEATURE" "$FEATURE_OUTPUT"
+    done
+
+    LD_PRELOAD="$PWD/libsqlite3.so" \
+    LD_LIBRARY_PATH="$PWD${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
+        ./sqlite3 ':memory:' \
+        'CREATE VIRTUAL TABLE docs USING fts5(body); INSERT INTO docs VALUES ("LPM SQLite smoke test"); SELECT count(*) FROM docs WHERE docs MATCH "SQLite";' \
+        > "$SQL_OUTPUT"
+
+    grep -Fxq '1' "$SQL_OUTPUT"
+
+    rm -f \
+        "$VERSION_OUTPUT" \
+        "$FEATURE_OUTPUT" \
+        "$SQL_OUTPUT"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euxo pipefail
+
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    make \
+        DESTDIR="$pkgdir" \
+        install
+
+    find "$pkgdir/usr/lib" \
+        -type f \
+        \( -name '*.a' -o -name '*.la' \) \
+        -delete
+
+    install -Dm644 \
+        README.txt \
+        "$pkgdir/usr/share/doc/$NAME/README.txt"
 }
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("0e9483900e92cd5de8fd48d16bf9200145a61f7fd5be542a5ac81d8a9516eb9c")

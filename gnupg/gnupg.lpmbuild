@@ -1,13 +1,13 @@
 # LPM build script for gnupg
 NAME="gnupg"
-VERSION="2.4.5"
+VERSION="2.5.24"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="GNU Privacy Guard"
 URL="https://gnupg.org/"
 LICENSE=""
-SOURCE=()
-REQUIRES=("glibc" "libgcrypt")
+SOURCE=("https://www.gnupg.org/ftp/gcrypt/gnupg/gnupg-${VERSION}.tar.bz2")
+REQUIRES=("glibc" "libgcrypt" "libassuan" "libksba" "npth")
 PROVIDES=("gnupg")
 CONFLICTS=()
 OBSOLETES=()
@@ -16,19 +16,28 @@ SUGGESTS=()
 
 prepare() {
   set -euxo pipefail
-  cd "$SRCROOT"
+    cd "$SRCROOT/${NAME}-${VERSION}"
   :
 }
 
 build() {
   set -euxo pipefail
-  cd "$SRCROOT"
+  cd "$SRCROOT/${NAME}-${VERSION}"
   ./configure --prefix=/usr
   make -j"$(nproc)"
 }
 
 staging() {
   set -euxo pipefail
-  cd "$SRCROOT"
+    cd "$SRCROOT/${NAME}-${VERSION}"
   make DESTDIR="$pkgdir" install
 }
+
+# Licenses identified in the upstream source archive.
+LICENSE=("GPL-3.0-or-later")
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("bf149d01a2b9fcc0e4589b8ae8697d3d5c557ea48ed95a3fa55dd3b1187e6039")

@@ -1,13 +1,13 @@
 # LPM build script for libdrm
 NAME="libdrm"
-VERSION="2.4.122"
+VERSION="2.4.134"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="Userspace interface to kernel DRM services"
 URL="https://dri.freedesktop.org/"
 LICENSE="MIT"
 SOURCE=("https://dri.freedesktop.org/libdrm/libdrm-${VERSION}.tar.xz")
-CHECKSUMS=("d9f5079b777dffca9300ccc56b10a93588cdfbc9dde2fae111940dfb6292f251")
+CHECKSUMS=("ac5e74d157830eb8bee44c6a6bf3ad49774ef0dd2a72bdad74a8f20308b52a95")
 REQUIRES=("glibc" "libpciaccess" "wayland" "wayland-protocols")
 PROVIDES=("libdrm")
 CONFLICTS=()
@@ -17,18 +17,24 @@ SUGGESTS=()
 
 prepare() {
   set -euxo pipefail
-  cd "$SRCROOT"
+  cd "$SRCROOT/$NAME-$VERSION"
 }
 
 build() {
   set -euxo pipefail
-  cd "$SRCROOT"
-  meson setup build --prefix=/usr --buildtype=release -Dudev=true -Dvalgrind=false -Dlibkms=true
+  cd "$SRCROOT/$NAME-$VERSION"
+  meson setup build --prefix=/usr --buildtype=release -Dudev=true -D valgrind=disabled
   ninja -C build
 }
 
 staging() {
   set -euxo pipefail
-  cd "$SRCROOT"
+  cd "$SRCROOT/$NAME-$VERSION"
   DESTDIR="$pkgdir" ninja -C build install
 }
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("ac5e74d157830eb8bee44c6a6bf3ad49774ef0dd2a72bdad74a8f20308b52a95")

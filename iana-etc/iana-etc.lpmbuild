@@ -1,0 +1,31 @@
+# iana-etc.lpmbuild
+NAME="iana-etc"
+VERSION="20250826"
+RELEASE="1"
+ARCH="x86_64"
+SUMMARY="IANA protocol and port number assignments"
+URL="https://www.iana.org/protocols"
+LICENSE=("Public-Domain")
+
+SOURCE=("https://github.com/Mic92/iana-etc/releases/download/${VERSION}/iana-etc-${VERSION}.tar.gz")
+
+REQUIRES=()
+
+prepare() {
+  cd "iana-etc-${VERSION}"
+}
+
+build() { :; }
+
+staging() {
+  cd "iana-etc-${VERSION}"
+  install -Dm644 services  "$pkgdir/etc/services"
+  install -Dm644 protocols "$pkgdir/etc/protocols"
+}
+
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("d42525661c002c67d82d2e93fb99e1a58c91f47e9b2cff796f3092a4177a8666")

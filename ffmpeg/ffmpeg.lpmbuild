@@ -1,36 +1,263 @@
-# LPM build script for ffmpeg
+#!/bin/bash
+# LPM build script for FFmpeg 8.0
+
 NAME="ffmpeg"
-VERSION="1.0.0"
-RELEASE="1"
+VERSION="8.0"
+RELEASE="3"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Placeholder package for ffmpeg dependency"
-URL="https://example.com/ffmpeg"
-LICENSE=""
-SOURCE=()
-SHA256SUMS=()
+SUMMARY="Complete solution to record, convert and stream audio and video"
+URL="https://ffmpeg.org/"
+LICENSE=("GPL-2.0-or-later" "LGPL-2.1-or-later")
+
+SOURCE=(
+    "https://ffmpeg.org/releases/ffmpeg-${VERSION}.tar.xz"
+)
+
+# Final audited source digest, retained from the previous recipe.
+SHA256SUMS=("b2751fccb6cc4c77708113cd78b561059b6fa904b24162fa0be2d60273d27b8e")
 PATCHES=()
-REQUIRES=("glibc")
-PROVIDES=("ffmpeg")
+
+REQUIRES=(
+    "glibc"
+    "alsa-lib"
+    "bzip2"
+    "fontconfig"
+    "freetype"
+    "fribidi"
+    "glib2"
+    "gnutls"
+    "libass"
+    "libaom"
+    "libdav1d"
+    "libdrm"
+    "libjpeg"
+    "libpng"
+    "libpulse"
+    "libva"
+    "libvdpau"
+    "libvpx"
+    "libX11"
+    "libx264"
+    "libx265"
+    "libxcb"
+    "libXext"
+    "libxml2"
+    "openjpeg2"
+    "opus"
+    "sdl2"
+    "svt-av1"
+    "vulkan-loader"
+    "xz"
+    "zlib"
+)
+
+BUILD_REQUIRES=(
+    "pkgconf"
+    "nasm"
+    "yasm"
+    "make"
+    "perl"
+)
+
+PROVIDES=(
+    "ffmpeg"
+    "libavcodec"
+    "libavdevice"
+    "libavfilter"
+    "libavformat"
+    "libavutil"
+    "libswresample"
+    "libswscale"
+)
+
 CONFLICTS=()
 OBSOLETES=()
 RECOMMENDS=()
 SUGGESTS=()
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+
+    cd "$SRCROOT/ffmpeg-${VERSION}"
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+
+    cd "$SRCROOT/ffmpeg-${VERSION}"
+
+    ./configure \
+        --prefix=/usr \
+        --libdir=/usr/lib \
+        --shlibdir=/usr/lib \
+        --incdir=/usr/include \
+        --mandir=/usr/share/man \
+        --docdir=/usr/share/doc/ffmpeg \
+        --enable-shared \
+        --disable-static \
+        --enable-gpl \
+        --enable-version3 \
+        --enable-pic \
+        --enable-pthreads \
+        --enable-runtime-cpudetect \
+        --enable-gnutls \
+        --enable-fontconfig \
+        --enable-libfreetype \
+        --enable-libfribidi \
+        --enable-libass \
+        --enable-libdrm \
+        --enable-libpulse \
+        --enable-vaapi \
+        --enable-vdpau \
+        --enable-libvpx \
+        --enable-libopenjpeg \
+        --enable-libopus \
+        --enable-libx264 \
+        --enable-libx265 \
+        --enable-libaom \
+        --enable-libdav1d \
+        --enable-libsvtav1 \
+        --enable-libxml2 \
+        --enable-sdl2 \
+        --enable-vulkan \
+        --enable-xlib \
+        --enable-libxcb \
+        --enable-libxcb-shm \
+        --enable-libxcb-xfixes \
+        --enable-libxcb-shape
+
+    make -j"$(nproc)"
+}
+
+check() {
+    set -euxo pipefail
+    cd "$SRCROOT/ffmpeg-${VERSION}"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  install -d "$pkgdir/usr/share/doc/ffmpeg"
-  printf 'Placeholder package for ffmpeg\n' >"$pkgdir/usr/share/doc/ffmpeg/README"
+    set -euxo pipefail
+
+    local SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    cd "$SRCDIR"
+
+    make DESTDIR="$pkgdir" install
+
+    # Main programs.
+    test -x "$pkgdir/usr/bin/ffmpeg"
+    test -x "$pkgdir/usr/bin/ffprobe"
+
+    # FFmpeg shared libraries (real files and symlinks accepted).
+    local lib
+    for lib in avcodec avdevice avfilter avformat avutil swresample swscale; do
+        if [ -z "$(find "$pkgdir/usr/lib" -name "lib${lib}.so*" -print -quit)" ]; then
+            echo "[ERROR] Missing staged FFmpeg shared library: lib${lib}" >&2
+            return 1
+        fi
+    done
+
+    # pkg-config metadata.
+    local pc
+    for pc in libavcodec libavdevice libavfilter libavformat libavutil libswresample libswscale; do
+        test -f "$pkgdir/usr/lib/pkgconfig/${pc}.pc" || {
+            echo "[ERROR] Missing pkg-config metadata: ${pc}.pc" >&2
+            return 1
+        }
+    done
+
+    # Staged executables need access to their as-yet-uninstalled shared libraries.
+    local STAGED_LD_LIBRARY_PATH="$pkgdir/usr/lib"
+    if [ -n "${LD_LIBRARY_PATH:-}" ]; then
+        STAGED_LD_LIBRARY_PATH="${STAGED_LD_LIBRARY_PATH}:${LD_LIBRARY_PATH}"
+    fi
+
+    LD_LIBRARY_PATH="$STAGED_LD_LIBRARY_PATH" "$pkgdir/usr/bin/ffmpeg" -version
+    LD_LIBRARY_PATH="$STAGED_LD_LIBRARY_PATH" "$pkgdir/usr/bin/ffprobe" -version
+
+    # Capture once; avoid enormous shell xtrace dumps and SIGPIPE under pipefail.
+    local BUILDCONF ENCODERS DECODERS HWACCELS feature encoder decoder hwaccel
+    set +x
+
+    BUILDCONF="$(
+        LD_LIBRARY_PATH="$STAGED_LD_LIBRARY_PATH" \
+            "$pkgdir/usr/bin/ffmpeg" -buildconf 2>&1
+    )"
+
+    # Here-strings feed grep directly without a printf producer that can SIGPIPE.
+    for feature in \
+        --enable-libx264 \
+        --enable-libx265 \
+        --enable-libaom \
+        --enable-libdav1d \
+        --enable-libsvtav1 \
+        --enable-libvpx \
+        --enable-libopus \
+        --enable-libopenjpeg \
+        --enable-libass \
+        --enable-libfreetype \
+        --enable-libfribidi \
+        --enable-libxml2 \
+        --enable-libdrm \
+        --enable-libpulse \
+        --enable-sdl2 \
+        --enable-vaapi \
+        --enable-vdpau \
+        --enable-vulkan
+    do
+        if ! grep -Fq -- "$feature" <<< "$BUILDCONF"; then
+            echo "[ERROR] Missing FFmpeg build feature: $feature" >&2
+            return 1
+        fi
+    done
+
+    # Validate actual encoder names, not the looser codec descriptions.
+    ENCODERS="$(
+        LD_LIBRARY_PATH="$STAGED_LD_LIBRARY_PATH" \
+            "$pkgdir/usr/bin/ffmpeg" -hide_banner -encoders 2>&1
+    )"
+    for encoder in libx264 libx265 libaom-av1 libsvtav1 libvpx-vp9 libopus; do
+        if ! grep -Eq "^[[:space:]]*[VAS][^[:space:]]*[[:space:]]+${encoder}[[:space:]]" <<< "$ENCODERS"; then
+            echo "[ERROR] Missing FFmpeg encoder: $encoder" >&2
+            return 1
+        fi
+    done
+
+    DECODERS="$(
+        LD_LIBRARY_PATH="$STAGED_LD_LIBRARY_PATH" \
+            "$pkgdir/usr/bin/ffmpeg" -hide_banner -decoders 2>&1
+    )"
+    for decoder in libdav1d libaom-av1 libvpx-vp9 libopus; do
+        if ! grep -Eq "^[[:space:]]*[VAS][^[:space:]]*[[:space:]]+${decoder}[[:space:]]" <<< "$DECODERS"; then
+            echo "[ERROR] Missing FFmpeg decoder: $decoder" >&2
+            return 1
+        fi
+    done
+
+    HWACCELS="$(
+        LD_LIBRARY_PATH="$STAGED_LD_LIBRARY_PATH" \
+            "$pkgdir/usr/bin/ffmpeg" -hide_banner -hwaccels 2>&1
+    )"
+    for hwaccel in vaapi vdpau vulkan; do
+        if ! grep -Fxq -- "$hwaccel" <<< "$HWACCELS"; then
+            echo "[ERROR] Missing FFmpeg hardware accelerator: $hwaccel" >&2
+            return 1
+        fi
+    done
+    set -x
+
+    # Ensure no static or libtool archives are packaged.
+    find "$pkgdir/usr/lib" -type f \
+        \( -name 'libav*.a' -o -name 'libsw*.a' -o -name '*.la' \) -delete
+
+    # Licenses.
+    install -dm755 "$pkgdir/usr/share/licenses/${NAME}"
+    local license
+    for license in COPYING.GPLv2 COPYING.GPLv3 COPYING.LGPLv2.1 COPYING.LGPLv3; do
+        if [ -f "$SRCDIR/$license" ]; then
+            install -Dm644 \
+                "$SRCDIR/$license" \
+                "$pkgdir/usr/share/licenses/${NAME}/$license"
+        fi
+    done
+
+    echo "==> FFmpeg ${VERSION} staging complete"
 }

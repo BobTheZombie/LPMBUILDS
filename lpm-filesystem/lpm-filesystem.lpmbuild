@@ -1,0 +1,115 @@
+#!/bin/bash
+# LPM build script for lpm-filesystem
+
+NAME="lpm-filesystem"
+VERSION="1.0.0"
+RELEASE="2"
+ARCH="any"
+SUMMARY="Filesystem layout and system integration for LPM"
+URL="https://gitlab.com/lpm-org/packages"
+LICENSE=("MIT")
+
+SOURCE=(
+  "lpm.sysusers"
+  "lpm.tmpfiles"
+  "lpm.conf"
+  "official.repo"
+  "README.md"
+)
+
+SHA256SUMS=("SKIP" "SKIP" "SKIP" "SKIP" "SKIP")
+
+REQUIRES=()
+
+BUILD_REQUIRES=()
+
+PROVIDES=(
+  "lpm-filesystem"
+  "lpm-base-layout"
+  "filesystem"
+  "fhs-filesystem"
+)
+
+CONFLICTS=()
+OBSOLETES=("filesystem")
+
+prepare() { true; }
+build() { true; }
+check() { true; }
+
+staging() {
+  set -euxo pipefail
+
+  install -dm755 "$pkgdir"/{boot,dev,etc,home,media,mnt,opt,proc,run,srv,sys,usr,var}
+  install -dm755 "$pkgdir/usr"/{bin,lib,libexec,include,src,share,local}
+  install -dm755 "$pkgdir/etc"/{skel,profile.d,ld.so.conf.d}
+  install -dm750 "$pkgdir/root"
+  install -dm1777 "$pkgdir/tmp" "$pkgdir/var/tmp"
+  ln -sfn usr/bin "$pkgdir/bin"
+  ln -sfn usr/bin "$pkgdir/sbin"
+  ln -sfn usr/lib "$pkgdir/lib"
+  ln -sfn usr/lib "$pkgdir/lib64"
+  ln -sfn bin "$pkgdir/usr/sbin"
+  ln -sfn ../run/lock "$pkgdir/var/lock"
+  ln -sfn ../run "$pkgdir/var/run"
+
+
+  install -dm755 "$pkgdir/etc/lpm"
+  install -dm755 "$pkgdir/etc/lpm/repos.d"
+  install -dm755 "$pkgdir/etc/lpm/hooks.d"
+  install -dm755 "$pkgdir/etc/lpm/makeflags.d"
+
+  install -dm755 "$pkgdir/var/lib/lpm"
+  install -dm755 "$pkgdir/var/lib/lpm/db"
+  install -dm755 "$pkgdir/var/lib/lpm/local"
+  install -dm755 "$pkgdir/var/lib/lpm/sync"
+  install -dm755 "$pkgdir/var/lib/lpm/transactions"
+  install -dm755 "$pkgdir/var/lib/lpm/locks"
+
+  install -dm775 "$pkgdir/var/cache/lpm"
+  install -dm775 "$pkgdir/var/cache/lpm/sources"
+  install -dm775 "$pkgdir/var/cache/lpm/packages"
+  install -dm775 "$pkgdir/var/cache/lpm/lpmbuilds"
+  install -dm775 "$pkgdir/var/cache/lpm/build"
+  install -dm775 "$pkgdir/var/cache/lpm/logs"
+
+  install -dm755 "$pkgdir/var/log/lpm"
+
+  install -dm755 "$pkgdir/usr/share/lpm"
+  install -dm755 "$pkgdir/usr/share/lpm/hooks"
+  install -dm755 "$pkgdir/usr/share/lpm/templates"
+  install -dm755 "$pkgdir/usr/share/lpm/scripts"
+  install -dm755 "$pkgdir/usr/share/lpm/licenses"
+
+  install -dm1777 "$pkgdir/tmp/lpm-build"
+
+
+  install -Dm644 "$SRCROOT/official.repo" "$pkgdir/etc/lpm/repos.d/official.repo"
+  install -Dm644 "$SRCROOT/README.md" "$pkgdir/usr/share/doc/lpm-filesystem/README.md"
+
+  touch "$pkgdir/var/lib/lpm/db/.keep"
+  touch "$pkgdir/var/lib/lpm/local/.keep"
+  touch "$pkgdir/var/lib/lpm/sync/.keep"
+  touch "$pkgdir/var/lib/lpm/transactions/.keep"
+  touch "$pkgdir/var/cache/lpm/sources/.keep"
+  touch "$pkgdir/var/cache/lpm/packages/.keep"
+  touch "$pkgdir/var/cache/lpm/lpmbuilds/.keep"
+  touch "$pkgdir/var/log/lpm/.keep"
+
+  test -d "$pkgdir/var/lib/lpm/db"
+  test -d "$pkgdir/var/cache/lpm/sources"
+
+  install -Dm644 "$SRCROOT/os-release" "$pkgdir/usr/lib/os-release"
+  ln -sfn ../usr/lib/os-release "$pkgdir/etc/os-release"
+  local file
+  for file in issue motd nsswitch.conf shells profile; do
+    install -Dm644 "$SRCROOT/$file" "$pkgdir/usr/share/factory/etc/$file"
+  done
+}
+SOURCE+=("os-release" "issue" "motd" "nsswitch.conf" "shells" "profile")
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("6df45aed073cb862233514aef6fd01e03e39b294fb7a61d9e3fbcf7030315c7a" "570412296567a6a753da590c1fb9a1443032f07a4bd1b681f809e3c0942ba3e5" "e5a49794e0c979c0d08f056ee69272a4f85ee6a12b5a4618f089a1fadaa09b8f" "0269d2495a09e17d289f18e3888c38b5be84e5536fe0607e4656635fce95e9c7" "82dc63288b976f2c5710020a2096b940f146d0dbc2b6d4de92ae89b03c7e7e3c" "dbe8db33b0ee2fc684234190041419b2656b74220a42d26b96e653623bbb4106" "eb7db23c4e4418791c699d09f08508891bd2b22304fe88f591f65b6eecf25837" "3f8ab73b0bae8ba9e3f8aa49f962a8a0c510c89df26cfbe7ea051c7568de7918" "9478df6d7a4d9a18c5b1b51d6094a3e89596196ca3ee2656666bfdeffa026a07" "4ec4e8c524a4f10ca5898ccfaa6d29e7e08aff3a681f6bafbb62e7bec91aa154" "77d933b5ae1a25ec5f57172491830ab6319b28bef5ab24b45c4e5e4db2eb80cd")

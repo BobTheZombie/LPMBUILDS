@@ -1,0 +1,97 @@
+#!/bin/bash
+# LPM build script for nPth
+
+NAME="npth"
+VERSION="1.8"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+
+SUMMARY="New GNU Portable Threads library"
+URL="https://gnupg.org/software/npth/"
+LICENSE=("LGPL-2.1-or-later")
+
+SOURCE=(
+    "https://www.gnupg.org/ftp/gcrypt/npth/npth-${VERSION}.tar.bz2"
+)
+
+SHA256SUMS=("SKIP")
+PATCHES=()
+
+REQUIRES=("glibc")
+BUILD_REQUIRES=("gcc" "make")
+
+PROVIDES=(
+    "npth"
+    "libnpth.so"
+    "libnpth.so.0"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+BUILD_OPTIONS=("@--stripping" "@--optimize=2")
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    test -f configure
+    test -f Makefile.in
+    test -f COPYING.LIB
+
+    if [ -f Makefile ]; then
+        make distclean
+    fi
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    ./configure \
+        --prefix=/usr \
+        --bindir=/usr/bin \
+        --libdir=/usr/lib \
+        --includedir=/usr/include \
+        --datadir=/usr/share \
+        --enable-shared \
+        --disable-static
+
+    make -j"$(nproc)"
+}
+
+check() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    make -j"$(nproc)" check
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    make DESTDIR="$pkgdir" install
+
+    find "$pkgdir/usr/lib" \
+        -type f \
+        \( -name '*.a' -o -name '*.la' \) \
+        -delete
+
+    rm -f "$pkgdir/usr/share/info/dir"
+
+    test -e "$pkgdir/usr/lib/libnpth.so"
+    test -e "$pkgdir/usr/lib/libnpth.so.0"
+    test -f "$pkgdir/usr/include/npth.h"
+
+    install -Dm644 COPYING.LIB \
+        "$pkgdir/usr/share/licenses/$NAME/COPYING.LIB"
+}
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("8bd24b4f23a3065d6e5b26e98aba9ce783ea4fd781069c1b35d149694e90ca3e")

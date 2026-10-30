@@ -1,0 +1,43 @@
+#!/bin/bash
+NAME="libliftoff"
+VERSION="0.5.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="libliftoff upstream package"
+URL="https://gitlab.freedesktop.org/emersion/libliftoff/-/archive/v0.5.0/"
+LICENSE=("MIT")
+SOURCE=("https://gitlab.freedesktop.org/emersion/libliftoff/-/archive/v0.5.0/libliftoff-v0.5.0.tar.gz")
+SHA256SUMS=("3309218c3137a70faada653690802b514e4e46d9b38e7d9d5948ffcc4831f3b1")
+PATCHES=()
+REQUIRES=("glibc" "libdrm")
+BUILD_REQUIRES=("libdrm" "meson" "ninja" "pkgconf")
+PROVIDES=("libliftoff")
+CONFLICTS=()
+OBSOLETES=()
+BUILD_OPTIONS=("@--stripping" "@--optimize=2")
+prepare() { set -euxo pipefail; cd "$SRCROOT/${NAME}-${VERSION}"; }
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    meson setup build --prefix=/usr --libdir=lib --buildtype=release --wrap-mode=nodownload -Dexamples=false
+    meson compile -C build -j "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    meson install -C build --no-rebuild --destdir "$pkgdir"
+    local f
+    for f in COPYING COPYING.LIB LICENSE LICENSE.md LICENSE.txt; do
+        if [ -f "$f" ]; then install -Dm644 "$f" "$pkgdir/usr/share/licenses/$NAME/$f"; fi
+    done
+    if [ -d LICENSES ]; then
+        install -dm755 "$pkgdir/usr/share/licenses/$NAME"
+        cp -a LICENSES/. "$pkgdir/usr/share/licenses/$NAME/"
+    fi
+}
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("3309218c3137a70faada653690802b514e4e46d9b38e7d9d5948ffcc4831f3b1")

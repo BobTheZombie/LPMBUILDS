@@ -1,0 +1,12 @@
+#!/bin/bash
+post_install() {
+    systemd-sysusers
+    systemd-machine-id-setup
+    systemd-tmpfiles --create
+    # Presets are an administrator decision; do not start services in the chroot.
+}
+post_upgrade() {
+    if [ -d /run/systemd/system ] && ! systemd-detect-virt --chroot >/dev/null 2>&1; then
+        systemctl daemon-reload
+    fi
+}

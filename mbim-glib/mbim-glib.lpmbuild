@@ -1,0 +1,84 @@
+#!/bin/bash
+# LPM Linux package recipe for libmbim / mbim-glib.
+# Upstream: https://gitlab.freedesktop.org/mobile-broadband/libmbim
+
+NAME="mbim-glib"
+VERSION="1.34.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="GLib library, CLI and proxy for Mobile Broadband Interface Model (MBIM) devices"
+URL="https://www.freedesktop.org/wiki/Software/libmbim/"
+LICENSE=("LGPL-2.1-or-later" "GPL-2.0-or-later")
+
+# Source package is called libmbim even though the LPM package is mbim-glib.
+SOURCE=("https://gitlab.freedesktop.org/mobile-broadband/libmbim/-/archive/${VERSION}/libmbim-${VERSION}.tar.gz")
+SHA256SUMS=("55bb88df358f8a36b6e01e63877500d7c6420f5907d2d3101812b4912eabe08f")
+PATCHES=()
+
+REQUIRES=(
+    "glibc"
+    "glib2"
+)
+
+BUILD_REQUIRES=(
+    "gcc"
+    "glib2"
+    "gobject-introspection"
+    "meson"
+    "ninja"
+    "pkgconf"
+    "python"
+)
+
+# ModemManager's Meson check uses dependency('mbim-glib').
+# Expose the conventional upstream source-package name as well.
+PROVIDES=("libmbim" "libmbim-glib.so")
+CONFLICTS=()
+OBSOLETES=()
+BUILD_OPTIONS=("@--stripping" "@--optimize=2")
+
+prepare() {
+    set -euxo pipefail
+    test -f "$SRCROOT/${NAME}-${VERSION}/meson.build"
+}
+
+build() {
+    set -euxo pipefail
+    local src="$SRCROOT/${NAME}-${VERSION}"
+    local builddir="$src/build"
+
+    meson setup "$builddir" "$src" \
+        --prefix=/usr \
+        --libdir=lib \
+        --buildtype=release \
+        --wrap-mode=nodownload \
+        -Ddefault_library=shared \
+        -Dintrospection=true \
+        -Dgtk_doc=false \
+        -Dman=false \
+        -Dbash_completion=false \
+        -Dfuzzer=false
+
+    meson compile -C "$builddir" -j "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+staging() {
+    set -euxo pipefail
+    local src="$SRCROOT/${NAME}-${VERSION}"
+    local builddir="$src/build"
+    test -n "${pkgdir:-}" && test "$pkgdir" != /
+
+    meson install -C "$builddir" --no-rebuild --destdir "$pkgdir"
+
+    # Fail during package staging if the interfaces needed by ModemManager
+    # are missing, instead of silently generating an incomplete package.
+    test -f "$pkgdir/usr/lib/pkgconfig/mbim-glib.pc"
+    test -f "$pkgdir/usr/include/libmbim-glib/libmbim-glib.h"
+    test -f "$pkgdir/usr/lib/girepository-1.0/Mbim-1.0.typelib"
+    compgen -G "$pkgdir/usr/lib/libmbim-glib.so*" >/dev/null
+
+    if [ -d "$src/LICENSES" ]; then
+        install -dm755 "$pkgdir/usr/share/licenses/$NAME"
+        cp -a "$src/LICENSES/." "$pkgdir/usr/share/licenses/$NAME/"
+    fi
+}

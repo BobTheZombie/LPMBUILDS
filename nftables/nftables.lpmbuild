@@ -1,0 +1,74 @@
+#!/bin/bash
+# LPM networking stack, release snapshot 2026-10-16
+NAME="nftables"
+VERSION="1.1.7"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY='IPv4 and IPv6 packet filtering and NAT'
+URL=https://www.netfilter.org/projects/nftables/files/nftables-1.1.7.tar.xz
+LICENSE=(GPL-2.0-or-later)
+SOURCE=(https://www.netfilter.org/projects/nftables/files/nftables-1.1.7.tar.xz)
+SHA256SUMS=(
+    "a6fbf060d8d4fff001517a2b94f356bb4366bfbf0ba366366f9d27cc38caa58f"
+)
+PATCHES=()
+REQUIRES=(glibc libmnl libnftnl gmp readline)
+BUILD_REQUIRES=(gcc make pkgconf glibc libmnl libnftnl gmp readline bison flex)
+PROVIDES=(nftables nft)
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+BUILD_OPTIONS=(@--stripping @--optimize=2)
+
+_source() {
+    if [ ! -d "$SRCROOT/${NAME}-${VERSION}" ] && [ -d "$SRCROOT/nftables-1.1.7" ]; then
+        mv "$SRCROOT/nftables-1.1.7" "$SRCROOT/${NAME}-${VERSION}"
+    fi
+}
+
+_licenses() {
+    local f
+    for f in COPYING COPYING.LIB LICENSE LICENSE.txt LICENCE README; do
+        if [ -f "$f" ]; then
+            install -Dm644 "$f" "$pkgdir/usr/share/licenses/$NAME/$(basename "$f")"
+        fi
+    done
+}
+_cleanup() {
+    if [ -d "$pkgdir/usr/lib" ]; then
+        find "$pkgdir/usr/lib" -type f \( -name '*.a' -o -name '*.la' \) -delete
+    fi
+    rm -f "$pkgdir/usr/share/info/dir"
+}
+
+prepare() {
+    set -euxo pipefail
+    _source
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    if [ -f Makefile ]; then make distclean; fi
+    :
+    test -x configure
+}
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    ./configure --prefix=/usr --libdir=/usr/lib --sbindir=/usr/bin \
+        --sysconfdir=/etc --localstatedir=/var --disable-static --disable-man-doc --without-json --with-cli=readline
+    make -j"${LPM_BUILD_JOBS:-$(nproc)}"
+}
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    make -j1 DESTDIR="$pkgdir" install
+    _cleanup
+    test -x "$pkgdir/usr/bin/nft"
+    _licenses
+}
+
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("a6fbf060d8d4fff001517a2b94f356bb4366bfbf0ba366366f9d27cc38caa58f")

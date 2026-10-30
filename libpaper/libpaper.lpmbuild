@@ -1,0 +1,59 @@
+#!/bin/bash
+# LPM Linux / Arch-aligned libpaper recipe (2.2.8).
+NAME="libpaper"
+VERSION="2.2.8"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Library and utilities for default paper sizes"
+URL="https://github.com/rrthomas/libpaper"
+LICENSE=("LGPL-2.1-or-later" "GPL-3.0-or-later" "MIT")
+SOURCE=("https://github.com/rrthomas/libpaper/releases/download/v${VERSION}/libpaper-${VERSION}.tar.gz")
+SHA256SUMS=("1e330571690191874eca415ec76889dd11bab9887a2302d6a3665cd081c4d77b")
+PATCHES=()
+REQUIRES=("glibc")
+BUILD_REQUIRES=("gcc" "make" "pkgconf")
+PROVIDES=("libpaper" "libpaper.so.2")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+    set -euo pipefail
+    test -f "$SRCROOT/libpaper-$VERSION/configure"
+}
+
+build() {
+    set -euxo pipefail
+    local src="$SRCROOT/libpaper-$VERSION"
+    cd "$src"
+    ./configure --prefix=/usr --libdir=/usr/lib --sysconfdir=/etc \
+        --disable-static --docdir="/usr/share/doc/libpaper-$VERSION"
+    make -j"${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+check() {
+    set -euo pipefail
+    local src="$SRCROOT/libpaper-$VERSION"
+    test -f "$src/Makefile"
+    # Upstream's full test suite requires --enable-relocatable; this package
+    # intentionally installs to fixed /usr paths, as in BLFS.
+}
+
+staging() {
+    set -euxo pipefail
+    local src="$SRCROOT/libpaper-$VERSION"
+    make -C "$src" DESTDIR="$pkgdir" install
+    test -e "$pkgdir/usr/lib/libpaper.so.2"
+    test -f "$pkgdir/usr/include/paper.h"
+    test -x "$pkgdir/usr/bin/paper"
+    if [[ -f "$src/COPYING" ]]; then
+        install -Dm644 "$src/COPYING" "$pkgdir/usr/share/licenses/libpaper/COPYING"
+    fi
+    if [[ -f "$src/COPYING-GPL-3" ]]; then
+        install -Dm644 "$src/COPYING-GPL-3" "$pkgdir/usr/share/licenses/libpaper/COPYING-GPL-3"
+    fi
+    if [[ -f "$src/COPYING-MIT" ]]; then
+        install -Dm644 "$src/COPYING-MIT" "$pkgdir/usr/share/licenses/libpaper/COPYING-MIT"
+    fi
+}

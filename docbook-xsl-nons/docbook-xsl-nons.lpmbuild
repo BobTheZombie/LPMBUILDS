@@ -1,0 +1,112 @@
+#!/bin/bash
+NAME="docbook-xsl-nons"
+VERSION="1.79.2"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+
+SUMMARY="Non-namespaced DocBook XSL stylesheets"
+URL="https://github.com/docbook/xslt10-stylesheets"
+LICENSE=("MIT")
+
+SOURCE=(
+    "https://github.com/docbook/xslt10-stylesheets/releases/download/release/${VERSION}/${NAME}-${VERSION}.tar.bz2"
+    "https://www.linuxfromscratch.org/patches/blfs/13.1/${NAME}-${VERSION}-stack_fix-1.patch"
+    "docbook-xsl-nons.install"
+)
+
+SHA256SUMS=("SKIP" "SKIP" "SKIP")
+PATCHES=("${NAME}-${VERSION}-stack_fix-1.patch")
+INSTALL="docbook-xsl-nons.install"
+
+REQUIRES=("libxml2")
+BUILD_REQUIRES=("libxml2" "patch")
+
+PROVIDES=("docbook-xsl-nons" "docbook-xsl")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=("libxslt" "docbook-xml")
+SUGGESTS=()
+BUILD_OPTIONS=()
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    test -f VERSION
+    test -f manpages/docbook.xsl
+    test -f lib/lib.xsl
+    test -f COPYING
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    # Stylesheets are installed directly; no compilation required.
+    :
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    local destination="/usr/share/xml/docbook/xsl-stylesheets-nons-${VERSION}"
+    local directory uri rewrite
+
+    install -dm755 "$pkgdir$destination"
+
+    cp -R \
+        VERSION assembly common eclipse epub epub3 extensions \
+        fo highlighting html htmlhelp images javahelp lib \
+        manpages params profiling roundtrip slides template \
+        tests tools webhelp website xhtml xhtml-1_1 xhtml5 \
+        "$pkgdir$destination/"
+
+    ln -sfn VERSION "$pkgdir$destination/VERSION.xsl"
+
+    # Package-specific catalog. Do not package the shared /etc/xml/catalog.
+    xmlcatalog --noout --create "$pkgdir$destination/catalog.xml"
+
+    for uri in \
+        "http://cdn.docbook.org/release/xsl-nons/${VERSION}/" \
+        "https://cdn.docbook.org/release/xsl-nons/${VERSION}/" \
+        "http://cdn.docbook.org/release/xsl-nons/current/" \
+        "https://cdn.docbook.org/release/xsl-nons/current/" \
+        "http://docbook.sourceforge.net/release/xsl/current/" \
+        "https://docbook.sourceforge.net/release/xsl/current/"
+    do
+        for rewrite in rewriteSystem rewriteURI; do
+            xmlcatalog --noout \
+                --add "$rewrite" "$uri" "file://$destination/" \
+                "$pkgdir$destination/catalog.xml"
+        done
+    done
+
+    install -dm755 "$pkgdir/usr/share/doc/${NAME}-${VERSION}"
+    install -m644 README \
+        "$pkgdir/usr/share/doc/${NAME}-${VERSION}/README.txt"
+
+    for directory in RELEASE-NOTES* NEWS*; do
+        if [ -f "$directory" ]; then
+            install -m644 "$directory" \
+                "$pkgdir/usr/share/doc/${NAME}-${VERSION}/"
+        fi
+    done
+
+    install -Dm644 COPYING \
+        "$pkgdir/usr/share/licenses/$NAME/COPYING"
+
+    test -s "$pkgdir$destination/manpages/docbook.xsl"
+    test -s "$pkgdir$destination/catalog.xml"
+
+    test "$(
+        xmlcatalog "$pkgdir$destination/catalog.xml" \
+            "http://docbook.sourceforge.net/release/xsl/current/manpages/docbook.xsl"
+    )" = "file://$destination/manpages/docbook.xsl"
+}
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("ee8b9eca0b7a8f89075832a2da7534bce8c5478fc8fc2676f512d5d87d832102" "a92c39715c54949ba9369add1809527b8f155b7e2a2b2e30cb4b39ee715f2e30" "fcdd6e26eae0e25baef93bc7968475cb4cfe15347513a099ee4673e3139695a3")

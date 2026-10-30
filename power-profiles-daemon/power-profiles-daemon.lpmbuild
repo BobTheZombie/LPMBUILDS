@@ -1,0 +1,57 @@
+#!/bin/bash
+# LPM source recipe - staged installation only; review build features before use.
+NAME="power-profiles-daemon"
+VERSION="0.30"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="D-Bus service for CPU and platform power profiles"
+URL="https://gitlab.freedesktop.org/upower/power-profiles-daemon"
+LICENSE=("GPL-3.0-only")
+SOURCE=("https://gitlab.freedesktop.org/upower/power-profiles-daemon/-/archive/${VERSION}/power-profiles-daemon-${VERSION}.tar.gz")
+SHA256SUMS=("SKIP")
+PATCHES=()
+REQUIRES=(
+    "glib2"
+    "libgudev"
+    "polkit"
+    "upower"
+)
+BUILD_REQUIRES=(
+    "meson"
+    "ninja"
+    "pkgconf"
+    "gcc"
+)
+PROVIDES=("power-profiles-daemon")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+_srcdir() {
+    local d="$SRCROOT/power-profiles-daemon-${VERSION}"
+    test -d "$d" || { printf 'Expected source directory not found: %s\n' "$d" >&2; return 1; }
+    printf '%s\n' "$d"
+}
+
+prepare() {
+    set -euo pipefail
+    test -d "$(_srcdir)"
+}
+
+build() {
+    set -euo pipefail
+    local src
+    src="$(_srcdir)"
+    meson setup "$src/build-lpm" "$src" --prefix=/usr --libdir=lib --buildtype=release \
+        -D gtk_doc=false -D tests=false -D systemdsystemunitdir=/usr/lib/systemd/system
+    ninja -C "$src/build-lpm"
+}
+
+staging() {
+    set -euo pipefail
+    local src
+    src="$(_srcdir)"
+    DESTDIR="$pkgdir" ninja -C "$src/build-lpm" install
+    test -e "$pkgdir/usr/bin/powerprofilesctl"
+}

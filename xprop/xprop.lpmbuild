@@ -1,0 +1,52 @@
+#!/bin/bash
+# LPM build script for xprop
+
+NAME="xprop"
+VERSION="1.2.8"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Property displayer for X"
+URL="https://xorg.freedesktop.org/"
+LICENSE="MIT"
+
+SOURCE=(
+  "https://www.x.org/archive//individual/app/${NAME}-${VERSION}.tar.xz"
+)
+
+REQUIRES=(
+  "glibc"
+  "libX11"
+)
+
+PROVIDES=("xprop")
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+    set -euxo pipefail
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    ./configure --prefix=/usr
+    make -j"$(nproc)"
+}
+
+check() { true; }
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    DESTDIR="$pkgdir" make install
+}
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("d689e2adb7ef7b439f6469b51cda8a7daefc83243854c2a3b8f84d0f029d67ee")

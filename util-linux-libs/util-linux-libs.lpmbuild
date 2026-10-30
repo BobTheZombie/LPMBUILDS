@@ -1,0 +1,79 @@
+#!/bin/bash
+NAME="util-linux-libs"
+VERSION="2.42.4"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="util-linux libraries and development files"
+URL="https://www.kernel.org/pub/linux/utils/util-linux/"
+LICENSE=("GPL-2.0-or-later")
+SOURCE=("https://www.kernel.org/pub/linux/utils/util-linux/v${VERSION%.*}/util-linux-${VERSION}.tar.xz")
+SHA256SUMS=("fbd62a100ab7bb8746ba0661255c3c48185b1e9021507c624da01fbc696330ec")
+PATCHES=()
+REQUIRES=("glibc" "sqlite")
+BUILD_REQUIRES=("gcc" "make" "pkgconf" "sqlite")
+PROVIDES=("util-linux-libs" "libmount" "libblkid" "libuuid" "libfdisk" "libsmartcols" "libmount.so" "libblkid.so" "libuuid.so" "libfdisk.so" "libsmartcols.so")
+STAGE_2_REQUIRES=("systemd")
+STAGE_2_BUILD_REQUIRES=()
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+BUILD_OPTIONS=("@--stripping" "@--optimize=2")
+if [ "${LPM_BUILD_STAGE:-1}" = 2 ]; then
+    REQUIRES+=("systemd")
+    BUILD_REQUIRES+=("systemd")
+fi
+prepare() {
+    set -euxo pipefail
+    if [ ! -d "$SRCROOT/${NAME}-${VERSION}" ] && [ -d "$SRCROOT/util-linux-${VERSION}" ]; then
+        mv "$SRCROOT/util-linux-${VERSION}" "$SRCROOT/${NAME}-${VERSION}"
+    fi
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    test -x configure
+    rm -rf build full-install
+    mkdir build
+}
+_build_libraries() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    local -a integration=(--without-systemd --without-udev --disable-libmount-udev-support)
+    if [ "$1" = 2 ]; then integration=(--with-systemd --with-udev); fi
+    cd build
+    ../configure --prefix=/usr --libdir=/usr/lib --bindir=/usr/bin --sbindir=/usr/bin \
+        --sysconfdir=/etc --localstatedir=/var --runstatedir=/run \
+        --disable-all-programs --enable-libuuid --enable-libblkid \
+        --enable-libmount --enable-libfdisk --enable-libsmartcols --enable-liblastlog2 \
+        --disable-pam-lastlog2 --disable-pylibmount --without-python \
+        --disable-static --disable-asciidoc --disable-bash-completion \
+        --without-selinux --without-audit --without-econf \
+        --disable-makeinstall-chown "${integration[@]}"
+    make -j"$(nproc)"
+}
+build() { _build_libraries 1; }
+build_stage2() { _build_libraries 2; }
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    local full="$PWD/full-install"
+    rm -rf "$full"
+    make -C build DESTDIR="$full" install
+    install -dm755 "$pkgdir/usr/lib" "$pkgdir/usr/share/man"
+    cp -a "$full/usr/lib/." "$pkgdir/usr/lib/"
+    cp -a "$full/usr/include" "$pkgdir/usr/"
+    if [ -d "$full/usr/share/man/man3" ]; then cp -a "$full/usr/share/man/man3" "$pkgdir/usr/share/man/"; fi
+    # This package owns libraries/headers/metadata, never commands or PAM modules.
+    rm -rf "$pkgdir/usr/lib/systemd" "$pkgdir/usr/lib/tmpfiles.d" "$pkgdir/usr/lib/sysusers.d" "$pkgdir/usr/lib/security"
+    find "$pkgdir/usr/lib" -type f \( -name '*.a' -o -name '*.la' \) -delete
+    local lib
+    for lib in mount blkid uuid fdisk smartcols lastlog2; do
+        test -e "$pkgdir/usr/lib/lib${lib}.so"
+        test -s "$pkgdir/usr/lib/pkgconfig/${lib}.pc"
+    done
+    install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+}
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("fbd62a100ab7bb8746ba0661255c3c48185b1e9021507c624da01fbc696330ec")

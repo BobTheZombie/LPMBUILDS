@@ -1,0 +1,88 @@
+#!/bin/bash
+# LPM Linux standalone build recipe for gst-devtools 1.28.8
+# GStreamer coordinated stable series 1.28.8; Orc is versioned separately.
+NAME="gst-devtools"
+VERSION="1.28.8"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="GStreamer validate tooling and debugging utilities"
+URL="https://gstreamer.freedesktop.org/"
+LICENSE=("LGPL-2.1-or-later")
+SOURCE=("https://gstreamer.freedesktop.org/src/${NAME}/${NAME}-${VERSION}.tar.xz")
+SHA256SUMS=("a85275f91e421ae55c8ec08779459a3f93f620d2acc25b6e6723ef43573c6ba5")
+PATCHES=()
+REQUIRES=(
+    "glibc"
+    "glib2"
+    "gstreamer"
+    "gst-plugins-base"
+)
+BUILD_REQUIRES=(
+    "meson"
+    "ninja"
+    "pkgconf"
+    "python"
+    "gobject-introspection"
+)
+PROVIDES=("${NAME}")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+BUILD_OPTIONS=("@--stripping" "@--optimize=2")
+
+_gst_srcdir() {
+    local candidate
+    for candidate in         "$SRCROOT/${NAME}-${VERSION}"         "$SRCROOT/${NAME}"         "$SRCROOT"; do
+        if [[ -f "$candidate/meson.build" ]]; then
+            printf '%s\n' "$candidate"
+            return 0
+        fi
+    done
+    echo "[ERROR] Cannot locate extracted $NAME $VERSION source in $SRCROOT" >&2
+    return 1
+}
+
+prepare() {
+    set -euxo pipefail
+    local srcdir
+    srcdir="$(_gst_srcdir)"
+    rm -rf "$srcdir/build"
+}
+
+build() {
+    set -euxo pipefail
+    local srcdir
+    srcdir="$(_gst_srcdir)"
+    meson setup "$srcdir/build" "$srcdir" \
+        --prefix=/usr \
+        --libdir=lib \
+        --buildtype=release \
+        --wrap-mode=nodownload \
+        -Dtests=disabled \
+        -Ddoc=disabled \
+        -Ddefault_library=shared
+    meson compile -C "$srcdir/build" -j "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+check() {
+    # Runtime tests are not run against the packaging host; stage checks follow.
+    set -euxo pipefail
+    local srcdir
+    srcdir="$(_gst_srcdir)"
+    test -f "$srcdir/build/build.ninja"
+}
+
+staging() {
+    set -euxo pipefail
+    local srcdir
+    srcdir="$(_gst_srcdir)"
+    DESTDIR="$pkgdir" meson install -C "$srcdir/build" --no-rebuild
+    test -d "$pkgdir/usr"
+
+    if [[ -f "$srcdir/COPYING" ]]; then
+        install -Dm644 "$srcdir/COPYING" \
+            "$pkgdir/usr/share/licenses/$NAME/COPYING"
+    fi
+    echo "[OK] $NAME $VERSION staged"
+}

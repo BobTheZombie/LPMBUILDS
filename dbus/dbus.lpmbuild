@@ -1,36 +1,110 @@
-# LPM build script for dbus
+#!/bin/bash
+# LPM: bootstrap D-Bus, then rebuild against systemd.
 NAME="dbus"
-VERSION="1.14.10"
-RELEASE="1"
+VERSION="1.16.2"
+RELEASE="3"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Message bus system"
+SUMMARY="Message bus system (reference implementation)"
 URL="https://dbus.freedesktop.org/"
-LICENSE=""
-SOURCE=()
-REQUIRES=("glibc" "systemd")
-PROVIDES=("dbus")
+LICENSE=("AFL-2.1" "GPL-2.0-or-later")
+SOURCE=("https://dbus.freedesktop.org/releases/dbus/dbus-${VERSION}.tar.xz")
+SHA256SUMS=("0ba2a1a4b16afe7bceb2c07e9ce99a8c2c3508e5dec290dbb643384bd6beb7e2")
+PATCHES=()
+REQUIRES=("glibc" "expat")
+BUILD_REQUIRES=("meson" "ninja" "pkgconf" "gcc" "python" "expat")
+STAGE_2_REQUIRES=("systemd")
+STAGE_2_BUILD_REQUIRES=("systemd")
+if [ "${LPM_BUILD_STAGE:-1}" = 2 ]; then
+    REQUIRES+=("systemd")
+    BUILD_REQUIRES+=("systemd")
+fi
+PROVIDES=("dbus" "dbus-daemon" "libdbus-1.so" "libdbus-1.so.3")
 CONFLICTS=()
 OBSOLETES=()
 RECOMMENDS=()
 SUGGESTS=()
+BUILD_OPTIONS=("@--stripping" "@--optimize=2")
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  mkdir -p build
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    test -f meson.build
+    test -f meson_options.txt
+    test -f COPYING
+    rm -rf build
+}
+
+_build_dbus() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    meson setup build \
+        --prefix=/usr --libdir=lib --libexecdir=libexec \
+        --sysconfdir=/etc --localstatedir=/var \
+        --buildtype=release --wrap-mode=nofallback \
+        -Ddefault_library=shared \
+        -Dsystemd="$1" \
+        -Dsystemd_system_unitdir=/usr/lib/systemd/system \
+        -Dsystemd_user_unitdir=/usr/lib/systemd/user \
+        -Ddbus_user=dbus -Druntime_dir=/run \
+        -Dtraditional_activation=false \
+        -Dselinux=disabled -Dapparmor=disabled -Dlibaudit=disabled \
+        -Dx11_autolaunch=disabled -Dmodular_tests=disabled \
+        -Dinstalled_tests=false -Dintrusive_tests=false \
+        -Ddoxygen_docs=disabled -Dducktype_docs=disabled \
+        -Dxml_docs=disabled -Dqt_help=disabled
+    meson compile -C build -j "$(nproc)"
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  cd build
-  ../configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var --libexecdir=/usr/lib
-  make -j"$(nproc)"
+    _build_dbus disabled
+}
+
+build_stage2() {
+    _build_dbus enabled
+}
+
+check() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    build/bus/dbus-daemon --version > build/.lpm-version
+    grep -Fq "D-Bus Message Bus Daemon ${VERSION}" build/.lpm-version
+    rm -f build/.lpm-version
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  cd build
-  make DESTDIR="$pkgdir" install
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    meson install -C build --no-rebuild --destdir "$pkgdir"
+    find "$pkgdir/usr/lib" -type f \( -name '*.a' -o -name '*.la' \) -delete
+    install -dm755 "$pkgdir/etc/dbus-1/system.d" \
+        "$pkgdir/etc/dbus-1/session.d" "$pkgdir/var/lib/dbus" \
+        "$pkgdir/usr/lib/sysusers.d" "$pkgdir/usr/lib/tmpfiles.d"
+    # Also ship account/directory declarations during bootstrap. Do not
+    # create accounts or machine-specific IDs inside the build environment.
+    printf '%s\n' 'u dbus - "D-Bus System Message Bus" / /usr/bin/nologin' \
+        > "$pkgdir/usr/lib/sysusers.d/dbus.conf"
+    printf '%s\n' 'd /run/dbus 0755 dbus dbus -' \
+        'd /var/lib/dbus 0755 root root -' \
+        > "$pkgdir/usr/lib/tmpfiles.d/dbus.conf"
+
+    local program
+    for program in dbus-daemon dbus-send dbus-monitor dbus-run-session dbus-uuidgen; do
+        test -x "$pkgdir/usr/bin/$program"
+    done
+    test -e "$pkgdir/usr/lib/libdbus-1.so.3"
+    test -f "$pkgdir/usr/lib/pkgconfig/dbus-1.pc"
+    test -f "$pkgdir/usr/include/dbus-1.0/dbus/dbus.h"
+    if [ "${LPM_BUILD_STAGE:-1}" = 2 ]; then
+        test -f "$pkgdir/usr/lib/systemd/system/dbus.service"
+        test -f "$pkgdir/usr/lib/systemd/system/dbus.socket"
+        test -f "$pkgdir/usr/lib/systemd/user/dbus.service"
+        test -f "$pkgdir/usr/lib/systemd/user/dbus.socket"
+    fi
+    install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
 }
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("0ba2a1a4b16afe7bceb2c07e9ce99a8c2c3508e5dec290dbb643384bd6beb7e2")

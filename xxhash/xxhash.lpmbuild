@@ -1,0 +1,114 @@
+#!/bin/bash
+# LPM build script for xxHash
+
+NAME="xxhash"
+VERSION="0.8.4"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+
+SUMMARY="Fast non-cryptographic hash library and checksum utilities"
+URL="https://xxhash.com/"
+LICENSE=(
+    "BSD-2-Clause"
+    "GPL-2.0-or-later"
+)
+
+SOURCE=(
+    "https://github.com/Cyan4973/xxHash/archive/refs/tags/v${VERSION}.tar.gz"
+)
+
+SHA256SUMS=(
+    "5738270935e7c3d38a79b3adf7c9692566ce7895a25f67de43ad52ab504acd32"
+)
+
+PATCHES=()
+
+REQUIRES=("glibc")
+BUILD_REQUIRES=("gcc" "make")
+
+PROVIDES=(
+    "xxhash"
+    "libxxhash"
+    "libxxhash.so"
+    "libxxhash.so.0"
+    "xxhsum"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+BUILD_OPTIONS=(
+    "@--stripping"
+    "@--optimize=2"
+)
+
+prepare() {
+    set -euxo pipefail
+
+    if [ ! -d "$SRCROOT/${NAME}-${VERSION}" ] &&
+       [ -d "$SRCROOT/xxHash-${VERSION}" ]; then
+        mv "$SRCROOT/xxHash-${VERSION}" \
+            "$SRCROOT/${NAME}-${VERSION}"
+    fi
+
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    test -f Makefile
+    test -f xxhash.h
+    test -f LICENSE
+    test -f cli/COPYING
+
+    make clean
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    make \
+        -j"${LPM_BUILD_JOBS:-$(nproc)}" \
+        PREFIX=/usr \
+        LIBDIR=/usr/lib
+}
+
+check() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    make check
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    make \
+        -j1 \
+        PREFIX=/usr \
+        LIBDIR=/usr/lib \
+        DESTDIR="$pkgdir" \
+        install
+
+    rm -f "$pkgdir/usr/lib/libxxhash.a"
+
+    test -x "$pkgdir/usr/bin/xxhsum"
+    test -e "$pkgdir/usr/lib/libxxhash.so"
+    test -e "$pkgdir/usr/lib/libxxhash.so.0"
+    test -f "$pkgdir/usr/include/xxhash.h"
+    test -s "$pkgdir/usr/lib/pkgconfig/libxxhash.pc"
+    test -f "$pkgdir/usr/share/man/man1/xxhsum.1"
+
+    install -Dm644 LICENSE \
+        "$pkgdir/usr/share/licenses/$NAME/LICENSE"
+
+    install -Dm644 cli/COPYING \
+        "$pkgdir/usr/share/licenses/$NAME/COPYING"
+}
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("5738270935e7c3d38a79b3adf7c9692566ce7895a25f67de43ad52ab504acd32")

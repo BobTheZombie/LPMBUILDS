@@ -1,0 +1,164 @@
+#!/bin/bash
+# LPM build script for audit: bootstrap, then Python/systemd integration.
+
+NAME="audit"
+VERSION="4.1.2"
+RELEASE="2"
+ARCH="${ARCH:-x86_64}"
+
+SUMMARY="Linux audit libraries and userspace tools"
+URL="https://github.com/linux-audit/audit-userspace"
+LICENSE=("GPL-2.0-or-later" "LGPL-2.1-or-later")
+
+SOURCE=(
+    "https://github.com/linux-audit/audit-userspace/archive/refs/tags/v${VERSION}.tar.gz"
+    "https://gitlab.archlinux.org/archlinux/packaging/packages/audit/-/raw/main/audit-4.1.2-executable_paths.patch"
+    "https://gitlab.archlinux.org/archlinux/packaging/packages/audit/-/raw/main/audispd-plugins.tmpfiles"
+    "https://gitlab.archlinux.org/archlinux/packaging/packages/audit/-/raw/main/audit.tmpfiles"
+)
+
+# Pin the auxiliary file hashes after downloading them.
+SHA256SUMS=(
+    "5c638bbeef9adb6c5715d3a60f0f5adb93e9b81633608af13d23c61f5e5db04d"
+    "SKIP"
+    "SKIP"
+    "SKIP"
+)
+
+PATCHES=("audit-4.1.2-executable_paths.patch")
+
+REQUIRES=("glibc" "libcap-ng")
+BUILD_REQUIRES=(
+    "gcc"
+    "make"
+    "autoconf"
+    "automake"
+    "libtool"
+    "libcap-ng"
+)
+
+PROVIDES=(
+    "audit"
+    "auditd"
+    "libaudit"
+    "libaudit.so"
+    "libaudit.so.1"
+)
+
+# Bootstrap systemd satisfies this dependency; requiring systemd@2 here
+# would create a final-stage cycle with systemd's audit dependency.
+STAGE_2_REQUIRES=("systemd" "python" "swig")
+STAGE_2_BUILD_REQUIRES=()
+
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+BUILD_OPTIONS=("@--stripping" "@--optimize=2")
+
+if [ "${LPM_BUILD_STAGE:-1}" = 2 ]; then
+    REQUIRES+=("systemd" "python")
+    BUILD_REQUIRES+=("systemd" "python" "swig")
+fi
+
+prepare() {
+    set -euxo pipefail
+
+    if [ ! -d "$SRCROOT/${NAME}-${VERSION}" ] &&
+       [ -d "$SRCROOT/audit-userspace-${VERSION}" ]; then
+        mv "$SRCROOT/audit-userspace-${VERSION}" \
+           "$SRCROOT/${NAME}-${VERSION}"
+    fi
+
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    test -f configure.ac
+    test -f COPYING
+    test -f COPYING.LIB
+
+    if [ -f Makefile ]; then
+        make distclean
+    fi
+
+    autoreconf -vif
+}
+
+_build_audit() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    ./configure \
+        --prefix=/usr \
+        --bindir=/usr/bin \
+        --sbindir=/usr/bin \
+        --libdir=/usr/lib \
+        --libexecdir=/usr/lib/audit \
+        --sysconfdir=/etc \
+        --runstatedir=/run \
+        --enable-static \
+        --with-python3="$1" \
+        --without-golang \
+        --without-libwrap \
+        --disable-gssapi-krb5 \
+        --disable-zos-remote
+
+    make -j"$(nproc)"
+}
+
+build() {
+    _build_audit no
+}
+
+build_stage2() {
+    _build_audit yes
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    make DESTDIR="$pkgdir" install
+
+    if [ "${LPM_BUILD_STAGE:-1}" = 1 ]; then
+        rm -rf \
+            "$pkgdir/usr/lib/systemd" \
+            "$pkgdir/usr/lib/tmpfiles.d"
+    else
+        test -f "$pkgdir/usr/lib/systemd/system/auditd.service"
+
+        install -Dm644 \
+            "$SRCROOT/audit.tmpfiles" \
+            "$pkgdir/usr/lib/tmpfiles.d/audit.conf"
+
+        install -Dm644 \
+            "$SRCROOT/audispd-plugins.tmpfiles" \
+            "$pkgdir/usr/lib/tmpfiles.d/audispd-plugins.conf"
+    fi
+
+    install -dm700 "$pkgdir/var/log/audit"
+    install -dm755 "$pkgdir/etc/audit/rules.d"
+
+    test -e "$pkgdir/usr/lib/libaudit.so"
+    test -e "$pkgdir/usr/lib/libaudit.so.1"
+    test -f "$pkgdir/usr/include/libaudit.h"
+    test -x "$pkgdir/usr/bin/auditctl"
+    test -x "$pkgdir/usr/bin/auditd"
+
+    find "$pkgdir/usr/lib" \
+        -type f \
+        \( -name '*.a' -o -name '*.la' \) \
+        -delete
+
+    install -Dm644 COPYING \
+        "$pkgdir/usr/share/licenses/$NAME/COPYING"
+
+    install -Dm644 COPYING.LIB \
+        "$pkgdir/usr/share/licenses/$NAME/COPYING.LIB"
+}
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("5c638bbeef9adb6c5715d3a60f0f5adb93e9b81633608af13d23c61f5e5db04d" "b9424430d5369b3db5c5a33cb583782ae3632f9f7e0759d6b2432221fe04bec8" "880da04b9b8b897ea52c7ff4528687a5c7ddaa09dab0d557b8c6be38046cf2b5" "5d032b5612a037027d196f70de16e93c1c939adcaf3692244265ea7856e05fa8")

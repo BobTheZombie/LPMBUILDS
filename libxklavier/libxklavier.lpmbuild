@@ -1,0 +1,44 @@
+#!/bin/bash
+NAME="libxklavier"
+VERSION="5.4"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="libxklavier upstream package"
+URL="https://people.freedesktop.org/~svu/"
+LICENSE=("LGPL-2.0-or-later")
+SOURCE=("https://people.freedesktop.org/~svu/libxklavier-5.4.tar.bz2")
+SHA256SUMS=("17a34194df5cbcd3b7bfd0f561d95d1f723aa1c87fca56bc2c209514460a9320")
+PATCHES=()
+REQUIRES=("glib2" "iso-codes" "libX11" "libxml2")
+BUILD_REQUIRES=("gcc" "gobject-introspection" "iso-codes" "libxkbfile" "make" "pkgconf")
+PROVIDES=("libxklavier")
+CONFLICTS=()
+OBSOLETES=()
+BUILD_OPTIONS=("@--stripping" "@--optimize=2")
+prepare() { set -euxo pipefail; cd "$SRCROOT/${NAME}-${VERSION}"; }
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    if [ ! -x configure ]; then autoreconf -fiv; fi
+    ./configure --prefix=/usr --libdir=/usr/lib --sysconfdir=/etc --disable-static --enable-introspection=yes
+    make -j"${LPM_BUILD_JOBS:-$(nproc)}"
+}
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    make DESTDIR="$pkgdir" install
+    local f
+    for f in COPYING COPYING.LIB LICENSE LICENSE.md LICENSE.txt; do
+        if [ -f "$f" ]; then install -Dm644 "$f" "$pkgdir/usr/share/licenses/$NAME/$f"; fi
+    done
+    if [ -d LICENSES ]; then
+        install -dm755 "$pkgdir/usr/share/licenses/$NAME"
+        cp -a LICENSES/. "$pkgdir/usr/share/licenses/$NAME/"
+    fi
+}
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("17a34194df5cbcd3b7bfd0f561d95d1f723aa1c87fca56bc2c209514460a9320")

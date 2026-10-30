@@ -1,0 +1,28 @@
+#!/bin/bash
+NAME="linux-kernel"
+VERSION="7.2.11"
+RELEASE="2"
+ARCH="any"
+SUMMARY="Compatibility dependency on linux"
+URL="https://gitlab.com/lpm-org/packages"
+LICENSE=("MIT")
+SOURCE=()
+SHA256SUMS=()
+PATCHES=()
+REQUIRES=("linux")
+BUILD_REQUIRES=()
+PROVIDES=("linux-kernel")
+CONFLICTS=()
+OBSOLETES=()
+prepare() { true; }
+build() { true; }
+staging() {
+    install -dm755 "$pkgdir/usr/share/doc/$NAME"
+    printf '%s\n' 'Compatibility dependency: linux owns the payload.' > "$pkgdir/usr/share/doc/$NAME/README"
+}
+
+
+
+
+# Final audited source digests
+SHA256SUMS=()

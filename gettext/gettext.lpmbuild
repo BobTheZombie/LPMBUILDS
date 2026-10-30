@@ -1,34 +1,48 @@
-# LPM build script for gettext
 NAME="gettext"
-VERSION="0.22.5"
+VERSION="1.0"
 RELEASE="1"
-ARCH="${ARCH:-x86_64}"
-SUMMARY="GNU i18n utilities"
+ARCH="x86_64"
+SUMMARY="GNU internationalization and localization library"
 URL="https://www.gnu.org/software/gettext/"
-LICENSE=""
-SOURCE=()
-REQUIRES=("glibc")
-PROVIDES=("gettext")
+SOURCE=("https://ftp.wayne.edu/gnu/gettext/gettext-${VERSION}.tar.xz")
+LICENSE=("GPL-3.0-or-later" "LGPL-2.1-or-later")
+
+REQUIRES=("acl" "attr" "bash" "gcc-libs" "glibc" "libunistring" "libxml2" "ncurses" "gdbm")
+PROVIDES=("gettext" "libintl")
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+    cd "$SRCROOT/gettext-${VERSION}"
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+    set -euxo pipefail
+    cd "$SRCROOT/gettext-${VERSION}"
+      ./configure \
+    --prefix=/usr \
+    --libexecdir=/usr/lib \
+    --libdir=/lib    \
+    --enable-csharp \
+    --enable-nls \
+    --with-xz \
+    --without-included-gettext \
+    --without-included-libunistring
+  sed -e 's/ -shared / -Wl,-O1,--as-needed\0/g' \
+      -i gettext-{tools,runtime,runtime/libasprintf}/libtool
+    make -j"$(nproc)"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euxo pipefail
+    cd "$SRCROOT/gettext-${VERSION}"
+    make DESTDIR="$pkgdir" install
 }
+
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("71132a3fb71e68245b8f2ac4e9e97137d3e5c02f415636eb508ae607bc01add7")

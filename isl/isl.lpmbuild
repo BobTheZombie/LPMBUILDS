@@ -1,34 +1,280 @@
-# LPM build script for isl
+#!/bin/bash
+# LPM build script for ISL
+
 NAME="isl"
-VERSION="0.27"
+VERSION="0.28"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Integer set library for compilers"
+
+SUMMARY="Integer Set Library for polyhedral compilation"
 URL="https://libisl.sourceforge.io/"
-LICENSE=""
-SOURCE=()
-REQUIRES=("glibc" "gmp")
-PROVIDES=("isl")
+LICENSE=("MIT")
+
+SOURCE=(
+    "https://libisl.sourceforge.io/isl-${VERSION}.tar.xz"
+)
+
+SHA256SUMS=(
+    "3dc31b8e1b18329e42d5dfbf84dd55e15c59b61569a2ab246f61497d9592f727"
+)
+
+PATCHES=()
+
+REQUIRES=(
+    "glibc"
+    "gmp"
+)
+
+BUILD_REQUIRES=(
+    "glibc"
+    "gmp"
+    "make"
+    "pkgconf"
+)
+
+PROVIDES=(
+    "isl"
+    "libisl"
+    "libisl.so"
+    "libisl.so.23"
+)
+
 CONFLICTS=()
 OBSOLETES=()
 RECOMMENDS=()
 SUGGESTS=()
 
+BUILD_OPTIONS=(
+    "@--stripping"
+    "@--optimize=2"
+)
+
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    BUILDDIR="$SRCDIR/build"
+
+    test -f "$SRCDIR/configure"
+    test -f "$SRCDIR/Makefile.in"
+    test -f "$SRCDIR/include/isl/ctx.h"
+    test -f "$SRCDIR/include/isl/set.h"
+    test -f "$SRCDIR/LICENSE"
+
+    rm -rf "$BUILDDIR"
+    mkdir -p "$BUILDDIR"
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    BUILDDIR="$SRCDIR/build"
+
+    cd "$BUILDDIR"
+
+    ../configure \
+        --prefix=/usr \
+        --bindir=/usr/bin \
+        --libdir=/usr/lib \
+        --includedir=/usr/include \
+        --datadir=/usr/share \
+        --mandir=/usr/share/man \
+        --docdir="/usr/share/doc/isl-${VERSION}" \
+        --with-gmp-prefix=/usr \
+        --enable-shared \
+        --disable-static
+
+    make -j"$(nproc)"
+}
+
+check() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    BUILDDIR="$SRCDIR/build"
+
+    #
+    # Do not run the complete ISL test suite during bootstrap builds.
+    #
+
+    LIBISL="$(
+        find "$BUILDDIR/.libs" \
+            -maxdepth 1 \
+            -type f \
+            -name 'libisl.so.*' \
+            -print \
+            -quit
+    )"
+
+    if [ -z "$LIBISL" ] || [ ! -f "$LIBISL" ]; then
+        echo "[ERROR] Missing build-tree libisl shared library" >&2
+        return 1
+    fi
+
+    ISL_HEADER="$BUILDDIR/.lpm-isl-header"
+    ISL_DYNAMIC="$BUILDDIR/.lpm-isl-dynamic"
+
+    readelf -h "$LIBISL" > "$ISL_HEADER"
+    grep -Fq 'ELF64' "$ISL_HEADER"
+
+    readelf -d "$LIBISL" > "$ISL_DYNAMIC"
+    grep -Fq 'libgmp.so' "$ISL_DYNAMIC"
+
+    rm -f \
+        "$ISL_HEADER" \
+        "$ISL_DYNAMIC"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    BUILDDIR="$SRCDIR/build"
+
+    make \
+        -C "$BUILDDIR" \
+        DESTDIR="$pkgdir" \
+        install
+
+    #
+    # Remove static and Libtool libraries.
+    #
+
+    find "$pkgdir/usr/lib" \
+        -type f \
+        \( -name '*.a' -o -name '*.la' \) \
+        -delete
+
+    #
+    # Validate shared-library compatibility names.
+    #
+
+    test -L "$pkgdir/usr/lib/libisl.so"
+
+    ISL_ABI_LINK="$(
+        find "$pkgdir/usr/lib" \
+            -maxdepth 1 \
+            -type l \
+            -name 'libisl.so.[0-9]*' \
+            -print \
+            -quit
+    )"
+
+    if [ -z "$ISL_ABI_LINK" ]; then
+        echo "[ERROR] Missing versioned libisl ABI link" >&2
+        return 1
+    fi
+
+    LIBISL="$(
+        find "$pkgdir/usr/lib" \
+            -maxdepth 1 \
+            -type f \
+            -name 'libisl.so.*.*' \
+            -print \
+            -quit
+    )"
+
+    if [ -z "$LIBISL" ] || [ ! -f "$LIBISL" ]; then
+        echo "[ERROR] Missing real libisl shared library" >&2
+        return 1
+    fi
+
+    #
+    # Validate ELF architecture, SONAME, and GMP linkage.
+    #
+
+    ISL_HEADER="$SRCDIR/.lpm-isl-header"
+    ISL_DYNAMIC="$SRCDIR/.lpm-isl-dynamic"
+
+    readelf -h "$LIBISL" > "$ISL_HEADER"
+    grep -Fq 'ELF64' "$ISL_HEADER"
+
+    readelf -d "$LIBISL" > "$ISL_DYNAMIC"
+
+    grep -Fq \
+        'Library soname: [libisl.so.' \
+        "$ISL_DYNAMIC"
+
+    grep -Fq \
+        'libgmp.so' \
+        "$ISL_DYNAMIC"
+
+    rm -f \
+        "$ISL_HEADER" \
+        "$ISL_DYNAMIC"
+
+    #
+    # Validate public development headers.
+    #
+
+    for HEADER in \
+        aff.h \
+        ast.h \
+        constraint.h \
+        ctx.h \
+        flow.h \
+        map.h \
+        schedule.h \
+        set.h \
+        space.h \
+        union_map.h \
+        union_set.h \
+        val.h
+    do
+        if [ ! -f "$pkgdir/usr/include/isl/$HEADER" ]; then
+            echo "[ERROR] Missing ISL header: $HEADER" >&2
+            return 1
+        fi
+    done
+
+    #
+    # Validate pkg-config metadata.
+    #
+
+    test -f "$pkgdir/usr/lib/pkgconfig/isl.pc"
+
+    ISL_PC_VERSION="$(
+        PKG_CONFIG_PATH= \
+        PKG_CONFIG_LIBDIR="$pkgdir/usr/lib/pkgconfig" \
+        pkgconf \
+            --modversion \
+            isl
+    )"
+
+    if [ "$ISL_PC_VERSION" != "$VERSION" ]; then
+        echo "[ERROR] Unexpected ISL pkg-config version: $ISL_PC_VERSION" >&2
+        return 1
+    fi
+
+    ISL_PC_LIBS="$(
+        PKG_CONFIG_PATH= \
+        PKG_CONFIG_LIBDIR="$pkgdir/usr/lib/pkgconfig" \
+        pkgconf \
+            --libs \
+            isl
+    )"
+
+    case " $ISL_PC_LIBS " in
+        *" -lisl "*)
+            ;;
+        *)
+            echo "[ERROR] ISL pkg-config metadata does not link libisl" >&2
+            return 1
+            ;;
+    esac
+
+    #
+    # Install licensing information.
+    #
+
+    install -Dm644 \
+        "$SRCDIR/LICENSE" \
+        "$pkgdir/usr/share/licenses/$NAME/LICENSE"
 }
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("3dc31b8e1b18329e42d5dfbf84dd55e15c59b61569a2ab246f61497d9592f727")

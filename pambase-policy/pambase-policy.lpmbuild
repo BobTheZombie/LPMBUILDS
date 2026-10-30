@@ -1,0 +1,51 @@
+NAME="pambase-policy"
+VERSION="20250719"
+RELEASE="1"
+ARCH="x86_64"
+SUMMARY="Base PAM configuration for services"
+URL="https://github.com/lpm-org/pambase-policy"   # placeholder
+SOURCE=(
+  "system-auth"
+  "system-local-login"
+  "system-login"
+  "system-remote-login"
+  "system-services"
+  "other"
+)
+LICENSE=("LGPL-2.1-or-later")
+
+PROVIDES=(
+  "PAM-Policy"
+  "system-auth"
+  "system-local-login"
+  "system-login"
+  "system-remote-login"
+  "system-services"
+  "other"
+)
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT"
+    # Ensure files are in place
+    for f in "${SOURCE[@]}"; do
+        [ -f "$f" ] || { echo "Missing PAM file: $f"; exit 1; }
+    done
+}
+
+build() {
+    # nothing to build, just configs
+    true
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT"
+    install -vDm644 system-auth        "$pkgdir/etc/pam.d/system-auth"
+    install -vDm644 system-local-login "$pkgdir/etc/pam.d/system-local-login"
+    install -vDm644 system-login       "$pkgdir/etc/pam.d/system-login"
+    install -vDm644 system-remote-login "$pkgdir/etc/pam.d/system-remote-login"
+    install -vDm644 system-services    "$pkgdir/etc/pam.d/system-services"
+    install -vDm644 other              "$pkgdir/etc/pam.d/other"
+}
+

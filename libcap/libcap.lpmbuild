@@ -1,34 +1,131 @@
+#!/bin/bash
 # LPM build script for libcap
+
 NAME="libcap"
-VERSION="2.70"
-RELEASE="1"
+VERSION="2.78"
+RELEASE="2"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="POSIX capabilities library"
+
+SUMMARY="POSIX capabilities library and utilities"
 URL="https://sites.google.com/site/fullycapable/"
-LICENSE="BSD-3-Clause"
-SOURCE=("https://www.kernel.org/pub/linux/libs/security/linux-privs/libcap2/libcap-${VERSION}.tar.xz")
+LICENSE=("BSD-3-Clause" "GPL-2.0-only")
+
+SOURCE=(
+    "https://www.kernel.org/pub/linux/libs/security/linux-privs/libcap2/libcap-${VERSION}.tar.xz"
+    "https://gitlab.archlinux.org/archlinux/packaging/packages/libcap/-/raw/main/libcap-2.73-cgo-flags.patch"
+)
+
+SHA256SUMS=(
+    "0d621e562fd932ccf67b9660fb018e468a683d7b827541df27813228c996bb11"
+)
+
+PATCHES=("libcap-2.73-cgo-flags.patch")
+
 REQUIRES=("glibc")
-PROVIDES=("libcap")
+BUILD_REQUIRES=("make")
+
+PROVIDES=(
+    "libcap"
+    "libcap.so"
+    "libcap.so.2"
+    "libpsx.so"
+    "libpsx.so.2"
+)
+
 CONFLICTS=()
 OBSOLETES=()
 RECOMMENDS=()
 SUGGESTS=()
 
+BUILD_OPTIONS=(
+    "@--stripping"
+    "@--optimize=2"
+)
+
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  rm -rf "${NAME}-${VERSION}"
-  tar -xf "libcap-${VERSION}.tar.xz"
+    set -euxo pipefail
+
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    test -f Makefile
+    test -f Make.Rules
+    test -f libcap/Makefile
+    test -f License
+
+    make \
+        prefix=/usr \
+        lib=lib \
+        sbin=bin \
+        PAM_CAP=no \
+        GOLANG=no \
+        clean
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT/${NAME}-${VERSION}"
-  make -j"$(nproc)" prefix=/usr lib=lib
+    set -euxo pipefail
+
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    make \
+        -j"$(nproc)" \
+        prefix=/usr \
+        lib=lib \
+        sbin=bin \
+        PAM_CAP=no \
+        GOLANG=no
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT/${NAME}-${VERSION}"
-  make DESTDIR="$pkgdir" prefix=/usr lib=lib RAISE_SETFCAP=no install
+    set -euxo pipefail
+
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    make \
+        DESTDIR="$pkgdir" \
+        prefix=/usr \
+        lib=lib \
+        sbin=bin \
+        PAM_CAP=no \
+        GOLANG=no \
+        RAISE_SETFCAP=no \
+        install
+
+    find "$pkgdir/usr/lib" \
+        -type f \
+        \( -name '*.a' -o -name '*.la' \) \
+        -delete
+
+    for PROGRAM in capsh getcap getpcaps setcap; do
+        if [ ! -x "$pkgdir/usr/bin/$PROGRAM" ]; then
+            echo "[ERROR] Missing libcap utility: $PROGRAM" >&2
+            return 1
+        fi
+    done
+
+    for LIBRARY in libcap libpsx; do
+        test -L "$pkgdir/usr/lib/${LIBRARY}.so"
+        test -e "$pkgdir/usr/lib/${LIBRARY}.so.2"
+        test -s "$pkgdir/usr/lib/pkgconfig/${LIBRARY}.pc"
+    done
+
+    test -f "$pkgdir/usr/include/sys/capability.h"
+    test -f "$pkgdir/usr/include/sys/psx_syscall.h"
+
+    # Verify that the staged utility can load the staged libraries.
+    LD_LIBRARY_PATH="$pkgdir/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
+        "$pkgdir/usr/bin/capsh" --print \
+        > .lpm-capsh-output
+
+    test -s .lpm-capsh-output
+    rm -f .lpm-capsh-output
+
+    install -Dm644 \
+        License \
+        "$pkgdir/usr/share/licenses/$NAME/License"
 }
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("0d621e562fd932ccf67b9660fb018e468a683d7b827541df27813228c996bb11" "c6f7b96ddf8d537a9dc99940b49dee58b541e7da056a7d3731e250f34187749c")

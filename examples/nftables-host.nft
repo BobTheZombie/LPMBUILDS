@@ -1,0 +1,19 @@
+#!/usr/bin/nft -f
+# EXAMPLE ONLY. Review before applying: new incoming connections are blocked.
+# No flush ruleset: do not erase NetworkManager's connection-sharing tables.
+table inet lpm_host {
+    chain input {
+        type filter hook input priority filter; policy drop;
+        iifname "lo" accept
+        ct state established,related accept
+        ct state invalid drop
+        ip protocol icmp accept
+        meta l4proto ipv6-icmp accept
+        udp sport 67 udp dport 68 accept
+        udp sport 547 udp dport 546 accept
+        # tcp dport 22 accept  # Enable explicitly if using SSH.
+    }
+    chain output {
+        type filter hook output priority filter; policy accept;
+    }
+}

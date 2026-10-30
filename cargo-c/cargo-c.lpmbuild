@@ -1,0 +1,45 @@
+#!/bin/bash
+NAME="cargo-c"
+VERSION="0.10.26"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="cargo-c upstream package"
+URL="https://static.crates.io/crates/cargo-c/"
+LICENSE=("MIT")
+SOURCE=("https://static.crates.io/crates/cargo-c/cargo-c-0.10.26+cargo-0.100.0.crate")
+SHA256SUMS=("5ff6e05531e58286d3c02ec0adb7f254e5d532a8d4b667f30b9942d802e1db25")
+PATCHES=()
+REQUIRES=("gcc-libs" "glibc" "openssl")
+BUILD_REQUIRES=("gcc" "openssl" "pkgconf" "rust>=1.97")
+PROVIDES=("cargo-c")
+CONFLICTS=()
+OBSOLETES=()
+BUILD_OPTIONS=("@--stripping" "@--optimize=2")
+prepare() { set -euxo pipefail; cd "$SRCROOT/${NAME}-${VERSION}"; }
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    cargo build --release --locked 
+}
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    install -Dm755 target/release/cargo-capi "$pkgdir/usr/bin/cargo-capi"
+    install -Dm755 target/release/cargo-cbuild "$pkgdir/usr/bin/cargo-cbuild"
+    install -Dm755 target/release/cargo-cinstall "$pkgdir/usr/bin/cargo-cinstall"
+    install -Dm755 target/release/cargo-ctest "$pkgdir/usr/bin/cargo-ctest"
+    local f
+    for f in COPYING COPYING.LIB LICENSE LICENSE.md LICENSE.txt; do
+        if [ -f "$f" ]; then install -Dm644 "$f" "$pkgdir/usr/share/licenses/$NAME/$f"; fi
+    done
+    if [ -d LICENSES ]; then
+        install -dm755 "$pkgdir/usr/share/licenses/$NAME"
+        cp -a LICENSES/. "$pkgdir/usr/share/licenses/$NAME/"
+    fi
+}
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("5ff6e05531e58286d3c02ec0adb7f254e5d532a8d4b667f30b9942d802e1db25")

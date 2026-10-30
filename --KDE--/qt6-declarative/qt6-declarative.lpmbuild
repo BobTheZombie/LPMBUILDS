@@ -1,0 +1,142 @@
+#!/bin/bash
+# LPM Linux - Qt Declarative / QML / Qt Quick 6.12.0
+# Qt submodules must match the installed Qt Base and ShaderTools versions.
+
+NAME="qt6-declarative"
+VERSION="6.12.0"
+BASE="${VERSION%.*}"
+RELEASE="2"
+ARCH="${ARCH:-x86_64}"
+
+SUMMARY="Qt 6 Declarative, QML, Qt Quick, and Qt Quick Controls"
+URL="https://www.qt.io/"
+LICENSE=("LGPL-3.0-only AND GPL-3.0-only WITH Qt-GPL-exception-1.0")
+
+SOURCE=(
+    "https://download.qt.io/archive/qt/${BASE}/${VERSION}/submodules/qtdeclarative-everywhere-src-${VERSION}.tar.xz"
+)
+SHA256SUMS=(
+    "311f3a2603e1973bb59baef9dfa740a376de713157d4782ee043681e889c9260"
+)
+PATCHES=()
+
+REQUIRES=(
+    "qt6-base"
+    "qt6-shadertools"
+)
+BUILD_REQUIRES=(
+    "cmake"
+    "ninja"
+    "pkgconf"
+    "python"
+    "perl"
+    "qt6-base"
+    "qt6-shadertools"
+)
+REQUIRES_PYTHON_DEPENDENCIES=()
+
+PROVIDES=("qtdeclarative")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+    set -euxo pipefail
+
+    local src="$SRCROOT/$NAME-$VERSION"
+    local upstream="$SRCROOT/qtdeclarative-everywhere-src-$VERSION"
+
+    # Support both normalized LPM extraction and upstream Qt archive layout.
+    if [[ ! -f "$src/CMakeLists.txt" && -f "$upstream/CMakeLists.txt" ]]; then
+        mv "$upstream" "$src"
+    fi
+    if [[ ! -f "$src/CMakeLists.txt" ]]; then
+        echo "[ERROR] Qt Declarative $VERSION source tree missing" >&2
+        return 1
+    fi
+
+    # Discard older configurations that may have disabled Qt Quick silently.
+    rm -rf "$src/build" "$src/.lpm-prereq"
+}
+
+build() {
+    set -euxo pipefail
+
+    local src="$SRCROOT/$NAME-$VERSION"
+    local builddir="$src/build"
+    local prereq="$src/.lpm-prereq"
+
+    # Stop early if the installed Qt components are missing or mismatched.
+    # The unquoted heredoc expands VERSION; it must not be hard-coded.
+    mkdir -p "$prereq"
+    cat > "$prereq/CMakeLists.txt" <<CMAKE
+cmake_minimum_required(VERSION 3.22)
+project(LPMQtDeclarativePrerequisites LANGUAGES CXX)
+find_package(Qt6 ${VERSION} EXACT CONFIG REQUIRED COMPONENTS Core Gui ShaderTools)
+if(NOT TARGET Qt6::Gui OR NOT TARGET Qt6::ShaderTools)
+    message(FATAL_ERROR "Qt GUI or ShaderTools targets missing; rebuild prerequisites")
+endif()
+CMAKE
+
+    cmake -S "$prereq" -B "$prereq/build" -G Ninja \
+        -DCMAKE_PREFIX_PATH=/usr
+    rm -rf "$prereq"
+
+    cmake -S "$src" -B "$builddir" -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DCMAKE_PREFIX_PATH=/usr \
+        -DQT_BUILD_TESTS=OFF \
+        -DQT_BUILD_EXAMPLES=OFF \
+        -DBUILD_TESTING=OFF \
+        -DBUILD_SHARED_LIBS=ON
+
+    # Ensure a successful CMake exit did not silently omit QML / Qt Quick.
+    if [[ ! -f "$builddir/build.ninja" ]]; then
+        echo "[ERROR] No Ninja build graph generated" >&2
+        return 1
+    fi
+    if ! grep -q 'libQt6Quick\.so' "$builddir/build.ninja"; then
+        echo "[ERROR] Qt Quick build targets were not generated" >&2
+        echo "[ERROR] Check Qt Base GUI/OpenGL and ShaderTools support" >&2
+        return 1
+    fi
+
+    cmake --build "$builddir" \
+        --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+staging() {
+    set -euxo pipefail
+
+    local builddir="$SRCROOT/$NAME-$VERSION/build"
+    local component
+
+    DESTDIR="$pkgdir" cmake --install "$builddir"
+
+    # CMake exports are required by QtQuickTimeline, QtQuick3D and Plasma.
+    for component in Qml Quick QuickControls2; do
+        if [[ ! -f "$pkgdir/usr/lib/cmake/Qt6${component}/Qt6${component}Config.cmake" ]]; then
+            echo "[ERROR] Qt6${component} CMake package missing in staging" >&2
+            return 1
+        fi
+    done
+
+    # A nonempty /usr tree is not evidence that the Qt Quick library exists.
+    for component in Qml Quick; do
+        if ! find "$pkgdir/usr/lib" -maxdepth 1 -type f \
+            -name "libQt6${component}.so.*" -print -quit | grep -q .; then
+            echo "[ERROR] libQt6${component} shared library missing in staging" >&2
+            return 1
+        fi
+    done
+
+    if [[ ! -f "$pkgdir/usr/lib/qt6/qml/QtQuick/qmldir" ]]; then
+        echo "[ERROR] QtQuick QML module missing in staging" >&2
+        return 1
+    fi
+
+    echo "[OK] Qt Declarative $VERSION staged with Qt Quick and Quick Controls 2"
+}

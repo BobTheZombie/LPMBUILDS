@@ -1,0 +1,148 @@
+#!/bin/bash
+# LPM Linux - Shiboken6 runtime and generator (Qt for Python 6.12.0)
+# Builds only Shiboken, not the full PySide6 bindings.
+
+NAME="shiboken6"
+VERSION="6.12.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+
+SUMMARY="Qt for Python Shiboken6 binding runtime and generator"
+URL="https://www.qt.io/qt-for-python"
+LICENSE=("LGPL-3.0-only" "GPL-3.0-only WITH Qt-GPL-exception-1.0")
+
+SOURCE=(
+    "https://download.qt.io/official_releases/QtForPython/pyside6/PySide6-${VERSION}-src/pyside-setup-everywhere-src-${VERSION}.tar.xz"
+)
+SHA256SUMS=(
+    "099c1a597cf33c1b000e11cf68a0b82d216fb802bf81726efc720394f10c7751"
+)
+PATCHES=()
+
+REQUIRES=(
+    "python"
+    "qt6-base>=6.12.0"
+    "clang"
+    "llvm"
+    "libxml2"
+    "libxslt"
+)
+BUILD_REQUIRES=(
+    "cmake"
+    "ninja"
+    "pkgconf"
+    "python"
+    "qt6-base>=6.12.0"
+    "clang"
+    "llvm"
+    "libxml2"
+    "libxslt"
+)
+REQUIRES_PYTHON_DEPENDENCIES=()
+
+PROVIDES=("shiboken6-generator")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+    set -euxo pipefail
+
+    local src="$SRCROOT/$NAME-$VERSION"
+    local upstream="$SRCROOT/pyside-setup-everywhere-src-$VERSION"
+
+    if [[ ! -f "$src/CMakeLists.txt" && -f "$upstream/CMakeLists.txt" ]]; then
+        mv "$upstream" "$src"
+    fi
+
+    for required in \
+        "$src/CMakeLists.txt" \
+        "$src/sources/shiboken6/CMakeLists.txt" \
+        "$src/sources/shiboken6_generator/CMakeLists.txt"; do
+        if [[ ! -f "$required" ]]; then
+            echo "[ERROR] Incomplete PySide source archive: $required" >&2
+            return 1
+        fi
+    done
+
+    # Preserve upstream's tested Shiboken superbuild ordering while omitting
+    # PySide bindings and Qt tools (which would pull in many more Qt modules).
+    cat > "$src/CMakeLists.txt" <<'CMAKE'
+cmake_minimum_required(VERSION 3.25)
+cmake_policy(VERSION 3.22)
+
+project(LPMShiboken6 LANGUAGES C CXX)
+find_package(Qt6 6.12.0 EXACT CONFIG REQUIRED COMPONENTS Core)
+set(is_pyside6_superproject_build 1)
+
+add_subdirectory(sources/shiboken6_generator)
+add_subdirectory(sources/shiboken6)
+
+CMAKE
+
+    rm -rf "$src/build"
+}
+
+build() {
+    set -euxo pipefail
+
+    local src="$SRCROOT/$NAME-$VERSION"
+    local builddir="$src/build"
+    local python_site
+    python_site="$(python3 -c 'import sysconfig; print(sysconfig.get_path("platlib"))')"
+
+    if [[ "$python_site" != /usr/lib/* &&
+          "$python_site" != /usr/lib64/* ]]; then
+        echo "[ERROR] Unexpected Python installation path: $python_site" >&2
+        return 1
+    fi
+
+    cmake -S "$src" -B "$builddir" -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DCMAKE_PREFIX_PATH=/usr \
+        -DPython_EXECUTABLE="$(command -v python3)" \
+        -DPYTHON_SITE_PACKAGES="$python_site" \
+        -DBUILD_TESTS=OFF \
+        -DBUILD_DOCS=OFF \
+        -DBUILD_SHARED_LIBS=ON \
+        -DQFP_NO_STRIP=ON
+
+    cmake --build "$builddir" \
+        --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+staging() {
+    set -euxo pipefail
+
+    local builddir="$SRCROOT/$NAME-$VERSION/build"
+    DESTDIR="$pkgdir" cmake --install "$builddir"
+
+    local path
+    for path in \
+        "$pkgdir/usr/bin/shiboken6" \
+        "$pkgdir/usr/lib/cmake/Shiboken6/Shiboken6Config.cmake" \
+        "$pkgdir/usr/lib/cmake/Shiboken6Tools/Shiboken6ToolsConfig.cmake"; do
+        if [[ ! -f "$path" ]]; then
+            echo "[ERROR] Shiboken6 installation missing: $path" >&2
+            return 1
+        fi
+    done
+
+    if ! find "$pkgdir/usr/lib" -maxdepth 1 -name 'libshiboken6*.so*' \
+        -print -quit | grep -q .; then
+        echo "[ERROR] libshiboken6 shared library missing" >&2
+        return 1
+    fi
+
+    if ! find "$pkgdir/usr/lib" "$pkgdir/usr/lib64" \
+        -path '*/site-packages/shiboken6/__init__.py' \
+        -print -quit 2>/dev/null | grep -q .; then
+        echo "[ERROR] shiboken6 Python module missing" >&2
+        return 1
+    fi
+
+    echo "[OK] Shiboken6 $VERSION runtime and generator staged"
+}

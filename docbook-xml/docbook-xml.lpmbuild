@@ -1,49 +1,116 @@
-# LPM build script for docbook-xml
+#!/bin/bash
+# LPM Linux: DocBook XML DTD 4.5
+# Installs the DTD and catalog without claiming the system-wide /etc/xml/catalog.
+
 NAME="docbook-xml"
 VERSION="4.5"
 RELEASE="1"
-ARCH="${ARCH:-x86_64}"
-SUMMARY="DocBook XML DTD 4.5"
-URL="https://docbook.org/"
-LICENSE="custom"
-SOURCE=("https://docbook.org/xml/4.5/docbook-xml-4.5.zip")
-SHA256SUMS=("4e4e037a2b83c98c6c94818390d4bdd3f6e10f6ec62dd79188594e26190dc7b4")
+ARCH="any"
+SUMMARY="DocBook XML DTD ${VERSION}"
+URL="https://docbook.org/xml/"
+LICENSE=("MIT")
+
+SOURCE=(
+    "https://archive.docbook.org/xml/${VERSION}/docbook-xml-${VERSION}.zip"
+)
+SHA256SUMS=(
+    "4e4e037a2b83c98c6c94818390d4bdd3f6e10f6ec62dd79188594e26190dc7b4"
+)
 PATCHES=()
+
 REQUIRES=("libxml2")
-PROVIDES=("docbook-xml" "docbook-xml-4.5")
+BUILD_REQUIRES=("unzip" "libxml2")
+PROVIDES=("docbook-xml" "docbook-xml-dtd" "docbook-xml-${VERSION}")
 CONFLICTS=()
 OBSOLETES=()
 RECOMMENDS=()
 SUGGESTS=()
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
+    set -euo pipefail
+    local archive="$SRCROOT/docbook-xml-${VERSION}.zip"
+    local top="$SRCROOT/docbook-xml-${VERSION}"
 
-  rm -rf docbook-xml-4.5
-  mkdir docbook-xml-4.5
-  unzip -q "${SOURCE[0]##*/}" -d docbook-xml-4.5
+    test -f "$archive" || {
+        echo "[ERROR] Missing DocBook ZIP: $archive" >&2
+        return 1
+    }
+    rm -rf -- "$top"
+    install -d -m755 "$top"
+    unzip -q -o "$archive" -d "$top"
+
+    for file in docbookx.dtd catalog.xml docbook.cat; do
+        test -s "$top/$file" || {
+            echo "[ERROR] DocBook ZIP does not contain $file" >&2
+            return 1
+        }
+    done
+    test -d "$top/ent"
 }
 
-build() {
-  set -euxo pipefail
-  cd "$SRCROOT/docbook-xml-4.5"
+build() { :; }
+
+check() {
+    set -euo pipefail
+    local top="$SRCROOT/docbook-xml-${VERSION}"
+    test -s "$top/docbookx.dtd"
+    test -s "$top/catalog.xml"
+    test -s "$top/calstblx.dtd"
+    test -d "$top/ent"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT/docbook-xml-4.5"
+    set -euo pipefail
+    local top="$SRCROOT/docbook-xml-${VERSION}"
+    local dtdir="/usr/share/xml/docbook/xml-dtd-${VERSION}"
+    local dest="$pkgdir$dtdir"
 
-  local dest="$pkgdir/usr/share/xml/docbook/xml-dtd-4.5"
-  install -d "$dest" "$pkgdir/etc/xml"
+    install -d -m755 "$dest"
+    install -m644 "$top/catalog.xml" "$top/docbook.cat" "$dest/"
+    install -m644 "$top"/*.dtd "$top"/*.mod "$dest/"
+    cp -a -- "$top/ent" "$dest/ent"
 
-  install -m644 ChangeLog README docbook.cat catalog.xml \
-    calstblx.dtd dbcentx.mod dbgenent.mod dbhierx.mod dbnotnx.mod \
-    dbpoolx.mod docbookx.dtd htmltblx.mod soextblx.dtd "$dest"
+    # The upstream catalog registers public IDs. Include network URL rewriting,
+    # as prescribed by BLFS, so xmllint and KDE help processing stay offline.
+    local prefix="file://${dtdir}"
+    xmlcatalog --noout --add rewriteSystem \
+        "http://www.oasis-open.org/docbook/xml/${VERSION}" \
+        "$prefix" "$dest/catalog.xml"
+    xmlcatalog --noout --add rewriteURI \
+        "http://www.oasis-open.org/docbook/xml/${VERSION}" \
+        "$prefix" "$dest/catalog.xml"
 
-  xmlcatalog --create "$pkgdir/etc/xml/catalog"
-  xmlcatalog --noout --add "delegatePublic" "-//OASIS//DTD DocBook XML V4.5//EN" \
-    "file:///usr/share/xml/docbook/xml-dtd-4.5/catalog.xml" "$pkgdir/etc/xml/catalog"
-  xmlcatalog --noout --add "delegateSystem" "http://www.oasis-open.org/docbook/xml/4.5/" \
-    "file:///usr/share/xml/docbook/xml-dtd-4.5/catalog.xml" "$pkgdir/etc/xml/catalog"
+    test -s "$dest/docbookx.dtd"
+    test -s "$dest/catalog.xml"
+}
+
+# LPM captures this function as the package's post-install script.
+# Do NOT stage /etc/xml/catalog: that file is shared across XML packages.
+install_script() {
+    action="${1:-install}"
+    case "$action" in
+        install|upgrade) ;;
+        *) return 0 ;;
+    esac
+
+    if ! command -v xmlcatalog >/dev/null 2>&1; then
+        echo "[ERROR] xmlcatalog missing; install libxml2 before DocBook XML" >&2
+        return 1
+    fi
+
+    install -d -m755 /etc/xml
+    if [ ! -f /etc/xml/catalog ]; then
+        xmlcatalog --noout --create /etc/xml/catalog
+    fi
+
+    docbook_catalog="file:///usr/share/xml/docbook/xml-dtd-4.5/catalog.xml"
+    # Version-specific delegation does not override existing DocBook 4.2 entries.
+    xmlcatalog --noout --add delegatePublic \
+        "-//OASIS//DTD DocBook XML V4.5" "$docbook_catalog" /etc/xml/catalog
+    xmlcatalog --noout --add delegatePublic \
+        "-//OASIS//ENTITIES DocBook XML V4.5" "$docbook_catalog" /etc/xml/catalog
+    xmlcatalog --noout --add delegateSystem \
+        "http://www.oasis-open.org/docbook/xml/4.5/" "$docbook_catalog" /etc/xml/catalog
+    xmlcatalog --noout --add delegateURI \
+        "http://www.oasis-open.org/docbook/xml/4.5/" "$docbook_catalog" /etc/xml/catalog
 }

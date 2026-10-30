@@ -1,0 +1,195 @@
+--- a/etc/login.defs
++++ b/etc/login.defs
+@@ -14,7 +14,6 @@
+ #
+ # Enable logging and display of /var/log/faillog login(1) failure info.
+ #
+-FAILLOG_ENAB		yes
+ 
+ #
+ # Enable display of unknown usernames when login(1) failures are recorded.
+@@ -24,12 +23,10 @@
+ #
+ # Enable logging of successful logins
+ #
+-LOG_OK_LOGINS		no
+ 
+ #
+ # Enable logging and display of /var/log/lastlog login(1) time info.
+ #
+-LASTLOG_ENAB		yes
+ 
+ #
+ # Limit the highest user ID number for which the lastlog entries should
+@@ -46,28 +43,23 @@
+ # Disable if the shell startup files already check for mail
+ # ("mailx -e" or equivalent).
+ #
+-MAIL_CHECK_ENAB		yes
+ 
+ #
+ # Enable additional checks upon password changes.
+ #
+-OBSCURE_CHECKS_ENAB	yes
+ 
+ #
+ # Enable checking of time restrictions specified in /etc/porttime.
+ #
+-PORTTIME_CHECKS_ENAB	yes
+ 
+ #
+ # Enable setting of ulimit, umask, and niceness from passwd(5) gecos field.
+ #
+-QUOTAS_ENAB		yes
+ 
+ #
+ # Enable "syslog" logging of su(1) activity - in addition to sulog file logging.
+ # SYSLOG_SG_ENAB does the same for newgrp(1) and sg(1).
+ #
+-SYSLOG_SU_ENAB		yes
+ SYSLOG_SG_ENAB		yes
+ 
+ #
+@@ -75,7 +67,6 @@
+ # a ":" delimited list of device names.  Root logins will be allowed only
+ # from these devices.
+ #
+-CONSOLE		/etc/securetty
+ #CONSOLE	console:tty01:tty02:tty03:tty04
+ 
+ #
+@@ -105,14 +96,12 @@
+ # If defined, login(1) failures will be logged here in a utmp format.
+ # last(1), when invoked as lastb(1), will read /var/log/btmp, so...
+ #
+-FTMP_FILE	/var/log/btmp
+ 
+ #
+ # If defined, name of file whose presence will inhibit non-root
+ # logins.  The content of this file should be a message indicating
+ # why logins are inhibited.
+ #
+-NOLOGINS_FILE	/etc/nologin
+ 
+ #
+ # If defined, the command name to display when running "su -".  For
+@@ -120,7 +109,6 @@
+ # command as "-su".  If not defined, then ps(1) will display the
+ # name of the shell actually being run, e.g. something like "-sh".
+ #
+-SU_NAME		su
+ 
+ #
+ # *REQUIRED*
+@@ -150,7 +138,6 @@
+ # If defined, an HZ environment parameter spec.
+ #
+ # for Linux/x86
+-ENV_HZ		HZ=100
+ # For Linux/Alpha...
+ #ENV_HZ		HZ=1024
+ 
+@@ -158,8 +145,8 @@
+ # *REQUIRED*  The default PATH settings, for superuser and normal users.
+ #
+ # (they are minimal, add the rest in the shell startup files)
+-ENV_SUPATH	PATH=/sbin:/bin:/usr/sbin:/usr/bin
+-ENV_PATH	PATH=/bin:/usr/bin
++ENV_SUPATH	PATH=/usr/local/sbin:/usr/local/bin:/usr/bin
++ENV_PATH	PATH=/usr/local/bin:/usr/bin
+ 
+ #
+ # Terminal permissions
+@@ -188,8 +175,6 @@
+ #
+ # Prefix these values with "0" to get octal, "0x" to get hexadecimal.
+ #
+-ERASECHAR	0177
+-KILLCHAR	025
+ #ULIMIT		2097152
+ 
+ # Default initial "umask" value used by login(1) on non-PAM enabled systems.
+@@ -201,10 +186,9 @@
+ # must make up their mind.
+ UMASK		022
+ 
+-# HOME_MODE is used by useradd(8) and newusers(8) to set the mode for new
++HOME_MODE	0700
+ # home directories.
+ # If HOME_MODE is not set, the value of UMASK is used to create the mode.
+-#HOME_MODE	0700
+ 
+ #
+ # If "yes", the user must be listed as a member of the first gid 0 group
+@@ -212,7 +196,6 @@
+ # to uid 0 accounts.  If the group doesn't exist or is empty, no one
+ # will be able to "su" to uid 0.
+ #
+-SU_WHEEL_ONLY	no
+ 
+ #
+ # Min/max values for automatic uid selection in useradd(8)
+@@ -220,7 +203,7 @@
+ UID_MIN			 1000
+ UID_MAX			60000
+ # System accounts
+-SYS_UID_MIN		  101
++SYS_UID_MIN	500
+ SYS_UID_MAX		  999
+ # Extra per user uids
+ SUB_UID_MIN		   100000
+@@ -268,7 +251,7 @@
+ GID_MIN			 1000
+ GID_MAX			60000
+ # System accounts
+-SYS_GID_MIN		  101
++SYS_GID_MIN	500
+ SYS_GID_MAX		  999
+ # Extra per user group ids
+ SUB_GID_MIN		   100000
+@@ -323,20 +306,16 @@
+ #
+ # Maximum number of attempts to change password if rejected (too easy)
+ #
+-PASS_CHANGE_TRIES	5
+ 
+ #
+ # Password strength controls:
+ #
+ # Warn about weak passwords (but still allow them) if you are root.
+-PASS_ALWAYS_WARN	yes
+ # Minimum acceptable password length.
+-PASS_MIN_LEN	5
+ 
+ #
+ # Require password before chfn(1)/chsh(1) can make any changes.
+ #
+-CHFN_AUTH		yes
+ 
+ #
+ # Which fields may be changed by regular users using chfn(1) - use
+@@ -363,7 +342,7 @@
+ # Note: if you use PAM, it is recommended to use a value consistent with
+ # the PAM modules configuration.
+ #
+-#ENCRYPT_METHOD SHA512
++ENCRYPT_METHOD	YESCRYPT
+ 
+ #
+ # Only works if ENCRYPT_METHOD is set to SHA256 or SHA512.
+@@ -439,7 +418,6 @@
+ # If this file exists and is readable, login environment will be
+ # read from it.  Every line should be in the form name=value.
+ #
+-ENVIRON_FILE	/etc/environment
+ 
+ #
+ # If defined, this command is run when removing a user.
+@@ -494,7 +472,6 @@
+ # Set to "yes" to prevent for all accounts
+ # Set to "superuser" to prevent for UID 0 / root (default)
+ # Set to "no" to not prevent for any account (dangerous, historical default)
+-PREVENT_NO_AUTH superuser
+ 
+ #
+ # Select the HMAC cryptography algorithm.

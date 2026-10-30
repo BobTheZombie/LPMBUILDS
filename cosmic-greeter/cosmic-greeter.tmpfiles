@@ -1,0 +1,5 @@
+# Runtime directory for COSMIC greeter
+# Created at boot by systemd-tmpfiles
+
+d /run/cosmic-greeter 0755 cosmic-greeter cosmic-greeter -
+

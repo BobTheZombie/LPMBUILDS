@@ -1,14 +1,14 @@
 # LPM build script for lightdm
 NAME="lightdm"
-VERSION="1.32.0"
+VERSION="1.33.1"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="Lightweight display manager"
 URL="https://github.com/canonical/lightdm"
 LICENSE="GPL-3.0-or-later"
 SOURCE=("https://github.com/canonical/lightdm/releases/download/${VERSION}/lightdm-${VERSION}.tar.xz")
-CHECKSUMS=("12f5ab432748f0387c7cf8b94430495a558a035a4f8465e5181af6faff133e4b")
-REQUIRES=("glibc" "pam" "libx11" "libxcb" "libxext" "libxcb" "libxdmcp" "systemd")
+CHECKSUMS=("1a3ca2fea2c97065d85d989048a30fc4148fd0eaf94cffd683f0b3f389fe1ed0")
+REQUIRES=("glibc" "pam" "libX11" "libxcb" "libXext" "libxcb" "libXdmcp" "systemd")
 PROVIDES=("lightdm")
 CONFLICTS=()
 OBSOLETES=()
@@ -32,3 +32,9 @@ staging() {
   cd "$SRCROOT"
   make DESTDIR="$pkgdir" install
 }
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("1a3ca2fea2c97065d85d989048a30fc4148fd0eaf94cffd683f0b3f389fe1ed0")

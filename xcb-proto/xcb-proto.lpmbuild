@@ -1,0 +1,106 @@
+#!/bin/bash
+# LPM build script for xcb-proto
+
+NAME="xcb-proto"
+VERSION="1.17.0"
+RELEASE="1"
+ARCH="noarch"
+
+SUMMARY="XML descriptions of the X protocol and Python XCB generator"
+URL="https://xcb.freedesktop.org/"
+LICENSE=("MIT")
+
+SOURCE=(
+    "https://download.videolan.org/testing/contrib/xcb/xcb-proto-${VERSION}.tar.xz"
+)
+
+SHA256SUMS=("SKIP")
+PATCHES=()
+
+REQUIRES=("python")
+
+BUILD_REQUIRES=(
+    "make"
+    "pkgconf"
+    "python"
+)
+
+PROVIDES=(
+    "xcb-proto"
+    "xcb-proto.pc"
+    "python-xcbgen"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+BUILD_OPTIONS=()
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    test -x configure
+    test -f xcb-proto.pc.in
+    test -d xcbgen
+    test -f COPYING
+
+    if [ -f Makefile ]; then
+        make distclean
+    fi
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    PYTHON=python3 ./configure \
+        --prefix=/usr \
+        --libdir=/usr/lib \
+        --datadir=/usr/share
+
+    make -j"${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+check() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    make check
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    make -j1 DESTDIR="$pkgdir" install
+
+    test -s "$pkgdir/usr/share/pkgconfig/xcb-proto.pc"
+    test -f "$pkgdir/usr/share/xcb/xproto.xml"
+
+    local python_version
+    python_version="$(
+        python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")'
+    )"
+
+    test -f \
+        "$pkgdir/usr/lib/python${python_version}/site-packages/xcbgen/__init__.py"
+
+    local pc_version
+    pc_version="$(
+        PKG_CONFIG_PATH= \
+        PKG_CONFIG_LIBDIR="$pkgdir/usr/share/pkgconfig" \
+            pkgconf --modversion xcb-proto
+    )"
+    test "$pc_version" = "$VERSION"
+
+    install -Dm644 COPYING \
+        "$pkgdir/usr/share/licenses/$NAME/COPYING"
+}
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("2c1bacd2110f4799f74de6ebb714b94cf6f80fb112316b1219480fd22562148c")

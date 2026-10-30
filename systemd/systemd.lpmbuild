@@ -1,52 +1,707 @@
+#!/bin/bash
 # LPM build script for systemd
+
 NAME="systemd"
-VERSION="256"
-RELEASE="1"
+VERSION="262"
+RELEASE="5"
 ARCH="${ARCH:-x86_64}"
+
 SUMMARY="System and service manager"
-URL="https://www.freedesktop.org/wiki/Software/systemd/"
-LICENSE=""
-SOURCE=()
-REQUIRES=("glibc" "util-linux" "pam")
-PROVIDES=("systemd")
-CONFLICTS=()
-OBSOLETES=()
+URL="https://systemd.io/"
+LICENSE=(
+    "GPL-2.0-or-later"
+    "LGPL-2.1-or-later"
+)
+
+SOURCE=(
+    "https://github.com/systemd/systemd/archive/v${VERSION}/systemd-${VERSION}.tar.gz"
+    "0001-Use-Arch-Linux-device-access-groups.patch"
+    "systemd-user.pam"
+    "systemd.install"
+    "systemd-hook"
+    "20-systemd-sysusers.hook"
+    "21-systemd-tmpfiles.hook"
+    "25-systemd-binfmt.hook"
+    "25-systemd-catalog.hook"
+    "25-systemd-hwdb.hook"
+    "25-systemd-sysctl.hook"
+    "30-systemd-daemon-reload-system.hook"
+    "30-systemd-daemon-reload-user.hook"
+    "35-systemd-enqueue-marked.hook"
+    "35-systemd-udev-reload.hook"
+    "35-systemd-update.hook"
+    "36-systemd-modules-load.hook"
+)
+
+SHA256SUMS=(
+    "6aa77506c0644aa67f940a48e3d3a7368601f787e4f249139516d353f107bcab"
+    "3ed6376fa18f9f79413c49ca0a04543476649217365c27cd396c83e867a3dffc"
+    "d89d4a651a0ade67be200b05ddb622b57bc15027bb27a534f719c6274f680673"
+    "1e510400fde975426c9ce881d355e69195804930da2de09488a3653d33670c89"
+    "90e00dd01359565be85a8cdd93b424b4c1c89563300d16eaf0e7eedc349bf9fc"
+    "f55162dc55268aa3850ef410aa1e444defa0f68b996e415c8b8bc04d63053e7a"
+    "3cfdc3c21d32cc35b1315f4ff4df87238bc7d2c27bdcf4e5a70600832c481e95"
+    "a938701f4244ebdc4ae88ed0032a8315b68f086c6e45d9f2e34ef9442a8f6b47"
+    "be3c749ed51ee26c8412e0304a41ac5e00e668f4d5227b5f359a3b0c31d18d5d"
+    "b19b23467dc33b3e8267cabea10726b0d181e0de1b491ec538b9fb620bccf57f"
+    "1af0fbaeaf974fe3d8409854179fac68e8461524dd49849b7e889374363ce3c9"
+    "2d2733a167ee360a36d6cc613001913deb62f199d73e86d39bfe06e669f4b066"
+    "5e35263da327771ec1b9bff1d792b0da4c802f0322e40838f07554788fc191e2"
+    "06180f1d8133babcec60bda7aacc06d881626e2a1d7ca164eeab59a6657bf501"
+    "f6364443609b1d5a07f385e7228ace0eae5040ae3bbd4e00ed5033ef1b19e4b9"
+    "1090b7b1edba2042298b609a77bbe122982ca936208408fb79d77b33a2f3c27a"
+    "53e1ac2a7ddcd696f7c8c930bd36c8764b9d46502cf56340c67a579b128dae4c"
+)
+
+PATCHES=(
+    "0001-Use-Arch-Linux-device-access-groups.patch"
+)
+
+REQUIRES=(
+    "dbus"
+    "glibc"
+    "kmod"
+    "acl"
+    "libarchive"
+    "libcap"
+    "curl"
+    "libmicrohttpd"
+    "libgcrypt"
+    "libidn2"
+    "libseccomp"
+    "libxcrypt"
+    "lz4"
+    "openssl"
+    "pcre2"
+    "xz"
+    "zlib"
+    "zstd"
+)
+
+BUILD_REQUIRES=(
+    "dbus"
+    "gettext"
+    "gperf"
+    "kmod"
+    "acl"
+    "libarchive"
+    "libcap"
+    "curl"
+    "libmicrohttpd"
+    "libgcrypt"
+    "libidn2"
+    "libseccomp"
+    "libxcrypt"
+    "lz4"
+    "meson"
+    "ninja"
+    "openssl"
+    "pcre2"
+    "pkgconf"
+    "python"
+    "unzip"
+    "xz"
+    "zlib"
+    "zstd"
+)
+
+REQUIRES_PYTHON_DEPENDENCIES=("jinja2" "lxml" "pyelftools")
+
+# These are built only after the bootstrap systemd package is installed.
+# audit also depends on systemd; cryptsetup needs the util-linux libraries.
+STAGE_2_REQUIRES=("pam" "util-linux" "util-linux-libs" "audit" "cryptsetup" "libfido2")
+STAGE_2_BUILD_REQUIRES=("pam" "util-linux-libs" "util-linux" "audit" "cryptsetup")
+
+# LPM reads metadata with LPM_BUILD_STAGE set for the current pass.
+# The final package must declare the libraries it actually links against.
+if [ "${LPM_BUILD_STAGE:-1}" = 2 ]; then
+    REQUIRES+=("pam" "util-linux-libs" "util-linux" "audit" "cryptsetup" "libfido2")
+    BUILD_REQUIRES+=("pam" "util-linux-libs" "util-linux" "audit" "cryptsetup" "libfido2")
+fi
+
+PROVIDES=(
+    "systemd"
+    "udev"
+    "libsystemd.so"
+    "libsystemd.so.0"
+    "libudev.so"
+    "libudev.so.1"
+    "systemd-sysusers"
+    "systemd-tmpfiles"
+    "systemd-boot"
+)
+
+if [ "${LPM_BUILD_STAGE:-1}" = 2 ]; then
+    PROVIDES+=("systemd-homed" "bootctl")
+fi
+
+CONFLICTS=(
+    "eudev"
+)
+
+OBSOLETES=(
+    "udev"
+)
+
 RECOMMENDS=()
-SUGGESTS=()
+SUGGESTS=(
+    "polkit"
+    "tpm2-tss"
+)
+
+INSTALL="systemd.install"
+
+BUILD_OPTIONS=(
+    "@--stripping"
+    "@--optimize=2"
+)
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  mkdir -p build
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    BUILDDIR="$SRCDIR/build"
+
+    test -f "$SRCDIR/meson.build"
+    test -f "$SRCDIR/meson_options.txt"
+    test -f "$SRCROOT/systemd-user.pam"
+    test -f "$SRCROOT/systemd.install"
+    test -f "$SRCROOT/systemd-hook"
+    sh -n "$SRCROOT/systemd-hook"
+
+    for HOOK in \
+        20-systemd-sysusers.hook \
+        21-systemd-tmpfiles.hook \
+        25-systemd-binfmt.hook \
+        25-systemd-catalog.hook \
+        25-systemd-hwdb.hook \
+        25-systemd-sysctl.hook \
+        30-systemd-daemon-reload-system.hook \
+        30-systemd-daemon-reload-user.hook \
+        35-systemd-enqueue-marked.hook \
+        35-systemd-udev-reload.hook \
+        35-systemd-update.hook \
+        36-systemd-modules-load.hook
+    do
+        test -f "$SRCROOT/$HOOK"
+        grep -Fq '[Trigger]' "$SRCROOT/$HOOK"
+        grep -Fq '[Action]' "$SRCROOT/$HOOK"
+    done
+
+    #
+    # PATCHES are applied by LPM before prepare().
+    #
+
+    rm -rf "$BUILDDIR"
+}
+
+_systemd_options() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    BUILDDIR="$SRCDIR/build"
+    
+
+    MESON_OPTIONS=(
+        --prefix=/usr
+        --bindir=bin
+        --sbindir=bin
+        --libdir=lib
+        --libexecdir=lib/systemd
+        --includedir=include
+        --datadir=share
+        --sysconfdir=/etc
+        --localstatedir=/var
+        --buildtype=release
+
+        -Dmode=release
+        -Dversion-tag="${VERSION}-${RELEASE}"
+        -Dvcs-tag=false
+        -Dsplit-bin=false
+
+        #
+        # Core system services.
+        #
+
+        -Dinitrd=true
+        -Dcompat-sysv-interfaces=false
+        -Dutmp=true
+        -Dhibernate=true
+        -Dldconfig=true
+        -Denvironment-d=true
+        -Dbinfmt=true
+        -Dcoredump=true
+        -Dpstore=true
+        -Doomd=true
+        -Dlogind=true
+        -Dhostnamed=true
+        -Dlocaled=true
+        -Dtimedated=true
+        -Dfirstboot=true
+        -Drandomseed=true
+        -Dbacklight=true
+        -Dvconsole=true
+        -Drfkill=true
+        -Dhwdb=true
+        -Dsysusers=true
+        -Dtmpfiles=true
+
+        #
+        # User and identity management.
+        #
+
+        -Dpamlibdir=/usr/lib/security
+        -Dpamconfdir=/usr/lib/pam.d
+        -Duserdb=true
+        -Dnss-myhostname=true
+        -Dnss-mymachines=enabled
+        -Dnss-resolve=enabled
+        -Dnss-systemd=true
+
+        #
+        # Networking and time synchronization.
+        #
+
+        -Dnetworkd=true
+        -Dresolve=true
+        -Dtimesyncd=true
+        -Ddefault-network=false
+        -Ddefault-dnssec=no
+        -Ddns-over-tls=openssl
+
+        #
+        # Boot management.
+        #
+        # This produces bootctl, systemd-boot and the EFI stub on x86_64.
+        #
+
+        -Defi=true
+        -Dbootloader=enabled
+        -Dtpm=true
+
+        #
+        # Disk and system-image management.
+        #
+
+        -Dsysext=true
+
+        #
+        # Containers and portable services.
+        #
+
+        -Dmachined=true
+        -Dportabled=true
+        -Dnspawn=enabled
+        -Dimportd=enabled
+        -Dremote=enabled
+
+        #
+        # Library integrations.
+        #
+
+        -Dlibcrypt=enabled
+        -Dkmod=enabled
+        -Dseccomp=enabled
+        -Dopenssl=enabled
+        -Dlibidn2=enabled
+        -Dlibarchive=enabled
+        -Dlibcurl=enabled
+        -Dpcre2=enabled
+        -Dxz=enabled
+        -Dlz4=enabled
+        -Dzstd=enabled
+        -Dzlib=enabled
+        -Ddefault-compression=zstd
+
+        #
+        # Distribution defaults.
+        #
+
+        -Ddefault-locale=en_US.UTF-8
+        -Dfallback-hostname=lpm-linux
+        -Ddefault-kill-user-processes=false
+        -Djournal-storage-default=auto
+        -Dcreate-log-dirs=false
+        -Dlocalegen-path=/usr/bin/locale-gen
+        -Dnologin-path=/usr/bin/nologin
+
+        -Ddbuspolicydir=/usr/share/dbus-1/system.d
+        -Ddbussystemservicedir=/usr/share/dbus-1/system-services
+        -Ddbussessionservicedir=/usr/share/dbus-1/services
+
+        -Drpmmacrosdir=no
+
+        #
+        # Secure Boot Advanced Targeting metadata.
+        #
+
+        -Dsbat-distro=lpm
+        -Dsbat-distro-generation=1
+        -Dsbat-distro-summary="LPM Linux"
+        -Dsbat-distro-pkgname=systemd
+        -Dsbat-distro-version="${VERSION}-${RELEASE}"
+        -Dsbat-distro-url=https://github.com/BobTheZombie/LPM.Org
+
+        #
+        # Documentation and tests.
+        #
+
+        -Dman=disabled
+        -Dhtml=disabled
+        -Dinstall-tests=false
+        -Dtests=false
+    )
+
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  meson setup build \
-  --prefix=/usr \
-  --sysconfdir=/etc \
-  --localstatedir=/var \
-  -Ddefault-hierarchy=unified
-  ninja -C build
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    _systemd_options
+
+    # Stage 1: no PAM or util-linux library dependencies.
+    meson setup build . "${MESON_OPTIONS[@]}" \
+        -Dlibfido2=disabled \
+        -Dpam=disabled \
+        -Dlibmount=disabled \
+        -Dfdisk=disabled \
+        -Dblkid=disabled \
+        -Daudit=disabled \
+        -Dlibcryptsetup=disabled \
+        -Dhomed=disabled \
+        -Drepart=disabled \
+        -Dsysupdate=disabled \
+        -Dsysupdated=disabled \
+        -Dsysinstall=false \
+        -Dmountfsd=false
+
+    meson compile -C build -j "$(nproc)"
+}
+
+build_stage2() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    _systemd_options
+
+    # Stage 2: LPM has installed PAM, util-linux and their split libraries.
+    meson setup build . "${MESON_OPTIONS[@]}" \
+        -Dlibfido2=enabled \
+        -Dpam=enabled \
+        -Dlibmount=enabled \
+        -Dfdisk=enabled \
+        -Dblkid=enabled \
+        -Daudit=enabled \
+        -Dlibcryptsetup=enabled \
+        -Dhomed=enabled \
+        -Drepart=enabled \
+        -Dsysupdate=enabled \
+        -Dsysupdated=enabled \
+        -Dsysinstall=true \
+        -Dmountfsd=true
+
+    meson compile -C build -j "$(nproc)"
+}
+
+check() {
+    set -euxo pipefail
+
+    BUILDDIR="$SRCROOT/${NAME}-${VERSION}/build"
+
+    #
+    # Do not run systemd's host-sensitive test suite during bootstrap.
+    # Validate the required build products instead.
+    #
+
+    for PROGRAM in \
+        systemctl \
+        systemd \
+        systemd-sysusers \
+        systemd-tmpfiles \
+        udevadm
+    do
+        if ! find "$BUILDDIR" \
+            -type f \
+            -name "$PROGRAM" \
+            -print \
+            -quit |
+            grep -q .
+        then
+            echo "[ERROR] Missing build artifact: $PROGRAM" >&2
+            return 1
+        fi
+    done
+
+    if [ "${LPM_BUILD_STAGE:-1}" = 2 ]; then
+        local bootctl_artifact
+        bootctl_artifact="$(find "$BUILDDIR" -type f -name bootctl -print -quit)"
+        if [ -z "$bootctl_artifact" ] || [ ! -x "$bootctl_artifact" ]; then
+            echo "[ERROR] Missing stage 2 build artifact: bootctl" >&2
+            return 1
+        fi
+    fi
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ninja -C build install DESTDIR="$pkgdir"
+    set -euxo pipefail
 
-  # Enable networkd + resolved
-  mkdir -p "$pkgdir/etc/systemd/system/multi-user.target.wants"
-  ln -sf /usr/lib/systemd/system/systemd-networkd.service "$pkgdir/etc/systemd/system/multi-user.target.wants/systemd-networkd.service"
-  ln -sf /usr/lib/systemd/system/systemd-resolved.service "$pkgdir/etc/systemd/system/multi-user.target.wants/systemd-resolved.service"
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    BUILDDIR="$SRCDIR/build"
 
-  # Default wired DHCP config
-  install -Dm644 /dev/stdin "$pkgdir/etc/systemd/network/20-wired.network" <<'EOF'
-  [Match]
-  Name=en*
+    DESTDIR="$pkgdir" \
+        meson install \
+            -C "$BUILDDIR" \
+            --no-rebuild
 
-  [Network]
-  DHCP=yes
-  EOF
+    #
+    # Install PAM configuration only in the final package.
+    #
+
+    if [ "${LPM_BUILD_STAGE:-1}" = 2 ]; then
+        install -Dm644 \
+            "$SRCROOT/systemd-user.pam" \
+            "$pkgdir/usr/lib/pam.d/systemd-user"
+    fi
+
+    #
+    # Install the systemd transaction hook dispatcher and hooks. Arch ships
+    # these for libalpm; LPM uses the same hook syntax but scans
+    # /usr/share/liblpm/hooks and keeps executables in /usr/libexec/lpm/hooks.
+    #
+
+    install -Dm755 \
+        "$SRCROOT/systemd-hook" \
+        "$pkgdir/usr/libexec/lpm/hooks/systemd-hook"
+
+    install -dm755 \
+        "$pkgdir/usr/share/liblpm/hooks"
+
+    for HOOK in \
+        20-systemd-sysusers.hook \
+        21-systemd-tmpfiles.hook \
+        25-systemd-binfmt.hook \
+        25-systemd-catalog.hook \
+        25-systemd-hwdb.hook \
+        25-systemd-sysctl.hook \
+        30-systemd-daemon-reload-system.hook \
+        30-systemd-daemon-reload-user.hook \
+        35-systemd-enqueue-marked.hook \
+        35-systemd-udev-reload.hook \
+        35-systemd-update.hook \
+        36-systemd-modules-load.hook
+    do
+        install -m644 \
+            "$SRCROOT/$HOOK" \
+            "$pkgdir/usr/share/liblpm/hooks/$HOOK"
+
+        sed -i \
+            -e 's|/usr/share/libalpm/scripts/systemd-hook|/usr/libexec/lpm/hooks/systemd-hook|g' \
+            -e 's|/usr/libexec/lpm/scripts/systemd-hook|/usr/libexec/lpm/hooks/systemd-hook|g' \
+            "$pkgdir/usr/share/liblpm/hooks/$HOOK"
+    done
+
+    #
+    # Compatibility links for the merged-/usr layout.
+    #
+
+    install -dm755 \
+        "$pkgdir/usr/bin" \
+        "$pkgdir/usr/lib"
+
+    ln -sfn systemctl \
+        "$pkgdir/usr/bin/halt"
+
+    ln -sfn systemctl \
+        "$pkgdir/usr/bin/poweroff"
+
+    ln -sfn systemctl \
+        "$pkgdir/usr/bin/reboot"
+
+    ln -sfn systemctl \
+        "$pkgdir/usr/bin/shutdown"
+
+    ln -sfn systemd/systemd \
+        "$pkgdir/usr/lib/init"
+
+    #
+    # Machine-specific and runtime-generated files must not be packaged.
+    #
+
+    rm -f \
+        "$pkgdir/etc/machine-id" \
+        "$pkgdir/etc/hostname" \
+        "$pkgdir/etc/resolv.conf"
+
+    rm -rf \
+        "$pkgdir/run"
+
+    #
+    # Remove static and Libtool libraries if generated.
+    #
+
+    find "$pkgdir/usr/lib" \
+        -type f \
+        \( -name '*.a' -o -name '*.la' \) \
+        -delete
+
+    #
+    # Validate PID 1, control tools and account/filesystem provisioning.
+    #
+
+    test -x "$pkgdir/usr/lib/systemd/systemd"
+    test -x "$pkgdir/usr/bin/systemctl"
+    test -x "$pkgdir/usr/bin/systemd-sysusers"
+    test -x "$pkgdir/usr/bin/systemd-tmpfiles"
+    if [ "${LPM_BUILD_STAGE:-1}" = 2 ]; then
+        test -x "$pkgdir/usr/lib/systemd/systemd-homed"
+    fi
+    if [ "${LPM_BUILD_STAGE:-1}" = 2 ]; then
+        test -x "$pkgdir/usr/bin/homectl"
+    fi
+    test -x "$pkgdir/usr/bin/loginctl"
+    test -x "$pkgdir/usr/bin/hostnamectl"
+    test -x "$pkgdir/usr/bin/localectl"
+    test -x "$pkgdir/usr/bin/timedatectl"
+    test -x "$pkgdir/usr/bin/networkctl"
+    test -x "$pkgdir/usr/bin/resolvectl"
+    if [ "${LPM_BUILD_STAGE:-1}" = 2 ]; then
+        test -x "$pkgdir/usr/bin/bootctl"
+    fi
+    test -x "$pkgdir/usr/bin/udevadm"
+
+    #
+    # Validate system services.
+    #
+
+    SYSTEM_UNIT_DIR="$pkgdir/usr/lib/systemd/system"
+
+    if [ "${LPM_BUILD_STAGE:-1}" = 2 ]; then
+        test -f "$SYSTEM_UNIT_DIR/systemd-homed.service"
+    fi
+    test -f "$SYSTEM_UNIT_DIR/systemd-userdbd.service"
+    test -f "$SYSTEM_UNIT_DIR/systemd-sysusers.service"
+    test -f "$SYSTEM_UNIT_DIR/systemd-tmpfiles-setup.service"
+    test -f "$SYSTEM_UNIT_DIR/systemd-logind.service"
+    test -f "$SYSTEM_UNIT_DIR/systemd-networkd.service"
+    test -f "$SYSTEM_UNIT_DIR/systemd-resolved.service"
+    test -f "$SYSTEM_UNIT_DIR/systemd-timesyncd.service"
+
+    #
+    # Validate PAM integration.
+    #
+
+    if [ "${LPM_BUILD_STAGE:-1}" = 2 ]; then
+        test -f "$pkgdir/usr/lib/security/pam_systemd.so"
+    fi
+    if [ "${LPM_BUILD_STAGE:-1}" = 2 ]; then
+        test -f "$pkgdir/usr/lib/pam.d/systemd-user"
+    fi
+
+    #
+    # Validate shared libraries and development metadata.
+    #
+
+    test -e "$pkgdir/usr/lib/libsystemd.so"
+    test -e "$pkgdir/usr/lib/libsystemd.so.0"
+    test -e "$pkgdir/usr/lib/libudev.so"
+    test -e "$pkgdir/usr/lib/libudev.so.1"
+
+    test -f "$pkgdir/usr/include/systemd/sd-bus.h"
+    test -f "$pkgdir/usr/include/libudev.h"
+    test -f "$pkgdir/usr/lib/pkgconfig/libsystemd.pc"
+    test -f "$pkgdir/usr/lib/pkgconfig/libudev.pc"
+
+    #
+    # Validate EFI boot components.
+    #
+
+    EFI_DIR="$pkgdir/usr/lib/systemd/boot/efi"
+
+    test -d "$EFI_DIR"
+
+    find "$EFI_DIR" \
+        -maxdepth 1 \
+        -type f \
+        \( -name 'systemd-bootx64.efi' \
+        -o -name 'systemd-bootx64.efi.signed' \) \
+        -print \
+        -quit |
+        grep -q .
+
+    find "$EFI_DIR" \
+        -maxdepth 1 \
+        -type f \
+        -name 'linuxx64.efi.stub' \
+        -print \
+        -quit |
+        grep -q .
+
+    #
+    # Validate sysusers and tmpfiles configuration directories.
+    #
+
+    test -d "$pkgdir/usr/lib/sysusers.d"
+    test -d "$pkgdir/usr/lib/tmpfiles.d"
+
+    #
+    # Validate LPM integration.
+    #
+
+    test -x \
+        "$pkgdir/usr/libexec/lpm/hooks/systemd-hook"
+
+    for HOOK in \
+        20-systemd-sysusers.hook \
+        21-systemd-tmpfiles.hook \
+        25-systemd-binfmt.hook \
+        25-systemd-catalog.hook \
+        25-systemd-hwdb.hook \
+        25-systemd-sysctl.hook \
+        30-systemd-daemon-reload-system.hook \
+        30-systemd-daemon-reload-user.hook \
+        35-systemd-enqueue-marked.hook \
+        35-systemd-udev-reload.hook \
+        35-systemd-update.hook \
+        36-systemd-modules-load.hook
+    do
+        INSTALLED_HOOK="$pkgdir/usr/share/liblpm/hooks/$HOOK"
+
+        test -f "$INSTALLED_HOOK"
+
+        # Some hooks invoke systemctl directly; others use the dispatcher.
+        # Require an absolute command instead of requiring one specific script.
+        if ! grep -Eq \
+            '^[[:space:]]*Exec[[:space:]]*=[[:space:]]*/usr/[^[:space:]]+' \
+            "$INSTALLED_HOOK"
+        then
+            echo "[ERROR] Missing absolute Exec command in $HOOK" >&2
+            return 1
+        fi
+
+        if grep -Eq '/usr/share/libalpm|/usr/libexec/lpm/scripts/' \
+            "$INSTALLED_HOOK"
+        then
+            echo "[ERROR] Unconverted hook path remains in $HOOK" >&2
+            return 1
+        fi
+    done
+
+    #
+    # Install licenses.
+    #
+
+    install -Dm644 \
+        "$SRCDIR/LICENSE.GPL2" \
+        "$pkgdir/usr/share/licenses/$NAME/LICENSE.GPL2"
+
+    install -Dm644 \
+        "$SRCDIR/LICENSE.LGPL2.1" \
+        "$pkgdir/usr/share/licenses/$NAME/LICENSE.LGPL2.1"
 }
+
+PROVIDES+=("libudev" "udev" "libudev.so.1")
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("6aa77506c0644aa67f940a48e3d3a7368601f787e4f249139516d353f107bcab" "3ed6376fa18f9f79413c49ca0a04543476649217365c27cd396c83e867a3dffc" "d89d4a651a0ade67be200b05ddb622b57bc15027bb27a534f719c6274f680673" "1e510400fde975426c9ce881d355e69195804930da2de09488a3653d33670c89" "90e00dd01359565be85a8cdd93b424b4c1c89563300d16eaf0e7eedc349bf9fc" "f55162dc55268aa3850ef410aa1e444defa0f68b996e415c8b8bc04d63053e7a" "3cfdc3c21d32cc35b1315f4ff4df87238bc7d2c27bdcf4e5a70600832c481e95" "a938701f4244ebdc4ae88ed0032a8315b68f086c6e45d9f2e34ef9442a8f6b47" "be3c749ed51ee26c8412e0304a41ac5e00e668f4d5227b5f359a3b0c31d18d5d" "b19b23467dc33b3e8267cabea10726b0d181e0de1b491ec538b9fb620bccf57f" "1af0fbaeaf974fe3d8409854179fac68e8461524dd49849b7e889374363ce3c9" "2d2733a167ee360a36d6cc613001913deb62f199d73e86d39bfe06e669f4b066" "5e35263da327771ec1b9bff1d792b0da4c802f0322e40838f07554788fc191e2" "06180f1d8133babcec60bda7aacc06d881626e2a1d7ca164eeab59a6657bf501" "f6364443609b1d5a07f385e7228ace0eae5040ae3bbd4e00ed5033ef1b19e4b9" "1090b7b1edba2042298b609a77bbe122982ca936208408fb79d77b33a2f3c27a" "53e1ac2a7ddcd696f7c8c930bd36c8764b9d46502cf56340c67a579b128dae4c")

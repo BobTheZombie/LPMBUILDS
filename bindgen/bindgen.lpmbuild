@@ -1,0 +1,42 @@
+#!/bin/bash
+NAME="bindgen"
+VERSION="0.73.2"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="bindgen upstream package"
+URL="https://github.com/rust-lang/rust-bindgen/archive/refs/tags/"
+LICENSE=("BSD-3-Clause")
+SOURCE=("https://github.com/rust-lang/rust-bindgen/archive/refs/tags/v0.73.2.tar.gz")
+SHA256SUMS=("5fc3277dd334e4bbbd7bdb8cad5d4fb87a667b2e95a2bae350a8d5424c280629")
+PATCHES=()
+REQUIRES=("gcc-libs" "glibc" "llvm")
+BUILD_REQUIRES=("gcc" "llvm" "rust")
+PROVIDES=("bindgen")
+CONFLICTS=()
+OBSOLETES=()
+BUILD_OPTIONS=("@--stripping" "@--optimize=2")
+prepare() { set -euxo pipefail; cd "$SRCROOT/${NAME}-${VERSION}"; }
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    cargo build --release --locked -p bindgen-cli
+}
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    install -Dm755 target/release/bindgen "$pkgdir/usr/bin/bindgen"
+    local f
+    for f in COPYING COPYING.LIB LICENSE LICENSE.md LICENSE.txt; do
+        if [ -f "$f" ]; then install -Dm644 "$f" "$pkgdir/usr/share/licenses/$NAME/$f"; fi
+    done
+    if [ -d LICENSES ]; then
+        install -dm755 "$pkgdir/usr/share/licenses/$NAME"
+        cp -a LICENSES/. "$pkgdir/usr/share/licenses/$NAME/"
+    fi
+}
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("5fc3277dd334e4bbbd7bdb8cad5d4fb87a667b2e95a2bae350a8d5424c280629")

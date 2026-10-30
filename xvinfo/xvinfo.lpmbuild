@@ -1,0 +1,49 @@
+#!/bin/bash
+# LPM build script for xvinfo
+
+NAME="xvinfo"
+VERSION="1.1.6"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Show X-Video extension adaptor information"
+URL="https://www.x.org/"
+LICENSE="MIT"
+
+SOURCE=("https://www.x.org/archive//individual/app/${NAME}-${VERSION}.tar.xz")
+
+REQUIRES=(
+  "glibc"
+  "libX11"
+  "libXv"
+)
+
+PROVIDES=("xvinfo")
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+  ./configure --prefix=/usr
+  make -j"$(nproc)"
+}
+
+check() { true; }
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+  DESTDIR="$pkgdir" make install
+}
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("a436945e6a4ab70590358eec2b85d26970f7de480d27e8a25af8fe8421e88ae2")

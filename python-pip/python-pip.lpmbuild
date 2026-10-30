@@ -1,34 +1,39 @@
-# LPM build script for python-pip
+#!/bin/bash
 NAME="python-pip"
-VERSION="24.2"
+VERSION="26.2.2"
 RELEASE="1"
-ARCH="${ARCH:-x86_64}"
-SUMMARY="The PyPA installer"
-URL="https://pip.pypa.io/"
-LICENSE=""
-SOURCE=()
-REQUIRES=("python" "python-setuptools" "python-wheel")
-PROVIDES=("python-pip")
-CONFLICTS=()
-OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
-
+ARCH="noarch"
+SUMMARY="PyPA pip (published pure-Python bootstrap wheel)"
+URL="https://pypi.org/project/pip/"
+LICENSE=("MIT")
+SOURCE=("https://files.pythonhosted.org/packages/3f/06/3e4420302363fbb71be3c7f35ce042f54bfca330e3e66b3a2e3c4cca579f/pip-26.2.2-py3-none-any.whl")
+SHA256SUMS=("fd7f4dfa8190e014013b9f08f3e973f4e4c26ffd179a204895533a7254813a70")
+REQUIRES=("python")
+BUILD_REQUIRES=("python")
+PROVIDES=("python-pip" "pip")
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+    test -f "$SRCROOT/pip-26.2.2-py3-none-any.whl"
+    python3 -c 'import ensurepip'
 }
-
-build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
-}
-
+build() { true; }
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euxo pipefail
+    python3 - "$pkgdir" "$SRCROOT/pip-26.2.2-py3-none-any.whl" <<'PYINSTALL'
+import ensurepip
+import pathlib
+import runpy
+import sys
+root, wheel = sys.argv[1:]
+bundle = next((pathlib.Path(ensurepip.__file__).parent / "_bundled").glob("pip-*.whl"))
+sys.path.insert(0, str(bundle))
+sys.argv = ["pip", "--isolated", "install", "--no-index", "--no-deps", "--ignore-installed",
+            "--no-compile", "--root", root, "--prefix", "/usr", wheel]
+runpy.run_module("pip", run_name="__main__")
+PYINSTALL
 }
+
+
+
+# Final audited source digests
+SHA256SUMS=("fd7f4dfa8190e014013b9f08f3e973f4e4c26ffd179a204895533a7254813a70")

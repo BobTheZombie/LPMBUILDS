@@ -1,0 +1,1 @@
+u dhcpcd - "DHCP client privilege separation" /var/lib/dhcpcd /usr/bin/nologin

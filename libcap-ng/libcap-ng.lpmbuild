@@ -1,0 +1,49 @@
+#!/bin/bash
+NAME="libcap-ng"
+VERSION="0.9.6"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Capabilities library and utilities"
+URL="https://github.com/stevegrubb/libcap-ng"
+LICENSE=("LGPL-2.1-or-later")
+SOURCE=("https://github.com/stevegrubb/libcap-ng/archive/refs/tags/v${VERSION}.tar.gz")
+SHA256SUMS=("399040138e0ca62fa2bcabd63da9af4431a246ef7a654561a0ca3cb00010a539")
+PATCHES=()
+REQUIRES=("glibc")
+BUILD_REQUIRES=("gcc" "make" "autoconf" "automake" "libtool" "pkgconf")
+PROVIDES=("libcap-ng" "libcap-ng.so" "libcap-ng.so.0")
+STAGE_2_REQUIRES=()
+STAGE_2_BUILD_REQUIRES=()
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+BUILD_OPTIONS=("@--stripping" "@--optimize=2")
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    touch NEWS
+    autoreconf -vif
+}
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    ./configure --prefix=/usr --bindir=/usr/bin --libdir=/usr/lib \
+        --disable-static --without-python --without-python3 --disable-cap-audit
+    make -j"$(nproc)"
+}
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    make DESTDIR="$pkgdir" install
+    find "$pkgdir/usr/lib" -type f \( -name '*.a' -o -name '*.la' \) -delete
+    test -e "$pkgdir/usr/lib/libcap-ng.so.0"
+    test -f "$pkgdir/usr/include/cap-ng.h"
+    install -Dm644 COPYING.LIB "$pkgdir/usr/share/licenses/$NAME/COPYING.LIB"
+}
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("399040138e0ca62fa2bcabd63da9af4431a246ef7a654561a0ca3cb00010a539")

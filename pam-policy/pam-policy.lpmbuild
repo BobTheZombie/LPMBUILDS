@@ -1,0 +1,57 @@
+NAME="pam-policy"
+VERSION="20261016LPM"
+RELEASE="1"
+ARCH="x86_64"
+SUMMARY="PAM configuration for LPM services"
+URL="https://github.com/lpm-org/pambase-policy"   # placeholder
+SOURCE=(
+  "system-auth"
+  "system-local-login"
+  "system-login"
+  "system-remote-login"
+  "system-services"
+  "other"
+)
+LICENSE=("LGPL-2.1-or-later")
+
+PROVIDES=(
+  "PAM-Policy"
+  "system-auth"
+  "system-local-login"
+  "system-login"
+  "system-remote-login"
+  "system-services"
+  "other"
+)
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT"
+    # Ensure files are in place
+    for f in "${SOURCE[@]}"; do
+        [ -f "$f" ] || { echo "Missing PAM file: $f"; exit 1; }
+    done
+}
+
+build() {
+    # nothing to build, just configs
+    true
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT"
+    install -vDm644 system-auth        "$pkgdir/etc/pam.d/system-auth"
+    install -vDm644 system-local-login "$pkgdir/etc/pam.d/system-local-login"
+    install -vDm644 system-login       "$pkgdir/etc/pam.d/system-login"
+    install -vDm644 system-remote-login "$pkgdir/etc/pam.d/system-remote-login"
+    install -vDm644 system-services    "$pkgdir/etc/pam.d/system-services"
+    install -vDm644 other              "$pkgdir/etc/pam.d/other"
+}
+
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("2bb19ead55a7b9014d107eec63cc015426c39d93ddc8af3322649ff5f8b45d5b" "005736b9bd650ff5e5d82a7e288853776d5bb8c90185d5774c07231c1e1c64a9" "7272120f0ee937cbe6ba0a6e748ea234ab6799e1e2966c83ee85f97d9f254fd9" "005736b9bd650ff5e5d82a7e288853776d5bb8c90185d5774c07231c1e1c64a9" "6eb1acdd3fa9f71a7f93fbd529be57ea65bcafc6e3a98a06af4d88013fc6a567" "d5ed59ec2157c19c87964a162f7ca84d53c19fb2bd68d3fbc1671ba8d906346f")

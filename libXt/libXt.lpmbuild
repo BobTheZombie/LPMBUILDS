@@ -1,0 +1,62 @@
+#!/bin/bash
+NAME="libXt"
+VERSION="1.3.1"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="libXt from X.Org"
+URL="https://www.x.org/"
+LICENSE="MIT"
+
+SOURCE=(
+  "https://www.x.org/releases/individual/lib/${NAME}-${VERSION}.tar.xz"
+)
+
+REQUIRES=(
+    "glibc" 
+    "libICE" 
+    "libSM" 
+    "libX11"
+)
+
+BUILD_REQUIRES=(
+    "gcc"
+    "make"
+    "pkgconf"
+    "xorg-util-macros"
+    "xorgproto"
+    "libICE"
+    "libSM"
+    "libX11"
+) 
+
+PROVIDES=("libXt")
+CONFLICTS=()
+OBSOLETES=("libxt")
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+  ./configure --prefix=/usr
+  make -j"$(nproc)"
+}
+
+check() { true; }
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+  DESTDIR="$pkgdir" make install
+  [ -f COPYING ] && install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+}
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("e0a774b33324f4d4c05b199ea45050f87206586d81655f8bef4dba434d931288")

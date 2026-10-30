@@ -1,0 +1,62 @@
+#!/bin/bash
+# LPM Linux: KDE Plasma 6.8.1 package chain
+# Generated 2026-10-25; source digests MUST be locked before building.
+NAME="qt6-shadertools"
+VERSION="6.12.0"
+BASE="${VERSION%.*}"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Qt 6 qtshadertools module"
+URL="https://www.qt.io/"
+LICENSE=("LGPL-3.0-only AND GPL-3.0-only WITH Qt-GPL-exception-1.0")
+SOURCE=(
+    "https://download.qt.io/archive/qt/${BASE}/${VERSION}/submodules/qtshadertools-everywhere-src-${VERSION}.tar.xz"
+)
+SHA256SUMS=(
+    "SKIP"
+)
+PATCHES=()
+REQUIRES=(
+    "qt6-base"
+)
+BUILD_REQUIRES=(
+    "cmake"
+    "ninja"
+    "pkgconf"
+    "python"
+    "qt6-base"
+)
+REQUIRES_PYTHON_DEPENDENCIES=()
+PROVIDES=(
+    "qtshadertools"
+)
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+    set -euxo pipefail
+    test -f "$SRCROOT/$NAME-$VERSION/CMakeLists.txt"
+}
+
+build() {
+    set -euxo pipefail
+    local src="$SRCROOT/$NAME-$VERSION"
+    local builddir="$src/build"
+    cmake -S "$src" -B "$builddir" -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DBUILD_TESTING=OFF \
+        -DBUILD_SHARED_LIBS=ON
+    cmake --build "$builddir" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+staging() {
+    set -euxo pipefail
+    local builddir="$SRCROOT/$NAME-$VERSION/build"
+    DESTDIR="$pkgdir" cmake --install "$builddir"
+    test -d "$pkgdir/usr"
+    test -n "$(find "$pkgdir/usr" -mindepth 1 -print -quit)"
+}

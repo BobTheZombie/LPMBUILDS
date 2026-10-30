@@ -1,36 +1,44 @@
-# LPM build script for eudev
+#!/bin/bash
 NAME="eudev"
-VERSION="1.0.0"
+VERSION="3.2.14"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Placeholder package for eudev dependency"
-URL="https://example.com/eudev"
-LICENSE=""
-SOURCE=()
-SHA256SUMS=()
+SUMMARY="eudev upstream package"
+URL="https://github.com/eudev-project/eudev/releases/download/v3.2.14/"
+LICENSE=("GPL-2.0-or-later")
+SOURCE=("https://github.com/eudev-project/eudev/releases/download/v3.2.14/eudev-3.2.14.tar.gz")
+SHA256SUMS=("8da4319102f24abbf7fff5ce9c416af848df163b29590e666d334cc1927f006f")
 PATCHES=()
-REQUIRES=()
-PROVIDES=("eudev")
-CONFLICTS=()
+REQUIRES=("glibc" "kmod" "util-linux-libs")
+BUILD_REQUIRES=("gcc" "gperf" "kmod" "make" "pkgconf" "util-linux-libs")
+PROVIDES=("eudev" "libudev" "libudev.so.1" "udev")
+CONFLICTS=("systemd")
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
-
-prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
-}
-
+BUILD_OPTIONS=("@--stripping" "@--optimize=2")
+prepare() { set -euxo pipefail; cd "$SRCROOT/${NAME}-${VERSION}"; }
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    if [ ! -x configure ]; then autoreconf -fiv; fi
+    ./configure --prefix=/usr --libdir=/usr/lib --sysconfdir=/etc --disable-static --enable-hwdb --enable-kmod --enable-blkid --with-rootprefix=/usr --with-rootlibdir=/usr/lib
+    make -j"${LPM_BUILD_JOBS:-$(nproc)}"
+}
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    make DESTDIR="$pkgdir" install
+    local f
+    for f in COPYING COPYING.LIB LICENSE LICENSE.md LICENSE.txt; do
+        if [ -f "$f" ]; then install -Dm644 "$f" "$pkgdir/usr/share/licenses/$NAME/$f"; fi
+    done
+    if [ -d LICENSES ]; then
+        install -dm755 "$pkgdir/usr/share/licenses/$NAME"
+        cp -a LICENSES/. "$pkgdir/usr/share/licenses/$NAME/"
+    fi
 }
 
-staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  install -d "$pkgdir/usr/share/doc/eudev"
-  printf 'Placeholder package for eudev\n' >"$pkgdir/usr/share/doc/eudev/README"
-}
+
+
+
+# Final audited source digests
+SHA256SUMS=("8da4319102f24abbf7fff5ce9c416af848df163b29590e666d334cc1927f006f")

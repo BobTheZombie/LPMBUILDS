@@ -1,0 +1,43 @@
+NAME="haskell-mime-types"
+VERSION="0.1.2.1"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="MIME type handling library for Haskell"
+URL="https://hackage.haskell.org/package/mime-types"
+LICENSE=("MIT")
+SOURCE=("https://hackage.haskell.org/package/mime-types-${VERSION}/mime-types-${VERSION}.tar.gz")
+SHA256SUMS=("SKIP")
+PATCHES=()
+REQUIRES=("glibc" "ghc=9.14.1")
+BUILD_REQUIRES=("ghc")
+PROVIDES=("haskell-mime-types")
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() { set -euxo pipefail; cd "$SRCROOT/${NAME}-${VERSION}"; test -f Setup.hs; }
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    runhaskell Setup.hs configure --prefix=/usr --libdir=/usr/lib --enable-shared --disable-library-vanilla
+    runhaskell Setup.hs build
+}
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    runhaskell Setup.hs copy --destdir="$pkgdir"
+    runhaskell Setup.hs register --gen-pkg-config=package.conf
+    local database
+    database="$(ghc --print-global-package-db)"
+    case "$database" in /usr/lib/*) ;; *) echo "Unexpected GHC database: $database" >&2; return 1;; esac
+    install -Dm644 package.conf "$pkgdir$database/haskell-mime-types.conf"
+    install -Dm644 "$SRCROOT/ghc-register.hook" "$pkgdir/usr/share/liblpm/hooks/ghc-register.hook"
+    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$NAME/LICENSE"
+}
+
+SOURCE+=("ghc-register.hook")
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("1cca5a2e861f9ba1b879dc0f6295afb8c4f436b67916ab8d07e386006c076359" "f95dafb7508575307b8bd1d8a0a49515747f23e48136d2e13a471bc5b07f3037")

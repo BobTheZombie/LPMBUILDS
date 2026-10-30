@@ -1,34 +1,46 @@
-# LPM build script for texinfo
 NAME="texinfo"
-VERSION="7.1"
+VERSION="7.3"
 RELEASE="1"
-ARCH="${ARCH:-x86_64}"
+ARCH="x86_64"
 SUMMARY="GNU documentation system"
-URL="https://www.gnu.org/software/texinfo/"
-LICENSE=""
-SOURCE=()
-REQUIRES=("glibc")
-PROVIDES=("texinfo")
+URL="https://www.wayne.edu/gnu/texinfo/"
+SOURCE=("https://ftp.wayne.edu/gnu/texinfo/texinfo-${VERSION}.tar.xz"
+        "texinfo-install.hook"
+        "texinfo-remove.hook")
+        
+LICENSE=("GPL-3.0-or-later")
+
+REQUIRES=("perl" "pigz" "bash" "ncurses")
+PROVIDES=("texinfo" "info" "makeinfo")
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+    cd "$SRCROOT/texinfo-${VERSION}"
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+    set -euxo pipefail
+    cd "$SRCROOT/texinfo-${VERSION}"
+    ./configure --prefix=/usr --libdir=/usr/lib
+    make -j"$(nproc)"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euxo pipefail
+    cd "$SRCROOT/texinfo-${VERSION}"
+    make DESTDIR="$pkgdir" install
+    
+    install -dm755 "$pkgdir"/usr/share/liblpm/hooks/
+    install -m644 $SRCROOT/texinfo-install.hook "$pkgdir"/usr/share/liblpm/hooks/
+    install -m644 $SRCROOT/texinfo-remove.hook "$pkgdir"/usr/share/liblpm/hooks/
+
 }
+
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("51f74eb0f51cfa9873b85264dfdd5d46e8957ec95b88f0fb762f63d9e164c72e" "beb0ff50bd8e8ca1d6e1c01e6a50352f9d25937c62822cf767a7b3d8f7374a9d" "913ca8aac84386399b0a83ed0f6b04b5e6322da62f5c1d7ed31e1050ed37c1a9")

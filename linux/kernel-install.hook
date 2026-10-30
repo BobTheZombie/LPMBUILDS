@@ -1,0 +1,12 @@
+[Trigger]
+Type = Path
+Operation = Install
+Operation = Upgrade
+Operation = Remove
+Target = usr/lib/modules/*/vmlinuz
+
+[Action]
+Description = Generating kernel dependencies and initramfs...
+When = PostTransaction
+Exec = /usr/libexec/lpm/linux-maintain --initramfs
+NeedsTargets = true

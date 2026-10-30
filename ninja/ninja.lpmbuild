@@ -1,36 +1,51 @@
-# LPM build script for ninja
 NAME="ninja"
-VERSION="1.0.0"
+VERSION="1.13.2"
 RELEASE="1"
-ARCH="${ARCH:-x86_64}"
-SUMMARY="Placeholder package for ninja dependency"
-URL="https://example.com/ninja"
-LICENSE=""
-SOURCE=()
-SHA256SUMS=()
-PATCHES=()
-REQUIRES=()
+ARCH="x86_64"
+SUMMARY="Small build system with a focus on speed"
+URL="https://ninja-build.org/"
+SOURCE=("https://github.com/ninja-build/ninja/archive/refs/tags/v${VERSION}.tar.gz")
+LICENSE=("Apache-2.0")
+
+REQUIRES=("glibc")
 PROVIDES=("ninja")
-CONFLICTS=()
-OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-$VERSION"
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-$VERSION"
+
+    # Build with the bootstrap script (faster, self-hosted build)
+    python3 configure.py --bootstrap
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  install -d "$pkgdir/usr/share/doc/ninja"
-  printf 'Placeholder package for ninja\n' >"$pkgdir/usr/share/doc/ninja/README"
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-$VERSION"
+
+    install -Dm755 ninja "$pkgdir/usr/bin/ninja"
+
+    # Install manpage
+    if [ -f misc/ninja.1 ]; then
+        install -Dm644 misc/ninja.1 "$pkgdir/usr/share/man/man1/ninja.1"
+    fi
+
+    # Install bash/zsh completions if available
+    if [ -f misc/bash-completion ]; then
+        install -Dm644 misc/bash-completion "$pkgdir/usr/share/bash-completion/completions/ninja"
+    fi
+    if [ -f misc/zsh-completion ]; then
+        install -Dm644 misc/zsh-completion "$pkgdir/usr/share/zsh/site-functions/_ninja"
+    fi
 }
+
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("974d6b2f4eeefa25625d34da3cb36bdcebe7fbce40f4c16ac0835fd1c0cbae17")

@@ -1,0 +1,43 @@
+#!/bin/bash
+NAME="pybind11"
+VERSION="3.1.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="pybind11 upstream package"
+URL="https://github.com/pybind/pybind11/archive/refs/tags/"
+LICENSE=("BSD-3-Clause")
+SOURCE=("https://github.com/pybind/pybind11/archive/refs/tags/v3.1.0.tar.gz")
+SHA256SUMS=("ef712655692a2e9bf7bb7874c022564a45f91d847ddee987e720cd9e28849665")
+PATCHES=()
+REQUIRES=("python")
+BUILD_REQUIRES=("cmake" "ninja" "python")
+PROVIDES=("pybind11")
+CONFLICTS=()
+OBSOLETES=()
+BUILD_OPTIONS=("@--stripping" "@--optimize=2")
+prepare() { set -euxo pipefail; cd "$SRCROOT/${NAME}-${VERSION}"; }
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    cmake -S . -B build -G Ninja -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_INSTALL_LIBDIR=lib -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON -DPYBIND11_TEST=OFF -DPYBIND11_FINDPYTHON=ON
+    cmake --build build --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    DESTDIR="$pkgdir" cmake --install build
+    local f
+    for f in COPYING COPYING.LIB LICENSE LICENSE.md LICENSE.txt; do
+        if [ -f "$f" ]; then install -Dm644 "$f" "$pkgdir/usr/share/licenses/$NAME/$f"; fi
+    done
+    if [ -d LICENSES ]; then
+        install -dm755 "$pkgdir/usr/share/licenses/$NAME"
+        cp -a LICENSES/. "$pkgdir/usr/share/licenses/$NAME/"
+    fi
+}
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("ef712655692a2e9bf7bb7874c022564a45f91d847ddee987e720cd9e28849665")

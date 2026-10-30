@@ -1,0 +1,67 @@
+#!/bin/bash
+# LPM Linux - ZXing-C++
+# Provides ZXing::ZXing for KDE Frameworks Prison6 live scanning/PDF417.
+
+NAME="zxing-cpp"
+VERSION="3.1.1"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Multi-format 1D and 2D barcode reader/writer implemented in C++"
+URL="https://github.com/zxing-cpp/zxing-cpp"
+LICENSE=("Apache-2.0")
+# Official release asset, not the automatic GitHub tag archive.
+SOURCE=("https://github.com/zxing-cpp/zxing-cpp/releases/download/v${VERSION}/zxing-cpp-${VERSION}.tar.gz")
+SHA256SUMS=("c3c02c29c0b519de7bd4e25b376e606e87f0761befd1282815642a2246613d14")
+PATCHES=()
+
+REQUIRES=("glibc" "gcc-libs" "stb")
+BUILD_REQUIRES=("cmake" "gcc" "ninja" "stb")
+PROVIDES=("libZXing.so")
+CONFLICTS=()
+OBSOLETES=()
+BUILD_OPTIONS=("@--stripping" "@--optimize=2")
+
+prepare() {
+    set -euxo pipefail
+    test -f "$SRCROOT/${NAME}-${VERSION}/CMakeLists.txt"
+}
+
+build() {
+    set -euxo pipefail
+    local src="$SRCROOT/${NAME}-${VERSION}"
+    cmake -S "$src" -B "$src/build" -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DCMAKE_CXX_STANDARD=20 \
+        -DCMAKE_CXX_STANDARD_REQUIRED=ON \
+        -DBUILD_SHARED_LIBS=ON \
+        -DZXING_READERS=ON \
+        -DZXING_WRITERS=BOTH \
+        -DZXING_ENABLE_PDF417=ON \
+        -DZXING_USE_BUNDLED_ZINT=ON \
+        -DZXING_DEPENDENCIES=LOCAL \
+        -DZXING_C_API=ON \
+        -DZXING_EXAMPLES=OFF \
+        -DZXING_EXAMPLES_QT=OFF \
+        -DZXING_UNIT_TESTS=OFF \
+        -DZXING_BLACKBOX_TESTS=OFF \
+        -DZXING_PYTHON_MODULE=OFF \
+        -DZXING_TEST_INSTALL=OFF
+    cmake --build "$src/build" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+staging() {
+    set -euxo pipefail
+    local src="$SRCROOT/${NAME}-${VERSION}"
+    test -n "${pkgdir:-}" && test "$pkgdir" != "/"
+    DESTDIR="$pkgdir" cmake --install "$src/build" --prefix /usr
+    test -f "$pkgdir/usr/lib/cmake/ZXing/ZXingConfig.cmake"
+    test -f "$pkgdir/usr/lib/cmake/ZXing/ZXingTargets.cmake"
+    test -f "$pkgdir/usr/lib/pkgconfig/zxing.pc"
+    test -f "$pkgdir/usr/include/ZXing/ReadBarcode.h"
+    compgen -G "$pkgdir/usr/lib/libZXing.so*" >/dev/null
+    if test -f "$src/LICENSE"; then
+        install -Dm644 "$src/LICENSE" "$pkgdir/usr/share/licenses/$NAME/LICENSE"
+    fi
+}

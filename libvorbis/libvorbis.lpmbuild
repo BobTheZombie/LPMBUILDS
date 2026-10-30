@@ -15,17 +15,26 @@ OBSOLETES=()
 RECOMMENDS=()
 SUGGESTS=()
 
-prepare() { set -euxo pipefail; cd "$SRCROOT"; }
+prepare() { 
+   set -euxo pipefail;
+   cd "$SRCROOT/${NAME}-${VERSION}"
+}
 
 build() {
   set -euxo pipefail
-  cd "$SRCROOT"
+  cd "$SRCROOT/${NAME}-${VERSION}"
   ./configure --prefix=/usr --sysconfdir=/etc --disable-static
   make -j"$(nproc)"
 }
 
 staging() {
   set -euxo pipefail
-  cd "$SRCROOT"
+  cd "$SRCROOT/${NAME}-${VERSION}"
   make DESTDIR="$pkgdir" install
 }
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("b33cc4934322bcbf6efcbacf49e3ca01aadbea4114ec9589d1b1e9d20f72954b")

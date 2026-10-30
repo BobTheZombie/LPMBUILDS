@@ -1,0 +1,43 @@
+#!/bin/bash
+NAME="polkit-qt6-1"
+VERSION="0.200.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="polkit-qt6-1 upstream package"
+URL="https://download.kde.org/stable/polkit-qt-1/"
+LICENSE=("LGPL-2.1-or-later")
+SOURCE=("https://download.kde.org/stable/polkit-qt-1/polkit-qt-1-0.200.0.tar.xz")
+SHA256SUMS=("5d3b611c062d2b76a93750bb10c907bfd21d1ff08d0a15dc2cf63e278e1677fb")
+PATCHES=()
+REQUIRES=("polkit" "qt6-base")
+BUILD_REQUIRES=("cmake" "ninja" "pkgconf" "polkit" "qt6-base")
+PROVIDES=("polkit-qt6-1")
+CONFLICTS=()
+OBSOLETES=()
+BUILD_OPTIONS=("@--stripping" "@--optimize=2")
+prepare() { set -euxo pipefail; cd "$SRCROOT/${NAME}-${VERSION}"; }
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    cmake -S . -B build -G Ninja -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_INSTALL_LIBDIR=lib -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON -DQT_MAJOR_VERSION=6
+    cmake --build build --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    DESTDIR="$pkgdir" cmake --install build
+    local f
+    for f in COPYING COPYING.LIB LICENSE LICENSE.md LICENSE.txt; do
+        if [ -f "$f" ]; then install -Dm644 "$f" "$pkgdir/usr/share/licenses/$NAME/$f"; fi
+    done
+    if [ -d LICENSES ]; then
+        install -dm755 "$pkgdir/usr/share/licenses/$NAME"
+        cp -a LICENSES/. "$pkgdir/usr/share/licenses/$NAME/"
+    fi
+}
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("5d3b611c062d2b76a93750bb10c907bfd21d1ff08d0a15dc2cf63e278e1677fb")

@@ -1,0 +1,8 @@
+#%PAM-1.0
+# Local password authentication; pam_systemd is optional during bootstrap.
+auth required pam_unix.so
+account required pam_unix.so
+password required pam_unix.so yescrypt
+session required pam_limits.so
+session required pam_unix.so
+session optional pam_systemd.so

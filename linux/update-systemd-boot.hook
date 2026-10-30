@@ -1,0 +1,16 @@
+[Trigger]
+Type = Path
+Operation = Install
+Operation = Upgrade
+Operation = Remove
+Target = usr/lib/modules/*/vmlinuz
+Target = usr/lib/systemd/boot/efi/*
+Target = etc/kernel/cmdline
+Target = etc/lpm/linux.conf
+
+[Action]
+Description = Updating systemd-boot kernel entries...
+When = PostTransaction
+Depends = kernel-install
+Exec = /usr/libexec/lpm/linux-maintain --boot
+NeedsTargets = true

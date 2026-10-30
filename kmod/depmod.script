@@ -1,0 +1,22 @@
+#!/bin/bash
+
+status=0
+
+while IFS= read -r target; do
+    [[ -n "$target" ]] || continue
+    directory="${target%/}/"
+
+    if [[ -f "${directory}modules.order" ]]; then
+        version="$(basename -- "${directory%/}")"
+        /usr/bin/depmod -a "$version" || status=1
+    elif [[ -d "$directory" ]]; then
+        rm -f -- \
+            "${directory}"modules.{alias,alias.bin,builtin.alias.bin,builtin.bin} \
+            "${directory}"modules.{dep,dep.bin,devname,softdep,symbols,symbols.bin} \
+            "${directory}modules.weakdep" || status=1
+
+        rmdir --ignore-fail-on-non-empty -- "$directory" || status=1
+    fi
+done
+
+exit "$status"

@@ -1,0 +1,60 @@
+#!/bin/bash
+# LPM build script for xdriinfo
+
+NAME="xdriinfo"
+VERSION="1.0.8"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Query DRI driver information"
+URL="https://www.x.org/"
+LICENSE="MIT"
+
+SOURCE=("https://www.x.org/archive//individual/app/${NAME}-${VERSION}.tar.xz")
+
+REQUIRES=(
+    "glibc" 
+    "libX11" 
+    "libglvnd" 
+    "mesa"
+    )
+
+BUILD_REQUIRES=(
+    "gcc"
+    "make"
+    "pkgconf"
+    "xorg-util-macros"
+    "xorgproto"
+    "libX11"
+    "libglvnd"
+)
+
+PROVIDES=("xdriinfo")
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+  ./configure --prefix=/usr
+  make -j"$(nproc)"
+}
+
+check() { true; }
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+  DESTDIR="$pkgdir" make install
+}
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("00463056435b82261c227ad0de1873fd4536101607fbc57540e28e4a0a9b71f7")

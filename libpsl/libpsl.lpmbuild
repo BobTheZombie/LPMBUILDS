@@ -1,0 +1,41 @@
+NAME="libpsl"
+VERSION="0.23.3"
+RELEASE="1"
+ARCH="x86_64"
+SUMMARY="Library for Public Suffix List parsing"
+URL="https://rockdaboot.github.io/libpsl"
+SOURCE=("https://github.com/rockdaboot/libpsl/releases/download/${VERSION}/libpsl-${VERSION}.tar.gz")
+LICENSE=("MIT")
+
+REQUIRES=("glibc" "libidn2" "libunistring")
+PROVIDES=("libpsl" "libpsl.so")
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/libpsl-${VERSION}"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/libpsl-${VERSION}"
+    ./configure \
+        --prefix=/usr \
+        --libdir=/usr/lib \
+        --disable-static
+    make -j"$(nproc)"
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/libpsl-${VERSION}"
+    make DESTDIR="$pkgdir" install
+}
+
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("93941f85a1e7bd593fa94f299233cb5dfc91cd144fd9a78a6ceb75001c5b03be")

@@ -1,0 +1,15 @@
+# Example only. Set interface/SSID and use nmcli --ask to supply the secret.
+[connection]
+id=Wi-Fi example
+type=wifi
+autoconnect=false
+[wifi]
+mode=infrastructure
+ssid=CHANGE-ME
+[wifi-security]
+key-mgmt=wpa-psk
+[ipv4]
+method=auto
+[ipv6]
+method=auto
+addr-gen-mode=stable-privacy

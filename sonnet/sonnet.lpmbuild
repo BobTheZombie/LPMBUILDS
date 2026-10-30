@@ -1,0 +1,43 @@
+#!/bin/bash
+NAME="sonnet"
+VERSION="5.116.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="sonnet upstream package"
+URL="https://download.kde.org/stable/frameworks/5.116/"
+LICENSE=("BSD-3-Clause" "CC0-1.0" "LGPL-2.0-or-later" "LGPL-2.1-or-later")
+SOURCE=("https://download.kde.org/stable/frameworks/5.116/sonnet-5.116.0.tar.xz")
+SHA256SUMS=("98417080e742829794584a794995c4a08900d22e11b879cb8cc240323b1f4a4a")
+PATCHES=()
+REQUIRES=("gcc-libs" "glibc" "qt5-base" "qt6-5compat")
+BUILD_REQUIRES=("cmake" "extra-cmake-modules" "ninja" "pkgconf")
+PROVIDES=("sonnet")
+CONFLICTS=()
+OBSOLETES=()
+BUILD_OPTIONS=("@--stripping" "@--optimize=2")
+prepare() { set -euxo pipefail; cd "$SRCROOT/${NAME}-${VERSION}"; }
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    cmake -S . -B build -G Ninja -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_INSTALL_LIBDIR=lib -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON -DBUILD_TESTING=OFF -DBUILD_QCH=OFF -DCMAKE_PREFIX_PATH=/usr/lib/qt5
+    cmake --build build --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    DESTDIR="$pkgdir" cmake --install build
+    local f
+    for f in COPYING COPYING.LIB LICENSE LICENSE.md LICENSE.txt; do
+        if [ -f "$f" ]; then install -Dm644 "$f" "$pkgdir/usr/share/licenses/$NAME/$f"; fi
+    done
+    if [ -d LICENSES ]; then
+        install -dm755 "$pkgdir/usr/share/licenses/$NAME"
+        cp -a LICENSES/. "$pkgdir/usr/share/licenses/$NAME/"
+    fi
+}
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("98417080e742829794584a794995c4a08900d22e11b879cb8cc240323b1f4a4a")

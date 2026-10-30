@@ -1,0 +1,73 @@
+#!/bin/bash
+# LPM Linux: stb single-file/header-only C/C++ libraries.
+# Upstream: https://github.com/nothings/stb
+# Version pinned to the April 15, 2026 upstream revision used by Arch Linux.
+
+NAME="stb"
+VERSION="20260415"
+RELEASE="1"
+ARCH="noarch"
+SUMMARY="Single-file public-domain or MIT-licensed C/C++ libraries (with pkg-config metadata)"
+URL="https://github.com/nothings/stb"
+LICENSE=("MIT" "Unlicense")
+
+# LPM supports pinned Git sources (#commit=...). Git snapshot checksum is not
+# a downloaded tarball checksum; source identity is fixed by the commit SHA.
+SOURCE=("git+https://github.com/nothings/stb.git#commit=31c1ad37456438565541f4919958214b6e762fb4")
+SHA256SUMS=()
+PATCHES=()
+
+REQUIRES=()
+BUILD_REQUIRES=("git")
+PROVIDES=()
+CONFLICTS=()
+OBSOLETES=()
+BUILD_OPTIONS=()
+
+prepare() {
+    set -euxo pipefail
+    local src="$SRCROOT/stb"
+    test -f "$src/stb_image.h"
+    test -f "$src/stb_image_write.h"
+    test -f "$src/LICENSE"
+}
+
+build() {
+    set -euxo pipefail
+    # The upstream libraries are single-file headers: nothing to compile.
+    test -f "$SRCROOT/stb/stb_image.h"
+}
+
+staging() {
+    set -euxo pipefail
+    local src="$SRCROOT/stb"
+    test -n "${pkgdir:-}" && test "$pkgdir" != "/"
+
+    install -dm755 "$pkgdir/usr/include/stb" \
+                   "$pkgdir/usr/lib/pkgconfig" \
+                   "$pkgdir/usr/share/licenses/$NAME"
+
+    # Install public headers and the stb_vorbis single-file implementation.
+    find "$src" -maxdepth 1 -type f \
+        \( -name 'stb_*.h' -o -name 'stb_*.c' \) \
+        -exec install -m644 -t "$pkgdir/usr/include/stb" {} +
+
+    install -m644 "$src/LICENSE" "$pkgdir/usr/share/licenses/$NAME/LICENSE"
+
+    # ZXing-C++'s zxing.cmake requests pkg_check_modules(STB REQUIRED stb)
+    # and includes <stb_image.h>. -I/usr/include/stb is essential here.
+    cat > "$pkgdir/usr/lib/pkgconfig/stb.pc" <<'PC_EOF'
+prefix=/usr
+includedir=${prefix}/include/stb
+
+Name: stb
+Description: Single-file public-domain or MIT-licensed C/C++ libraries
+Version: 20260415
+Cflags: -I${includedir}
+PC_EOF
+
+    test -f "$pkgdir/usr/include/stb/stb_image.h"
+    test -f "$pkgdir/usr/include/stb/stb_image_write.h"
+    test -f "$pkgdir/usr/lib/pkgconfig/stb.pc"
+    grep -Fq 'Cflags: -I${includedir}' "$pkgdir/usr/lib/pkgconfig/stb.pc"
+}

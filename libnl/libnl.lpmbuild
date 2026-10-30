@@ -1,34 +1,74 @@
-# LPM build script for libnl
+#!/bin/bash
+# LPM networking stack, release snapshot 2026-10-16
 NAME="libnl"
-VERSION="3.9.0"
+VERSION="3.12.0"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Netlink protocol library"
-URL="https://www.infradead.org/~tgr/libnl/"
-LICENSE=""
-SOURCE=()
-REQUIRES=("glibc")
-PROVIDES=("libnl")
+SUMMARY='Netlink protocol libraries'
+URL=https://github.com/thom311/libnl/releases/download/libnl3_12_0/libnl-3.12.0.tar.gz
+LICENSE=(LGPL-2.1-or-later)
+SOURCE=(https://github.com/thom311/libnl/releases/download/libnl3_12_0/libnl-3.12.0.tar.gz)
+SHA256SUMS=(
+    "fc51ca7196f1a3f5fdf6ffd3864b50f4f9c02333be28be4eeca057e103c0dd18"
+)
+PATCHES=()
+REQUIRES=(glibc)
+BUILD_REQUIRES=(gcc make pkgconf glibc bison flex)
+PROVIDES=(libnl libnl-3.so libnl-genl-3.so libnl-route-3.so)
 CONFLICTS=()
 OBSOLETES=()
 RECOMMENDS=()
 SUGGESTS=()
+BUILD_OPTIONS=(@--stripping @--optimize=2)
+
+_source() {
+    if [ ! -d "$SRCROOT/${NAME}-${VERSION}" ] && [ -d "$SRCROOT/libnl-3.12.0" ]; then
+        mv "$SRCROOT/libnl-3.12.0" "$SRCROOT/${NAME}-${VERSION}"
+    fi
+}
+
+_licenses() {
+    local f
+    for f in COPYING COPYING.LIB LICENSE LICENSE.txt LICENCE README; do
+        if [ -f "$f" ]; then
+            install -Dm644 "$f" "$pkgdir/usr/share/licenses/$NAME/$(basename "$f")"
+        fi
+    done
+}
+_cleanup() {
+    if [ -d "$pkgdir/usr/lib" ]; then
+        find "$pkgdir/usr/lib" -type f \( -name '*.a' -o -name '*.la' \) -delete
+    fi
+    rm -f "$pkgdir/usr/share/info/dir"
+}
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+    _source
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    if [ -f Makefile ]; then make distclean; fi
+    :
+    test -x configure
 }
-
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    ./configure --prefix=/usr --libdir=/usr/lib --sbindir=/usr/bin \
+        --sysconfdir=/etc --localstatedir=/var --disable-static
+    make -j"${LPM_BUILD_JOBS:-$(nproc)}"
+}
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    make -j1 DESTDIR="$pkgdir" install
+    _cleanup
+    test -s "$pkgdir/usr/lib/pkgconfig/libnl-3.0.pc"
+    _licenses
 }
 
-staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
-}
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("fc51ca7196f1a3f5fdf6ffd3864b50f4f9c02333be28be4eeca057e103c0dd18")

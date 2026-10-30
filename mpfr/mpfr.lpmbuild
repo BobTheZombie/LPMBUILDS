@@ -1,34 +1,305 @@
-# LPM build script for mpfr
+#!/bin/bash
+# LPM build script for GNU MPFR
+
 NAME="mpfr"
-VERSION="4.2.1"
+VERSION="4.2.2"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Multiple-precision floating-point"
+
+SUMMARY="GNU multiple-precision floating-point library with correct rounding"
 URL="https://www.mpfr.org/"
-LICENSE=""
-SOURCE=()
-REQUIRES=("glibc" "gmp")
-PROVIDES=("mpfr")
+LICENSE=("LGPL-3.0-or-later")
+
+SOURCE=(
+    "https://ftp.wayne.edu/gnu/mpfr/mpfr-${VERSION}.tar.xz"
+)
+
+SHA256SUMS=(
+    "b67ba0383ef7e8a8563734e2e889ef5ec3c3b898a01d00fa0a6869ad81c6ce01"
+)
+
+PATCHES=()
+
+REQUIRES=(
+    "glibc"
+    "gmp"
+)
+
+BUILD_REQUIRES=(
+    "glibc"
+    "gmp"
+    "make"
+    "pkgconf"
+    "texinfo"
+)
+
+PROVIDES=(
+    "mpfr"
+    "libmpfr.so"
+    "libmpfr.so.6"
+)
+
 CONFLICTS=()
 OBSOLETES=()
 RECOMMENDS=()
 SUGGESTS=()
 
+BUILD_OPTIONS=(
+    "@--stripping"
+    "@--optimize=2"
+)
+
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    BUILDDIR="$SRCDIR/build"
+
+    test -f "$SRCDIR/configure"
+    test -f "$SRCDIR/Makefile.in"
+    test -f "$SRCDIR/src/mpfr.h"
+    test -f "$SRCDIR/COPYING.LESSER"
+
+    rm -rf "$BUILDDIR"
+    mkdir -p "$BUILDDIR"
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    BUILDDIR="$SRCDIR/build"
+
+    cd "$BUILDDIR"
+
+    ../configure \
+        --prefix=/usr \
+        --bindir=/usr/bin \
+        --libdir=/usr/lib \
+        --includedir=/usr/include \
+        --datadir=/usr/share \
+        --mandir=/usr/share/man \
+        --infodir=/usr/share/info \
+        --docdir="/usr/share/doc/mpfr-${VERSION}" \
+        --with-gmp=/usr \
+        --enable-thread-safe \
+        --enable-shared \
+        --disable-static
+
+    test -f "$BUILDDIR/libtool"
+
+    #
+    # Optimize shared-library linking and remove unnecessary DT_NEEDED
+    # entries.
+    #
+
+    sed -i \
+        -e 's/ -shared / -Wl,-O1,--as-needed\0/g' \
+        "$BUILDDIR/libtool"
+
+    make -j"$(nproc)"
+}
+
+check() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    BUILDDIR="$SRCDIR/build"
+
+    #
+    # Do not run MPFR's complete test suite during bootstrap package builds.
+    #
+
+    LIBMPFR="$(
+        find "$BUILDDIR/src/.libs" \
+            -maxdepth 1 \
+            -type f \
+            -name 'libmpfr.so.*' \
+            -print \
+            -quit
+    )"
+
+    if [ -z "$LIBMPFR" ] || [ ! -f "$LIBMPFR" ]; then
+        echo "[ERROR] Missing build-tree libmpfr shared library" >&2
+        return 1
+    fi
+
+    MPFR_HEADER="$BUILDDIR/.lpm-mpfr-header"
+    MPFR_DYNAMIC="$BUILDDIR/.lpm-mpfr-dynamic"
+
+    readelf -h "$LIBMPFR" > "$MPFR_HEADER"
+    grep -Fq 'ELF64' "$MPFR_HEADER"
+
+    readelf -d "$LIBMPFR" > "$MPFR_DYNAMIC"
+
+    grep -Fq \
+        'Library soname: [libmpfr.so.6]' \
+        "$MPFR_DYNAMIC"
+
+    grep -Fq \
+        'libgmp.so' \
+        "$MPFR_DYNAMIC"
+
+    rm -f \
+        "$MPFR_HEADER" \
+        "$MPFR_DYNAMIC"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    BUILDDIR="$SRCDIR/build"
+
+    make \
+        -C "$BUILDDIR" \
+        DESTDIR="$pkgdir" \
+        install
+
+    #
+    # Remove static and Libtool libraries.
+    #
+
+    find "$pkgdir/usr/lib" \
+        -type f \
+        \( -name '*.a' -o -name '*.la' \) \
+        -delete
+
+    #
+    # Remove the global Info index. It should be maintained by an LPM
+    # transaction hook.
+    #
+
+    rm -f "$pkgdir/usr/share/info/dir"
+
+    #
+    # Validate shared-library compatibility names.
+    #
+
+    test -L "$pkgdir/usr/lib/libmpfr.so"
+    test -e "$pkgdir/usr/lib/libmpfr.so.6"
+
+    LIBMPFR="$(
+        find "$pkgdir/usr/lib" \
+            -maxdepth 1 \
+            -type f \
+            -name 'libmpfr.so.6.*' \
+            -print \
+            -quit
+    )"
+
+    if [ -z "$LIBMPFR" ] || [ ! -f "$LIBMPFR" ]; then
+        echo "[ERROR] Missing real libmpfr shared library" >&2
+        return 1
+    fi
+
+    #
+    # Validate ELF architecture, SONAME, and GMP linkage.
+    #
+
+    MPFR_HEADER="$SRCDIR/.lpm-mpfr-header"
+    MPFR_DYNAMIC="$SRCDIR/.lpm-mpfr-dynamic"
+
+    readelf -h "$LIBMPFR" > "$MPFR_HEADER"
+    grep -Fq 'ELF64' "$MPFR_HEADER"
+
+    readelf -d "$LIBMPFR" > "$MPFR_DYNAMIC"
+
+    grep -Fq \
+        'Library soname: [libmpfr.so.6]' \
+        "$MPFR_DYNAMIC"
+
+    grep -Fq \
+        'libgmp.so' \
+        "$MPFR_DYNAMIC"
+
+    rm -f \
+        "$MPFR_HEADER" \
+        "$MPFR_DYNAMIC"
+
+    #
+    # Validate the public development header and its version declarations.
+    #
+
+    test -f "$pkgdir/usr/include/mpfr.h"
+
+    grep -Eq \
+        '^#define[[:space:]]+MPFR_VERSION_MAJOR[[:space:]]+4$' \
+        "$pkgdir/usr/include/mpfr.h"
+
+    grep -Eq \
+        '^#define[[:space:]]+MPFR_VERSION_MINOR[[:space:]]+2$' \
+        "$pkgdir/usr/include/mpfr.h"
+
+    grep -Eq \
+        '^#define[[:space:]]+MPFR_VERSION_PATCHLEVEL[[:space:]]+2$' \
+        "$pkgdir/usr/include/mpfr.h"
+
+    #
+    # Validate pkg-config metadata when supplied by upstream.
+    #
+
+    if [ -f "$pkgdir/usr/lib/pkgconfig/mpfr.pc" ]; then
+        MPFR_PC_VERSION="$(
+            PKG_CONFIG_PATH= \
+            PKG_CONFIG_LIBDIR="$pkgdir/usr/lib/pkgconfig" \
+            pkgconf \
+                --modversion \
+                mpfr
+        )"
+
+        if [ "$MPFR_PC_VERSION" != "$VERSION" ]; then
+            echo "[ERROR] Unexpected MPFR pkg-config version: $MPFR_PC_VERSION" >&2
+            return 1
+        fi
+
+        MPFR_PC_LIBS="$(
+            PKG_CONFIG_PATH= \
+            PKG_CONFIG_LIBDIR="$pkgdir/usr/lib/pkgconfig" \
+            pkgconf \
+                --libs \
+                mpfr
+        )"
+
+        case " $MPFR_PC_LIBS " in
+            *" -lmpfr "*)
+                ;;
+            *)
+                echo "[ERROR] MPFR metadata does not link libmpfr" >&2
+                return 1
+                ;;
+        esac
+    fi
+
+    #
+    # Validate Info documentation.
+    #
+
+    MPFR_INFO="$(
+        find "$pkgdir/usr/share/info" \
+            -maxdepth 1 \
+            -type f \
+            -name 'mpfr.info*' \
+            -print \
+            -quit
+    )"
+
+    if [ -z "$MPFR_INFO" ] || [ ! -f "$MPFR_INFO" ]; then
+        echo "[ERROR] Missing MPFR Info documentation" >&2
+        return 1
+    fi
+
+    #
+    # Install licensing information.
+    #
+
+    install -Dm644 \
+        "$SRCDIR/COPYING.LESSER" \
+        "$pkgdir/usr/share/licenses/$NAME/COPYING.LESSER"
 }
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("b67ba0383ef7e8a8563734e2e889ef5ec3c3b898a01d00fa0a6869ad81c6ce01")

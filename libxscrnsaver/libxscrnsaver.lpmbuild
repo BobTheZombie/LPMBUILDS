@@ -1,14 +1,14 @@
 # LPM build script for libxscrnsaver
 NAME="libxscrnsaver"
-VERSION="1.2.4"
+VERSION="1.2.5"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="X11 Screen Saver extension library"
 URL="https://www.x.org/"
 LICENSE="MIT"
 SOURCE=("https://xorg.freedesktop.org/archive/individual/lib/libXScrnSaver-${VERSION}.tar.xz")
-CHECKSUMS=("75cd2859f38e207a090cac980d76bc71e9da99d48d09703584e00585abc920fe")
-REQUIRES=("glibc" "libx11" "libxext" "xorgproto")
+CHECKSUMS=("5057365f847253e0e275871441e10ff7846c8322a5d88e1e187d326de1cd8d00")
+REQUIRES=("glibc" "libX11" "libXext" "xorgproto")
 PROVIDES=("libxscrnsaver")
 CONFLICTS=()
 OBSOLETES=()
@@ -29,3 +29,9 @@ staging() {
   cd "$SRCROOT"
   make DESTDIR="$pkgdir" install
 }
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("5057365f847253e0e275871441e10ff7846c8322a5d88e1e187d326de1cd8d00")

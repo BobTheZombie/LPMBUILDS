@@ -1,0 +1,120 @@
+#!/bin/bash
+# Qt Multimedia 6.12.0 for LPM Linux
+# Includes the FFmpeg media plugin and PipeWire audio backend.
+
+NAME="qt6-multimedia"
+VERSION="6.12.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+
+SUMMARY="Qt 6 multimedia, audio/video APIs, and FFmpeg media backend"
+URL="https://doc.qt.io/qt-6/qtmultimedia-index.html"
+LICENSE=(
+  "LGPL-3.0-only"
+  "GPL-2.0-only"
+  "GPL-3.0-only"
+)
+
+SOURCE=(
+  "https://download.qt.io/official_releases/qt/${VERSION%.*}/${VERSION}/submodules/qtmultimedia-everywhere-src-${VERSION}.tar.xz"
+)
+SHA256SUMS=(
+  "3143f53b64257ba2a0685c940f5dce476c75871ff86b516de45cfd54ea93a62d"
+)
+PATCHES=()
+
+REQUIRES=(
+  "qt6-base>=6.12.0"
+  "qt6-declarative>=6.12.0"
+  "ffmpeg"
+  "pipewire"
+  "libva"
+)
+
+BUILD_REQUIRES=(
+  "cmake"
+  "ninja"
+  "pkgconf"
+  "qt6-base>=6.12.0"
+  "qt6-declarative>=6.12.0"
+  "qt6-shadertools>=6.12.0"
+  "ffmpeg"
+  "pipewire"
+  "libva"
+  "libdrm"
+  "vulkan-headers"
+)
+
+PROVIDES=(
+  "qt6-multimedia"
+  "qt6-multimedia-ffmpeg"
+  "qt6-multimedia-backend"
+)
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+  set -euxo pipefail
+
+  local srcdir="$SRCROOT/${NAME}-${VERSION}"
+  test -f "$srcdir/CMakeLists.txt"
+  test -f "$srcdir/.cmake.conf"
+
+  # LPM's unpacker removes the upstream top-level archive directory and
+  # installs the contents beneath ${NAME}-${VERSION}.
+  rm -rf "$SRCROOT/build-${NAME}"
+}
+
+build() {
+  set -euxo pipefail
+
+  local srcdir="$SRCROOT/${NAME}-${VERSION}"
+  local builddir="$SRCROOT/build-${NAME}"
+  local jobs="${LPM_BUILD_JOBS:-$(nproc)}"
+
+  # FFmpeg support is explicit: a missing development library or audio
+  # backend must fail configuration, not produce a backend-less Qt package.
+  pkg-config --exists \
+    libavcodec libavformat libavutil libswresample libswscale libpipewire-0.3
+
+  cmake -S "$srcdir" -B "$builddir" -G Ninja \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DCMAKE_INSTALL_LIBDIR=lib \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DBUILD_SHARED_LIBS=ON \
+    -DQT_BUILD_TESTS=OFF \
+    -DQT_BUILD_EXAMPLES=OFF \
+    -DQT_FEATURE_ffmpeg=ON \
+    -DQT_FEATURE_pipewire=ON \
+    -DQT_FEATURE_gstreamer=OFF \
+    -DQT_DEFAULT_MEDIA_BACKEND=ffmpeg
+
+  cmake --build "$builddir" --parallel "$jobs"
+}
+
+check() {
+  set -euxo pipefail
+
+  local builddir="$SRCROOT/build-${NAME}"
+  test -f "$builddir/CMakeCache.txt"
+  test -f "$builddir/build.ninja"
+
+  # Full Qt integration tests require a working multimedia device and a
+  # complete desktop session; staged artifacts are checked below instead.
+}
+
+staging() {
+  set -euxo pipefail
+
+  local builddir="$SRCROOT/build-${NAME}"
+  DESTDIR="$pkgdir" cmake --install "$builddir"
+
+  test -f "$pkgdir/usr/lib/cmake/Qt6Multimedia/Qt6MultimediaConfig.cmake"
+  test -f "$pkgdir/usr/lib/cmake/Qt6MultimediaWidgets/Qt6MultimediaWidgetsConfig.cmake"
+  test -f "$pkgdir/usr/lib/libQt6Multimedia.so"
+  test -f "$pkgdir/usr/lib/qt6/plugins/multimedia/libffmpegmediaplugin.so"
+
+  echo "[OK] Qt Multimedia ${VERSION}, CMake modules and FFmpeg plugin staged"
+}

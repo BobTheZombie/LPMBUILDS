@@ -1,0 +1,49 @@
+#!/bin/bash
+NAME="libXxf86vm"
+VERSION="1.1.7"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="libXxf86vm from X.Org"
+URL="https://www.x.org/"
+LICENSE="MIT"
+
+SOURCE=(
+  "https://www.x.org/releases/individual/lib/${NAME}-${VERSION}.tar.xz"
+)
+
+REQUIRES=(
+  "glibc"
+  "libX11"
+)
+
+PROVIDES=("libXxf86vm")
+CONFLICTS=()
+OBSOLETES=("libxxf86vm")
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+  ./configure --prefix=/usr
+  make -j"$(nproc)"
+}
+
+check() { true; }
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+  DESTDIR="$pkgdir" make install
+  [ -f COPYING ] && install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+}
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("ae50c0f669e0af5a67cc4cd0f54f21d64a64d2660af883e80e95d3fe51b945d8")

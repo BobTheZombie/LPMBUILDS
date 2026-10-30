@@ -1,0 +1,160 @@
+#!/bin/bash
+# LPM build script for device-mapper
+
+NAME="device-mapper"
+VERSION="2.03.43"
+RELEASE="2"
+ARCH="${ARCH:-x86_64}"
+
+SUMMARY="Device mapper library and tools from LVM2"
+URL="https://sourceware.org/lvm2/"
+LICENSE=("GPL-2.0-only" "LGPL-2.1-or-later")
+
+SOURCE=(
+    "https://sourceware.org/pub/lvm2/LVM2.${VERSION}.tgz"
+)
+
+SHA256SUMS=(
+    "d87ec0dac9061f1fa58ebced5c6b1360c87d4c5cd7b455dc0ebe1d3f036920d7"
+)
+
+PATCHES=()
+
+REQUIRES=("glibc")
+BUILD_REQUIRES=("gcc" "make" "pkgconf")
+
+PROVIDES=(
+    "device-mapper"
+    "devmapper"
+    "libdevmapper.so"
+)
+
+STAGE_2_REQUIRES=("systemd")
+STAGE_2_BUILD_REQUIRES=()
+
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+BUILD_OPTIONS=(
+    "@--stripping"
+    "@--optimize=2"
+)
+
+if [ "${LPM_BUILD_STAGE:-1}" = 2 ]; then
+    REQUIRES+=("systemd")
+    BUILD_REQUIRES+=("systemd")
+fi
+
+prepare() {
+    set -euxo pipefail
+
+    if [ ! -d "$SRCROOT/${NAME}-${VERSION}" ] &&
+       [ -d "$SRCROOT/LVM2.${VERSION}" ]; then
+        mv "$SRCROOT/LVM2.${VERSION}" \
+            "$SRCROOT/${NAME}-${VERSION}"
+    fi
+
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    test -x configure
+    test -f libdm/Makefile.in
+
+    if [ -f Makefile ]; then
+        make distclean
+    fi
+}
+
+_build_dm() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    local -a integration=(
+        --without-systemd
+        --without-udev
+        --disable-systemd-journal
+        --disable-udev_sync
+        --disable-udev_rules
+    )
+
+    if [ "$1" = 2 ]; then
+        integration=(
+            --with-systemd
+            --with-udev
+            --enable-udev_sync
+            --enable-udev_rules
+        )
+    fi
+
+    ./configure \
+        --prefix=/usr \
+        --libdir=/usr/lib \
+        --sbindir=/usr/bin \
+        --sysconfdir=/etc \
+        --localstatedir=/var \
+        --enable-pkgconfig \
+        --disable-readline \
+        --without-blkid \
+        --disable-blkid_wiping \
+        --with-thin=none \
+        --with-cache=none \
+        --disable-selinux \
+        --without-libnvme \
+        --with-udevdir=/usr/lib/udev/rules.d \
+        "${integration[@]}"
+
+    make -C libdm \
+        -j"${LPM_BUILD_JOBS:-$(nproc)}"
+
+    make -C libdm/dm-tools \
+        -j"${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+build() {
+    _build_dm 1
+}
+
+build_stage2() {
+    _build_dm 2
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    make -C libdm DESTDIR="$pkgdir" install
+    make -C libdm/dm-tools DESTDIR="$pkgdir" install
+
+    # Explicit destination ensures metadata is installed under /usr/lib.
+    make -C libdm \
+        DESTDIR="$pkgdir" \
+        pkgconfigdir="$pkgdir/usr/lib/pkgconfig" \
+        install_pkgconfig
+
+    if [ "${LPM_BUILD_STAGE:-1}" = 2 ]; then
+        make -C udev DESTDIR="$pkgdir" install
+    fi
+
+    find "$pkgdir/usr/lib" \
+        -type f \
+        \( -name '*.a' -o -name '*.la' \) \
+        -delete
+
+    test -e "$pkgdir/usr/lib/libdevmapper.so"
+    test -f "$pkgdir/usr/include/libdevmapper.h"
+    test -x "$pkgdir/usr/bin/dmsetup"
+    test -s "$pkgdir/usr/lib/pkgconfig/devmapper.pc"
+
+    PKG_CONFIG_PATH="$pkgdir/usr/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}" \
+        pkgconf --print-errors --exists devmapper
+
+    install -Dm644 COPYING.LIB \
+        "$pkgdir/usr/share/licenses/$NAME/COPYING.LIB"
+}
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("d87ec0dac9061f1fa58ebced5c6b1360c87d4c5cd7b455dc0ebe1d3f036920d7")

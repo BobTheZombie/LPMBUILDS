@@ -1,0 +1,63 @@
+#!/bin/bash
+# GPGME++ split upstream package (GPGME 2.x).
+NAME="gpgmepp"
+VERSION="2.2.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="C++ bindings for GnuPG Made Easy (GPGME)"
+URL="https://www.gnupg.org/software/gpgme/"
+LICENSE=("LGPL-2.0-or-later")
+SOURCE=("https://www.gnupg.org/ftp/gcrypt/gpgmepp/gpgmepp-${VERSION}.tar.xz")
+SHA256SUMS=("6651c5f7f801543d5b676719df9fec8053b0a6f5aba40b98ca0d2bee11136f30")
+PATCHES=()
+REQUIRES=("glibc" "gcc-libs" "gpgme" "libgpg-error")
+BUILD_REQUIRES=("cmake" "ninja" "pkgconf" "gpgme" "libgpg-error" "gcc")
+PROVIDES=("gpgmepp" "libgpgmepp.so")
+CONFLICTS=()
+OBSOLETES=()
+BUILD_OPTIONS=("@--stripping" "@--optimize=2")
+
+_gpgmepp_srcdir() {
+    local d
+    for d in "$SRCROOT/${NAME}-${VERSION}" "$SRCROOT"; do
+        if [[ -f "$d/CMakeLists.txt" ]] && grep -qi 'project(gpgmepp' "$d/CMakeLists.txt"; then
+            printf '%s\n' "$d"
+            return 0
+        fi
+    done
+    echo "[ERROR] gpgmepp-${VERSION} source not found in SRCROOT=$SRCROOT" >&2
+    return 1
+}
+
+prepare() {
+    set -euxo pipefail
+    local src
+    src="$(_gpgmepp_srcdir)"
+    rm -rf "$src/build"
+}
+
+build() {
+    set -euxo pipefail
+    local src
+    src="$(_gpgmepp_srcdir)"
+    cmake -S "$src" -B "$src/build" -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DBUILD_TESTING=OFF \
+        -DENABLE_SHARED=ON \
+        -DENABLE_STATIC=OFF
+    cmake --build "$src/build" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+staging() {
+    set -euxo pipefail
+    local src
+    src="$(_gpgmepp_srcdir)"
+    DESTDIR="$pkgdir" cmake --install "$src/build"
+    test -e "$pkgdir/usr/lib/libgpgmepp.so"
+    test -f "$pkgdir/usr/lib/cmake/Gpgmepp/GpgmeppConfig.cmake"
+    if [[ -f "$src/COPYING.LESSER" ]]; then
+        install -Dm644 "$src/COPYING.LESSER" "$pkgdir/usr/share/licenses/$NAME/COPYING.LESSER"
+    fi
+}

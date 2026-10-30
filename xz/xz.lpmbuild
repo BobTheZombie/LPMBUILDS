@@ -1,36 +1,309 @@
+#!/bin/bash
 # LPM build script for xz
+
 NAME="xz"
-VERSION="5.6.2"
-RELEASE="1"
+VERSION="5.8.4"
+RELEASE="2"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="XZ compression utilities"
+
+SUMMARY="XZ compression utilities and liblzma"
 URL="https://tukaani.org/xz/"
-LICENSE="GPL-2.0-or-later AND LGPL-2.1-or-later AND 0BSD"
-SOURCE=("https://tukaani.org/xz/xz-${VERSION}.tar.xz")
-SHA256SUMS=("a9db3bb3d64e248a0fae963f8fb6ba851a26ba1822e504dc0efd18a80c626caf")
-REQUIRES=("glibc")
-PROVIDES=("xz")
+LICENSE=(
+    "GPL-2.0-or-later"
+    "LGPL-2.1-or-later"
+    "0BSD"
+)
+
+SOURCE=(
+    "https://github.com/tukaani-project/xz/releases/download/v${VERSION}/xz-${VERSION}.tar.xz"
+)
+
+SHA256SUMS=(
+)
+
+PATCHES=()
+
+REQUIRES=(
+    "glibc"
+)
+
+BUILD_REQUIRES=(
+   
+)
+
+PROVIDES=(
+    "xz"
+    "lzma"
+    "liblzma"
+    "liblzma.so"
+    "liblzma.so.5"
+    "liblzma.pc"
+)
+
 CONFLICTS=()
 OBSOLETES=()
 RECOMMENDS=()
 SUGGESTS=()
 
+BUILD_OPTIONS=(
+    "@--stripping"
+    "@--optimize=2"
+)
+
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  rm -rf "${NAME}-${VERSION}"
-  tar -xf "xz-${VERSION}.tar.xz"
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    BUILDDIR="$SRCDIR/build"
+
+    test -f "$SRCDIR/configure"
+    test -f "$SRCDIR/src/liblzma/Makefile.in"
+    test -f "$SRCDIR/src/xz/Makefile.in"
+
+    rm -rf "$BUILDDIR"
+    mkdir -p "$BUILDDIR"
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT/${NAME}-${VERSION}"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    BUILDDIR="$SRCDIR/build"
+
+    cd "$BUILDDIR"
+
+    "$SRCDIR/configure" \
+        --prefix=/usr \
+        --bindir=/usr/bin \
+        --libdir=/usr/lib \
+        --includedir=/usr/include \
+        --datadir=/usr/share \
+        --mandir=/usr/share/man \
+        --disable-static \
+        --enable-shared \
+        --enable-threads \
+        --enable-threaded-encoder \
+        --enable-sandbox=auto \
+        --with-pic
+
+    make -j"$(nproc)"
+}
+
+check() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    BUILDDIR="$SRCDIR/build"
+
+    XZ_PROGRAM="$BUILDDIR/src/xz/xz"
+    LIBLZMA="$(
+        find "$BUILDDIR/src/liblzma/.libs" \
+            -maxdepth 1 \
+            -type f \
+            -name 'liblzma.so.*' \
+            -print \
+            -quit
+    )"
+
+    test -x "$XZ_PROGRAM"
+    test -n "$LIBLZMA"
+    test -f "$LIBLZMA"
+
+    LIBLZMA_DYNAMIC="$(
+        readelf -d "$LIBLZMA"
+    )"
+
+    printf '%s\n' "$LIBLZMA_DYNAMIC" |
+        grep -F 'Library soname: [liblzma.so.5]' >/dev/null
+
+    XZ_VERSION="$(
+        LD_LIBRARY_PATH="$BUILDDIR/src/liblzma/.libs" \
+            "$XZ_PROGRAM" --version
+    )"
+
+    printf '%s\n' "$XZ_VERSION" |
+        grep -F "xz (XZ Utils) ${VERSION}" >/dev/null
+
+    #
+    # The complete upstream test suite is intentionally disabled during
+    # bootstrap package builds.
+    #
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT/${NAME}-${VERSION}"
-  make DESTDIR="$pkgdir" install
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    BUILDDIR="$SRCDIR/build"
+
+    make \
+        -C "$BUILDDIR" \
+        DESTDIR="$pkgdir" \
+        install
+
+    #
+    # This package supplies shared libraries only.
+    #
+
+    find "$pkgdir/usr/lib" \
+        -type f \
+        \( -name '*.la' -o -name '*.a' \) \
+        -delete
+
+    #
+    # Validate liblzma.
+    #
+
+    test -L "$pkgdir/usr/lib/liblzma.so"
+    test -L "$pkgdir/usr/lib/liblzma.so.5"
+
+    LIBLZMA="$(
+        find "$pkgdir/usr/lib" \
+            -maxdepth 1 \
+            -type f \
+            -name 'liblzma.so.5.*' \
+            -print \
+            -quit
+    )"
+
+    test -n "$LIBLZMA"
+    test -f "$LIBLZMA"
+
+    LIBLZMA_DYNAMIC="$(
+        readelf -d "$LIBLZMA"
+    )"
+
+    printf '%s\n' "$LIBLZMA_DYNAMIC" |
+        grep -F 'Library soname: [liblzma.so.5]' >/dev/null
+
+    LIBLZMA_SYMBOLS="$(
+        readelf -Ws "$LIBLZMA"
+    )"
+
+    printf '%s\n' "$LIBLZMA_SYMBOLS" |
+        grep -E '[[:space:]]lzma_code@@' >/dev/null
+
+    printf '%s\n' "$LIBLZMA_SYMBOLS" |
+        grep -E '[[:space:]]lzma_end@@' >/dev/null
+
+    #
+    # Validate headers and pkg-config metadata.
+    #
+
+    test -f "$pkgdir/usr/include/lzma.h"
+    test -d "$pkgdir/usr/include/lzma"
+    test -f "$pkgdir/usr/include/lzma/base.h"
+    test -f "$pkgdir/usr/include/lzma/container.h"
+    test -f "$pkgdir/usr/include/lzma/filter.h"
+    test -f "$pkgdir/usr/include/lzma/version.h"
+
+    test -f "$pkgdir/usr/lib/pkgconfig/liblzma.pc"
+
+    grep -F -- '-llzma' \
+        "$pkgdir/usr/lib/pkgconfig/liblzma.pc" >/dev/null
+
+    #
+    # Validate primary programs.
+    #
+
+    for PROGRAM in \
+        xz \
+        xzdec \
+        lzmadec
+    do
+        if [ ! -x "$pkgdir/usr/bin/$PROGRAM" ]; then
+            echo "[ERROR] Missing XZ program: /usr/bin/$PROGRAM" >&2
+            return 1
+        fi
+    done
+
+    #
+    # Validate compatibility links and helper scripts.
+    #
+
+    for PROGRAM in \
+        lzma \
+        lzcat \
+        unlzma \
+        unxz \
+        xzcat \
+        xzcmp \
+        xzdiff \
+        xzegrep \
+        xzfgrep \
+        xzgrep \
+        xzless \
+        xzmore
+    do
+        if [ ! -e "$pkgdir/usr/bin/$PROGRAM" ]; then
+            echo "[ERROR] Missing XZ compatibility program: $PROGRAM" >&2
+            return 1
+        fi
+    done
+
+    #
+    # Execute the staged xz utility against the staged liblzma.
+    #
+
+    XZ_VERSION="$(
+        LD_LIBRARY_PATH="$pkgdir/usr/lib" \
+            "$pkgdir/usr/bin/xz" --version
+    )"
+
+    printf '%s\n' "$XZ_VERSION" |
+        grep -F "xz (XZ Utils) ${VERSION}" >/dev/null
+
+    #
+    # Confirm basic compression and decompression work.
+    #
+
+    TEST_INPUT="$BUILDDIR/lpm-xz-test.txt"
+    TEST_ARCHIVE="$BUILDDIR/lpm-xz-test.txt.xz"
+    TEST_OUTPUT="$BUILDDIR/lpm-xz-test.out"
+
+    printf '%s\n' \
+        "LPM XZ compression test" \
+        > "$TEST_INPUT"
+
+    LD_LIBRARY_PATH="$pkgdir/usr/lib" \
+        "$pkgdir/usr/bin/xz" \
+            --stdout \
+            "$TEST_INPUT" \
+            > "$TEST_ARCHIVE"
+
+    LD_LIBRARY_PATH="$pkgdir/usr/lib" \
+        "$pkgdir/usr/bin/xz" \
+            --decompress \
+            --stdout \
+            "$TEST_ARCHIVE" \
+            > "$TEST_OUTPUT"
+
+    cmp "$TEST_INPUT" "$TEST_OUTPUT"
+
+    #
+    # Licensing.
+    #
+
+    install -dm755 \
+        "$pkgdir/usr/share/licenses/$NAME"
+
+    for LICENSE_FILE in \
+        COPYING \
+        COPYING.0BSD \
+        COPYING.GPLv2 \
+        COPYING.GPLv3 \
+        COPYING.LGPLv2.1
+    do
+        if [ -f "$SRCDIR/$LICENSE_FILE" ]; then
+            install -m644 \
+                "$SRCDIR/$LICENSE_FILE" \
+                "$pkgdir/usr/share/licenses/$NAME/$LICENSE_FILE"
+        fi
+    done
 }
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("4ce24038fd4221e0d13bc1a2de7a4db56e90b92b3bf75321f6c14be73f65de4b")

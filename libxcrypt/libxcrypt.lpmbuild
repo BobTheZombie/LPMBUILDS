@@ -1,34 +1,108 @@
-# LPM build script for libxcrypt
+#!/bin/bash
+# LPM build script for libxcrypt, including static libcrypt.a
+
 NAME="libxcrypt"
-VERSION="4.4.36"
-RELEASE="1"
+VERSION="4.5.2"
+RELEASE="2"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Modern libcrypt implementation"
+
+SUMMARY="Password hashing library compatible with glibc crypt"
 URL="https://github.com/besser82/libxcrypt"
-LICENSE=""
-SOURCE=()
+LICENSE=("LGPL-2.1-or-later" "BSD-2-Clause")
+
+SOURCE=(
+    "https://github.com/besser82/libxcrypt/releases/download/v${VERSION}/libxcrypt-${VERSION}.tar.xz"
+)
+
+SHA256SUMS=(
+    "71513a31c01a428bccd5367a32fd95f115d6dac50fb5b60c779d5c7942aec071"
+)
+
+PATCHES=()
+
 REQUIRES=("glibc")
-PROVIDES=("libxcrypt")
+BUILD_REQUIRES=("gcc" "make")
+
+PROVIDES=(
+    "libxcrypt"
+    "libcrypt.so"
+    "libcrypt.so.1"
+    "libcrypt.a"
+)
+
 CONFLICTS=()
 OBSOLETES=()
 RECOMMENDS=()
 SUGGESTS=()
 
+BUILD_OPTIONS=("@--optimize=2")
+
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    test -x configure
+    test -f COPYING.LIB
+
+    if [ -f Makefile ]; then
+        make distclean
+    fi
+
+    # retval is mutable. Preserve that type through C23's strchr overload.
+    sed -i \
+        '/char \*hptr = strchr/s/(const char \*)/(char *)/' \
+        lib/crypt-sm3-yescrypt.c \
+        lib/crypt-gost-yescrypt.c
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    ./configure \
+        --prefix=/usr \
+        --libdir=/usr/lib \
+        --includedir=/usr/include \
+        --enable-shared \
+        --enable-static \
+        --enable-hashes=strong,glibc \
+        --enable-obsolete-api=glibc \
+        --disable-werror
+
+    make -j"${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+check() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    make check
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    make -j1 DESTDIR="$pkgdir" install
+
+    # Keep the static archive required by busybox-static.
+    find "$pkgdir/usr/lib" \
+        -type f \
+        -name '*.la' \
+        -delete
+
+    test -s "$pkgdir/usr/lib/libcrypt.a"
+    test -e "$pkgdir/usr/lib/libcrypt.so"
+    test -e "$pkgdir/usr/lib/libcrypt.so.1"
+    test -f "$pkgdir/usr/include/crypt.h"
+    test -s "$pkgdir/usr/lib/pkgconfig/libxcrypt.pc"
+
+    install -Dm644 COPYING.LIB \
+        "$pkgdir/usr/share/licenses/$NAME/COPYING.LIB"
 }
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("71513a31c01a428bccd5367a32fd95f115d6dac50fb5b60c779d5c7942aec071")

@@ -1,0 +1,3133 @@
+{
+  "as_of": "2026-10-25",
+  "sources": {
+    "Qt": "6.11.2",
+    "KDE Frameworks": "6.31.0",
+    "Plasma": "6.8.1",
+    "Gear": "26.08.2",
+    "Plasma Wayland Protocols": "1.23.0",
+    "polkit-qt6": "0.201.1",
+    "SDDM": "0.21.0"
+  },
+  "repository_checked": "GitHub old LPMBUILDS mirror only; GitLab lpm-org/packages inaccessible",
+  "status": "Draft build recipes: not built, hashes unlocked, per-module dependency graphs require LPM CI iteration",
+  "packages": {
+    "ark": {
+      "version": "26.08.2",
+      "family": "Gear",
+      "upstream": "ark",
+      "source": "https://download.kde.org/stable/release-service/26.08.2/src/ark-26.08.2.tar.xz",
+      "requires": [
+        "qt6-base",
+        "karchive6",
+        "kconfig6",
+        "kio6",
+        "libarchive"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "attica6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "attica",
+      "source": "https://download.kde.org/stable/frameworks/6.31/attica-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "aurorae": {
+      "version": "6.8.1",
+      "family": "Plasma",
+      "upstream": "aurorae",
+      "source": "https://download.kde.org/stable/plasma/6.8.1/aurorae-6.8.1.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative",
+        "kdecoration",
+        "kconfig6",
+        "kdeclarative6",
+        "ksvg6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "baloo6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "baloo",
+      "source": "https://download.kde.org/stable/frameworks/6.31/baloo-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base",
+        "kconfig6",
+        "kcoreaddons6",
+        "kdbusaddons6",
+        "kfilemetadata6",
+        "ki18n6",
+        "kio6",
+        "solid6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "bluedevil": {
+      "version": "6.8.1",
+      "family": "Plasma",
+      "upstream": "bluedevil",
+      "source": "https://download.kde.org/stable/plasma/6.8.1/bluedevil-6.8.1.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative",
+        "bluez-qt6",
+        "plasma-workspace",
+        "bluez"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "bluez-qt6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "bluez-qt",
+      "source": "https://download.kde.org/stable/frameworks/6.31/bluez-qt-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base",
+        "bluez"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "breeze": {
+      "version": "6.8.1",
+      "family": "Plasma",
+      "upstream": "breeze",
+      "source": "https://download.kde.org/stable/plasma/6.8.1/breeze-6.8.1.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative",
+        "kcolorscheme6",
+        "kiconthemes6",
+        "kwindowsystem6",
+        "kdecoration"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "breeze-gtk": {
+      "version": "6.8.1",
+      "family": "Plasma",
+      "upstream": "breeze-gtk",
+      "source": "https://download.kde.org/stable/plasma/6.8.1/breeze-gtk-6.8.1.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative",
+        "breeze",
+        "kconfig6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "breeze-icons6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "breeze-icons",
+      "source": "https://download.kde.org/stable/frameworks/6.31/breeze-icons-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-svg"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "discover": {
+      "version": "6.8.1",
+      "family": "Plasma",
+      "upstream": "discover",
+      "source": "https://download.kde.org/stable/plasma/6.8.1/discover-6.8.1.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative",
+        "knewstuff6",
+        "kio6",
+        "kcmutils6",
+        "plasma-workspace"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "dolphin": {
+      "version": "26.08.2",
+      "family": "Gear",
+      "upstream": "dolphin",
+      "source": "https://download.kde.org/stable/release-service/26.08.2/src/dolphin-26.08.2.tar.xz",
+      "requires": [
+        "qt6-base",
+        "kio6",
+        "kparts6",
+        "kio-extras",
+        "baloo6",
+        "knewstuff6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "drkonqi": {
+      "version": "6.8.1",
+      "family": "Plasma",
+      "upstream": "drkonqi",
+      "source": "https://download.kde.org/stable/plasma/6.8.1/drkonqi-6.8.1.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative",
+        "kcrash6",
+        "ki18n6",
+        "kio6",
+        "polkit-qt6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "extra-cmake-modules": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "extra-cmake-modules",
+      "source": "https://download.kde.org/stable/frameworks/6.31/extra-cmake-modules-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf"
+      ],
+      "provides": []
+    },
+    "ffmpegthumbs": {
+      "version": "26.08.2",
+      "family": "Gear",
+      "upstream": "ffmpegthumbs",
+      "source": "https://download.kde.org/stable/release-service/26.08.2/src/ffmpegthumbs-26.08.2.tar.xz",
+      "requires": [
+        "qt6-base",
+        "kio6",
+        "ffmpeg"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "frameworkintegration6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "frameworkintegration",
+      "source": "https://download.kde.org/stable/frameworks/6.31/frameworkintegration-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base",
+        "kconfig6",
+        "kconfigwidgets6",
+        "kiconthemes6",
+        "knotifications6",
+        "kwindowsystem6",
+        "kcolorscheme6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "gwenview": {
+      "version": "26.08.2",
+      "family": "Gear",
+      "upstream": "gwenview",
+      "source": "https://download.kde.org/stable/release-service/26.08.2/src/gwenview-26.08.2.tar.xz",
+      "requires": [
+        "qt6-base",
+        "kio6",
+        "kimageformats6",
+        "kitemmodels6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kactivitymanagerd": {
+      "version": "6.8.1",
+      "family": "Plasma",
+      "upstream": "kactivitymanagerd",
+      "source": "https://download.kde.org/stable/plasma/6.8.1/kactivitymanagerd-6.8.1.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative",
+        "plasma-activities",
+        "kconfig6",
+        "kcoreaddons6",
+        "kio6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "karchive6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "karchive",
+      "source": "https://download.kde.org/stable/frameworks/6.31/karchive-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kate": {
+      "version": "26.08.2",
+      "family": "Gear",
+      "upstream": "kate",
+      "source": "https://download.kde.org/stable/release-service/26.08.2/src/kate-26.08.2.tar.xz",
+      "requires": [
+        "qt6-base",
+        "ktexteditor6",
+        "kio6",
+        "knewstuff6",
+        "syntax-highlighting6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kauth6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "kauth",
+      "source": "https://download.kde.org/stable/frameworks/6.31/kauth-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base",
+        "kcoreaddons6",
+        "kconfig6",
+        "polkit-qt6",
+        "polkit"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kbookmarks6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "kbookmarks",
+      "source": "https://download.kde.org/stable/frameworks/6.31/kbookmarks-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base",
+        "kconfig6",
+        "kcoreaddons6",
+        "kwidgetsaddons6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kcalendarcore6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "kcalendarcore",
+      "source": "https://download.kde.org/stable/frameworks/6.31/kcalendarcore-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kcmutils6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "kcmutils",
+      "source": "https://download.kde.org/stable/frameworks/6.31/kcmutils-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base",
+        "kconfig6",
+        "kconfigwidgets6",
+        "kcoreaddons6",
+        "ki18n6",
+        "kservice6",
+        "kdeclarative6",
+        "kirigami6",
+        "qt6-declarative",
+        "qt6-svg"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kcodecs6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "kcodecs",
+      "source": "https://download.kde.org/stable/frameworks/6.31/kcodecs-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kcolorscheme6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "kcolorscheme",
+      "source": "https://download.kde.org/stable/frameworks/6.31/kcolorscheme-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base",
+        "kcoreaddons6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kcompletion6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "kcompletion",
+      "source": "https://download.kde.org/stable/frameworks/6.31/kcompletion-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base",
+        "kconfig6",
+        "kwidgetsaddons6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kconfig6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "kconfig",
+      "source": "https://download.kde.org/stable/frameworks/6.31/kconfig-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base",
+        "kcoreaddons6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kconfigwidgets6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "kconfigwidgets",
+      "source": "https://download.kde.org/stable/frameworks/6.31/kconfigwidgets-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base",
+        "kconfig6",
+        "kcolorscheme6",
+        "kwidgetsaddons6",
+        "ki18n6",
+        "kcodecs6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kcontacts6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "kcontacts",
+      "source": "https://download.kde.org/stable/frameworks/6.31/kcontacts-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base",
+        "kcalendarcore6",
+        "kcodecs6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kcoreaddons6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "kcoreaddons",
+      "source": "https://download.kde.org/stable/frameworks/6.31/kcoreaddons-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kcrash6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "kcrash",
+      "source": "https://download.kde.org/stable/frameworks/6.31/kcrash-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base",
+        "kcoreaddons6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kdav6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "kdav",
+      "source": "https://download.kde.org/stable/frameworks/6.31/kdav-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base",
+        "kcoreaddons6",
+        "kio6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kdbusaddons6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "kdbusaddons",
+      "source": "https://download.kde.org/stable/frameworks/6.31/kdbusaddons-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kde-cli-tools": {
+      "version": "6.8.1",
+      "family": "Plasma",
+      "upstream": "kde-cli-tools",
+      "source": "https://download.kde.org/stable/plasma/6.8.1/kde-cli-tools-6.8.1.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative",
+        "kconfig6",
+        "ki18n6",
+        "kio6",
+        "kwindowsystem6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kde-gtk-config": {
+      "version": "6.8.1",
+      "family": "Plasma",
+      "upstream": "kde-gtk-config",
+      "source": "https://download.kde.org/stable/plasma/6.8.1/kde-gtk-config-6.8.1.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative",
+        "kconfig6",
+        "kcmutils6",
+        "kdeclarative6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kdeclarative6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "kdeclarative",
+      "source": "https://download.kde.org/stable/frameworks/6.31/kdeclarative-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base",
+        "kconfig6",
+        "kcoreaddons6",
+        "ki18n6",
+        "kirigami6",
+        "qt6-declarative",
+        "qt6-svg"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kdeconnect-kde": {
+      "version": "26.08.2",
+      "family": "Gear",
+      "upstream": "kdeconnect-kde",
+      "source": "https://download.kde.org/stable/release-service/26.08.2/src/kdeconnect-kde-26.08.2.tar.xz",
+      "requires": [
+        "qt6-base",
+        "kio6",
+        "knotifications6",
+        "qt6-multimedia",
+        "qt6-wayland"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kdecoration": {
+      "version": "6.8.1",
+      "family": "Plasma",
+      "upstream": "kdecoration",
+      "source": "https://download.kde.org/stable/plasma/6.8.1/kdecoration-6.8.1.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative",
+        "kcoreaddons6",
+        "ki18n6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kded6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "kded",
+      "source": "https://download.kde.org/stable/frameworks/6.31/kded-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base",
+        "kconfig6",
+        "kcoreaddons6",
+        "kservice6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kdegraphics-thumbnailers": {
+      "version": "26.08.2",
+      "family": "Gear",
+      "upstream": "kdegraphics-thumbnailers",
+      "source": "https://download.kde.org/stable/release-service/26.08.2/src/kdegraphics-thumbnailers-26.08.2.tar.xz",
+      "requires": [
+        "qt6-base",
+        "kio6",
+        "karchive6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kdeplasma-addons": {
+      "version": "6.8.1",
+      "family": "Plasma",
+      "upstream": "kdeplasma-addons",
+      "source": "https://download.kde.org/stable/plasma/6.8.1/kdeplasma-addons-6.8.1.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative",
+        "libplasma",
+        "plasma-workspace",
+        "knewstuff6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kdesu6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "kdesu",
+      "source": "https://download.kde.org/stable/frameworks/6.31/kdesu-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base",
+        "kpty6",
+        "kcoreaddons6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kdnssd6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "kdnssd",
+      "source": "https://download.kde.org/stable/frameworks/6.31/kdnssd-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kdoctools6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "kdoctools",
+      "source": "https://download.kde.org/stable/frameworks/6.31/kdoctools-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base",
+        "karchive6",
+        "ki18n6",
+        "docbook-xml",
+        "docbook-xsl",
+        "libxslt"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules",
+        "docbook-xml",
+        "docbook-xsl"
+      ],
+      "provides": []
+    },
+    "kfilemetadata6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "kfilemetadata",
+      "source": "https://download.kde.org/stable/frameworks/6.31/kfilemetadata-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base",
+        "kcoreaddons6",
+        "ki18n6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kglobalaccel6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "kglobalaccel",
+      "source": "https://download.kde.org/stable/frameworks/6.31/kglobalaccel-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base",
+        "kconfig6",
+        "kcoreaddons6",
+        "kwindowsystem6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kglobalacceld": {
+      "version": "6.8.1",
+      "family": "Plasma",
+      "upstream": "kglobalacceld",
+      "source": "https://download.kde.org/stable/plasma/6.8.1/kglobalacceld-6.8.1.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative",
+        "kglobalaccel6",
+        "kconfig6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kguiaddons6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "kguiaddons",
+      "source": "https://download.kde.org/stable/frameworks/6.31/kguiaddons-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kholidays6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "kholidays",
+      "source": "https://download.kde.org/stable/frameworks/6.31/kholidays-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "ki18n6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "ki18n",
+      "source": "https://download.kde.org/stable/frameworks/6.31/ki18n-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base",
+        "gettext"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kiconthemes6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "kiconthemes",
+      "source": "https://download.kde.org/stable/frameworks/6.31/kiconthemes-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base",
+        "breeze-icons6",
+        "kcolorscheme6",
+        "kconfigwidgets6",
+        "kwidgetsaddons6",
+        "qt6-svg"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kidletime6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "kidletime",
+      "source": "https://download.kde.org/stable/frameworks/6.31/kidletime-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base",
+        "kwindowsystem6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kimageformats6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "kimageformats",
+      "source": "https://download.kde.org/stable/frameworks/6.31/kimageformats-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base",
+        "kcoreaddons6",
+        "qt6-svg"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kinfocenter": {
+      "version": "6.8.1",
+      "family": "Plasma",
+      "upstream": "kinfocenter",
+      "source": "https://download.kde.org/stable/plasma/6.8.1/kinfocenter-6.8.1.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative",
+        "ksystemstats",
+        "libksysguard",
+        "kio6",
+        "plasma-workspace"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kio-extras": {
+      "version": "26.08.2",
+      "family": "Gear",
+      "upstream": "kio-extras",
+      "source": "https://download.kde.org/stable/release-service/26.08.2/src/kio-extras-26.08.2.tar.xz",
+      "requires": [
+        "qt6-base",
+        "kio6",
+        "solid6",
+        "karchive6",
+        "kconfig6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kio6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "kio",
+      "source": "https://download.kde.org/stable/frameworks/6.31/kio-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base",
+        "karchive6",
+        "kconfig6",
+        "kcoreaddons6",
+        "kdbusaddons6",
+        "ki18n6",
+        "kservice6",
+        "kjobwidgets6",
+        "knotifications6",
+        "solid6",
+        "kwidgetsaddons6",
+        "kwindowsystem6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kirigami6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "kirigami",
+      "source": "https://download.kde.org/stable/frameworks/6.31/kirigami-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base",
+        "kcolorscheme6",
+        "kcoreaddons6",
+        "kwindowsystem6",
+        "qt6-declarative",
+        "qt6-svg"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kitemmodels6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "kitemmodels",
+      "source": "https://download.kde.org/stable/frameworks/6.31/kitemmodels-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kitemviews6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "kitemviews",
+      "source": "https://download.kde.org/stable/frameworks/6.31/kitemviews-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kjobwidgets6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "kjobwidgets",
+      "source": "https://download.kde.org/stable/frameworks/6.31/kjobwidgets-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base",
+        "kcoreaddons6",
+        "kwidgetsaddons6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kmenuedit": {
+      "version": "6.8.1",
+      "family": "Plasma",
+      "upstream": "kmenuedit",
+      "source": "https://download.kde.org/stable/plasma/6.8.1/kmenuedit-6.8.1.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative",
+        "kconfig6",
+        "kio6",
+        "kservice6",
+        "kxmlgui6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kmime6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "kmime",
+      "source": "https://download.kde.org/stable/frameworks/6.31/kmime-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base",
+        "kcodecs6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "knewstuff6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "knewstuff",
+      "source": "https://download.kde.org/stable/frameworks/6.31/knewstuff-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base",
+        "attica6",
+        "kconfig6",
+        "kcoreaddons6",
+        "kdeclarative6",
+        "ki18n6",
+        "kirigami6",
+        "kpackage6",
+        "kservice6",
+        "qt6-declarative",
+        "qt6-svg"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "knighttime": {
+      "version": "6.8.1",
+      "family": "Plasma",
+      "upstream": "knighttime",
+      "source": "https://download.kde.org/stable/plasma/6.8.1/knighttime-6.8.1.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative",
+        "kconfig6",
+        "ki18n6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "knotifications6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "knotifications",
+      "source": "https://download.kde.org/stable/frameworks/6.31/knotifications-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base",
+        "kcoreaddons6",
+        "kwindowsystem6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "knotifyconfig6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "knotifyconfig",
+      "source": "https://download.kde.org/stable/frameworks/6.31/knotifyconfig-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base",
+        "kconfig6",
+        "ki18n6",
+        "knotifications6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "konsole": {
+      "version": "26.08.2",
+      "family": "Gear",
+      "upstream": "konsole",
+      "source": "https://download.kde.org/stable/release-service/26.08.2/src/konsole-26.08.2.tar.xz",
+      "requires": [
+        "qt6-base",
+        "kconfig6",
+        "kcoreaddons6",
+        "kpty6",
+        "kio6",
+        "ki18n6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kpackage6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "kpackage",
+      "source": "https://download.kde.org/stable/frameworks/6.31/kpackage-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base",
+        "kcoreaddons6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kparts6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "kparts",
+      "source": "https://download.kde.org/stable/frameworks/6.31/kparts-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base",
+        "kconfig6",
+        "kcoreaddons6",
+        "ki18n6",
+        "kio6",
+        "kservice6",
+        "kwidgetsaddons6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kpeople6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "kpeople",
+      "source": "https://download.kde.org/stable/frameworks/6.31/kpeople-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base",
+        "kcoreaddons6",
+        "kdeclarative6",
+        "ki18n6",
+        "qt6-declarative",
+        "qt6-svg"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kpipewire": {
+      "version": "6.8.1",
+      "family": "Plasma",
+      "upstream": "kpipewire",
+      "source": "https://download.kde.org/stable/plasma/6.8.1/kpipewire-6.8.1.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative",
+        "qt6-multimedia",
+        "kcoreaddons6",
+        "pipewire"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kplotting6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "kplotting",
+      "source": "https://download.kde.org/stable/frameworks/6.31/kplotting-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kpty6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "kpty",
+      "source": "https://download.kde.org/stable/frameworks/6.31/kpty-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base",
+        "kcoreaddons6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kquickcharts6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "kquickcharts",
+      "source": "https://download.kde.org/stable/frameworks/6.31/kquickcharts-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative",
+        "qt6-svg"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "krunner6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "krunner",
+      "source": "https://download.kde.org/stable/frameworks/6.31/krunner-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base",
+        "kconfig6",
+        "kcoreaddons6",
+        "ki18n6",
+        "kservice6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kscreen": {
+      "version": "6.8.1",
+      "family": "Plasma",
+      "upstream": "kscreen",
+      "source": "https://download.kde.org/stable/plasma/6.8.1/kscreen-6.8.1.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative",
+        "libkscreen",
+        "plasma-workspace",
+        "kcmutils6",
+        "mesa",
+        "libdrm"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kscreenlocker": {
+      "version": "6.8.1",
+      "family": "Plasma",
+      "upstream": "kscreenlocker",
+      "source": "https://download.kde.org/stable/plasma/6.8.1/kscreenlocker-6.8.1.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative",
+        "kwin",
+        "kglobalaccel6",
+        "kdeclarative6",
+        "plasma-workspace"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kservice6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "kservice",
+      "source": "https://download.kde.org/stable/frameworks/6.31/kservice-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base",
+        "kconfig6",
+        "kcoreaddons6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "ksshaskpass": {
+      "version": "6.8.1",
+      "family": "Plasma",
+      "upstream": "ksshaskpass",
+      "source": "https://download.kde.org/stable/plasma/6.8.1/ksshaskpass-6.8.1.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative",
+        "kwallet6",
+        "kio6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kstatusnotifieritem6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "kstatusnotifieritem",
+      "source": "https://download.kde.org/stable/frameworks/6.31/kstatusnotifieritem-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base",
+        "kwindowsystem6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "ksvg6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "ksvg",
+      "source": "https://download.kde.org/stable/frameworks/6.31/ksvg-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base",
+        "kcolorscheme6",
+        "kcoreaddons6",
+        "kconfig6",
+        "kirigami6",
+        "qt6-declarative",
+        "qt6-svg"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "ksystemstats": {
+      "version": "6.8.1",
+      "family": "Plasma",
+      "upstream": "ksystemstats",
+      "source": "https://download.kde.org/stable/plasma/6.8.1/ksystemstats-6.8.1.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative",
+        "libksysguard",
+        "kcoreaddons6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "ktexteditor6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "ktexteditor",
+      "source": "https://download.kde.org/stable/frameworks/6.31/ktexteditor-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base",
+        "kconfig6",
+        "kcoreaddons6",
+        "kio6",
+        "syntax-highlighting6",
+        "kparts6",
+        "kwidgetsaddons6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "ktexttemplate6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "ktexttemplate",
+      "source": "https://download.kde.org/stable/frameworks/6.31/ktexttemplate-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "ktextwidgets6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "ktextwidgets",
+      "source": "https://download.kde.org/stable/frameworks/6.31/ktextwidgets-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base",
+        "kcompletion6",
+        "kconfigwidgets6",
+        "ki18n6",
+        "kwidgetsaddons6",
+        "sonnet6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kunitconversion6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "kunitconversion",
+      "source": "https://download.kde.org/stable/frameworks/6.31/kunitconversion-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base",
+        "ki18n6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kuserfeedback6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "kuserfeedback",
+      "source": "https://download.kde.org/stable/frameworks/6.31/kuserfeedback-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kwallet-pam": {
+      "version": "6.8.1",
+      "family": "Plasma",
+      "upstream": "kwallet-pam",
+      "source": "https://download.kde.org/stable/plasma/6.8.1/kwallet-pam-6.8.1.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative",
+        "kwallet6",
+        "pam"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kwallet6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "kwallet",
+      "source": "https://download.kde.org/stable/frameworks/6.31/kwallet-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base",
+        "kconfig6",
+        "kcoreaddons6",
+        "ki18n6",
+        "libgcrypt"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kwayland": {
+      "version": "6.8.1",
+      "family": "Plasma",
+      "upstream": "kwayland",
+      "source": "https://download.kde.org/stable/plasma/6.8.1/kwayland-6.8.1.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative",
+        "qt6-wayland",
+        "plasma-wayland-protocols",
+        "wayland",
+        "wayland-protocols"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kwayland-integration": {
+      "version": "6.8.1",
+      "family": "Plasma",
+      "upstream": "kwayland-integration",
+      "source": "https://download.kde.org/stable/plasma/6.8.1/kwayland-integration-6.8.1.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative",
+        "kwayland",
+        "qt6-wayland"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kwidgetsaddons6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "kwidgetsaddons",
+      "source": "https://download.kde.org/stable/frameworks/6.31/kwidgetsaddons-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kwin": {
+      "version": "6.8.1",
+      "family": "Plasma",
+      "upstream": "kwin",
+      "source": "https://download.kde.org/stable/plasma/6.8.1/kwin-6.8.1.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative",
+        "kdecoration",
+        "aurorae",
+        "breeze",
+        "milou",
+        "libplasma",
+        "kwayland",
+        "kglobalaccel6",
+        "kglobalacceld",
+        "kconfig6",
+        "kcoreaddons6",
+        "ki18n6",
+        "kwindowsystem6",
+        "kcmutils6",
+        "plasma-wayland-protocols",
+        "libdisplay-info",
+        "libei",
+        "libinput",
+        "libxcvt",
+        "wayland",
+        "wayland-protocols",
+        "mesa",
+        "libdrm"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kwindowsystem6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "kwindowsystem",
+      "source": "https://download.kde.org/stable/frameworks/6.31/kwindowsystem-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kwrited": {
+      "version": "6.8.1",
+      "family": "Plasma",
+      "upstream": "kwrited",
+      "source": "https://download.kde.org/stable/plasma/6.8.1/kwrited-6.8.1.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative",
+        "kpty6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "kxmlgui6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "kxmlgui",
+      "source": "https://download.kde.org/stable/frameworks/6.31/kxmlgui-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base",
+        "kconfig6",
+        "kconfigwidgets6",
+        "kcoreaddons6",
+        "kglobalaccel6",
+        "kiconthemes6",
+        "kitemviews6",
+        "kwidgetsaddons6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "layer-shell-qt": {
+      "version": "6.8.1",
+      "family": "Plasma",
+      "upstream": "layer-shell-qt",
+      "source": "https://download.kde.org/stable/plasma/6.8.1/layer-shell-qt-6.8.1.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative",
+        "qt6-wayland",
+        "plasma-wayland-protocols",
+        "wayland",
+        "wayland-protocols"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "libkscreen": {
+      "version": "6.8.1",
+      "family": "Plasma",
+      "upstream": "libkscreen",
+      "source": "https://download.kde.org/stable/plasma/6.8.1/libkscreen-6.8.1.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative",
+        "kwayland",
+        "qt6-wayland"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "libksysguard": {
+      "version": "6.8.1",
+      "family": "Plasma",
+      "upstream": "libksysguard",
+      "source": "https://download.kde.org/stable/plasma/6.8.1/libksysguard-6.8.1.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative",
+        "kcoreaddons6",
+        "ki18n6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "libplasma": {
+      "version": "6.8.1",
+      "family": "Plasma",
+      "upstream": "libplasma",
+      "source": "https://download.kde.org/stable/plasma/6.8.1/libplasma-6.8.1.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative",
+        "kdeclarative6",
+        "kpackage6",
+        "kirigami6",
+        "ksvg6",
+        "kconfig6",
+        "kcoreaddons6",
+        "plasma-activities"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "milou": {
+      "version": "6.8.1",
+      "family": "Plasma",
+      "upstream": "milou",
+      "source": "https://download.kde.org/stable/plasma/6.8.1/milou-6.8.1.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative",
+        "krunner6",
+        "kconfig6",
+        "kdeclarative6",
+        "libplasma"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "modemmanager-qt6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "modemmanager-qt",
+      "source": "https://download.kde.org/stable/frameworks/6.31/modemmanager-qt-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base",
+        "modemmanager"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "networkmanager-qt6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "networkmanager-qt",
+      "source": "https://download.kde.org/stable/frameworks/6.31/networkmanager-qt-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base",
+        "networkmanager"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "ocean-sound-theme": {
+      "version": "6.8.1",
+      "family": "Plasma",
+      "upstream": "ocean-sound-theme",
+      "source": "https://download.kde.org/stable/plasma/6.8.1/ocean-sound-theme-6.8.1.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "oxygen": {
+      "version": "6.8.1",
+      "family": "Plasma",
+      "upstream": "oxygen",
+      "source": "https://download.kde.org/stable/plasma/6.8.1/oxygen-6.8.1.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative",
+        "kcolorscheme6",
+        "kconfig6",
+        "kdecoration"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "oxygen-sounds": {
+      "version": "6.8.1",
+      "family": "Plasma",
+      "upstream": "oxygen-sounds",
+      "source": "https://download.kde.org/stable/plasma/6.8.1/oxygen-sounds-6.8.1.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "plasma-activities": {
+      "version": "6.8.1",
+      "family": "Plasma",
+      "upstream": "plasma-activities",
+      "source": "https://download.kde.org/stable/plasma/6.8.1/plasma-activities-6.8.1.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative",
+        "kconfig6",
+        "kcoreaddons6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "plasma-activities-stats": {
+      "version": "6.8.1",
+      "family": "Plasma",
+      "upstream": "plasma-activities-stats",
+      "source": "https://download.kde.org/stable/plasma/6.8.1/plasma-activities-stats-6.8.1.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative",
+        "plasma-activities",
+        "kcoreaddons6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "plasma-browser-integration": {
+      "version": "6.8.1",
+      "family": "Plasma",
+      "upstream": "plasma-browser-integration",
+      "source": "https://download.kde.org/stable/plasma/6.8.1/plasma-browser-integration-6.8.1.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative",
+        "plasma-workspace",
+        "kdeclarative6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "plasma-core": {
+      "version": "6.8.1",
+      "family": "Meta",
+      "upstream": "plasma-core",
+      "source": "",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative",
+        "qt6-svg",
+        "qt6-wayland",
+        "qt6-shadertools",
+        "qt6-multimedia",
+        "plasma-wayland-protocols",
+        "polkit-qt6",
+        "kwin",
+        "plasma-workspace",
+        "plasma-desktop",
+        "libplasma",
+        "plasma-integration",
+        "plasma-nm",
+        "plasma-pa",
+        "powerdevil",
+        "polkit-kde-agent-1",
+        "kscreen",
+        "kscreenlocker",
+        "libkscreen",
+        "breeze",
+        "breeze-icons6",
+        "ocean-sound-theme",
+        "systemsettings",
+        "kde-cli-tools",
+        "xdg-desktop-portal-kde",
+        "sddm",
+        "plasma5support",
+        "kglobalacceld",
+        "pipewire",
+        "wireplumber",
+        "upower",
+        "power-profiles-daemon",
+        "polkit",
+        "dbus",
+        "xdg-desktop-portal",
+        "xorg-xwayland",
+        "networkmanager",
+        "mesa",
+        "wayland"
+      ],
+      "build_requires": [],
+      "provides": []
+    },
+    "plasma-desktop": {
+      "version": "6.8.1",
+      "family": "Plasma",
+      "upstream": "plasma-desktop",
+      "source": "https://download.kde.org/stable/plasma/6.8.1/plasma-desktop-6.8.1.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative",
+        "plasma-workspace",
+        "libplasma",
+        "ksvg6",
+        "kcmutils6",
+        "kio6",
+        "knewstuff6",
+        "kglobalaccel6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "plasma-disks": {
+      "version": "6.8.1",
+      "family": "Plasma",
+      "upstream": "plasma-disks",
+      "source": "https://download.kde.org/stable/plasma/6.8.1/plasma-disks-6.8.1.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative",
+        "solid6",
+        "kcmutils6",
+        "plasma-workspace"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "plasma-firewall": {
+      "version": "6.8.1",
+      "family": "Plasma",
+      "upstream": "plasma-firewall",
+      "source": "https://download.kde.org/stable/plasma/6.8.1/plasma-firewall-6.8.1.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative",
+        "kcmutils6",
+        "plasma-workspace"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "plasma-integration": {
+      "version": "6.8.1",
+      "family": "Plasma",
+      "upstream": "plasma-integration",
+      "source": "https://download.kde.org/stable/plasma/6.8.1/plasma-integration-6.8.1.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative",
+        "plasma-workspace",
+        "frameworkintegration6",
+        "kiconthemes6",
+        "qt6-wayland"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "plasma-meta": {
+      "version": "6.8.1",
+      "family": "Meta",
+      "upstream": "plasma-meta",
+      "source": "",
+      "requires": [
+        "plasma-core",
+        "kactivitymanagerd",
+        "kmenuedit",
+        "kinfocenter",
+        "plasma-systemmonitor",
+        "libksysguard",
+        "ksystemstats",
+        "sddm-kcm",
+        "plasma-welcome",
+        "plasma-setup",
+        "bluedevil",
+        "kde-gtk-config",
+        "qqc2-breeze-style",
+        "breeze-gtk",
+        "plasma-workspace-wallpapers",
+        "kdeplasma-addons",
+        "plasma-browser-integration",
+        "spectacle",
+        "kwallet6",
+        "kwallet-pam",
+        "ksshaskpass",
+        "kpipewire",
+        "plasma-disks",
+        "plasma-firewall",
+        "plasma-thunderbolt",
+        "plasma-vault",
+        "dolphin",
+        "konsole",
+        "ark",
+        "kate",
+        "gwenview",
+        "kio-extras",
+        "ffmpegthumbs",
+        "kdegraphics-thumbnailers",
+        "kdeconnect-kde",
+        "print-manager",
+        "cups",
+        "bluez",
+        "udisks2",
+        "unzip"
+      ],
+      "build_requires": [],
+      "provides": [
+        "plasma-full"
+      ]
+    },
+    "plasma-nm": {
+      "version": "6.8.1",
+      "family": "Plasma",
+      "upstream": "plasma-nm",
+      "source": "https://download.kde.org/stable/plasma/6.8.1/plasma-nm-6.8.1.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative",
+        "plasma-workspace",
+        "networkmanager-qt6",
+        "networkmanager"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "plasma-pa": {
+      "version": "6.8.1",
+      "family": "Plasma",
+      "upstream": "plasma-pa",
+      "source": "https://download.kde.org/stable/plasma/6.8.1/plasma-pa-6.8.1.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative",
+        "kpipewire",
+        "plasma-workspace",
+        "pulseaudio-qt",
+        "pipewire"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "plasma-setup": {
+      "version": "6.8.1",
+      "family": "Plasma",
+      "upstream": "plasma-setup",
+      "source": "https://download.kde.org/stable/plasma/6.8.1/plasma-setup-6.8.1.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative",
+        "plasma-workspace",
+        "plasma-desktop"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "plasma-systemmonitor": {
+      "version": "6.8.1",
+      "family": "Plasma",
+      "upstream": "plasma-systemmonitor",
+      "source": "https://download.kde.org/stable/plasma/6.8.1/plasma-systemmonitor-6.8.1.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative",
+        "libksysguard",
+        "ksystemstats",
+        "plasma-workspace",
+        "kquickcharts6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "plasma-thunderbolt": {
+      "version": "6.8.1",
+      "family": "Plasma",
+      "upstream": "plasma-thunderbolt",
+      "source": "https://download.kde.org/stable/plasma/6.8.1/plasma-thunderbolt-6.8.1.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative",
+        "kcmutils6",
+        "plasma-workspace"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "plasma-vault": {
+      "version": "6.8.1",
+      "family": "Plasma",
+      "upstream": "plasma-vault",
+      "source": "https://download.kde.org/stable/plasma/6.8.1/plasma-vault-6.8.1.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative",
+        "plasma-workspace",
+        "kio6",
+        "kwallet6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "plasma-wayland-protocols": {
+      "version": "1.23.0",
+      "family": "KDEInfra",
+      "upstream": "plasma-wayland-protocols",
+      "source": "https://download.kde.org/stable/plasma-wayland-protocols/plasma-wayland-protocols-1.23.0.tar.xz",
+      "requires": [
+        "wayland-protocols"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "plasma-welcome": {
+      "version": "6.8.1",
+      "family": "Plasma",
+      "upstream": "plasma-welcome",
+      "source": "https://download.kde.org/stable/plasma/6.8.1/plasma-welcome-6.8.1.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative",
+        "kdeclarative6",
+        "plasma-workspace"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "plasma-workspace": {
+      "version": "6.8.1",
+      "family": "Plasma",
+      "upstream": "plasma-workspace",
+      "source": "https://download.kde.org/stable/plasma/6.8.1/plasma-workspace-6.8.1.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative",
+        "kwin",
+        "libplasma",
+        "plasma5support",
+        "plasma-activities",
+        "kactivitymanagerd",
+        "kglobalaccel6",
+        "kio6",
+        "kservice6",
+        "krunner6",
+        "milou",
+        "wayland",
+        "wayland-protocols",
+        "mesa",
+        "libdrm"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "plasma-workspace-wallpapers": {
+      "version": "6.8.1",
+      "family": "Plasma",
+      "upstream": "plasma-workspace-wallpapers",
+      "source": "https://download.kde.org/stable/plasma/6.8.1/plasma-workspace-wallpapers-6.8.1.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "plasma5support": {
+      "version": "6.8.1",
+      "family": "Plasma",
+      "upstream": "plasma5support",
+      "source": "https://download.kde.org/stable/plasma/6.8.1/plasma5support-6.8.1.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative",
+        "kconfig6",
+        "kcoreaddons6",
+        "kdeclarative6",
+        "libplasma"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "polkit-kde-agent-1": {
+      "version": "6.8.1",
+      "family": "Plasma",
+      "upstream": "polkit-kde-agent-1",
+      "source": "https://download.kde.org/stable/plasma/6.8.1/polkit-kde-agent-1-6.8.1.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative",
+        "polkit-qt6",
+        "ki18n6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "polkit-qt6": {
+      "version": "0.201.1",
+      "family": "KDEInfra",
+      "upstream": "polkit-qt-1",
+      "source": "https://download.kde.org/stable/polkit-qt-1/polkit-qt-1-0.201.1.tar.xz",
+      "requires": [
+        "qt6-base",
+        "polkit"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf"
+      ],
+      "provides": []
+    },
+    "powerdevil": {
+      "version": "6.8.1",
+      "family": "Plasma",
+      "upstream": "powerdevil",
+      "source": "https://download.kde.org/stable/plasma/6.8.1/powerdevil-6.8.1.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative",
+        "plasma-workspace",
+        "solid6",
+        "plasma-activities",
+        "upower",
+        "power-profiles-daemon"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "print-manager": {
+      "version": "6.8.1",
+      "family": "Plasma",
+      "upstream": "print-manager",
+      "source": "https://download.kde.org/stable/plasma/6.8.1/print-manager-6.8.1.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative",
+        "kcmutils6",
+        "plasma-workspace",
+        "cups"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "prison6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "prison",
+      "source": "https://download.kde.org/stable/frameworks/6.31/prison-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base",
+        "kcoreaddons6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "purpose6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "purpose",
+      "source": "https://download.kde.org/stable/frameworks/6.31/purpose-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base",
+        "kconfig6",
+        "kcoreaddons6",
+        "kdeclarative6",
+        "ki18n6",
+        "kio6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "qqc2-breeze-style": {
+      "version": "6.8.1",
+      "family": "Plasma",
+      "upstream": "qqc2-breeze-style",
+      "source": "https://download.kde.org/stable/plasma/6.8.1/qqc2-breeze-style-6.8.1.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative",
+        "breeze",
+        "kdeclarative6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "qqc2-desktop-style6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "qqc2-desktop-style",
+      "source": "https://download.kde.org/stable/frameworks/6.31/qqc2-desktop-style-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base",
+        "kirigami6",
+        "kcolorscheme6",
+        "kconfig6",
+        "kiconthemes6",
+        "qt6-declarative",
+        "qt6-svg"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "qt6-5compat": {
+      "version": "6.11.2",
+      "family": "Qt6",
+      "upstream": "qt5compat",
+      "source": "https://download.qt.io/archive/qt/6.11/6.11.2/submodules/qt5compat-everywhere-src-6.11.2.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "python"
+      ],
+      "provides": [
+        "qt5compat"
+      ]
+    },
+    "qt6-base": {
+      "version": "6.11.2",
+      "family": "Qt6",
+      "upstream": "qtbase",
+      "source": "https://download.qt.io/archive/qt/6.11/6.11.2/submodules/qtbase-everywhere-src-6.11.2.tar.xz",
+      "requires": [
+        "glibc"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "python"
+      ],
+      "provides": [
+        "qtbase"
+      ]
+    },
+    "qt6-declarative": {
+      "version": "6.11.2",
+      "family": "Qt6",
+      "upstream": "qtdeclarative",
+      "source": "https://download.qt.io/archive/qt/6.11/6.11.2/submodules/qtdeclarative-everywhere-src-6.11.2.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-shadertools"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "python"
+      ],
+      "provides": [
+        "qtdeclarative"
+      ]
+    },
+    "qt6-imageformats": {
+      "version": "6.11.2",
+      "family": "Qt6",
+      "upstream": "qtimageformats",
+      "source": "https://download.qt.io/archive/qt/6.11/6.11.2/submodules/qtimageformats-everywhere-src-6.11.2.tar.xz",
+      "requires": [
+        "qt6-base"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "python"
+      ],
+      "provides": [
+        "qtimageformats"
+      ]
+    },
+    "qt6-multimedia": {
+      "version": "6.11.2",
+      "family": "Qt6",
+      "upstream": "qtmultimedia",
+      "source": "https://download.qt.io/archive/qt/6.11/6.11.2/submodules/qtmultimedia-everywhere-src-6.11.2.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "python"
+      ],
+      "provides": [
+        "qtmultimedia"
+      ]
+    },
+    "qt6-quick3d": {
+      "version": "6.11.2",
+      "family": "Qt6",
+      "upstream": "qtquick3d",
+      "source": "https://download.qt.io/archive/qt/6.11/6.11.2/submodules/qtquick3d-everywhere-src-6.11.2.tar.xz",
+      "requires": [
+        "qt6-declarative",
+        "qt6-shadertools"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "python"
+      ],
+      "provides": [
+        "qtquick3d"
+      ]
+    },
+    "qt6-sensors": {
+      "version": "6.11.2",
+      "family": "Qt6",
+      "upstream": "qtsensors",
+      "source": "https://download.qt.io/archive/qt/6.11/6.11.2/submodules/qtsensors-everywhere-src-6.11.2.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "python"
+      ],
+      "provides": [
+        "qtsensors"
+      ]
+    },
+    "qt6-shadertools": {
+      "version": "6.11.2",
+      "family": "Qt6",
+      "upstream": "qtshadertools",
+      "source": "https://download.qt.io/archive/qt/6.11/6.11.2/submodules/qtshadertools-everywhere-src-6.11.2.tar.xz",
+      "requires": [
+        "qt6-base"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "python"
+      ],
+      "provides": [
+        "qtshadertools"
+      ]
+    },
+    "qt6-svg": {
+      "version": "6.11.2",
+      "family": "Qt6",
+      "upstream": "qtsvg",
+      "source": "https://download.qt.io/archive/qt/6.11/6.11.2/submodules/qtsvg-everywhere-src-6.11.2.tar.xz",
+      "requires": [
+        "qt6-base"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "python"
+      ],
+      "provides": [
+        "qtsvg"
+      ]
+    },
+    "qt6-tools": {
+      "version": "6.11.2",
+      "family": "Qt6",
+      "upstream": "qttools",
+      "source": "https://download.qt.io/archive/qt/6.11/6.11.2/submodules/qttools-everywhere-src-6.11.2.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "python"
+      ],
+      "provides": [
+        "qttools"
+      ]
+    },
+    "qt6-translations": {
+      "version": "6.11.2",
+      "family": "Qt6",
+      "upstream": "qttranslations",
+      "source": "https://download.qt.io/archive/qt/6.11/6.11.2/submodules/qttranslations-everywhere-src-6.11.2.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-tools"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "python"
+      ],
+      "provides": [
+        "qttranslations"
+      ]
+    },
+    "qt6-wayland": {
+      "version": "6.11.2",
+      "family": "Qt6",
+      "upstream": "qtwayland",
+      "source": "https://download.qt.io/archive/qt/6.11/6.11.2/submodules/qtwayland-everywhere-src-6.11.2.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative",
+        "wayland",
+        "wayland-protocols"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "python"
+      ],
+      "provides": [
+        "qtwayland"
+      ]
+    },
+    "qt6-webchannel": {
+      "version": "6.11.2",
+      "family": "Qt6",
+      "upstream": "qtwebchannel",
+      "source": "https://download.qt.io/archive/qt/6.11/6.11.2/submodules/qtwebchannel-everywhere-src-6.11.2.tar.xz",
+      "requires": [
+        "qt6-declarative"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "python"
+      ],
+      "provides": [
+        "qtwebchannel"
+      ]
+    },
+    "qt6-websockets": {
+      "version": "6.11.2",
+      "family": "Qt6",
+      "upstream": "qtwebsockets",
+      "source": "https://download.qt.io/archive/qt/6.11/6.11.2/submodules/qtwebsockets-everywhere-src-6.11.2.tar.xz",
+      "requires": [
+        "qt6-base"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "python"
+      ],
+      "provides": [
+        "qtwebsockets"
+      ]
+    },
+    "sddm": {
+      "version": "0.21.0",
+      "family": "Login",
+      "upstream": "sddm",
+      "source": "https://github.com/sddm/sddm/archive/refs/tags/v0.21.0.tar.gz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative",
+        "qt6-svg",
+        "pam",
+        "systemd"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf"
+      ],
+      "provides": []
+    },
+    "sddm-kcm": {
+      "version": "6.8.1",
+      "family": "Plasma",
+      "upstream": "sddm-kcm",
+      "source": "https://download.kde.org/stable/plasma/6.8.1/sddm-kcm-6.8.1.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative",
+        "sddm",
+        "kcmutils6",
+        "kio6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "solid6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "solid",
+      "source": "https://download.kde.org/stable/frameworks/6.31/solid-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base",
+        "kcoreaddons6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "sonnet6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "sonnet",
+      "source": "https://download.kde.org/stable/frameworks/6.31/sonnet-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "spectacle": {
+      "version": "6.8.1",
+      "family": "Plasma",
+      "upstream": "spectacle",
+      "source": "https://download.kde.org/stable/plasma/6.8.1/spectacle-6.8.1.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative",
+        "kwin",
+        "kpipewire",
+        "kglobalaccel6",
+        "kio6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "syndication6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "syndication",
+      "source": "https://download.kde.org/stable/frameworks/6.31/syndication-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base",
+        "kcodecs6"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "syntax-highlighting6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "syntax-highlighting",
+      "source": "https://download.kde.org/stable/frameworks/6.31/syntax-highlighting-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "systemsettings": {
+      "version": "6.8.1",
+      "family": "Plasma",
+      "upstream": "systemsettings",
+      "source": "https://download.kde.org/stable/plasma/6.8.1/systemsettings-6.8.1.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative",
+        "kcmutils6",
+        "kdeclarative6",
+        "kio6",
+        "plasma-workspace"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "threadweaver6": {
+      "version": "6.31.0",
+      "family": "Frameworks",
+      "upstream": "threadweaver",
+      "source": "https://download.kde.org/stable/frameworks/6.31/threadweaver-6.31.0.tar.xz",
+      "requires": [
+        "qt6-base"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    },
+    "xdg-desktop-portal-kde": {
+      "version": "6.8.1",
+      "family": "Plasma",
+      "upstream": "xdg-desktop-portal-kde",
+      "source": "https://download.kde.org/stable/plasma/6.8.1/xdg-desktop-portal-kde-6.8.1.tar.xz",
+      "requires": [
+        "qt6-base",
+        "qt6-declarative",
+        "plasma-workspace",
+        "kwayland",
+        "kio6",
+        "kpipewire",
+        "qt6-wayland",
+        "xdg-desktop-portal",
+        "wayland",
+        "wayland-protocols",
+        "mesa",
+        "libdrm"
+      ],
+      "build_requires": [
+        "cmake",
+        "ninja",
+        "pkgconf",
+        "extra-cmake-modules"
+      ],
+      "provides": []
+    }
+  }
+}

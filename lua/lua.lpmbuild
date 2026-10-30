@@ -1,36 +1,66 @@
-# LPM build script for lua
+#!/bin/bash
 NAME="lua"
-VERSION="1.0.0"
+VERSION="5.5.1"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Placeholder package for lua dependency"
-URL="https://example.com/lua"
-LICENSE=""
-SOURCE=()
-SHA256SUMS=()
+SUMMARY="lua upstream package"
+URL="https://www.lua.org/ftp/"
+LICENSE=("MIT")
+SOURCE=("https://www.lua.org/ftp/lua-5.5.1.tar.gz")
+SHA256SUMS=("1c4b4068d67061f2a2231ad2b5422e77acea1487ea9890f6320af614f4373dce")
 PATCHES=()
-REQUIRES=()
+REQUIRES=("glibc" "readline")
+BUILD_REQUIRES=("gcc" "make" "readline")
 PROVIDES=("lua")
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
-
-prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
-}
-
+BUILD_OPTIONS=("@--stripping" "@--optimize=2")
+prepare() { set -euxo pipefail; cd "$SRCROOT/${NAME}-${VERSION}"; }
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    make -j"${LPM_BUILD_JOBS:-$(nproc)}" linux-readline MYCFLAGS="${CFLAGS:--O2} -fPIC"
+    local -a objects=(); local f
+    for f in src/*.o; do case "$f" in src/lua.o|src/luac.o) ;; *) objects+=("$f");; esac; done
+    gcc -shared ${LDFLAGS:-} -Wl,-soname,liblua.so.5.5 -o src/liblua.so.5.5.1 "${objects[@]}" -lm -ldl
+}
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    install -Dm755 src/lua "$pkgdir/usr/bin/lua"
+    install -Dm755 src/luac "$pkgdir/usr/bin/luac"
+    install -Dm755 src/liblua.so.5.5.1 "$pkgdir/usr/lib/liblua.so.5.5.1"
+    ln -s liblua.so.5.5.1 "$pkgdir/usr/lib/liblua.so.5.5"
+    ln -s liblua.so.5.5 "$pkgdir/usr/lib/liblua.so"
+    install -dm755 "$pkgdir/usr/include/lua5.5"
+    install -m644 src/lua.h src/lauxlib.h src/lualib.h src/luaconf.h "$pkgdir/usr/include/lua5.5/"
+    install -Dm644 doc/readme.html "$pkgdir/usr/share/licenses/lua/readme.html"
+    install -Dm644 doc/lua.1 "$pkgdir/usr/share/man/man1/lua.1"
+    install -Dm644 doc/luac.1 "$pkgdir/usr/share/man/man1/luac.1"
+    install -dm755 "$pkgdir/usr/lib/pkgconfig"
+    cat > "$pkgdir/usr/lib/pkgconfig/lua.pc" <<'PC'
+prefix=/usr
+libdir=${prefix}/lib
+includedir=${prefix}/include/lua5.5
+Name: Lua
+Description: Lua language runtime
+Version: 5.5.1
+Libs: -L${libdir} -llua
+Libs.private: -lm -ldl
+Cflags: -I${includedir}
+PC
+    local f
+    for f in COPYING COPYING.LIB LICENSE LICENSE.md LICENSE.txt; do
+        if [ -f "$f" ]; then install -Dm644 "$f" "$pkgdir/usr/share/licenses/$NAME/$f"; fi
+    done
+    if [ -d LICENSES ]; then
+        install -dm755 "$pkgdir/usr/share/licenses/$NAME"
+        cp -a LICENSES/. "$pkgdir/usr/share/licenses/$NAME/"
+    fi
 }
 
-staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  install -d "$pkgdir/usr/share/doc/lua"
-  printf 'Placeholder package for lua\n' >"$pkgdir/usr/share/doc/lua/README"
-}
+
+
+
+# Final audited source digests
+SHA256SUMS=("1c4b4068d67061f2a2231ad2b5422e77acea1487ea9890f6320af614f4373dce")

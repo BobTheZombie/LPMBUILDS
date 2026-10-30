@@ -1,0 +1,242 @@
+#!/bin/bash
+# LPM build script for GNU Autoconf
+
+NAME="autoconf"
+VERSION="2.73"
+RELEASE="3"
+ARCH="${ARCH:-x86_64}"
+
+SUMMARY="GNU tool for automatically configuring source code"
+URL="https://www.gnu.org/software/autoconf/"
+LICENSE=("GPL-3.0-or-later")
+
+SOURCE=(
+    "https://ftp.wayne.edu/gnu/autoconf/autoconf-${VERSION}.tar.xz"
+)
+
+SHA256SUMS=(
+    "SKIP"
+)
+
+PATCHES=()
+
+REQUIRES=(
+    "m4"
+    "perl"
+)
+
+BUILD_REQUIRES=(
+    "m4"
+    "make"
+    "perl"
+)
+
+PROVIDES=(
+    "autoconf"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+BUILD_OPTIONS=(
+    "@--optimize=2"
+)
+
+prepare() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+
+    test -f "$SRCDIR/configure"
+    test -f "$SRCDIR/Makefile.in"
+    test -f "$SRCDIR/COPYING"
+
+    cd "$SRCDIR"
+
+    make distclean 2>/dev/null || true
+}
+
+build() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+
+    cd "$SRCDIR"
+
+    ./configure \
+        --prefix=/usr \
+        --bindir=/usr/bin \
+        --datadir=/usr/share \
+        --infodir=/usr/share/info \
+        --mandir=/usr/share/man
+
+    make -j"$(nproc)"
+}
+
+check() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    VERSION_OUTPUT="$SRCDIR/.lpm-autoconf-version"
+
+    #
+    # The complete test suite is intentionally disabled during bootstrap
+    # builds. Validate the generated programs instead.
+    #
+
+    test -x "$SRCDIR/bin/autoconf"
+    test -x "$SRCDIR/bin/autoheader"
+    test -x "$SRCDIR/bin/autom4te"
+
+    perl "$SRCDIR/bin/autoconf" --version > "$VERSION_OUTPUT"
+
+    grep -Fq \
+        "autoconf (GNU Autoconf) ${VERSION}" \
+        "$VERSION_OUTPUT"
+
+    rm -f "$VERSION_OUTPUT"
+}
+
+staging() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+
+    cd "$SRCDIR"
+
+    make \
+        DESTDIR="$pkgdir" \
+        install
+
+    #
+    # The global Info directory index is generated system-wide and must not be
+    # owned by an individual package.
+    #
+
+    rm -f "$pkgdir/usr/share/info/dir"
+
+    #
+    # Validate installed programs.
+    #
+
+    for PROGRAM in \
+        autoconf \
+        autoheader \
+        autom4te \
+        autoreconf \
+        autoscan \
+        autoupdate \
+        ifnames
+    do
+        if [ ! -x "$pkgdir/usr/bin/$PROGRAM" ]; then
+            echo "[ERROR] Missing Autoconf program: $PROGRAM" >&2
+            return 1
+        fi
+    done
+
+    #
+    # Validate runtime data. Autom4te is intentionally capitalized upstream.
+    #
+
+    test -d "$pkgdir/usr/share/autoconf"
+    test -d "$pkgdir/usr/share/autoconf/Autom4te"
+    test -d "$pkgdir/usr/share/autoconf/autoconf"
+    test -d "$pkgdir/usr/share/autoconf/autoscan"
+    test -d "$pkgdir/usr/share/autoconf/autotest"
+    test -d "$pkgdir/usr/share/autoconf/build-aux"
+    test -d "$pkgdir/usr/share/autoconf/m4sugar"
+
+    test -f "$pkgdir/usr/share/autoconf/autom4te.cfg"
+    test -f "$pkgdir/usr/share/autoconf/autoconf_version.m4"
+
+    test -f \
+        "$pkgdir/usr/share/autoconf/Autom4te/Config.pm"
+
+    test -f \
+        "$pkgdir/usr/share/autoconf/autoconf/autoconf.m4"
+
+    test -f \
+        "$pkgdir/usr/share/autoconf/m4sugar/m4sugar.m4"
+
+    #
+    # Validate manual pages.
+    #
+
+    for MANPAGE in \
+        autoconf.1 \
+        autoheader.1 \
+        autom4te.1 \
+        autoreconf.1 \
+        autoscan.1 \
+        autoupdate.1 \
+        ifnames.1
+    do
+        if [ ! -f "$pkgdir/usr/share/man/man1/$MANPAGE" ]; then
+            echo "[ERROR] Missing Autoconf manual page: $MANPAGE" >&2
+            return 1
+        fi
+    done
+
+    #
+    # Validate Info documentation without a pipe that could trigger SIGPIPE
+    # while pipefail is enabled.
+    #
+
+    AUTOCONF_INFO="$(
+        find "$pkgdir/usr/share/info" \
+            -maxdepth 1 \
+            -type f \
+            -name 'autoconf.info*' \
+            -print \
+            -quit
+    )"
+
+    if [ -z "$AUTOCONF_INFO" ] || [ ! -f "$AUTOCONF_INFO" ]; then
+        echo "[ERROR] Missing Autoconf Info documentation" >&2
+        return 1
+    fi
+
+    STANDARDS_INFO="$(
+        find "$pkgdir/usr/share/info" \
+            -maxdepth 1 \
+            -type f \
+            -name 'standards.info*' \
+            -print \
+            -quit
+    )"
+
+    if [ -z "$STANDARDS_INFO" ] || [ ! -f "$STANDARDS_INFO" ]; then
+        echo "[ERROR] Missing GNU coding standards documentation" >&2
+        return 1
+    fi
+
+    #
+    # Verify the staged Autoconf program without using a grep pipeline.
+    #
+
+    VERSION_OUTPUT="$SRCDIR/.lpm-staged-autoconf-version"
+
+    perl "$pkgdir/usr/bin/autoconf" --version > "$VERSION_OUTPUT"
+
+    grep -Fq \
+        "autoconf (GNU Autoconf) ${VERSION}" \
+        "$VERSION_OUTPUT"
+
+    rm -f "$VERSION_OUTPUT"
+
+    #
+    # Install licensing information.
+    #
+
+    install -Dm644 \
+        "$SRCDIR/COPYING" \
+        "$pkgdir/usr/share/licenses/$NAME/COPYING"
+}
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("9fd672b1c8425fac2fa67fa0477b990987268b90ff36d5f016dae57be0d6b52e")

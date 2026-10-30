@@ -1,0 +1,164 @@
+#!/bin/bash
+# LPM build script for GObject Introspection
+# Stage 1: tools and static GIR metadata, with Cairo disabled.
+# Stage 2: Cairo support and static GIR metadata, without rebuilding GLib GIRs.
+
+NAME="gobject-introspection"
+VERSION="1.86.0"
+RELEASE="3"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Generate introspection data for GObject libraries"
+URL="https://gi.readthedocs.io/"
+LICENSE=("LGPL-2.1-or-later")
+
+SOURCE=(
+  "https://download.gnome.org/sources/gobject-introspection/${VERSION%.*}/gobject-introspection-${VERSION}.tar.xz"
+)
+
+SHA256SUMS=(
+  "920d1a3fcedeadc32acff95c2e203b319039dd4b4a08dd1a2dfd283d19c0b9ae"
+)
+
+PATCHES=()
+
+REQUIRES=(
+  "glib2"
+  "libffi"
+  "python"
+)
+
+BUILD_REQUIRES=(
+  "meson"
+  "ninja"
+  "pkgconf"
+  "flex"
+  "bison"
+  "glib2"
+  "libffi"
+  "python"
+)
+
+REQUIRES_PYTHON_DEPENDENCIES=(
+  "mako"
+  "Markdown>=3"
+)
+
+PROVIDES=(
+  "gobject-introspection"
+  "g-ir-scanner"
+  "g-ir-compiler"
+  "libgirepository-1.0.so"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+# LPM builds GI before Cairo during bootstrap. Once Cairo exists,
+# stage 2 can rebuild with the Cairo dependency enabled.
+STAGE_2_REQUIRES=("cairo")
+STAGE_2_BUILD_REQUIRES=("glib2" "cairo")
+
+if [ "${LPM_BUILD_STAGE:-1}" = "2" ]; then
+  REQUIRES+=("cairo")
+  BUILD_REQUIRES+=("cairo")
+fi
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+  rm -rf build
+}
+
+_build_introspection() {
+  set -euxo pipefail
+  local cairo_feature="$1"
+  cd "$SRCROOT/$_srcdir"
+
+  meson setup build \
+    --prefix=/usr \
+    --libdir=lib \
+    --sysconfdir=/etc \
+    --buildtype=release \
+    -Ddefault_library=shared \
+    -Dgtk_doc=false \
+    -Dtests=false \
+    -Dbuild_introspection_data=true \
+    -Dcairo="$cairo_feature"
+
+  ninja -C build
+}
+
+build() {
+  _build_introspection disabled
+}
+
+build_stage2() {
+  _build_introspection enabled
+}
+
+check() {
+  set -euxo pipefail
+  local top="$SRCROOT/$_srcdir"
+  test -f "$top/gir/freetype2-2.0.gir"
+  test -f "$top/gir/fontconfig-2.0.gir"
+  test -f "$top/gir/cairo-1.0.gir.in"
+}
+
+staging() {
+  set -euxo pipefail
+  local top="$SRCROOT/$_srcdir"
+  local gir_dest="$pkgdir/usr/share/gir-1.0"
+  cd "$top"
+
+  DESTDIR="$pkgdir" ninja -C build install
+
+  # Upstream normally installs these baseline GIR files from gir/meson.build.
+  # With -Dbuild_introspection_data=false, gir/meson.build is never visited.
+  # Ship the static upstream definitions regardless of bootstrap stage, so
+  # downstream scanners (notably HarfBuzz) can resolve FreeType/Fontconfig.
+  install -dm755 "$gir_dest"
+  local gir
+  local gir_count=0
+  for gir in "$top"/gir/*.gir; do
+    test -f "$gir" || continue
+    install -m644 "$gir" "$gir_dest/$(basename "$gir")"
+    gir_count=$((gir_count + 1))
+  done
+  if [ "$gir_count" -eq 0 ]; then
+    echo "[ERROR] No bundled GIR definitions found in $top/gir" >&2
+    return 1
+  fi
+
+  # Cairo is deliberately excluded from the first stage. In stage 2,
+  # configure its upstream static GIR template without regenerating the
+  # GLib/GObject/Gio GIRs, which may already be owned by the glib2 package.
+  if [ "${LPM_BUILD_STAGE:-1}" = "2" ]; then
+    sed \
+      -e 's|@CAIRO_SHARED_LIBRARY@|libcairo-gobject.so.2|g' \
+      -e 's|@CAIRO_GIR_PACKAGE@|cairo-gobject|g' \
+      "$top/gir/cairo-1.0.gir.in" > "$gir_dest/cairo-1.0.gir"
+    if grep -q '@CAIRO_' "$gir_dest/cairo-1.0.gir"; then
+      echo "[ERROR] Unexpanded cairo-1.0.gir substitution" >&2
+      return 1
+    fi
+  fi
+
+  test -x "$pkgdir/usr/bin/g-ir-scanner"
+  test -x "$pkgdir/usr/bin/g-ir-compiler"
+  test -e "$pkgdir/usr/lib/libgirepository-1.0.so"
+  test -f "$pkgdir/usr/lib/pkgconfig/gobject-introspection-1.0.pc"
+  test -s "$gir_dest/freetype2-2.0.gir"
+  test -s "$gir_dest/fontconfig-2.0.gir"
+
+  local f
+  for f in COPYING LICENSES/LGPL-2.1-or-later.txt; do
+    if [ -f "$f" ]; then
+      install -Dm644 "$f" \
+        "$pkgdir/usr/share/licenses/$NAME/$(basename "$f")"
+    fi
+  done
+}

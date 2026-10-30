@@ -1,0 +1,118 @@
+#!/bin/bash
+# LPM build script for GNU cpio
+# Includes the xstat prototype fix for GCC 15/16.
+
+NAME="cpio"
+VERSION="2.15"
+RELEASE="2"
+ARCH="${ARCH:-x86_64}"
+
+SUMMARY="GNU archive creation and extraction utility"
+URL="https://www.gnu.org/software/cpio/"
+LICENSE=("GPL-3.0-or-later")
+
+SOURCE=(
+    "https://ftp.wayne.edu/gnu/cpio/cpio-${VERSION}.tar.bz2"
+)
+
+SHA256SUMS=(
+    "937610b97c329a1ec9268553fb780037bcfff0dcffe9725ebc4fd9c1aa9075db"
+)
+
+PATCHES=()
+
+REQUIRES=("glibc")
+
+BUILD_REQUIRES=(
+    "gcc"
+    "gettext"
+    "make"
+    "texinfo"
+)
+
+PROVIDES=("cpio")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=("tar")
+
+BUILD_OPTIONS=(
+    "@--stripping"
+    "@--optimize=2"
+)
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    test -f configure
+    test -f src/extern.h
+    test -f src/global.c
+    test -f COPYING
+
+    if [ -f Makefile ]; then
+        make distclean
+    fi
+
+    # C23 treats () as an empty parameter list.
+    # Match the signatures of stat() and lstat().
+    sed -i \
+        's/int (\*xstat) ();/int (*xstat) (const char *, struct stat *);/' \
+        src/extern.h \
+        src/global.c
+
+    grep -Fq \
+        'extern int (*xstat) (const char *, struct stat *);' \
+        src/extern.h
+
+    grep -Fxq \
+        'int (*xstat) (const char *, struct stat *);' \
+        src/global.c
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    # Use GNU tar's optional remote-tape helper rather than installing
+    # a duplicate rmt executable.
+    ./configure \
+        --prefix=/usr \
+        --bindir=/usr/bin \
+        --libexecdir=/usr/libexec \
+        --mandir=/usr/share/man \
+        --infodir=/usr/share/info \
+        --with-rmt=/usr/libexec/rmt
+
+    make -j"${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+check() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    make -j"${LPM_BUILD_JOBS:-$(nproc)}" check
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    make -j1 DESTDIR="$pkgdir" install
+
+    rm -f "$pkgdir/usr/share/info/dir"
+
+    test -x "$pkgdir/usr/bin/cpio"
+    test -f "$pkgdir/usr/share/man/man1/cpio.1"
+
+    "$pkgdir/usr/bin/cpio" --version
+
+    install -Dm644 COPYING \
+        "$pkgdir/usr/share/licenses/$NAME/COPYING"
+}
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("937610b97c329a1ec9268553fb780037bcfff0dcffe9725ebc4fd9c1aa9075db")

@@ -1,0 +1,58 @@
+#!/bin/bash
+# LPM Linux - libdmtx
+# Required by KDE Frameworks Prison6 for Data Matrix barcode generation.
+
+NAME="libdmtx"
+VERSION="0.7.8"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Data Matrix barcode encoding and decoding library"
+URL="https://github.com/dmtx/libdmtx"
+LICENSE=("BSD-2-Clause")
+SOURCE=("https://github.com/dmtx/libdmtx/archive/v${VERSION}/libdmtx-${VERSION}.tar.gz")
+SHA256SUMS=("2394bf1d1d693a5a4ca3cfcc1bb28a4d878bdb831ea9ca8f3d5c995d274bdc39")
+PATCHES=()
+
+REQUIRES=("glibc")
+BUILD_REQUIRES=("cmake" "gcc" "ninja")
+PROVIDES=("libdmtx.so")
+CONFLICTS=()
+OBSOLETES=()
+BUILD_OPTIONS=("@--stripping" "@--optimize=2")
+
+prepare() {
+    set -euxo pipefail
+    local src="$SRCROOT/${NAME}-${VERSION}"
+    test -f "$src/CMakeLists.txt"
+    # CMake 4.x does not support the original compatibility minimum of 3.5.
+    sed -i 's/cmake_minimum_required(VERSION 3.5)/cmake_minimum_required(VERSION 3.10)/' "$src/CMakeLists.txt"
+}
+
+build() {
+    set -euxo pipefail
+    local src="$SRCROOT/${NAME}-${VERSION}"
+    cmake -S "$src" -B "$src/build" -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DCMAKE_INSTALL_INCLUDEDIR=include \
+        -DCMAKE_C_STANDARD=11 \
+        -DCMAKE_C_STANDARD_REQUIRED=ON \
+        -DDMTX_SHARED=ON \
+        -DDMTX_STATIC=OFF \
+        -DDMTX_READER_PROGRAMMING=OFF \
+        -DBUILD_TESTING=OFF
+    cmake --build "$src/build" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+staging() {
+    set -euxo pipefail
+    local src="$SRCROOT/${NAME}-${VERSION}"
+    test -n "${pkgdir:-}" && test "$pkgdir" != "/"
+    DESTDIR="$pkgdir" cmake --install "$src/build" --prefix /usr
+    test -f "$pkgdir/usr/include/dmtx.h"
+    compgen -G "$pkgdir/usr/lib/libdmtx.so*" >/dev/null
+    if test -f "$src/LICENSE"; then
+        install -Dm644 "$src/LICENSE" "$pkgdir/usr/share/licenses/$NAME/LICENSE"
+    fi
+}

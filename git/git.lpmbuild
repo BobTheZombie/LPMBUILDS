@@ -1,0 +1,147 @@
+#!/bin/bash
+# LPM build script for Git
+
+NAME="git"
+VERSION="2.56.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+
+SUMMARY="Fast distributed version control system"
+URL="https://git-scm.com/"
+LICENSE=("GPL-2.0-only")
+
+SOURCE=(
+    "https://www.kernel.org/pub/software/scm/git/git-${VERSION}.tar.xz"
+)
+
+SHA256SUMS=("SKIP")
+PATCHES=()
+
+REQUIRES=(
+    "glibc"
+    "curl"
+    "expat"
+    "openssl"
+    "pcre2"
+    "zlib"
+    "perl"
+    "gettext"
+    "bash"
+)
+
+BUILD_REQUIRES=(
+    "gcc"
+    "make"
+    "autoconf"
+    "pkgconf"
+    "curl"
+    "expat"
+    "openssl"
+    "pcre2"
+    "zlib"
+    "perl"
+    "gettext"
+)
+
+PROVIDES=("git")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=("ca-certificates" "openssh")
+SUGGESTS=()
+
+BUILD_OPTIONS=("@--stripping" "@--optimize=2")
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    test -f Makefile
+    test -f configure.ac
+    test -f COPYING
+
+    make clean
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    make configure
+
+    ./configure \
+        --prefix=/usr \
+        --sysconfdir=/etc \
+        --libexecdir=/usr/lib/git-core \
+        --mandir=/usr/share/man \
+        --with-openssl \
+        --with-curl \
+        --with-expat \
+        --with-libpcre2
+
+    make -j"$(nproc)" \
+    NO_RUST=YesPlease \
+    NO_TCLTK=YesPlease \
+    all
+}
+
+check() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    test "$(./git --version)" = "git version ${VERSION}"
+
+    # Verify repository creation, commits, object integrity and local cloning.
+    local testdir
+    testdir="$(mktemp -d "$PWD/.lpm-git-test.XXXXXX")"
+
+    (
+        trap 'rm -rf -- "$testdir"' EXIT
+
+        export GIT_CONFIG_NOSYSTEM=1
+        export GIT_CONFIG_GLOBAL=/dev/null
+        export GIT_AUTHOR_NAME="LPM Test"
+        export GIT_AUTHOR_EMAIL="test@localhost"
+        export GIT_COMMITTER_NAME="$GIT_AUTHOR_NAME"
+        export GIT_COMMITTER_EMAIL="$GIT_AUTHOR_EMAIL"
+        export GIT_EXEC_PATH="$PWD"
+
+        ./git init "$testdir/repo"
+        printf '%s\n' "LPM Git smoke test" > "$testdir/repo/test.txt"
+
+        ./git -C "$testdir/repo" add test.txt
+        ./git -C "$testdir/repo" commit -m "Smoke test"
+        ./git -C "$testdir/repo" fsck --full
+        ./git clone "$testdir/repo" "$testdir/clone"
+
+        cmp "$testdir/repo/test.txt" "$testdir/clone/test.txt"
+    )
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    make \
+    DESTDIR="$pkgdir" \
+    NO_RUST=YesPlease \
+    NO_TCLTK=YesPlease \
+    install
+
+    install -Dm644 \
+        contrib/completion/git-completion.bash \
+        "$pkgdir/usr/share/bash-completion/completions/git"
+
+    install -Dm644 \
+        contrib/completion/git-prompt.sh \
+        "$pkgdir/usr/share/git/git-prompt.sh"
+
+    install -Dm644 COPYING \
+        "$pkgdir/usr/share/licenses/$NAME/COPYING"
+
+
+}
+
+
+
+# Final audited source digests
+SHA256SUMS=("26c56c296b38c0695b26fa95f475f1d01704d2d38e73465ca30b0b2f5dc789d3")

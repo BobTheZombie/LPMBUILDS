@@ -1,7 +1,0 @@
-# LPM Linux new-account defaults (only seeded if shadow has none).
-HOME=/home
-SHELL=/bin/bash
-SKEL=/etc/skel
-INACTIVE=-1
-EXPIRE=
-CREATE_MAIL_SPOOL=no

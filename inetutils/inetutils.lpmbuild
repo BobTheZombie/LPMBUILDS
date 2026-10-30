@@ -1,34 +1,56 @@
-# LPM build script for inetutils
 NAME="inetutils"
-VERSION="2.5"
+VERSION="2.6"
 RELEASE="1"
-ARCH="${ARCH:-x86_64}"
-SUMMARY="Basic networking utilities"
+ARCH="x86_64"
+SUMMARY="Basic networking utilities (ping, ftp, telnet, etc.)"
 URL="https://www.gnu.org/software/inetutils/"
-LICENSE=""
-SOURCE=()
-REQUIRES=("glibc")
-PROVIDES=("inetutils")
+SOURCE=("https://ftp.wayne.edu/gnu/inetutils/inetutils-${VERSION}.tar.xz")
+LICENSE=("GPL-3.0-or-later")
+
+REQUIRES=("glibc" "ncurses")
+PROVIDES=("inetutils" "ping"  "ftp" "telnet")
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+    cd "$SRCROOT/inetutils-${VERSION}"
+
+    # prevent conflict with coreutils 'hostname'
+    sed -i 's/ hostname / /' configure
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+    set -euxo pipefail
+    cd "$SRCROOT/inetutils-${VERSION}"
+    ./configure \
+        --prefix=/usr \
+        --libdir=/usr/lib \
+        --sysconfdir=/etc \
+        --disable-logger \
+        --disable-whois \
+        --disable-talk \
+        --disable-servers \
+        --with-ncurses \
+        CURSES_LIBS="-lncursesw -ltinfo" \
+        CURSES_CFLAGS="-I/usr/include/ncursesw"
+        
+    make -j"$(nproc)"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euxo pipefail
+    cd "$SRCROOT/inetutils-${VERSION}"
+    make DESTDIR="$pkgdir" install
+
+    # Remove inetutils' hostname and replace with relative symlink to coreutils
+    rm -f "$pkgdir/usr/bin/hostname"
+    ln -sf coreutils "$pkgdir/usr/bin/hostname"
 }
+
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("68bedbfeaf73f7d86be2a7d99bcfbd4093d829f52770893919ae174c0b2357ca")

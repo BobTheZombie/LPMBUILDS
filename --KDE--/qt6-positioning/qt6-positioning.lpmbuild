@@ -1,0 +1,79 @@
+#!/bin/bash
+# LPM Linux: Qt 6.12.0 Positioning module for KDE Plasma 6.8.1.
+# Source SHA-256: MacPorts qt6 6.12.0 Portfile (official Qt source tarball).
+NAME="qt6-positioning"
+VERSION="6.12.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Qt 6 Positioning C++ library, QML module and location plugins"
+URL="https://doc.qt.io/qt-6/qtpositioning-index.html"
+LICENSE=("GPL-3.0-only" "LGPL-3.0-only" "LicenseRef-Qt-Commercial")
+SOURCE=(
+    "https://download.qt.io/archive/qt/6.12/${VERSION}/submodules/qtpositioning-everywhere-src-${VERSION}.tar.xz"
+)
+SHA256SUMS=(
+    "b060d410fac7413b05a0e7938bbf3325f7ad08d7df14af3956270f0696e76763"
+)
+PATCHES=()
+
+REQUIRES=(
+    "qt6-base"
+    "qt6-declarative"
+)
+BUILD_REQUIRES=(
+    "cmake"
+    "ninja"
+    "pkgconf"
+    "python"
+    "qt6-base"
+    "qt6-declarative"
+)
+REQUIRES_PYTHON_DEPENDENCIES=()
+PROVIDES=("qtpositioning")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=("qt6-serialport")
+SUGGESTS=()
+BUILD_OPTIONS=("@--stripping" "@--optimize=2")
+
+prepare() {
+    set -euxo pipefail
+    # LPM repacks archive roots into $SRCROOT/${NAME}-${VERSION}.
+    local src="$SRCROOT/${NAME}-${VERSION}"
+    test -f "$src/CMakeLists.txt"
+    test -f "$src/src/positioningquick/CMakeLists.txt"
+}
+
+build() {
+    set -euxo pipefail
+    local src="$SRCROOT/${NAME}-${VERSION}"
+    local builddir="$src/build"
+
+    # qt6-declarative must already be installed when CMake configures;
+    # otherwise the QtPositioning QML module is silently omitted.
+    test -f /usr/lib/cmake/Qt6Quick/Qt6QuickConfig.cmake
+    cmake -S "$src" -B "$builddir" -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DBUILD_SHARED_LIBS=ON \
+        -DBUILD_TESTING=OFF \
+        -DQT_BUILD_TESTS=OFF \
+        -DQT_BUILD_EXAMPLES=OFF
+    cmake --build "$builddir" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+staging() {
+    set -euxo pipefail
+    local builddir="$SRCROOT/${NAME}-${VERSION}/build"
+    test -n "${pkgdir:-}" && test "$pkgdir" != /
+    DESTDIR="$pkgdir" cmake --install "$builddir"
+
+    # KNightTime needs the Qt6::Positioning CMake export and libQt6Positioning.
+    test -f "$pkgdir/usr/lib/cmake/Qt6Positioning/Qt6PositioningConfig.cmake"
+    compgen -G "$pkgdir/usr/lib/libQt6Positioning.so*" >/dev/null
+
+    # QML support is part of this package, not an optional split subpackage.
+    test -f "$pkgdir/usr/lib/qt6/qml/QtPositioning/qmldir"
+    test -f "$pkgdir/usr/lib/cmake/Qt6PositioningQuick/Qt6PositioningQuickConfig.cmake"
+}

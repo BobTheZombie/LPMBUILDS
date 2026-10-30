@@ -1,33 +1,233 @@
-# LPM build script for openssl
+#!/bin/bash
+# LPM build script for OpenSSL
+
 NAME="openssl"
-VERSION="3.3.2"
+VERSION="4.0.2"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="SSL/TLS toolkit"
-URL="https://www.openssl.org/"
-LICENSE=""
-SOURCE=()
-REQUIRES=("glibc" "zlib" "perl")
-PROVIDES=("openssl")
+
+SUMMARY="Toolkit for TLS and general-purpose cryptography"
+URL="https://openssl-library.org/"
+LICENSE=("Apache-2.0")
+
+SOURCE=(
+    "https://github.com/openssl/openssl/releases/download/openssl-${VERSION}/openssl-${VERSION}.tar.gz"
+    "https://gitlab.archlinux.org/archlinux/packaging/packages/openssl/-/raw/main/ca-dir.patch"
+)
+
+SHA256SUMS=(
+    "736b467530f916737b7031310ccb21d8218c6229e61e8e160cd1d3458cd543a8"
+    "0a32d9ca68e8d985ce0bfef6a4c20b46675e06178cc2d0bf6d91bd6865d648b7"
+)
+
+PATCHES=(
+    "ca-dir.patch"
+)
+
+REQUIRES=(
+    "glibc"
+    "zlib"
+    "zstd"
+)
+
+BUILD_REQUIRES=(
+    "glibc"
+    "make"
+    "perl"
+    "zlib"
+    "zstd"
+)
+
+PROVIDES=(
+    "openssl"
+    "libcrypto"
+    "libcrypto.so"
+    "libcrypto.so.4"
+    "libssl"
+    "libssl.so"
+    "libssl.so.4"
+)
+
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
+RECOMMENDS=(
+    "ca-certificates"
+    "perl"
+)
 SUGGESTS=()
 
+BUILD_OPTIONS=(
+    "@--stripping"
+    "@--optimize=2"
+)
+
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./config --prefix=/usr --openssldir=/etc/ssl --libdir=lib
+    set -euxo pipefail
+
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    test -f Configure
+    test -f config
+    test -f apps/openssl.cnf
+    test -f apps/CA.pl.in
+    test -f LICENSE.txt
+
+    grep -Fq '/etc/ssl' apps/openssl.cnf
+    grep -Fq '/etc/ssl' apps/CA.pl.in
+
+    make clean 2>/dev/null || true
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make -j"$(nproc)"
+    set -euxo pipefail
+
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    ./Configure \
+        linux-x86_64 \
+        --prefix=/usr \
+        --openssldir=/etc/ssl \
+        --libdir=lib \
+        shared \
+        enable-zlib \
+        enable-zstd \
+        enable-ec_nistp_64_gcc_128
+
+    make depend
+    make -j"$(nproc)"
+}
+
+check() {
+    set -euxo pipefail
+
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    test -x apps/openssl
+    test -e libcrypto.so.4
+    test -e libssl.so.4
+
+    LD_LIBRARY_PATH="$PWD${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
+        ./apps/openssl version \
+        | grep -Fq "OpenSSL ${VERSION}"
+
+    # The Arch CA-directory patch points test configuration at /etc/ssl.
+    # Temporarily reverse it so the upstream test suite remains isolated.
+    patch -Rp1 -i "$SRCROOT/ca-dir.patch"
+
+    TEST_STATUS=0
+    make \
+        HARNESS_JOBS="$(nproc)" \
+        test \
+        || TEST_STATUS=$?
+
+    patch -Np1 -i "$SRCROOT/ca-dir.patch"
+
+    # Regenerate the patched CA helper before staging.
+    make apps/CA.pl
+
+    if [ "$TEST_STATUS" -ne 0 ]; then
+        echo "[ERROR] OpenSSL test suite failed with status $TEST_STATUS" >&2
+        return "$TEST_STATUS"
+    fi
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euxo pipefail
+
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    make \
+        DESTDIR="$pkgdir" \
+        MANDIR=/usr/share/man \
+        MANSUFFIX=ssl \
+        install_sw \
+        install_ssldirs \
+        install_man_docs
+
+    chmod 700 "$pkgdir/etc/ssl/private"
+
+    # Remove Libtool metadata if a future upstream release installs it.
+    find "$pkgdir/usr/lib" \
+        -type f \
+        -name '*.la' \
+        -delete
+
+    for PROGRAM in openssl; do
+        if [ ! -x "$pkgdir/usr/bin/$PROGRAM" ]; then
+            echo "[ERROR] Missing OpenSSL program: /usr/bin/$PROGRAM" >&2
+            return 1
+        fi
+    done
+
+    test -e "$pkgdir/usr/lib/libcrypto.so"
+    test -e "$pkgdir/usr/lib/libcrypto.so.4"
+    test -e "$pkgdir/usr/lib/libssl.so"
+    test -e "$pkgdir/usr/lib/libssl.so.4"
+    test -f "$pkgdir/usr/lib/ossl-modules/legacy.so"
+
+    test -f "$pkgdir/usr/include/openssl/ssl.h"
+    test -f "$pkgdir/usr/include/openssl/crypto.h"
+    test -f "$pkgdir/usr/include/openssl/opensslv.h"
+
+    test -f "$pkgdir/usr/lib/pkgconfig/libcrypto.pc"
+    test -f "$pkgdir/usr/lib/pkgconfig/libssl.pc"
+    test -f "$pkgdir/usr/lib/pkgconfig/openssl.pc"
+
+    test -f "$pkgdir/etc/ssl/openssl.cnf"
+    test -d "$pkgdir/etc/ssl/certs"
+    test -d "$pkgdir/etc/ssl/private"
+    test "$(stat -c '%a' "$pkgdir/etc/ssl/private")" = "700"
+
+    grep -Fq '/etc/ssl' "$pkgdir/etc/ssl/openssl.cnf"
+
+    CRYPTO_HEADER=.lpm-libcrypto-header
+    CRYPTO_DYNAMIC=.lpm-libcrypto-dynamic
+    SSL_HEADER=.lpm-libssl-header
+    SSL_DYNAMIC=.lpm-libssl-dynamic
+
+    readelf -h "$pkgdir/usr/lib/libcrypto.so.4" > "$CRYPTO_HEADER"
+    grep -Fq 'ELF64' "$CRYPTO_HEADER"
+
+    readelf -d "$pkgdir/usr/lib/libcrypto.so.4" > "$CRYPTO_DYNAMIC"
+    grep -Fq 'Library soname: [libcrypto.so.4]' "$CRYPTO_DYNAMIC"
+
+    readelf -h "$pkgdir/usr/lib/libssl.so.4" > "$SSL_HEADER"
+    grep -Fq 'ELF64' "$SSL_HEADER"
+
+    readelf -d "$pkgdir/usr/lib/libssl.so.4" > "$SSL_DYNAMIC"
+    grep -Fq 'Library soname: [libssl.so.4]' "$SSL_DYNAMIC"
+
+    rm -f \
+        "$CRYPTO_HEADER" \
+        "$CRYPTO_DYNAMIC" \
+        "$SSL_HEADER" \
+        "$SSL_DYNAMIC"
+
+    OPENSSL_PC_VERSION="$(
+        sed -n \
+            's/^Version:[[:space:]]*//p' \
+            "$pkgdir/usr/lib/pkgconfig/openssl.pc"
+    )"
+
+    if [ "$OPENSSL_PC_VERSION" != "$VERSION" ]; then
+        echo "[ERROR] Unexpected OpenSSL pkg-config version: $OPENSSL_PC_VERSION" >&2
+        return 1
+    fi
+
+    LD_LIBRARY_PATH="$pkgdir/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
+        "$pkgdir/usr/bin/openssl" version \
+        | grep -Fq "OpenSSL ${VERSION}"
+
+    test -f "$pkgdir/usr/share/man/man1/openssl.1ssl"
+    test -f "$pkgdir/usr/share/man/man3/SSL_new.3ssl"
+
+    install -Dm644 \
+        LICENSE.txt \
+        "$pkgdir/usr/share/licenses/$NAME/LICENSE.txt"
 }
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("736b467530f916737b7031310ccb21d8218c6229e61e8e160cd1d3458cd543a8" "0a32d9ca68e8d985ce0bfef6a4c20b46675e06178cc2d0bf6d91bd6865d648b7")

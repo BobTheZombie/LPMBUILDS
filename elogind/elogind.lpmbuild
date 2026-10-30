@@ -1,36 +1,43 @@
-# LPM build script for elogind
+#!/bin/bash
 NAME="elogind"
-VERSION="1.0.0"
+VERSION="257.16"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Placeholder package for elogind dependency"
-URL="https://example.com/elogind"
-LICENSE=""
-SOURCE=()
-SHA256SUMS=()
+SUMMARY="elogind upstream package"
+URL="https://github.com/elogind/elogind/archive/refs/tags/"
+LICENSE=("GPL-2.0-or-later" "LGPL-2.1-or-later")
+SOURCE=("https://github.com/elogind/elogind/archive/refs/tags/v257.16.tar.gz")
+SHA256SUMS=("3c8146409bfb9daa77f272212c2b0bf0ae727c782ec87ece0d2d25e0e5bf5f4c")
 PATCHES=()
-REQUIRES=()
+REQUIRES=("dbus" "eudev" "glibc" "libcap" "pam")
+BUILD_REQUIRES=("dbus" "eudev" "gperf" "libcap" "meson" "ninja" "pam" "pkgconf" "python")
 PROVIDES=("elogind")
-CONFLICTS=()
+CONFLICTS=("systemd")
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
-
-prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
-}
-
+BUILD_OPTIONS=("@--stripping" "@--optimize=2")
+prepare() { set -euxo pipefail; cd "$SRCROOT/${NAME}-${VERSION}"; }
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    meson setup build --prefix=/usr --libdir=lib --buildtype=release --wrap-mode=nodownload -Dman=false -Dhtml=false
+    meson compile -C build -j "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    meson install -C build --no-rebuild --destdir "$pkgdir"
+    local f
+    for f in COPYING COPYING.LIB LICENSE LICENSE.md LICENSE.txt; do
+        if [ -f "$f" ]; then install -Dm644 "$f" "$pkgdir/usr/share/licenses/$NAME/$f"; fi
+    done
+    if [ -d LICENSES ]; then
+        install -dm755 "$pkgdir/usr/share/licenses/$NAME"
+        cp -a LICENSES/. "$pkgdir/usr/share/licenses/$NAME/"
+    fi
 }
 
-staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  install -d "$pkgdir/usr/share/doc/elogind"
-  printf 'Placeholder package for elogind\n' >"$pkgdir/usr/share/doc/elogind/README"
-}
+
+
+
+# Final audited source digests
+SHA256SUMS=("3c8146409bfb9daa77f272212c2b0bf0ae727c782ec87ece0d2d25e0e5bf5f4c")

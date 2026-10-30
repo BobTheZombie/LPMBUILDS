@@ -1,36 +1,192 @@
-# LPM build script for glib2
+#!/bin/bash
+# LPM build script for GLib: bootstrap first, introspection in stage 2.
+
 NAME="glib2"
-VERSION="1.0.0"
-RELEASE="1"
+VERSION="2.90.1"
+RELEASE="4"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Placeholder package for glib2 dependency"
-URL="https://example.com/glib2"
-LICENSE=""
-SOURCE=()
-SHA256SUMS=()
-PATCHES=()
-REQUIRES=("glibc")
-PROVIDES=("glib2")
+SUMMARY="Low-level core library that forms the basis of GTK and GNOME"
+URL="https://gitlab.gnome.org/GNOME/glib"
+LICENSE=("LGPL-2.1-or-later")
+
+SOURCE=(
+    "https://download.gnome.org/sources/glib/${VERSION%.*}/glib-${VERSION}.tar.xz"
+    "0001-glib-compile-schemas-Remove-noisy-deprecation-warnin.patch"
+    "0002-gdesktopappinfo-Add-more-known-terminals.patch"
+    "gio-querymodules.hook"
+    "gio-remove-module-cache.hook"
+    "glib-compile-schemas.hook"
+    "glib-remove-compiled-schemas.hook"
+)
+SHA256SUMS=(
+    "93c941aa17d5eb1d53fe838365f29a8b4e539c222a256d974ec8f30fc413e396"
+    "380ff0a41e2efac4ee76e37bfb7bd17551b879dd29b653f59dbc9d38dcdc18b7"
+    "bd132b1bcac4f03681013919bfd2a15fbe27a3eb597729d72871f07996ec694d"
+    "557c88177f011ced17bdeac1af3f882b2ca33b386a866fdf900b35f927a2bbe8"
+    "60e546b2017b38ca4cf0776b2e1313143f6f2ede05363f67b63b35fa53e3d1b2"
+    "fe31399eb057d24a37062bcae6f88ca0778a91b85737f8110a03baa8bfc64fec"
+    "374925e9437427ae5e4b3186a4061b2287020604fd5866de0eaa24aeb59a4efd"
+)
+PATCHES=(
+    "0001-glib-compile-schemas-Remove-noisy-deprecation-warnin.patch"
+    "0002-gdesktopappinfo-Add-more-known-terminals.patch"
+)
+
+REQUIRES=("glibc" "libffi" "zlib" "pcre2" "util-linux-libs" "python")
+BUILD_REQUIRES=(
+    "meson" "ninja" "pkgconf" "gettext" "python" "patch"
+    "libffi" "zlib" "pcre2" "util-linux-libs"
+)
+REQUIRES_PYTHON_DEPENDENCIES=(
+    "setuptools" "wheel" "build" "packaging>=24" "docutils"
+)
+
+# Keep this out of ordinary dependency arrays to break the bootstrap cycle.
+STAGE_2_REQUIRES=("gobject-introspection")
+# Scanner tools from introspection stage 1 break the GIR bootstrap cycle.
+STAGE_2_BUILD_REQUIRES=()
+
+PROVIDES=(
+    "glib" "glib2" "libglib-2.0.so" "libglib-2.0.so.0"
+    "libgobject-2.0.so" "libgobject-2.0.so.0"
+    "libgio-2.0.so" "libgio-2.0.so.0"
+    "libgmodule-2.0.so" "libgmodule-2.0.so.0"
+    "libgirepository-2.0.so" "libgirepository-2.0.so.0"
+    "glib-2.0.pc"
+)
 CONFLICTS=()
 OBSOLETES=()
 RECOMMENDS=()
 SUGGESTS=()
+BUILD_OPTIONS=("@--stripping" "@--optimize=2")
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+
+    # LPM normally normalizes the archive directory before applying PATCHES.
+    if [ ! -d "$SRCROOT/${NAME}-${VERSION}" ] &&
+       [ -d "$SRCROOT/glib-${VERSION}" ]; then
+        mv "$SRCROOT/glib-${VERSION}" "$SRCROOT/${NAME}-${VERSION}"
+    fi
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    test -f meson.build
+    test -f meson.options
+    test -f COPYING
+    rm -rf build
 }
 
+# Stage 1: bootstrap GLib before gobject-introspection exists.
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    meson setup build \
+        --prefix=/usr \
+        --libdir=lib \
+        --libexecdir=lib/glib-2.0 \
+        --buildtype=release \
+        --wrap-mode=nodownload \
+        -Ddefault_library=shared \
+        -Dlibmount=enabled \
+        -Dintrospection=disabled \
+        -Dman-pages=disabled \
+        -Ddocumentation=false \
+        -Dtests=false \
+        -Dinstalled_tests=false \
+        -Dglib_debug=disabled \
+        -Dselinux=disabled \
+        -Dsysprof=disabled \
+        -Ddtrace=disabled \
+        -Dsystemtap=disabled \
+        -Dlibelf=disabled
+
+    meson compile -C build -j "$(nproc)"
 }
 
-staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  install -d "$pkgdir/usr/share/doc/glib2"
-  printf 'Placeholder package for glib2\n' >"$pkgdir/usr/share/doc/glib2/README"
+
+# Stage 2: LPM runs this only after deferred dependencies are installed.
+build_stage2() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    meson setup build \
+        --prefix=/usr \
+        --libdir=lib \
+        --libexecdir=lib/glib-2.0 \
+        --buildtype=release \
+        --wrap-mode=nodownload \
+        -Ddefault_library=shared \
+        -Dlibmount=enabled \
+        -Dintrospection=enabled \
+        -Dman-pages=disabled \
+        -Ddocumentation=false \
+        -Dtests=false \
+        -Dinstalled_tests=false \
+        -Dglib_debug=disabled \
+        -Dselinux=disabled \
+        -Dsysprof=disabled \
+        -Ddtrace=disabled \
+        -Dsystemtap=disabled \
+        -Dlibelf=disabled
+
+    meson compile -C build -j "$(nproc)"
 }
+
+
+# LPM reuses prepare() and staging() during its clean final rebuild.
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    meson install -C build --no-rebuild --destdir "$pkgdir"
+
+    find "$pkgdir/usr/lib" -type f \( -name '*.a' -o -name '*.la' \) -delete
+    install -dm755 \
+        "$pkgdir/usr/lib/gio/modules" \
+        "$pkgdir/usr/share/glib-2.0/schemas" \
+        "$pkgdir/usr/share/liblpm/hooks"
+
+    # Generated caches are maintained by transaction hooks.
+    rm -f \
+        "$pkgdir/usr/lib/gio/modules/giomodule.cache" \
+        "$pkgdir/usr/share/glib-2.0/schemas/gschemas.compiled"
+
+    local hook
+    for hook in \
+        gio-querymodules.hook \
+        gio-remove-module-cache.hook \
+        glib-compile-schemas.hook \
+        glib-remove-compiled-schemas.hook
+    do
+        install -Dm644 "$SRCROOT/$hook" "$pkgdir/usr/share/liblpm/hooks/$hook"
+    done
+
+    local library module program
+    for library in glib gobject gio gmodule girepository; do
+        test -e "$pkgdir/usr/lib/lib${library}-2.0.so"
+        test -e "$pkgdir/usr/lib/lib${library}-2.0.so.0"
+    done
+    for module in glib gobject gio gmodule girepository; do
+        test -s "$pkgdir/usr/lib/pkgconfig/${module}-2.0.pc"
+    done
+    for program in gio gio-querymodules glib-compile-schemas glib-compile-resources gdbus; do
+        test -x "$pkgdir/usr/bin/$program"
+    done
+
+    if [ "${LPM_BUILD_STAGE:-1}" = 2 ]; then
+        for module in GLib GObject Gio GModule; do
+            test -s "$pkgdir/usr/share/gir-1.0/${module}-2.0.gir"
+            test -s "$pkgdir/usr/lib/girepository-1.0/${module}-2.0.typelib"
+        done
+    fi
+
+    install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+    install -Dm644 LICENSES/LGPL-2.1-or-later.txt \
+        "$pkgdir/usr/share/licenses/$NAME/LGPL-2.1-or-later.txt"
+}
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("93c941aa17d5eb1d53fe838365f29a8b4e539c222a256d974ec8f30fc413e396" "380ff0a41e2efac4ee76e37bfb7bd17551b879dd29b653f59dbc9d38dcdc18b7" "bd132b1bcac4f03681013919bfd2a15fbe27a3eb597729d72871f07996ec694d" "557c88177f011ced17bdeac1af3f882b2ca33b386a866fdf900b35f927a2bbe8" "60e546b2017b38ca4cf0776b2e1313143f6f2ede05363f67b63b35fa53e3d1b2" "fe31399eb057d24a37062bcae6f88ca0778a91b85737f8110a03baa8bfc64fec" "374925e9437427ae5e4b3186a4061b2287020604fd5866de0eaa24aeb59a4efd")

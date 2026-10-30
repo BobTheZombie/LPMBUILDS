@@ -1,34 +1,286 @@
+#!/bin/bash
 # LPM build script for libffi
+
 NAME="libffi"
-VERSION="3.4.6"
+VERSION="3.8.0"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Foreign Function Interface library"
+
+SUMMARY="Portable foreign-function interface library"
 URL="https://sourceware.org/libffi/"
-LICENSE=""
-SOURCE=()
-REQUIRES=("glibc")
-PROVIDES=("libffi")
+LICENSE=("MIT")
+
+SOURCE=(
+    "https://github.com/libffi/libffi/releases/download/v${VERSION}/libffi-${VERSION}.tar.gz"
+)
+
+SHA256SUMS=(
+    "7da3e2d9a171eb0a038f592ecad3ff2bb2550f3496d87b3b29ad0cf4430c0db4"
+)
+
+PATCHES=()
+
+REQUIRES=(
+    "glibc"
+)
+
+BUILD_REQUIRES=(
+    "glibc"
+    "make"
+)
+
+PROVIDES=(
+    "libffi"
+    "libffi.so"
+    "libffi.so.8"
+)
+
 CONFLICTS=()
 OBSOLETES=()
 RECOMMENDS=()
 SUGGESTS=()
 
+BUILD_OPTIONS=(
+    "@--stripping"
+    "@--optimize=2"
+)
+
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    test -x configure
+    test -f include/ffi.h.in
+    test -f include/ffi_common.h
+    test -f src/prep_cif.c
+    test -f LICENSE
+    test -f README.md
+
+    rm -rf build
+    mkdir -p build
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+    set -euxo pipefail
+
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    cd build
+
+    export CFLAGS="${CFLAGS:--O2 -pipe}"
+
+    ../configure \
+        --prefix=/usr \
+        --libdir=/usr/lib \
+        --includedir=/usr/include \
+        --mandir=/usr/share/man \
+        --infodir=/usr/share/info \
+        --enable-shared \
+        --disable-static \
+        --disable-multi-os-directory \
+        --disable-exec-static-tramp \
+        --enable-symvers=gnu
+
+    make -j"$(nproc)"
+}
+
+check() {
+    set -euxo pipefail
+
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    LIBFFI="build/.libs/libffi.so.8.5.0"
+
+    test -f "$LIBFFI"
+    test -f build/include/ffi.h
+    test -f build/include/ffitarget.h
+
+    TEST_SOURCE="build/.lpm-libffi-test.c"
+    TEST_BINARY="build/.lpm-libffi-test"
+
+    cat > "$TEST_SOURCE" <<'EOF'
+#include <ffi.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+static int add_numbers(int left, int right)
+{
+    return left + right;
+}
+
+static void closure_add(
+    ffi_cif *cif,
+    void *result,
+    void **arguments,
+    void *user_data)
+{
+    int adjustment = *(int *)user_data;
+
+    (void)cif;
+    *(ffi_arg *)result =
+        (ffi_arg)(*(int *)arguments[0] +
+                  *(int *)arguments[1] + adjustment);
+}
+
+int main(void)
+{
+    ffi_cif cif;
+    ffi_type *argument_types[2] = { &ffi_type_sint, &ffi_type_sint };
+    void *arguments[2];
+    int left = 19;
+    int right = 23;
+    ffi_arg result = 0;
+    int adjustment = 1;
+    void *closure_code = NULL;
+    ffi_closure *closure;
+    int (*closure_function)(int, int);
+
+    arguments[0] = &left;
+    arguments[1] = &right;
+
+    if (ffi_prep_cif(
+            &cif,
+            FFI_DEFAULT_ABI,
+            2,
+            &ffi_type_sint,
+            argument_types) != FFI_OK) {
+        return 1;
+    }
+
+    ffi_call(&cif, FFI_FN(add_numbers), &result, arguments);
+
+    if (result != 42) {
+        return 2;
+    }
+
+    closure = ffi_closure_alloc(sizeof(*closure), &closure_code);
+
+    if (closure == NULL || closure_code == NULL) {
+        return 3;
+    }
+
+    if (ffi_prep_closure_loc(
+            closure,
+            &cif,
+            closure_add,
+            &adjustment,
+            closure_code) != FFI_OK) {
+        ffi_closure_free(closure);
+        return 4;
+    }
+
+    closure_function = (int (*)(int, int))closure_code;
+    result = closure_function(19, 23);
+    ffi_closure_free(closure);
+
+    if (result != 43) {
+        return 5;
+    }
+
+    puts("LPM libffi call and closure test passed");
+    return 0;
+}
+EOF
+
+    cc \
+        -O2 \
+        -Ibuild/include \
+        "$TEST_SOURCE" \
+        -Lbuild/.libs \
+        -Wl,-rpath,"$PWD/build/.libs" \
+        -lffi \
+        -o "$TEST_BINARY"
+
+    TEST_OUTPUT="build/.lpm-libffi-test-output"
+    "$TEST_BINARY" > "$TEST_OUTPUT"
+
+    grep -Fxq \
+        'LPM libffi call and closure test passed' \
+        "$TEST_OUTPUT"
+
+    rm -f \
+        "$TEST_SOURCE" \
+        "$TEST_BINARY" \
+        "$TEST_OUTPUT"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euxo pipefail
+
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    make \
+        -C build \
+        DESTDIR="$pkgdir" \
+        install
+
+    find "$pkgdir/usr/lib" \
+        -type f \
+        \( -name '*.a' -o -name '*.la' \) \
+        -delete
+
+    test -L "$pkgdir/usr/lib/libffi.so"
+    test -L "$pkgdir/usr/lib/libffi.so.8"
+    test -f "$pkgdir/usr/lib/libffi.so.8.5.0"
+
+    test -f "$pkgdir/usr/include/ffi.h"
+    test -f "$pkgdir/usr/include/ffitarget.h"
+    test -f "$pkgdir/usr/lib/pkgconfig/libffi.pc"
+
+    grep -Fxq \
+        "Version: ${VERSION}" \
+        "$pkgdir/usr/lib/pkgconfig/libffi.pc"
+
+    test -f "$pkgdir/usr/share/man/man3/ffi.3"
+    test -f "$pkgdir/usr/share/man/man3/ffi_call.3"
+    test -f "$pkgdir/usr/share/info/libffi.info"
+
+    LIBFFI_HEADER="build/.lpm-libffi-header"
+    LIBFFI_DYNAMIC="build/.lpm-libffi-dynamic"
+    LIBFFI_SYMBOLS="build/.lpm-libffi-symbols"
+
+    readelf \
+        -h "$pkgdir/usr/lib/libffi.so.8.5.0" \
+        > "$LIBFFI_HEADER"
+
+    grep -Fq 'ELF64' "$LIBFFI_HEADER"
+
+    readelf \
+        -d "$pkgdir/usr/lib/libffi.so.8.5.0" \
+        > "$LIBFFI_DYNAMIC"
+
+    grep -Fq \
+        'Library soname: [libffi.so.8]' \
+        "$LIBFFI_DYNAMIC"
+
+    readelf \
+        -Ws "$pkgdir/usr/lib/libffi.so.8.5.0" \
+        > "$LIBFFI_SYMBOLS"
+
+    grep -Eq \
+        '[[:space:]]ffi_call(@@LIBFFI_BASE_8\.0)?$' \
+        "$LIBFFI_SYMBOLS"
+
+    grep -Eq \
+        '[[:space:]]ffi_prep_cif(@@LIBFFI_BASE_8\.0)?$' \
+        "$LIBFFI_SYMBOLS"
+
+    rm -f \
+        "$LIBFFI_HEADER" \
+        "$LIBFFI_DYNAMIC" \
+        "$LIBFFI_SYMBOLS"
+
+    install -Dm644 \
+        LICENSE \
+        "$pkgdir/usr/share/licenses/$NAME/LICENSE"
+
+    install -Dm644 \
+        README.md \
+        "$pkgdir/usr/share/doc/$NAME/README.md"
 }
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("7da3e2d9a171eb0a038f592ecad3ff2bb2550f3496d87b3b29ad0cf4430c0db4")

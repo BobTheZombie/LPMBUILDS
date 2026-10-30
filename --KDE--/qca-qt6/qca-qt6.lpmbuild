@@ -1,0 +1,72 @@
+#!/bin/bash
+# KDE QCA 2.3.12 built against Qt 6 for KWallet 6.31.0.
+NAME="qca-qt6"
+VERSION="2.3.12"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Qt 6 Cryptographic Architecture library and OpenSSL provider"
+URL="https://invent.kde.org/libraries/qca"
+LICENSE=("LGPL-2.1-or-later")
+SOURCE=("https://download.kde.org/stable/qca/${VERSION}/qca-${VERSION}.tar.xz")
+SHA256SUMS=("d4a2b3aa0272d73ea0c4cd2140960177fa34ddc2030e59a48ecfb80c757572c3")
+PATCHES=()
+REQUIRES=("glibc" "gcc-libs" "qt6-base" "qt6-5compat" "openssl" "ca-certificates")
+BUILD_REQUIRES=("cmake" "ninja" "pkgconf" "which" "qt6-base" "qt6-5compat" "openssl")
+PROVIDES=("qca-qt6" "libqca-qt6.so")
+CONFLICTS=()
+OBSOLETES=()
+BUILD_OPTIONS=("@--stripping" "@--optimize=2")
+
+_qca_srcdir() {
+    local d
+    for d in "$SRCROOT/qca-${VERSION}" "$SRCROOT/${NAME}-${VERSION}" "$SRCROOT"; do
+        if [[ -f "$d/CMakeLists.txt" ]] && grep -q 'project(qca)' "$d/CMakeLists.txt"; then
+            printf '%s\n' "$d"
+            return 0
+        fi
+    done
+    echo "[ERROR] qca-${VERSION} source not found in SRCROOT=$SRCROOT" >&2
+    return 1
+}
+
+prepare() {
+    set -euxo pipefail
+    local src
+    src="$(_qca_srcdir)"
+    rm -rf "$src/build"
+}
+
+build() {
+    set -euxo pipefail
+    local src
+    src="$(_qca_srcdir)"
+    cmake -S "$src" -B "$src/build" -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DBUILD_WITH_QT6=ON \
+        -DQCA_SUFFIX=qt6 \
+        -DBUILD_SHARED_LIBS=ON \
+        -DBUILD_TESTS=OFF \
+        -DBUILD_TOOLS=ON \
+        -DBUILD_PLUGINS=auto \
+        -DQCA_LIBRARY_INSTALL_DIR=/usr/lib \
+        -DQCA_BINARY_INSTALL_DIR=/usr/bin \
+        -DQCA_PLUGINS_INSTALL_DIR=/usr/lib/qt6/plugins
+    cmake --build "$src/build" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+staging() {
+    set -euxo pipefail
+    local src
+    src="$(_qca_srcdir)"
+    DESTDIR="$pkgdir" cmake --install "$src/build"
+    test -f "$pkgdir/usr/lib/cmake/Qca-qt6/Qca-qt6Config.cmake"
+    test -e "$pkgdir/usr/lib/libqca-qt6.so"
+    # Qt 6 crypto providers should live in the same plugin root as Qt itself.
+    # Ensure OpenSSL's provider is packaged for a usable desktop wallet.
+    test -f "$pkgdir/usr/lib/qt6/plugins/crypto/libqca-ossl.so"
+    if [[ -f "$src/COPYING" ]]; then
+        install -Dm644 "$src/COPYING" "$pkgdir/usr/share/licenses/$NAME/COPYING"
+    fi
+}

@@ -1,34 +1,34 @@
-# LPM build script for gdbm
 NAME="gdbm"
-VERSION="1.24"
+VERSION="1.26"
 RELEASE="1"
-ARCH="${ARCH:-x86_64}"
-SUMMARY="GNU dbm key-value store"
-URL="https://www.gnu.org/software/gdbm/"
-LICENSE=""
-SOURCE=()
-REQUIRES=("glibc")
-PROVIDES=("gdbm")
-CONFLICTS=()
-OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
+ARCH="x86_64"
+SUMMARY="GNU dbm key/value database library"
+URL="https://www.gnu.org.ua/software/gdbm/"
+SOURCE=("https://ftp.wayne.edu/gnu/gdbm//gdbm-${VERSION}.tar.gz")
+LICENSE="GPL-3.0-or-later"
+
+REQUIRES=("glibc" "readline" "ncurses")
+PROVIDES=("gdbm" "libgdbm.so")
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-$VERSION"
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+    cd "$SRCROOT/$NAME-$VERSION"
+    ./configure --prefix=/usr --disable-static --enable-libgdbm-compat
+    make -j"$(nproc)"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    cd "$SRCROOT/$NAME-$VERSION"
+    make DESTDIR="$pkgdir" install
 }
+
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("6a24504a14de4a744103dcb936be976df6fbe88ccff26065e54c1c47946f4a5e")

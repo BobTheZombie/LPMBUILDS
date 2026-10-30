@@ -29,3 +29,9 @@ staging() {
   cd "$SRCROOT"
   DESTDIR="$pkgdir" ninja -C build install
 }
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("49075cd5c2f4820839a9e69d4a22386bc280c62b92c153af9be39ca439d45a09")

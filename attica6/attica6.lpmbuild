@@ -1,0 +1,43 @@
+#!/bin/bash
+NAME="attica6"
+VERSION="6.31.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="attica6 upstream package"
+URL="https://download.kde.org/stable/frameworks/6.31/"
+LICENSE=("CC0-1.0" "LGPL-2.0-or-later" "LGPL-2.1-only" "LGPL-3.0-only" "LicenseRef-KDE-Accepted-LGPL")
+SOURCE=("https://download.kde.org/stable/frameworks/6.31/attica-6.31.0.tar.xz")
+SHA256SUMS=("5699601e3a957e1eebf8fbe8b1f3d908df3c0a775919bc796b0830b34b59a67d")
+PATCHES=()
+REQUIRES=("gcc-libs" "glibc" "qt6-base")
+BUILD_REQUIRES=("cmake" "extra-cmake-modules" "ninja" "pkgconf")
+PROVIDES=("attica6")
+CONFLICTS=()
+OBSOLETES=()
+BUILD_OPTIONS=("@--stripping" "@--optimize=2")
+prepare() { set -euxo pipefail; cd "$SRCROOT/${NAME}-${VERSION}"; }
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    cmake -S . -B build -G Ninja -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_INSTALL_LIBDIR=lib -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON -DBUILD_TESTING=OFF -DBUILD_QCH=OFF -DCMAKE_PREFIX_PATH=/usr/lib/qt6
+    cmake --build build --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    DESTDIR="$pkgdir" cmake --install build
+    local f
+    for f in COPYING COPYING.LIB LICENSE LICENSE.md LICENSE.txt; do
+        if [ -f "$f" ]; then install -Dm644 "$f" "$pkgdir/usr/share/licenses/$NAME/$f"; fi
+    done
+    if [ -d LICENSES ]; then
+        install -dm755 "$pkgdir/usr/share/licenses/$NAME"
+        cp -a LICENSES/. "$pkgdir/usr/share/licenses/$NAME/"
+    fi
+}
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("5699601e3a957e1eebf8fbe8b1f3d908df3c0a775919bc796b0830b34b59a67d")

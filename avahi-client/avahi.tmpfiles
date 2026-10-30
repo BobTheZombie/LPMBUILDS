@@ -1,0 +1,3 @@
+# Do not package a mutable runtime directory as a normal archive member.
+# The service's local IPC socket is created dynamically.
+d /run/avahi-daemon 0755 avahi avahi -

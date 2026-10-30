@@ -1,0 +1,10 @@
+[connection]
+id=Ethernet automatic
+type=ethernet
+autoconnect=true
+[ethernet]
+[ipv4]
+method=auto
+[ipv6]
+method=auto
+addr-gen-mode=stable-privacy

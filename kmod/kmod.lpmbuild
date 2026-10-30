@@ -1,46 +1,155 @@
+#!/bin/bash
 # LPM build script for kmod
+
 NAME="kmod"
-VERSION="32"
-RELEASE="1"
+VERSION="34.2"
+RELEASE="4"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Linux kernel module handling"
+
+SUMMARY="Linux kernel module handling tools and library"
 URL="https://git.kernel.org/pub/scm/utils/kernel/kmod/kmod.git"
-LICENSE="LGPL-2.1-or-later"
-SOURCE=("https://www.kernel.org/pub/linux/utils/kernel/kmod/kmod-${VERSION}.tar.xz")
-REQUIRES=("glibc" "openssl" "zlib" "xz" "zstd")
-PROVIDES=("kmod" "libkmod")
+LICENSE=("GPL-2.0-or-later" "LGPL-2.1-or-later")
+
+SOURCE=(
+    "https://www.kernel.org/pub/linux/utils/kernel/kmod/kmod-${VERSION}.tar.xz"
+    "depmod-search.conf"
+    "depmod.hook"
+    "depmod.script"
+)
+
+SHA256SUMS=("SKIP" "SKIP" "SKIP" "SKIP")
+PATCHES=()
+
+REQUIRES=("glibc" "openssl" "xz" "zlib" "zstd")
+BUILD_REQUIRES=("gcc" "make" "pkgconf" "openssl" "xz" "zlib" "zstd")
+
+PROVIDES=(
+    "kmod"
+    "libkmod"
+    "libkmod.so"
+    "libkmod.so.2"
+    "depmod"
+    "insmod"
+    "lsmod"
+    "modinfo"
+    "modprobe"
+    "rmmod"
+)
+
 CONFLICTS=()
 OBSOLETES=()
 RECOMMENDS=()
 SUGGESTS=()
 
+BUILD_OPTIONS=("@--stripping" "@--optimize=2")
+
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  rm -rf "${NAME}-${VERSION}"
-  tar -xf "${NAME}-${VERSION}.tar.xz"
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    test -f configure
+    test -f Makefile.in
+    test -f COPYING
+    test -f libkmod/COPYING
+
+    test -s "$SRCROOT/depmod-search.conf"
+    test -s "$SRCROOT/depmod.hook"
+    test -s "$SRCROOT/depmod.script"
+
+    bash -n "$SRCROOT/depmod.script"
+
+    if [ -f Makefile ]; then
+        make distclean
+    fi
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT/${NAME}-${VERSION}"
-  ./configure \
-    --prefix=/usr \
-    --sysconfdir=/etc \
-    --with-xz \
-    --with-zlib \
-    --with-zstd \
-    --with-openssl
-  make -j"$(nproc)"
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    ./configure \
+        --prefix=/usr \
+        --bindir=/usr/bin \
+        --sbindir=/usr/bin \
+        --libdir=/usr/lib \
+        --includedir=/usr/include \
+        --sysconfdir=/etc \
+        --mandir=/usr/share/man \
+        --with-xz \
+        --with-zlib \
+        --with-zstd \
+        --with-openssl \
+        --disable-static \
+        --disable-gtk-doc \
+        --disable-manpages
+
+    make -j"$(nproc)"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT/${NAME}-${VERSION}"
-  make DESTDIR="$pkgdir" install
-  install -dm755 "$pkgdir/usr/bin"
-  install -dm755 "$pkgdir/etc/depmod.d" "$pkgdir/usr/lib/depmod.d" "$pkgdir/usr/lib/modprobe.d"
-  for tool in insmod lsmod rmmod depmod modprobe modinfo; do
-    ln -sf kmod "$pkgdir/usr/bin/$tool"
-  done
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    make DESTDIR="$pkgdir" install
+
+    install -dm755 \
+        "$pkgdir/etc/depmod.d" \
+        "$pkgdir/etc/modprobe.d" \
+        "$pkgdir/usr/lib/depmod.d" \
+        "$pkgdir/usr/lib/modprobe.d"
+
+    local tool
+    for tool in insmod lsmod rmmod depmod modprobe modinfo; do
+        ln -sfn kmod "$pkgdir/usr/bin/$tool"
+    done
+
+    find "$pkgdir/usr/lib" \
+        -type f \
+        \( -name '*.a' -o -name '*.la' \) \
+        -delete
+
+    install -Dm644 \
+        "$SRCROOT/depmod-search.conf" \
+        "$pkgdir/usr/lib/depmod.d/search.conf"
+
+    install -Dm644 \
+        "$SRCROOT/depmod.hook" \
+        "$pkgdir/usr/share/liblpm/hooks/60-depmod.hook"
+
+    install -Dm755 \
+        "$SRCROOT/depmod.script" \
+        "$pkgdir/usr/libexec/lpm/hooks/depmod"
+
+    test -x "$pkgdir/usr/bin/kmod"
+    test -e "$pkgdir/usr/lib/libkmod.so"
+    test -e "$pkgdir/usr/lib/libkmod.so.2"
+    test -f "$pkgdir/usr/include/libkmod.h"
+    test -s "$pkgdir/usr/lib/pkgconfig/libkmod.pc"
+
+    for tool in insmod lsmod rmmod depmod modprobe modinfo; do
+        test "$(readlink "$pkgdir/usr/bin/$tool")" = kmod
+        test -x "$pkgdir/usr/bin/$tool"
+    done
+
+    test -s "$pkgdir/usr/lib/depmod.d/search.conf"
+    test -x "$pkgdir/usr/libexec/lpm/hooks/depmod"
+
+    grep -Fxq \
+        'Exec = /usr/libexec/lpm/hooks/depmod' \
+        "$pkgdir/usr/share/liblpm/hooks/60-depmod.hook"
+
+    LD_LIBRARY_PATH="$pkgdir/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
+        "$pkgdir/usr/bin/kmod" --version
+
+    install -Dm644 COPYING \
+        "$pkgdir/usr/share/licenses/$NAME/COPYING"
+
+    install -Dm644 libkmod/COPYING \
+        "$pkgdir/usr/share/licenses/$NAME/COPYING.libkmod"
 }
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("5a5d5073070cc7e0c7a7a3c6ec2a0e1780850c8b47b3e3892226b93ffcb9cb54" "1a92bfeae870f61ce814577e69d2a147a9c0caf6aed1131243e4179241fcc4a8" "0493b2bdf5ff198502ad0c9402ae1afcfead6f3a180c0a3f3861b00867d119dc" "2f72f2793230af5b9cd4b29bd17ed891e16e00dd1720e849fcdcee927029ac89")

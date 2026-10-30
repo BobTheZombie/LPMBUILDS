@@ -1,0 +1,43 @@
+#!/bin/bash
+NAME="desktop-file-utils"
+VERSION="0.28"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="desktop-file-utils upstream package"
+URL="https://www.freedesktop.org/software/desktop-file-utils/releases/"
+LICENSE=("GPL-2.0-or-later")
+SOURCE=("https://www.freedesktop.org/software/desktop-file-utils/releases/desktop-file-utils-0.28.tar.xz")
+SHA256SUMS=("4401d4e231d842c2de8242395a74a395ca468cd96f5f610d822df33594898a70")
+PATCHES=()
+REQUIRES=("glib2")
+BUILD_REQUIRES=("glib2" "meson" "ninja" "pkgconf")
+PROVIDES=("desktop-file-utils")
+CONFLICTS=()
+OBSOLETES=()
+BUILD_OPTIONS=("@--stripping" "@--optimize=2")
+prepare() { set -euxo pipefail; cd "$SRCROOT/${NAME}-${VERSION}"; }
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    meson setup build --prefix=/usr --libdir=lib --buildtype=release --wrap-mode=nodownload 
+    meson compile -C build -j "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    meson install -C build --no-rebuild --destdir "$pkgdir"
+    local f
+    for f in COPYING COPYING.LIB LICENSE LICENSE.md LICENSE.txt; do
+        if [ -f "$f" ]; then install -Dm644 "$f" "$pkgdir/usr/share/licenses/$NAME/$f"; fi
+    done
+    if [ -d LICENSES ]; then
+        install -dm755 "$pkgdir/usr/share/licenses/$NAME"
+        cp -a LICENSES/. "$pkgdir/usr/share/licenses/$NAME/"
+    fi
+}
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("4401d4e231d842c2de8242395a74a395ca468cd96f5f610d822df33594898a70")

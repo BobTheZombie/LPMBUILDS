@@ -1,0 +1,248 @@
+#!/bin/bash
+# LPM build script for attr
+
+NAME="attr"
+VERSION="2.6.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+
+SUMMARY="Extended attribute support library and utilities"
+URL="https://savannah.nongnu.org/projects/attr/"
+LICENSE=("LGPL-2.1-or-later")
+
+SOURCE=(
+    "https://download.savannah.gnu.org/releases/attr/attr-${VERSION}.tar.xz"
+)
+
+SHA256SUMS=(
+    "6c8a2148a7b85043b68492bce43316b0e2e214fc4e628c7ede078e76e216330b"
+)
+
+PATCHES=()
+
+REQUIRES=(
+    "glibc"
+)
+
+BUILD_REQUIRES=(
+    "glibc"
+    "make"
+    "pkgconf"
+)
+
+PROVIDES=(
+    "attr"
+    "libattr"
+    "libattr.so"
+    "libattr.so.1"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+BUILD_OPTIONS=(
+    "@--stripping"
+    "@--optimize=2"
+)
+
+prepare() {
+    set -euxo pipefail
+
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    test -f configure
+    test -f Makefile.in
+    test -f include/attributes.h
+    test -f include/libattr.h
+    test -f libattr.pc.in
+    test -f doc/COPYING.LGPL
+
+    make distclean 2>/dev/null || true
+}
+
+build() {
+    set -euxo pipefail
+
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    ./configure \
+        --prefix=/usr \
+        --bindir=/usr/bin \
+        --libdir=/usr/lib \
+        --includedir=/usr/include \
+        --sysconfdir=/etc \
+        --datadir=/usr/share \
+        --mandir=/usr/share/man \
+        --disable-static
+
+    make -j"$(nproc)"
+}
+
+check() {
+    set -euxo pipefail
+
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    test -x .libs/attr
+    test -x .libs/getfattr
+    test -x .libs/setfattr
+
+    LIBATTR="$(
+        find .libs \
+            -maxdepth 1 \
+            -type f \
+            -name 'libattr.so.1.*' \
+            -print \
+            -quit
+    )"
+
+    if [ -z "$LIBATTR" ] || [ ! -f "$LIBATTR" ]; then
+        echo "[ERROR] Missing build-tree libattr shared library" >&2
+        return 1
+    fi
+
+    LIBATTR_HEADER=".lpm-libattr-header"
+    LIBATTR_DYNAMIC=".lpm-libattr-dynamic"
+
+    readelf -h "$LIBATTR" > "$LIBATTR_HEADER"
+    grep -Fq 'ELF64' "$LIBATTR_HEADER"
+
+    readelf -d "$LIBATTR" > "$LIBATTR_DYNAMIC"
+    grep -Fq \
+        'Library soname: [libattr.so.1]' \
+        "$LIBATTR_DYNAMIC"
+
+    rm -f \
+        "$LIBATTR_HEADER" \
+        "$LIBATTR_DYNAMIC"
+}
+
+staging() {
+    set -euxo pipefail
+
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    make \
+        DESTDIR="$pkgdir" \
+        install
+
+    #
+    # Remove static and Libtool metadata.
+    #
+
+    find "$pkgdir/usr/lib" \
+        -type f \
+        \( -name '*.a' -o -name '*.la' \) \
+        -delete
+
+    #
+    # Validate utilities.
+    #
+
+    for PROGRAM in \
+        attr \
+        getfattr \
+        setfattr
+    do
+        if [ ! -x "$pkgdir/usr/bin/$PROGRAM" ]; then
+            echo "[ERROR] Missing attr utility: /usr/bin/$PROGRAM" >&2
+            return 1
+        fi
+    done
+
+    #
+    # Validate configuration placement.
+    #
+
+    test -f "$pkgdir/etc/xattr.conf"
+    test ! -e "$pkgdir/usr/etc/xattr.conf"
+
+    #
+    # Validate development files.
+    #
+
+    test -f "$pkgdir/usr/include/attr/attributes.h"
+    test -f "$pkgdir/usr/include/attr/error_context.h"
+    test -f "$pkgdir/usr/include/attr/libattr.h"
+    test -f "$pkgdir/usr/lib/pkgconfig/libattr.pc"
+
+    #
+    # Validate library compatibility names.
+    #
+
+    test -L "$pkgdir/usr/lib/libattr.so"
+    test -L "$pkgdir/usr/lib/libattr.so.1"
+
+    LIBATTR="$(
+        find "$pkgdir/usr/lib" \
+            -maxdepth 1 \
+            -type f \
+            -name 'libattr.so.1.*' \
+            -print \
+            -quit
+    )"
+
+    if [ -z "$LIBATTR" ] || [ ! -f "$LIBATTR" ]; then
+        echo "[ERROR] Missing real libattr shared library" >&2
+        return 1
+    fi
+
+    #
+    # Validate ELF architecture and SONAME.
+    #
+
+    LIBATTR_HEADER=".lpm-staged-libattr-header"
+    LIBATTR_DYNAMIC=".lpm-staged-libattr-dynamic"
+
+    readelf -h "$LIBATTR" > "$LIBATTR_HEADER"
+    grep -Fq 'ELF64' "$LIBATTR_HEADER"
+
+    readelf -d "$LIBATTR" > "$LIBATTR_DYNAMIC"
+    grep -Fq \
+        'Library soname: [libattr.so.1]' \
+        "$LIBATTR_DYNAMIC"
+
+    rm -f \
+        "$LIBATTR_HEADER" \
+        "$LIBATTR_DYNAMIC"
+
+    #
+    # Validate pkg-config metadata without executing staged binaries.
+    #
+
+    LIBATTR_PC_VERSION="$(
+        sed -n \
+            's/^Version:[[:space:]]*//p' \
+            "$pkgdir/usr/lib/pkgconfig/libattr.pc"
+    )"
+
+    if [ "$LIBATTR_PC_VERSION" != "$VERSION" ]; then
+        echo "[ERROR] Unexpected libattr version: $LIBATTR_PC_VERSION" >&2
+        return 1
+    fi
+
+    #
+    # Validate documentation.
+    #
+
+    test -f "$pkgdir/usr/share/man/man1/attr.1"
+    test -f "$pkgdir/usr/share/man/man1/getfattr.1"
+    test -f "$pkgdir/usr/share/man/man1/setfattr.1"
+    test -f "$pkgdir/usr/share/man/man3/attr_get.3"
+
+    #
+    # Install licensing information.
+    #
+
+    install -Dm644 \
+        doc/COPYING.LGPL \
+        "$pkgdir/usr/share/licenses/$NAME/COPYING.LGPL"
+}
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("6c8a2148a7b85043b68492bce43316b0e2e214fc4e628c7ede078e76e216330b")

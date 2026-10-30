@@ -1,36 +1,181 @@
-# LPM build script for pipewire
+#!/bin/bash
+# LPM Linux: PipeWire 1.2.1, KDE Plasma/Wayland desktop profile.
+# Build-time deps are explicit for LPM's recursive SAT source builder.
+# WirePlumber is a separate package, not a PipeWire Meson subproject.
+
 NAME="pipewire"
 VERSION="1.2.1"
-RELEASE="1"
+RELEASE="2"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Server and user space API to deal with multimedia pipelines"
+SUMMARY="Low-latency multimedia server with ALSA, PulseAudio, JACK, GStreamer and Bluetooth support"
 URL="https://pipewire.org/"
-LICENSE="LGPL-2.1-or-later"
-SOURCE=("https://gitlab.freedesktop.org/pipewire/pipewire/-/archive/${VERSION}/pipewire-${VERSION}.tar.gz")
-CHECKSUMS=("ee26d1e906a930b283d759628de978dc2514522d68f9566f89b1497b2b534f76")
-REQUIRES=("glibc" "systemd" "dbus" "alsa-lib" "libpipewire" "libcamera" "bluez" "libudev" "ffmpeg" "libva")
-PROVIDES=("pipewire")
+LICENSE=("MIT" "LGPL-2.1-or-later" "GPL-2.0-only")
+SOURCE=("https://gitlab.freedesktop.org/pipewire/pipewire/-/archive/${VERSION}/pipewire-${VERSION}.tar.bz2")
+# SHA256 verified against FreeBSD ports multimedia/pipewire/distinfo @ 1.2.1.
+SHA256SUMS=("f15be402ec3b69f36ee2cb0244b6c17fdd5e6374429ae9e3dc194313503dd5ad")
+PATCHES=()
+
+# Runtime libraries and daemons required by the options enabled below.
+REQUIRES=(
+    "glibc" "gcc-libs" "dbus" "systemd" "libudev"
+    "alsa-lib" "bluez" "sbc" "glib2"
+    "gstreamer" "gst-plugins-base"
+    "libusb" "libsndfile" "opus" "openssl"
+    "avahi-client" "libcanberra" "libX11" "libXfixes"
+    "ncurses" "readline"
+)
+BUILD_REQUIRES=(
+    "meson" "ninja" "pkgconf" "python" "gettext"
+    "alsa-lib" "bluez" "sbc" "dbus" "systemd" "libudev"
+    "glib2" "gstreamer" "gst-plugins-base"
+    "libusb" "libsndfile" "opus" "openssl"
+    "avahi-client" "libcanberra" "libX11" "libXfixes"
+    "ncurses" "readline"
+)
+PROVIDES=("pipewire" "libpipewire-0.3.so")
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=("wireplumber")
-SUGGESTS=()
+RECOMMENDS=("wireplumber" "rtkit")
+BUILD_OPTIONS=("@--stripping" "@--optimize=2")
+
+_pipewire_srcdir() {
+    local candidate
+    for candidate in "$SRCROOT/${NAME}-${VERSION}" "$SRCROOT/${NAME}" "$SRCROOT"; do
+        if [[ -f "$candidate/meson.build" ]] && grep -q "project('pipewire'" "$candidate/meson.build"; then
+            printf '%s\n' "$candidate"
+            return 0
+        fi
+    done
+    echo "[ERROR] PipeWire source not found under SRCROOT=$SRCROOT" >&2
+    return 1
+}
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
+    set -euxo pipefail
+    local srcdir
+    srcdir="$(_pipewire_srcdir)"
+    rm -rf "$srcdir/build"
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  meson setup build --prefix=/usr --buildtype=release \
-    -Dalsa=enabled -Djack=enabled -Ddbus=enabled -Dsystemd=enabled -Dvulkan=enabled \
-    -Dgstreamer=enabled -Dlibcamera=enabled
-  ninja -C build
+    set -euxo pipefail
+    local srcdir
+    srcdir="$(_pipewire_srcdir)"
+
+    # Important: do NOT use -Dauto_features=enabled. Optional codecs,
+    # session-manager subprojects and other unlisted deps must stay disabled.
+    # libcamera 0.7.x and FFmpeg 8 are newer than PipeWire 1.2.1: leave
+    # those two integrations disabled until compatibility is verified.
+    meson setup "$srcdir/build" "$srcdir" \
+        --prefix=/usr \
+        --libdir=lib \
+        --libexecdir=lib \
+        --buildtype=release \
+        --wrap-mode=nodownload \
+        -Dexamples=disabled \
+        -Dtests=disabled \
+        -Dinstalled_tests=disabled \
+        -Ddocs=disabled \
+        -Dman=disabled \
+        '-Dsession-managers=[]' \
+        -Dsystemd=enabled \
+        -Dsystemd-user-service=enabled \
+        -Dsystemd-system-service=disabled \
+        -Dsystemd-user-unit-dir=/usr/lib/systemd/user \
+        -Dsystemd-system-unit-dir=/usr/lib/systemd/system \
+        -Dudev=enabled \
+        -Dudevrulesdir=/usr/lib/udev/rules.d \
+        -Dspa-plugins=enabled \
+        -Dalsa=enabled \
+        -Dpipewire-alsa=enabled \
+        -Dbluez5=enabled \
+        -Dbluez5-backend-native-mm=disabled \
+        -Dbluez5-codec-aptx=disabled \
+        -Dbluez5-codec-ldac=disabled \
+        -Dbluez5-codec-aac=disabled \
+        -Dbluez5-codec-lc3=disabled \
+        -Dbluez5-codec-lc3plus=disabled \
+        -Dbluez5-codec-opus=enabled \
+        -Dpipewire-jack=enabled \
+        -Djack=disabled \
+        -Djack-devel=false \
+        -Dpipewire-v4l2=enabled \
+        -Dv4l2=enabled \
+        -Dlibcamera=disabled \
+        -Dgstreamer=enabled \
+        -Dgstreamer-device-provider=enabled \
+        -Dpw-cat=enabled \
+        -Dffmpeg=disabled \
+        -Dpw-cat-ffmpeg=disabled \
+        -Ddbus=enabled \
+        -Dlibpulse=disabled \
+        -Dgsettings-pulse-schema=disabled \
+        -Dgsettings=enabled \
+        -Dflatpak=disabled \
+        -Dsnap=disabled \
+        -Davahi=enabled \
+        -Draop=enabled \
+        -Dopus=enabled \
+        -Dlibusb=enabled \
+        -Dsndfile=enabled \
+        -Dlibcanberra=enabled \
+        -Dx11=enabled \
+        -Dx11-xfixes=enabled \
+        -Dreadline=enabled \
+        -Droc=disabled \
+        -Dlv2=disabled \
+        -Dlibmysofa=disabled \
+        -Dlibffado=disabled \
+        -Decho-cancel-webrtc=disabled \
+        -Dvulkan=disabled \
+        -Dselinux=disabled \
+        -Drlimits-install=true \
+        -Drlimits-match=@pipewire \
+        -Dpam-defaults-install=false
+
+    meson compile -C "$srcdir/build" -j "${LPM_BUILD_JOBS:-$(nproc)}"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  DESTDIR="$pkgdir" ninja -C build install
+    set -euxo pipefail
+    local srcdir
+    srcdir="$(_pipewire_srcdir)"
+    meson install -C "$srcdir/build" --no-rebuild --destdir "$pkgdir"
+
+    # Desktop PipeWire runs in each user's systemd instance, not as a
+    # dedicated system-wide daemon. Only a group is needed for the upstream
+    # PAM realtime limits file installed when -Drlimits-install=true.
+    install -dm755 "$pkgdir/usr/lib/sysusers.d"
+    cat > "$pkgdir/usr/lib/sysusers.d/pipewire.conf" <<'SYSUSERS'
+# Group used by /etc/security/limits.d/25-pw-rlimits.conf
+# Membership is opt-in; do not add every user automatically.
+g pipewire -
+SYSUSERS
+
+    # Reserve persistent state for OPTIONAL future system-mode deployments;
+    # normal per-user PipeWire state belongs in $XDG_RUNTIME_DIR and does
+    # not require a machine-global runtime directory.
+    install -dm755 "$pkgdir/usr/lib/tmpfiles.d"
+    cat > "$pkgdir/usr/lib/tmpfiles.d/pipewire.conf" <<'TMPFILES'
+# Optional system-mode state; unused by normal systemd --user sessions.
+d /var/lib/pipewire 0750 root pipewire - -
+TMPFILES
+
+    # Do not use or modify the live host /etc, /run or systemd state
+    # while constructing a package in LPM's staging root.
+    if [[ -f "$srcdir/COPYING" ]]; then
+        install -Dm644 "$srcdir/COPYING" "$pkgdir/usr/share/licenses/$NAME/COPYING"
+    fi
+    if [[ -f "$srcdir/LICENSE" ]]; then
+        install -Dm644 "$srcdir/LICENSE" "$pkgdir/usr/share/licenses/$NAME/LICENSE"
+    fi
+
+    # Require upstream user-session services, native library, and GStreamer
+    # plugin so the package can't silently omit desktop-critical features.
+    test -f "$pkgdir/usr/lib/systemd/user/pipewire.service"
+    test -f "$pkgdir/usr/lib/systemd/user/pipewire.socket"
+    test -f "$pkgdir/usr/lib/systemd/user/pipewire-pulse.service"
+    test -f "$pkgdir/usr/lib/systemd/user/pipewire-pulse.socket"
+    test -e "$pkgdir/usr/lib/libpipewire-0.3.so"
+    test -f "$pkgdir/usr/lib/gstreamer-1.0/libgstpipewire.so"
 }

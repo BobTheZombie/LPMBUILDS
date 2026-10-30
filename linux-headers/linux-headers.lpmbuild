@@ -1,34 +1,32 @@
-# LPM build script for linux-headers
+#!/bin/bash
 NAME="linux-headers"
-VERSION="6.15.7"
-RELEASE="1"
+VERSION="7.2.11"
+RELEASE="2"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Linux API headers"
+SUMMARY="Sanitized Linux userspace API headers"
 URL="https://www.kernel.org/"
-LICENSE=""
-SOURCE=()
+LICENSE=("GPL-2.0-only WITH Linux-syscall-note")
+SOURCE=("https://cdn.kernel.org/pub/linux/kernel/v7.x/linux-7.2.11.tar.xz")
+SHA256SUMS=("fd0fc479f983a8c05313f13e9c36330fe6651cf725396748c40d5cd93fa1e6a4")
+PATCHES=()
 REQUIRES=()
+BUILD_REQUIRES=("gcc" "make" "rsync")
 PROVIDES=("linux-headers")
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
-
-prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
-}
-
-build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
-}
-
+prepare() { set -euxo pipefail; cd "$SRCROOT/${NAME}-${VERSION}"; test -f Makefile; }
+build() { set -euxo pipefail; cd "$SRCROOT/${NAME}-${VERSION}"; make ARCH=x86 headers; }
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    make ARCH=x86 INSTALL_HDR_PATH="$pkgdir/usr" headers_install
+    find "$pkgdir/usr/include" -type f -name '.*' -delete
+    test -s "$pkgdir/usr/include/linux/types.h"
+    install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
 }
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("fd0fc479f983a8c05313f13e9c36330fe6651cf725396748c40d5cd93fa1e6a4")

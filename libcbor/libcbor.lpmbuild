@@ -1,0 +1,81 @@
+#!/bin/bash
+# LPM build script for libcbor
+
+NAME="libcbor"
+VERSION="0.14.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+
+SUMMARY="CBOR encoding and decoding library"
+URL="https://github.com/PJK/libcbor"
+LICENSE=("MIT")
+
+SOURCE=(
+    "https://github.com/PJK/libcbor/archive/refs/tags/v${VERSION}.tar.gz"
+)
+
+SHA256SUMS=("SKIP")
+PATCHES=()
+
+REQUIRES=("glibc")
+BUILD_REQUIRES=("gcc" "cmake" "ninja")
+
+PROVIDES=("libcbor" "libcbor.so")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+BUILD_OPTIONS=("@--stripping" "@--optimize=2")
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    test -f CMakeLists.txt
+    test -f LICENSE.md
+
+    rm -rf build
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    cmake -S . -B build -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DBUILD_SHARED_LIBS=ON \
+        -DWITH_EXAMPLES=OFF \
+        -DWITH_TESTS=OFF \
+        -DSANITIZE=OFF \
+        -DCOVERAGE=OFF
+
+    cmake --build build --parallel "$(nproc)"
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    DESTDIR="$pkgdir" cmake --install build
+
+    find "$pkgdir/usr/lib" \
+        -type f \
+        \( -name '*.a' -o -name '*.la' \) \
+        -delete
+
+    test -e "$pkgdir/usr/lib/libcbor.so"
+    test -f "$pkgdir/usr/include/cbor.h"
+    test -s "$pkgdir/usr/lib/pkgconfig/libcbor.pc"
+
+    install -Dm644 LICENSE.md \
+        "$pkgdir/usr/share/licenses/$NAME/LICENSE"
+}
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("a8c1516e741562cf95aa4479c64916c3d4d2623e24fdc35e414e2320e7300aae")

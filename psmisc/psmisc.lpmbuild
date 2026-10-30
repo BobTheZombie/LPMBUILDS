@@ -1,34 +1,38 @@
-# LPM build script for psmisc
 NAME="psmisc"
-VERSION="23.6"
+VERSION="23.7"
 RELEASE="1"
-ARCH="${ARCH:-x86_64}"
-SUMMARY="Small utilities for process management"
+ARCH="x86_64"
+SUMMARY="Utilities for managing processes (killall, fuser, etc.)"
 URL="https://gitlab.com/psmisc/psmisc"
-LICENSE=""
-SOURCE=()
-REQUIRES=("glibc")
-PROVIDES=("psmisc")
+SOURCE=("https://sourceforge.net/projects/psmisc/files/psmisc/psmisc-${VERSION}.tar.xz")
+LICENSE=("GPL-2.0-or-later")
+
+REQUIRES=("glibc" "ncurses")
+PROVIDES=("psmisc" "killall" "fuser")
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+    cd "$SRCROOT/psmisc-${VERSION}"
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+    set -euxo pipefail
+    cd "$SRCROOT/psmisc-${VERSION}"
+    ./configure --prefix=/usr --libdir=/usr/lib --disable-static
+    make -j"$(nproc)"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euxo pipefail
+    cd "$SRCROOT/psmisc-${VERSION}"
+    make DESTDIR="$pkgdir" install
 }
+
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("58c55d9c1402474065adae669511c191de374b0871eec781239ab400b907c327")

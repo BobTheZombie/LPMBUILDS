@@ -1,34 +1,47 @@
-# LPM build script for wayland-protocols
+#!/bin/bash
+# LPM Linux - Wayland Protocols 1.49 (required by KWin 6.8.1)
 NAME="wayland-protocols"
-VERSION="1.36"
+VERSION="1.49"
 RELEASE="1"
-ARCH="${ARCH:-x86_64}"
-SUMMARY="Specifications of extended Wayland protocols"
+ARCH="noarch"
+SUMMARY="Stable and staging Wayland protocol XML definitions"
 URL="https://gitlab.freedesktop.org/wayland/wayland-protocols"
-LICENSE="MIT"
+LICENSE=("MIT")
 SOURCE=("https://gitlab.freedesktop.org/wayland/wayland-protocols/-/releases/${VERSION}/downloads/wayland-protocols-${VERSION}.tar.xz")
-CHECKSUMS=("71fd4de05e79f9a1ca559fac30c1f8365fa10346422f9fe795f74d77b9ef7e92")
-REQUIRES=("glibc" "wayland")
-PROVIDES=("wayland-protocols")
+SHA256SUMS=("ec4c8f74942d6dff7ace8b4ce4764f0ef9ff618a935d974ea77edee2ad240b14")
+PATCHES=()
+REQUIRES=()
+BUILD_REQUIRES=("meson" "ninja" "pkgconf")
+PROVIDES=()
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
+BUILD_OPTIONS=()
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
+    set -euxo pipefail
+    test -f "$SRCROOT/${NAME}-${VERSION}/meson.build"
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  meson setup build --prefix=/usr --buildtype=release
-  ninja -C build
+    set -euxo pipefail
+    local src="$SRCROOT/${NAME}-${VERSION}"
+    local builddir="$src/build"
+    meson setup "$builddir" "$src" \
+        --prefix=/usr \
+        --libdir=lib \
+        --buildtype=release \
+        --wrap-mode=nodownload \
+        -Dtests=false
+    meson compile -C "$builddir" -j "${LPM_BUILD_JOBS:-$(nproc)}"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  DESTDIR="$pkgdir" ninja -C build install
+    set -euxo pipefail
+    local builddir="$SRCROOT/${NAME}-${VERSION}/build"
+    test -n "${pkgdir:-}" && test "$pkgdir" != "/"
+    meson install -C "$builddir" --no-rebuild --destdir "$pkgdir"
+    test -f "$pkgdir/usr/lib/pkgconfig/wayland-protocols.pc" || \
+        test -f "$pkgdir/usr/share/pkgconfig/wayland-protocols.pc"
+    test -f "$pkgdir/usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xml"
+    test -f "$pkgdir/usr/share/wayland-protocols/staging/color-management/color-management-v1.xml"
 }

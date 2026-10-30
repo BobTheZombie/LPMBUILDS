@@ -1,0 +1,144 @@
+#!/bin/bash
+# LPM build script for rsync
+
+NAME="rsync"
+VERSION="3.5.1"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+
+SUMMARY="Fast incremental file transfer and synchronization utility"
+URL="https://rsync.samba.org/"
+LICENSE=("GPL-3.0-or-later")
+
+SOURCE=(
+    "https://download.samba.org/pub/rsync/rsync-${VERSION}.tar.gz"
+)
+
+SHA256SUMS=(
+    "c55f9c9dc10fb8bec397b399a0fdded53cc9a2d8e30891bb0d63724d25c37bef"
+)
+
+PATCHES=()
+
+REQUIRES=(
+    "acl"
+    "bash"
+    "glibc"
+    "libidn2"
+    "lz4"
+    "openssl"
+    "popt"
+    "xxhash"
+    "zlib"
+    "zstd"
+)
+
+BUILD_REQUIRES=(
+    "acl"
+    "gcc"
+    "libidn2"
+    "lz4"
+    "make"
+    "openssl"
+    "popt"
+    "xxhash"
+    "zlib"
+    "zstd"
+)
+
+PROVIDES=("rsync")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=("openssh")
+SUGGESTS=()
+
+BUILD_OPTIONS=(
+    "@--stripping"
+    "@--optimize=2"
+)
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    test -x configure
+    test -f Makefile.in
+    test -f COPYING
+    test -f rsync.1
+
+    if [ -f Makefile ]; then
+        make distclean
+    fi
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    ./configure \
+        --prefix=/usr \
+        --bindir=/usr/bin \
+        --sysconfdir=/etc \
+        --mandir=/usr/share/man \
+        --with-rsh=ssh \
+        --with-rsyncd-conf=/etc/rsyncd.conf \
+        --without-included-popt \
+        --without-included-zlib \
+        --enable-acl-support \
+        --enable-xattr-support \
+        --disable-md2man
+
+    make -j"${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+check() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    ./rsync --version
+
+    (
+        testdir="$(mktemp -d "$PWD/.lpm-rsync-test.XXXXXX")"
+        trap 'rm -rf -- "$testdir"' EXIT
+
+        mkdir -p "$testdir/source" "$testdir/destination"
+
+        printf '%s\n' "LPM rsync transfer test" \
+            > "$testdir/source/file"
+
+        ln "$testdir/source/file" "$testdir/source/hardlink"
+        ln -s file "$testdir/source/symlink"
+
+        ./rsync -aH \
+            "$testdir/source/" \
+            "$testdir/destination/"
+
+        cmp "$testdir/source/file" "$testdir/destination/file"
+
+        test "$(readlink "$testdir/destination/symlink")" = file
+
+        test "$(stat -c '%i' "$testdir/destination/file")" = \
+             "$(stat -c '%i' "$testdir/destination/hardlink")"
+    )
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    make -j1 DESTDIR="$pkgdir" install
+
+    test -x "$pkgdir/usr/bin/rsync"
+    test -x "$pkgdir/usr/bin/rsync-ssl"
+    test -f "$pkgdir/usr/share/man/man1/rsync.1"
+    test -f "$pkgdir/usr/share/man/man5/rsyncd.conf.5"
+
+    install -Dm644 COPYING \
+        "$pkgdir/usr/share/licenses/$NAME/COPYING"
+}
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("c55f9c9dc10fb8bec397b399a0fdded53cc9a2d8e30891bb0d63724d25c37bef")

@@ -1,0 +1,42 @@
+#!/bin/bash
+NAME="xdg-user-dirs"
+VERSION="0.20"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="xdg-user-dirs upstream package"
+URL="https://gitlab.freedesktop.org/xdg/xdg-user-dirs/-/archive/v0.20/"
+LICENSE=("GPL-2.0-or-later")
+SOURCE=("https://gitlab.freedesktop.org/xdg/xdg-user-dirs/-/archive/v0.20/xdg-user-dirs-v0.20.tar.gz")
+SHA256SUMS=("988d3f3274cb2b69796ace22ddbb0abfc2c0157fff65258045f055cfba024d6e")
+PATCHES=()
+REQUIRES=("glibc")
+BUILD_REQUIRES=("docbook-xsl-nons" "gettext" "meson" "ninja" "pkgconf" "systemd")
+PROVIDES=("xdg-user-dirs")
+CONFLICTS=()
+OBSOLETES=()
+BUILD_OPTIONS=("@--stripping" "@--optimize=2")
+prepare() { set -euxo pipefail; cd "$SRCROOT/${NAME}-${VERSION}"; }
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    meson setup build --prefix=/usr --libdir=lib --buildtype=release --wrap-mode=nodownload 
+    meson compile -C build -j "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    meson install -C build --no-rebuild --destdir "$pkgdir"
+    local f
+    for f in COPYING COPYING.LIB LICENSE LICENSE.md LICENSE.txt; do
+        if [ -f "$f" ]; then install -Dm644 "$f" "$pkgdir/usr/share/licenses/$NAME/$f"; fi
+    done
+    if [ -d LICENSES ]; then
+        install -dm755 "$pkgdir/usr/share/licenses/$NAME"
+        cp -a LICENSES/. "$pkgdir/usr/share/licenses/$NAME/"
+    fi
+}
+
+
+
+# Final audited source digests
+SHA256SUMS=("988d3f3274cb2b69796ace22ddbb0abfc2c0157fff65258045f055cfba024d6e")

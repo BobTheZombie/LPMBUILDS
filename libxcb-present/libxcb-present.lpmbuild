@@ -1,0 +1,28 @@
+#!/bin/bash
+NAME="libxcb-present"
+VERSION="1.0.0"
+RELEASE="2"
+ARCH="any"
+SUMMARY="Compatibility dependency on libxcb"
+URL="https://gitlab.com/lpm-org/packages"
+LICENSE=("MIT")
+SOURCE=()
+SHA256SUMS=()
+PATCHES=()
+REQUIRES=("libxcb")
+BUILD_REQUIRES=()
+PROVIDES=("libxcb-present")
+CONFLICTS=()
+OBSOLETES=()
+prepare() { true; }
+build() { true; }
+staging() {
+    install -dm755 "$pkgdir/usr/share/doc/$NAME"
+    printf '%s\n' 'Compatibility dependency: libxcb owns the payload.' > "$pkgdir/usr/share/doc/$NAME/README"
+}
+
+
+
+
+# Final audited source digests
+SHA256SUMS=()

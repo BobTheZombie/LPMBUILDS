@@ -1,0 +1,47 @@
+#!/bin/bash
+# LPM Linux - KDE Kirigami Addons 1.15.0
+NAME="kirigami-addons"
+VERSION="1.15.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Additional Qt Quick and QML components for KDE Kirigami"
+URL="https://invent.kde.org/libraries/kirigami-addons"
+LICENSE=("GPL-2.0-or-later" "LGPL-2.1-or-later")
+SOURCE=("https://download.kde.org/stable/kirigami-addons/kirigami-addons-${VERSION}.tar.xz")
+SHA256SUMS=("82436c7589cdab2e2ee6b2e7d5ab3bedfa049fa7ded5498c01a90a04b9cdbbb3")
+PATCHES=()
+REQUIRES=("glibc" "gcc-libs" "qt6-base" "qt6-declarative" "qt6-multimedia" "kirigami6" "kcolorscheme6" "kconfig6" "kcoreaddons6" "kcrash6" "kglobalaccel6" "kguiaddons6" "ki18n6" "kiconthemes6" "kitemmodels6" "ksvg6" "sonnet6")
+BUILD_REQUIRES=("cmake" "ninja" "pkgconf" "extra-cmake-modules" "qt6-base" "qt6-declarative" "qt6-multimedia" "kirigami6" "kcolorscheme6" "kconfig6" "kcoreaddons6" "kcrash6" "kglobalaccel6" "kguiaddons6" "ki18n6" "kiconthemes6" "kitemmodels6" "ksvg6" "sonnet6")
+PROVIDES=("kirigami-addons")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+    set -euxo pipefail
+    local src="$SRCROOT/kirigami-addons-$VERSION"
+    test -f "$src/CMakeLists.txt"
+    rm -rf "$src/build"
+}
+build() {
+    set -euxo pipefail
+    local src="$SRCROOT/kirigami-addons-$VERSION"
+    cmake -S "$src" -B "$src/build" -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DBUILD_TESTING=OFF \
+        -DKDE_INSTALL_USE_QT_SYS_PATHS=ON
+    cmake --build "$src/build" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+check() {
+    set -euo pipefail
+    test -f "$SRCROOT/kirigami-addons-$VERSION/build/build.ninja"
+}
+staging() {
+    set -euxo pipefail
+    local src="$SRCROOT/kirigami-addons-$VERSION"
+    DESTDIR="$pkgdir" cmake --install "$src/build"
+    find "$pkgdir/usr" -type f -name qmldir -print -quit | grep -q .
+}

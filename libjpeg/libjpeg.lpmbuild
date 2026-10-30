@@ -1,0 +1,123 @@
+#!/bin/bash
+# LPM build script for libjpeg-turbo
+
+NAME="libjpeg"
+VERSION="3.2.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+
+SUMMARY="JPEG image codec with SIMD acceleration"
+URL="https://libjpeg-turbo.org/"
+LICENSE=("BSD-3-Clause" "IJG" "Zlib")
+
+SOURCE=(
+    "https://github.com/libjpeg-turbo/libjpeg-turbo/releases/download/${VERSION}/libjpeg-turbo-${VERSION}.tar.gz"
+)
+
+SHA256SUMS=("SKIP")
+PATCHES=()
+
+REQUIRES=("glibc")
+
+BUILD_REQUIRES=(
+    "cmake"
+    "gcc"
+    "nasm"
+    "ninja"
+)
+
+PROVIDES=(
+    "libjpeg"
+    "libjpeg-turbo"
+    "libjpeg.so"
+    "libjpeg.so.8"
+    "libturbojpeg.so"
+    "libturbojpeg.so.0"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+BUILD_OPTIONS=(
+    "@--stripping"
+    "@--optimize=2"
+)
+
+prepare() {
+    set -euxo pipefail
+
+    cd "$SRCROOT/${NAME}-${VERSION}"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    cmake -S . -B _build -G Ninja \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_BINDIR=bin \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DCMAKE_INSTALL_INCLUDEDIR=include \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DENABLE_SHARED=ON \
+        -DENABLE_STATIC=OFF \
+        -DWITH_JPEG8=ON \
+        -DWITH_SIMD=ON \
+        -DWITH_TURBOJPEG=ON \
+        -DWITH_JAVA=OFF
+
+    cmake --build _build \
+        --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+check() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    ctest --test-dir _build \
+        --output-on-failure \
+        --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    DESTDIR="$pkgdir" cmake --install _build
+
+    find "$pkgdir/usr/lib" \
+        -type f \
+        \( -name '*.a' -o -name '*.la' \) \
+        -delete
+
+    test -e "$pkgdir/usr/lib/libjpeg.so"
+    test -e "$pkgdir/usr/lib/libjpeg.so.8"
+    test -e "$pkgdir/usr/lib/libturbojpeg.so"
+    test -e "$pkgdir/usr/lib/libturbojpeg.so.0"
+
+    test -f "$pkgdir/usr/include/jpeglib.h"
+    test -f "$pkgdir/usr/include/jconfig.h"
+    test -f "$pkgdir/usr/include/turbojpeg.h"
+
+    test -s "$pkgdir/usr/lib/pkgconfig/libjpeg.pc"
+    test -s "$pkgdir/usr/lib/pkgconfig/libturbojpeg.pc"
+
+    for program in cjpeg djpeg jpegtran rdjpgcom wrjpgcom; do
+        test -x "$pkgdir/usr/bin/$program"
+    done
+
+    for license_file in LICENSE.md README.ijg; do
+        if [ -f "$license_file" ]; then
+            install -Dm644 "$license_file" \
+                "$pkgdir/usr/share/licenses/$NAME/$license_file"
+        fi
+    done
+}
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("6f30092cef9fb839779646608f4ee14ae3cbac989c47fa05e841b0841f09878e")

@@ -1,71 +1,343 @@
-# LPM build script for bash
+#!/bin/bash
+# LPM build script for GNU Bash
+
 NAME="bash"
-VERSION="5.2.32"
+VERSION="5.3.20"
+_BASEVERSION="5.3"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
+
 SUMMARY="GNU Bourne Again shell"
 URL="https://www.gnu.org/software/bash/"
-LICENSE="GPL-3.0-or-later"
+LICENSE=("GPL-3.0-or-later")
+
 SOURCE=(
-  "https://ftp.gnu.org/gnu/bash/bash-${VERSION}.tar.gz"
-  "system.bashrc"
-  "system.bash_logout"
-  "dot.bashrc"
-  "dot.bash_profile"
-  "dot.bash_logout"
+    "https://ftp.wayne.edu/gnu/bash/bash-${_BASEVERSION}.tar.gz"
+    "system.bashrc"
+    "system.bash_logout"
+    "dot.bashrc"
+    "dot.bash_profile"
+    "dot.bash_logout"
 )
+
+SHA256SUMS=(
+    "SKIP"
+    "SKIP"
+    "SKIP"
+    "SKIP"
+    "SKIP"
+    "SKIP"
+)
+
+PATCHES=()
+
 REQUIRES=(
-  "glibc"
-  "ncurses"
-  "readline"
+    "glibc"
+    "ncurses"
+    "readline"
 )
-PROVIDES=("sh")
+
+BUILD_REQUIRES=(
+    "glibc"
+    "make"
+    "ncurses"
+    "readline"
+)
+
+PROVIDES=(
+    "bash"
+    "sh"
+)
+
 CONFLICTS=()
 OBSOLETES=()
 RECOMMENDS=()
 SUGGESTS=()
 
-prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
+BUILD_OPTIONS=(
+    "@--stripping"
+    "@--optimize=2"
+)
 
-  tarball="bash-${VERSION}.tar.gz"
-  if [ -f "$tarball" ]; then
-    rm -rf "${NAME}-${VERSION}"
-    case "$tarball" in
-      *.tar.gz|*.tgz) tar -xzf "$tarball" ;;
-      *.tar.xz|*.txz) tar -xf "$tarball" ;;
-      *.tar.zst) tar --zstd -xf "$tarball" ;;
-      *.zip) unzip -q "$tarball" ;;
-      *) tar -xf "$tarball" ;;
-    esac
-  fi
+_prepare_upstream() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+
+    test -f "$SRCDIR/configure"
+    test -f "$SRCDIR/config-top.h"
+    test -f "$SRCDIR/COPYING"
+    test -f "$SRCDIR/shell.c"
+
+    test -f "$SRCROOT/system.bashrc"
+    test -f "$SRCROOT/system.bash_logout"
+    test -f "$SRCROOT/dot.bashrc"
+    test -f "$SRCROOT/dot.bash_profile"
+    test -f "$SRCROOT/dot.bash_logout"
+
+    cd "$SRCDIR"
+
+    make distclean 2>/dev/null || true
+
+    #
+    # Enable the LPM Linux system-wide Bash startup files. These options are
+    # controlled by config-top.h rather than Autoconf.
+    #
+
+    sed -i \
+        -e 's|^/\* #define SYS_BASHRC "/etc/bash\.bashrc" \*/$|#define SYS_BASHRC "/etc/bash.bashrc"|' \
+        -e 's|^/\* #define SYS_BASH_LOGOUT "/etc/bash\.bash_logout" \*/$|#define SYS_BASH_LOGOUT "/etc/bash.bash_logout"|' \
+        "$SRCDIR/config-top.h"
+
+    #
+    # Read the system bashrc for non-interactive shells started through SSH.
+    #
+
+    sed -i \
+        -e 's|^/\* #define SSH_SOURCE_BASHRC \*/$|#define SSH_SOURCE_BASHRC|' \
+        "$SRCDIR/config-top.h"
+
+    grep -Fxq \
+        '#define SYS_BASHRC "/etc/bash.bashrc"' \
+        "$SRCDIR/config-top.h"
+
+    grep -Fxq \
+        '#define SYS_BASH_LOGOUT "/etc/bash.bash_logout"' \
+        "$SRCDIR/config-top.h"
+
+    grep -Fxq \
+        '#define SSH_SOURCE_BASHRC' \
+        "$SRCDIR/config-top.h"
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT/${NAME}-${VERSION}"
+    set -euxo pipefail
 
-  ./configure \
-    --prefix=/usr \
-    --docdir="/usr/share/doc/${NAME}" \
-    --without-bash-malloc
-  make -j"$(nproc)"
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+
+    cd "$SRCDIR"
+
+    ./configure \
+        --prefix=/usr \
+        --bindir=/usr/bin \
+        --libdir=/usr/lib \
+        --includedir=/usr/include \
+        --datadir=/usr/share \
+        --mandir=/usr/share/man \
+        --infodir=/usr/share/info \
+        --docdir="/usr/share/doc/bash-${VERSION}" \
+        --with-installed-readline \
+        --with-curses \
+        --without-bash-malloc
+
+    make -j"$(nproc)"
+}
+
+check() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+
+    #
+    # Do not run Bash's complete test suite during bootstrap builds.
+    #
+
+    test -x "$SRCDIR/bash"
+
+    VERSION_OUTPUT="$SRCDIR/.lpm-bash-version"
+    SMOKE_OUTPUT="$SRCDIR/.lpm-bash-smoke"
+    BASH_HEADER="$SRCDIR/.lpm-bash-header"
+
+    "$SRCDIR/bash" \
+        --version \
+        > "$VERSION_OUTPUT"
+
+    grep -Fq \
+        "GNU bash, version ${VERSION}" \
+        "$VERSION_OUTPUT"
+
+    "$SRCDIR/bash" \
+        --noprofile \
+        --norc \
+        -c 'printf "%s\n" "$BASH_VERSION"' \
+        > "$SMOKE_OUTPUT"
+
+    grep -Eq \
+        "^${VERSION}([.(-]|$)" \
+        "$SMOKE_OUTPUT"
+
+    readelf -h \
+        "$SRCDIR/bash" \
+        > "$BASH_HEADER"
+
+    grep -Fq \
+        'ELF64' \
+        "$BASH_HEADER"
+
+    rm -f \
+        "$VERSION_OUTPUT" \
+        "$SMOKE_OUTPUT" \
+        "$BASH_HEADER"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
+    set -euxo pipefail
 
-  make -C "${NAME}-${VERSION}" DESTDIR="$pkgdir" install
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
 
-  install -d "$pkgdir/usr/bin"
-  ln -sf bash "$pkgdir/usr/bin/sh"
-  ln -sf bash "$pkgdir/usr/bin/rbash"
+    cd "$SRCDIR"
 
-  install -Dm644 "$SRCROOT/system.bashrc" "$pkgdir/etc/bash.bashrc"
-  install -Dm644 "$SRCROOT/system.bash_logout" "$pkgdir/etc/bash.bash_logout"
-  install -Dm644 "$SRCROOT/dot.bashrc" "$pkgdir/etc/skel/.bashrc"
-  install -Dm644 "$SRCROOT/dot.bash_profile" "$pkgdir/etc/skel/.bash_profile"
-  install -Dm644 "$SRCROOT/dot.bash_logout" "$pkgdir/etc/skel/.bash_logout"
+    make \
+        DESTDIR="$pkgdir" \
+        install
+
+    #
+    # The global Info index is generated by a transaction hook and must not be
+    # owned by Bash.
+    #
+
+    rm -f "$pkgdir/usr/share/info/dir"
+
+    #
+    # Provide the POSIX shell and restricted Bash compatibility names.
+    #
+
+    install -dm755 \
+        "$pkgdir/usr/bin"
+
+    ln -sfn bash \
+        "$pkgdir/usr/bin/sh"
+
+    ln -sfn bash \
+        "$pkgdir/usr/bin/rbash"
+
+    #
+    # Install system-wide Bash configuration.
+    #
+
+    install -Dm644 \
+        "$SRCROOT/system.bashrc" \
+        "$pkgdir/etc/bash.bashrc"
+
+    install -Dm644 \
+        "$SRCROOT/system.bash_logout" \
+        "$pkgdir/etc/bash.bash_logout"
+
+    #
+    # Install default startup files for newly created user accounts.
+    #
+
+    install -Dm644 \
+        "$SRCROOT/dot.bashrc" \
+        "$pkgdir/etc/skel/.bashrc"
+
+    install -Dm644 \
+        "$SRCROOT/dot.bash_profile" \
+        "$pkgdir/etc/skel/.bash_profile"
+
+    install -Dm644 \
+        "$SRCROOT/dot.bash_logout" \
+        "$pkgdir/etc/skel/.bash_logout"
+
+    #
+    # Remove Libtool metadata if installed.
+    #
+
+    if [ -d "$pkgdir/usr/lib" ]; then
+        find "$pkgdir/usr/lib" \
+            -type f \
+            -name '*.la' \
+            -delete
+    fi
+
+    #
+    # Validate installed commands and compatibility links.
+    #
+
+    test -x "$pkgdir/usr/bin/bash"
+    test -L "$pkgdir/usr/bin/sh"
+    test -L "$pkgdir/usr/bin/rbash"
+
+    test "$(readlink "$pkgdir/usr/bin/sh")" = "bash"
+    test "$(readlink "$pkgdir/usr/bin/rbash")" = "bash"
+
+    #
+    # Validate the staged executable without running it against staged paths.
+    #
+
+    BASH_HEADER="$SRCDIR/.lpm-staged-bash-header"
+    BASH_DYNAMIC="$SRCDIR/.lpm-staged-bash-dynamic"
+
+    readelf -h \
+        "$pkgdir/usr/bin/bash" \
+        > "$BASH_HEADER"
+
+    grep -Fq \
+        'ELF64' \
+        "$BASH_HEADER"
+
+    readelf -d \
+        "$pkgdir/usr/bin/bash" \
+        > "$BASH_DYNAMIC"
+
+    grep -Fq \
+        'libc.so.6' \
+        "$BASH_DYNAMIC"
+
+    grep -Fq \
+        'libreadline.so' \
+        "$BASH_DYNAMIC"
+
+    rm -f \
+        "$BASH_HEADER" \
+        "$BASH_DYNAMIC"
+
+    #
+    # Validate system and skeleton configuration.
+    #
+
+    test -f "$pkgdir/etc/bash.bashrc"
+    test -f "$pkgdir/etc/bash.bash_logout"
+    test -f "$pkgdir/etc/skel/.bashrc"
+    test -f "$pkgdir/etc/skel/.bash_profile"
+    test -f "$pkgdir/etc/skel/.bash_logout"
+
+    #
+    # Validate documentation.
+    #
+
+    test -f "$pkgdir/usr/share/man/man1/bash.1"
+
+    #
+    # Install licensing information.
+    #
+
+    install -Dm644 \
+        "$SRCDIR/COPYING" \
+        "$pkgdir/usr/share/licenses/$NAME/COPYING"
 }
+
+_GNU_PATCHES=("bash53-001" "bash53-002" "bash53-003" "bash53-004" "bash53-005" "bash53-006" "bash53-007" "bash53-008" "bash53-009" "bash53-010" "bash53-011" "bash53-012" "bash53-013" "bash53-014" "bash53-015" "bash53-016" "bash53-017" "bash53-018" "bash53-019" "bash53-020")
+SOURCE+=("https://ftp.wayne.edu/gnu/bash/bash-5.3-patches/bash53-001" "https://ftp.wayne.edu/gnu/bash/bash-5.3-patches/bash53-002" "https://ftp.wayne.edu/gnu/bash/bash-5.3-patches/bash53-003" "https://ftp.wayne.edu/gnu/bash/bash-5.3-patches/bash53-004" "https://ftp.wayne.edu/gnu/bash/bash-5.3-patches/bash53-005" "https://ftp.wayne.edu/gnu/bash/bash-5.3-patches/bash53-006" "https://ftp.wayne.edu/gnu/bash/bash-5.3-patches/bash53-007" "https://ftp.wayne.edu/gnu/bash/bash-5.3-patches/bash53-008" "https://ftp.wayne.edu/gnu/bash/bash-5.3-patches/bash53-009" "https://ftp.wayne.edu/gnu/bash/bash-5.3-patches/bash53-010" "https://ftp.wayne.edu/gnu/bash/bash-5.3-patches/bash53-011" "https://ftp.wayne.edu/gnu/bash/bash-5.3-patches/bash53-012" "https://ftp.wayne.edu/gnu/bash/bash-5.3-patches/bash53-013" "https://ftp.wayne.edu/gnu/bash/bash-5.3-patches/bash53-014" "https://ftp.wayne.edu/gnu/bash/bash-5.3-patches/bash53-015" "https://ftp.wayne.edu/gnu/bash/bash-5.3-patches/bash53-016" "https://ftp.wayne.edu/gnu/bash/bash-5.3-patches/bash53-017" "https://ftp.wayne.edu/gnu/bash/bash-5.3-patches/bash53-018" "https://ftp.wayne.edu/gnu/bash/bash-5.3-patches/bash53-019" "https://ftp.wayne.edu/gnu/bash/bash-5.3-patches/bash53-020")
+SHA256SUMS+=("1f608434364af86b9b45c8b0ea3fb3b165fb830d27697e6cdfc7ac17dee3287f" "e385548a00130765ec7938a56fbdca52447ab41fabc95a25f19ade527e282001" "f245d9c7dc3f5a20d84b53d249334747940936f09dc97e1dcb89fc3ab37d60ed" "9591d245045529f32f0812f94180b9d9ce9023f5a765c039b852e5dfc99747d0" "cca1ef52dbbf433bc98e33269b64b2c814028efe2538be1e2c9a377da90bc99d" "29119addefed8eff91ae37fd51822c31780ee30d4a28376e96002706c995ff10" "c0976bbfffa1453c7cfdd62058f206a318568ff2d690f5d4fa048793fa3eb299" "097cd723cbfb8907674ac32214063a3fd85282657ec5b4e544d2c0f719653fb4" "eee30fe78a4b0cb2fe20e010e00308899cfc613e0774ebb3c8557a1552f24f8c" "cf76f1cce2ea300c18bff9f002d21f280cc931acd17c28518110b93fe6e72569" "0298df8f5ea2a31d3be43ed7d269c5b3c7c342dd5b570bea7f64d66dcbbe7531" "d71379b39bebaedaf123414414e77fb458a0a43b9ad3116594c6df7ca6754573" "042f9cda967e24bf4211944697441e93d06ff42b4b998629a98a1b249279f200" "bd4360b401d38507e358783dcad8536a99c6789f0d3a5bd0cfb8c4a34144696c" "55b79ceee2fc27f6767eed697e939a7eb2fe2a28c01556bd75f18d581014f46e" "9ea29b266b7d24cb34d0ff3f1c4631e4d527bfe2d1ef15d17cdb924bf31ef767" "443b927b45c1558ca72052410f8b8f6e5152b617ed707061a2781d4375b0d1c3" "ae715d76c50341d7d7095e9a8d2eeed1ca9546152c2ac7289206f90cf30ac697" "a25c581e4d0057dea3833918438a930e2e86ee4c6dc17fe15267b7f04cbc4e3d" "df217ed3a9122aa2286d9b67bbe348661b6a9db262b580c29150dae55d532896")
+
+prepare() {
+    set -euxo pipefail
+    _prepare_upstream
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    local patch current number
+    for patch in "${_GNU_PATCHES[@]}"; do
+        current="$(awk '/^#define PATCHLEVEL/ {print $3}' patchlevel.h)"
+        number="${patch##*-}"
+        number=$((10#$number))
+        if (( number <= current )); then continue; fi
+        test "$number" -eq "$((current + 1))"
+        patch --batch --forward -Np0 -i "$SRCROOT/$patch"
+    done
+}
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("0d5cd86965f869a26cf64f4b71be7b96f90a3ba8b3d74e27e8e9d9d5550f31ba" "563e03eb4b40edfcc778f04efa2b4913bcdc6929c73d2bd4c07e1f799b98721a" "025bccfb374a3edce0ff8154d990689f30976b78f7a932dc9a6fcef81821811e" "959bc596166c9758fdd68836581f6b8f1d6fdb947d580bf24dce607998a077b8" "e149407c2bee17779caec70a7edd3d0000d172e7e4347429b80cb4d55bcec9c2" "4330edf340394d0dae50afb04ac2a621f106fe67fb634ec81c4bfb98be2a1eb5" "1f608434364af86b9b45c8b0ea3fb3b165fb830d27697e6cdfc7ac17dee3287f" "e385548a00130765ec7938a56fbdca52447ab41fabc95a25f19ade527e282001" "f245d9c7dc3f5a20d84b53d249334747940936f09dc97e1dcb89fc3ab37d60ed" "9591d245045529f32f0812f94180b9d9ce9023f5a765c039b852e5dfc99747d0" "cca1ef52dbbf433bc98e33269b64b2c814028efe2538be1e2c9a377da90bc99d" "29119addefed8eff91ae37fd51822c31780ee30d4a28376e96002706c995ff10" "c0976bbfffa1453c7cfdd62058f206a318568ff2d690f5d4fa048793fa3eb299" "097cd723cbfb8907674ac32214063a3fd85282657ec5b4e544d2c0f719653fb4" "eee30fe78a4b0cb2fe20e010e00308899cfc613e0774ebb3c8557a1552f24f8c" "cf76f1cce2ea300c18bff9f002d21f280cc931acd17c28518110b93fe6e72569" "0298df8f5ea2a31d3be43ed7d269c5b3c7c342dd5b570bea7f64d66dcbbe7531" "d71379b39bebaedaf123414414e77fb458a0a43b9ad3116594c6df7ca6754573" "042f9cda967e24bf4211944697441e93d06ff42b4b998629a98a1b249279f200" "bd4360b401d38507e358783dcad8536a99c6789f0d3a5bd0cfb8c4a34144696c" "55b79ceee2fc27f6767eed697e939a7eb2fe2a28c01556bd75f18d581014f46e" "9ea29b266b7d24cb34d0ff3f1c4631e4d527bfe2d1ef15d17cdb924bf31ef767" "443b927b45c1558ca72052410f8b8f6e5152b617ed707061a2781d4375b0d1c3" "ae715d76c50341d7d7095e9a8d2eeed1ca9546152c2ac7289206f90cf30ac697" "a25c581e4d0057dea3833918438a930e2e86ee4c6dc17fe15267b7f04cbc4e3d" "df217ed3a9122aa2286d9b67bbe348661b6a9db262b580c29150dae55d532896")

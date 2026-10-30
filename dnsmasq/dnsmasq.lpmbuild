@@ -1,0 +1,71 @@
+#!/bin/bash
+# LPM networking stack, release snapshot 2026-10-16
+NAME="dnsmasq"
+VERSION="2.93"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY='DNS caching and DHCP IPv4 IPv6 server for connection sharing'
+URL=https://thekelleys.org.uk/dnsmasq/dnsmasq-2.93.tar.xz
+LICENSE=(GPL-2.0-or-later)
+SOURCE=(https://thekelleys.org.uk/dnsmasq/dnsmasq-2.93.tar.xz dnsmasq.service dnsmasq.conf dnsmasq.sysusers)
+SHA256SUMS=(
+    "0c00d4e5c97c8306e5fb932b348b34269c9c29a0e7df0e8e82958b407092bc19"
+    "7f3d4519fbdc88fd9a3a1b601c359b5dad406e1dd89242f3bbc24585985f0d62"
+    "d6c772a7f24d49ff87686964c8e088a029173f258be159b28749bfcd9385fd52"
+    "76aa29de24d1722e27bf6718f518af7dd2433af1c8b11f9cf3f9b031d33a7306"
+)
+PATCHES=()
+REQUIRES=(glibc dbus nettle libidn2)
+BUILD_REQUIRES=(gcc make pkgconf dbus nettle libidn2)
+PROVIDES=(dnsmasq)
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+BUILD_OPTIONS=(@--stripping @--optimize=2)
+
+_source() {
+    if [ ! -d "$SRCROOT/${NAME}-${VERSION}" ] && [ -d "$SRCROOT/dnsmasq-2.93" ]; then
+        mv "$SRCROOT/dnsmasq-2.93" "$SRCROOT/${NAME}-${VERSION}"
+    fi
+}
+
+_licenses() {
+    local f
+    for f in COPYING COPYING.LIB LICENSE LICENSE.txt LICENCE README; do
+        if [ -f "$f" ]; then
+            install -Dm644 "$f" "$pkgdir/usr/share/licenses/$NAME/$(basename "$f")"
+        fi
+    done
+}
+_cleanup() {
+    if [ -d "$pkgdir/usr/lib" ]; then
+        find "$pkgdir/usr/lib" -type f \( -name '*.a' -o -name '*.la' \) -delete
+    fi
+    rm -f "$pkgdir/usr/share/info/dir"
+}
+
+prepare() { set -euxo pipefail; _source; cd "$SRCROOT/${NAME}-${VERSION}"; test -f Makefile; }
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    make -j"${LPM_BUILD_JOBS:-$(nproc)}" PREFIX=/usr BINDIR=/usr/bin \
+        COPTS="-DHAVE_DBUS -DHAVE_DNSSEC -DHAVE_LIBIDN2" CFLAGS="${CFLAGS:--O2}"
+}
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    make DESTDIR="$pkgdir" PREFIX=/usr BINDIR=/usr/bin COPTS="-DHAVE_DBUS -DHAVE_DNSSEC -DHAVE_LIBIDN2" install
+    install -Dm644 "$SRCROOT/dnsmasq.service" "$pkgdir/usr/lib/systemd/system/dnsmasq.service"
+    install -Dm644 "$SRCROOT/dnsmasq.conf" "$pkgdir/etc/dnsmasq.conf"
+    install -Dm644 "$SRCROOT/dnsmasq.sysusers" "$pkgdir/usr/lib/sysusers.d/dnsmasq.conf"
+    test -x "$pkgdir/usr/bin/dnsmasq"
+    _licenses
+}
+
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("0c00d4e5c97c8306e5fb932b348b34269c9c29a0e7df0e8e82958b407092bc19" "7f3d4519fbdc88fd9a3a1b601c359b5dad406e1dd89242f3bbc24585985f0d62" "d6c772a7f24d49ff87686964c8e088a029173f258be159b28749bfcd9385fd52" "76aa29de24d1722e27bf6718f518af7dd2433af1c8b11f9cf3f9b031d33a7306")

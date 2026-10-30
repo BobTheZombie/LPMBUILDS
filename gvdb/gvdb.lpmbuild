@@ -1,0 +1,38 @@
+NAME="gvdb"
+VERSION="0.0.20261020"
+RELEASE="1"
+ARCH="x86_64"
+SUMMARY="GVariant database builder for GSettings and dconf"
+URL="https://gitlab.gnome.org/GNOME/gvdb"
+LICENSE=("LGPL-2.1-or-later")
+SOURCE=("${NAME}-${VERSION}::git+https://gitlab.gnome.org/GNOME/gvdb.git#commit=c6f2359cc1d00f16e0a0e2527fa0bc1882b8b5ab")
+
+REQUIRES=("glib2" "pkgconf")
+
+prepare() {
+    cd "$SRCROOT/${NAME}-${VERSION}"
+}
+
+build() {
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    meson setup build \
+        --prefix=/usr \
+        --buildtype=release \
+        -Dtests=false
+    ninja -C build
+}
+
+staging() {
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    DESTDIR="$pkgdir" ninja -C build install
+}
+
+
+SHA256SUMS=("SKIP")
+BUILD_REQUIRES=("git" "meson" "ninja" "pkgconf" "glib2")
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("SKIP")

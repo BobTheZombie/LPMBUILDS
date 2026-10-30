@@ -1,0 +1,44 @@
+#!/bin/bash
+# LPM Linux - Little CMS v2 color management engine
+NAME="lcms2"
+VERSION="2.19.1"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Little CMS 2 color management engine (ICC profiles)"
+URL="https://www.littlecms.com/"
+LICENSE=("MIT")
+SOURCE=("https://github.com/mm2/Little-CMS/releases/download/lcms${VERSION}/lcms2-${VERSION}.tar.gz")
+SHA256SUMS=("bfc54f7bab59fbc921012014a8032e4cba4abd46db47d46b76416a8c0b2815c8")
+PATCHES=()
+REQUIRES=("glibc")
+BUILD_REQUIRES=("gcc" "make" "pkgconf")
+PROVIDES=("liblcms2.so")
+CONFLICTS=()
+OBSOLETES=()
+BUILD_OPTIONS=("@--stripping" "@--optimize=2")
+
+prepare() {
+    set -euxo pipefail
+    test -f "$SRCROOT/${NAME}-${VERSION}/configure"
+}
+
+build() {
+    set -euxo pipefail
+    local src="$SRCROOT/${NAME}-${VERSION}"
+    cd "$src"
+    ./configure \
+        --prefix=/usr \
+        --libdir=/usr/lib \
+        --disable-static
+    make -j "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+staging() {
+    set -euxo pipefail
+    local src="$SRCROOT/${NAME}-${VERSION}"
+    test -n "${pkgdir:-}" && test "$pkgdir" != "/"
+    make -C "$src" DESTDIR="$pkgdir" install
+    test -f "$pkgdir/usr/include/lcms2.h"
+    test -f "$pkgdir/usr/lib/pkgconfig/lcms2.pc"
+    compgen -G "$pkgdir/usr/lib/liblcms2.so*" >/dev/null
+}

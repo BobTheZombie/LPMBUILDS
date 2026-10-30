@@ -1,0 +1,100 @@
+#!/bin/bash
+# LPM Linux recipe: libqmi / qmi-glib
+# Upstream: https://gitlab.freedesktop.org/mobile-broadband/libqmi
+# Version 1.38.0, with QMI-over-MBIM support for ModemManager.
+
+NAME="qmi-glib"
+VERSION="1.38.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="GLib library and tools for Qualcomm MSM Interface (QMI) modems"
+URL="https://www.freedesktop.org/wiki/Software/libqmi/"
+LICENSE=("LGPL-2.1-or-later" "GPL-2.0-or-later")
+
+# Upstream project is named libqmi; LPM extracts into $SRCROOT/$NAME-$VERSION.
+SOURCE=("https://gitlab.freedesktop.org/mobile-broadband/libqmi/-/archive/${VERSION}/libqmi-${VERSION}.tar.gz")
+SHA256SUMS=("8ee3b3a9002f2b45c825deade85710db006e01674f5f9359d351c192cc926015")
+PATCHES=()
+
+REQUIRES=(
+    "glibc"
+    "glib2"
+    "mbim-glib"
+)
+
+BUILD_REQUIRES=(
+    "gcc"
+    "glib2"
+    "mbim-glib"
+    "gobject-introspection"
+    "meson"
+    "ninja"
+    "pkgconf"
+    "python"
+)
+
+# Do not conflict with the virtual capability provided by this same package.
+PROVIDES=("libqmi" "libqmi-glib.so")
+CONFLICTS=()
+OBSOLETES=()
+BUILD_OPTIONS=("@--stripping" "@--optimize=2")
+
+prepare() {
+    set -euxo pipefail
+    local src="$SRCROOT/${NAME}-${VERSION}"
+    test -f "$src/meson.build"
+}
+
+build() {
+    set -euxo pipefail
+    local src="$SRCROOT/${NAME}-${VERSION}"
+    local builddir="$src/build"
+
+    # libqmi 1.38.0 Meson options checked against upstream tag 1.38.0.
+    # udev=false avoids requiring libgudev; qrtr=false avoids qrtr-glib.
+    # Enable both in a subsequent release once those dependencies are packaged.
+    meson setup "$builddir" "$src" \
+        --prefix=/usr \
+        --libdir=lib \
+        --buildtype=release \
+        --wrap-mode=nodownload \
+        -Ddefault_library=shared \
+        -Dcollection=full \
+        -Dfirmware_update=true \
+        -Dmbim_qmux=true \
+        -Dmm_runtime_check=true \
+        -Drmnet=true \
+        -Dudev=false \
+        -Dqrtr=false \
+        -Dintrospection=true \
+        -Dgtk_doc=false \
+        -Dman=false \
+        -Dbash_completion=false \
+        -Dfuzzer=false
+
+    meson compile -C "$builddir" -j "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+staging() {
+    set -euxo pipefail
+    local src="$SRCROOT/${NAME}-${VERSION}"
+    local builddir="$src/build"
+    test -n "${pkgdir:-}" && test "$pkgdir" != / 
+
+    meson install -C "$builddir" --no-rebuild --destdir "$pkgdir"
+
+    # Validate required downstream development and runtime interfaces.
+    test -f "$pkgdir/usr/lib/pkgconfig/qmi-glib.pc"
+    test -f "$pkgdir/usr/include/libqmi-glib/libqmi-glib.h"
+    test -f "$pkgdir/usr/lib/girepository-1.0/Qmi-1.0.typelib"
+    compgen -G "$pkgdir/usr/lib/libqmi-glib.so*" >/dev/null
+    test -x "$pkgdir/usr/bin/qmicli"
+
+    # Upstream ships separate licenses for the library and utilities.
+    install -dm755 "$pkgdir/usr/share/licenses/$NAME"
+    for file in COPYING COPYING.LIB; do
+        if [ -f "$src/$file" ]; then
+            install -m644 "$src/$file" "$pkgdir/usr/share/licenses/$NAME/$file"
+        fi
+    done
+}

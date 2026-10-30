@@ -1,34 +1,292 @@
+#!/bin/bash
 # LPM build script for pkgconf
+
 NAME="pkgconf"
-VERSION="2.3.0"
+VERSION="3.0.10"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
+
 SUMMARY="Package compiler and linker metadata toolkit"
 URL="https://github.com/pkgconf/pkgconf"
-LICENSE=""
-SOURCE=()
-REQUIRES=("glibc")
-PROVIDES=("pkgconf")
+LICENSE=("ISC")
+
+SOURCE=(
+    "https://distfiles.ariadne.space/pkgconf/pkgconf-${VERSION}.tar.xz"
+    "https://gitlab.archlinux.org/archlinux/packaging/packages/pkgconf/-/raw/main/x86_64-pc-linux-gnu.personality"
+)
+
+SHA256SUMS=(
+    "SKIP"
+    "SKIP"
+)
+
+PATCHES=()
+
+REQUIRES=(
+    "glibc"
+)
+
+BUILD_REQUIRES=(
+    "glibc"
+    "make"
+)
+
+PROVIDES=(
+    "pkgconf"
+    "pkg-config"
+    "x86_64-pc-linux-gnu-pkg-config"
+    "libpkgconf.so"
+)
+
 CONFLICTS=()
 OBSOLETES=()
 RECOMMENDS=()
 SUGGESTS=()
 
+BUILD_OPTIONS=(
+    "@--stripping"
+    "@--optimize=2"
+)
+
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    BUILDDIR="$SRCDIR/build"
+
+    test -f "$SRCDIR/configure"
+    test -f "$SRCDIR/Makefile.in"
+    test -f "$SRCDIR/COPYING"
+    test -f "$SRCROOT/x86_64-pc-linux-gnu.personality"
+
+    rm -rf "$BUILDDIR"
+    mkdir -p "$BUILDDIR"
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    BUILDDIR="$SRCDIR/build"
+
+    cd "$BUILDDIR"
+
+    ../configure \
+        --prefix=/usr \
+        --bindir=/usr/bin \
+        --libdir=/usr/lib \
+        --includedir=/usr/include \
+        --datadir=/usr/share \
+        --mandir=/usr/share/man \
+        --docdir="/usr/share/doc/${NAME}-${VERSION}" \
+        --with-pkg-config-dir=/usr/lib/pkgconfig:/usr/share/pkgconfig \
+        --with-personality-dir=/usr/share/pkgconfig/personality.d \
+        --with-system-libdir=/usr/lib \
+        --with-system-includedir=/usr/include \
+        --disable-static
+
+    make -j"$(nproc)"
+}
+
+check() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    BUILDDIR="$SRCDIR/build"
+
+    PKGCONF_BINARY="$(
+        find "$BUILDDIR" \
+            -type f \
+            -name pkgconf \
+            -perm -111 \
+            -print \
+            -quit
+    )"
+
+    if [ -z "$PKGCONF_BINARY" ] || [ ! -x "$PKGCONF_BINARY" ]; then
+        echo "[ERROR] Missing build-tree pkgconf executable" >&2
+        return 1
+    fi
+
+    VERSION_OUTPUT="$BUILDDIR/.lpm-pkgconf-version"
+
+    "$PKGCONF_BINARY" --version > "$VERSION_OUTPUT"
+    grep -Fxq "$VERSION" "$VERSION_OUTPUT"
+
+    rm -f "$VERSION_OUTPUT"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    BUILDDIR="$SRCDIR/build"
+
+    make \
+        -C "$BUILDDIR" \
+        DESTDIR="$pkgdir" \
+        install
+
+    #
+    # Remove static and Libtool libraries.
+    #
+
+    find "$pkgdir/usr/lib" \
+        -type f \
+        \( -name '*.a' -o -name '*.la' \) \
+        -delete
+
+    #
+    # Install native x86_64 personality configuration.
+    #
+
+    install -dm755 \
+        "$pkgdir/usr/share/pkgconfig/personality.d"
+
+    install -Dm644 \
+        "$SRCROOT/x86_64-pc-linux-gnu.personality" \
+        "$pkgdir/usr/share/pkgconfig/personality.d/x86_64-pc-linux-gnu.personality"
+
+        
+    #
+    # Install pkg-config compatibility command and manual-page symlinks.
+    #
+
+    ln -sfn pkgconf \
+        "$pkgdir/usr/bin/pkg-config"
+
+    ln -sfn pkgconf \
+        "$pkgdir/usr/bin/x86_64-pc-linux-gnu-pkg-config"
+
+    ln -sfn pkgconf.1 \
+        "$pkgdir/usr/share/man/man1/pkg-config.1"
+
+    ln -sfn pkgconf.1 \
+        "$pkgdir/usr/share/man/man1/x86_64-pc-linux-gnu-pkg-config.1"    
+
+    #
+    # Ensure standard metadata directories exist.
+    #
+
+    install -dm755 \
+        "$pkgdir/usr/lib/pkgconfig" \
+        "$pkgdir/usr/share/pkgconfig"
+
+    #
+    # Validate executables and symlinks.
+    #
+
+    test -x "$pkgdir/usr/bin/pkgconf"
+
+    test -L "$pkgdir/usr/bin/pkg-config"
+    test "$(readlink "$pkgdir/usr/bin/pkg-config")" = "pkgconf"
+
+    test -L \
+        "$pkgdir/usr/bin/x86_64-pc-linux-gnu-pkg-config"
+
+    test "$(
+        readlink "$pkgdir/usr/bin/x86_64-pc-linux-gnu-pkg-config"
+    )" = "pkgconf"
+
+    #
+    # Validate personality configuration.
+    #
+
+    PERSONALITY="$pkgdir/usr/share/pkgconfig/personality.d/x86_64-pc-linux-gnu.personality"
+
+    test -s "$PERSONALITY"
+
+    grep -Eq \
+        '^Triplet:[[:space:]]*x86_64-pc-linux-gnu([[:space:]]|$)' \
+        "$PERSONALITY"
+
+    #
+    # Locate the shared library without assuming its ABI number.
+    #
+
+    LIBPKGCONF="$(
+        find "$pkgdir/usr/lib" \
+            -maxdepth 1 \
+            -type f \
+            -name 'libpkgconf.so.*' \
+            -print \
+            -quit
+    )"
+
+    if [ -z "$LIBPKGCONF" ] || [ ! -f "$LIBPKGCONF" ]; then
+        echo "[ERROR] Missing shared libpkgconf library" >&2
+        return 1
+    fi
+
+    test -L "$pkgdir/usr/lib/libpkgconf.so"
+
+    #
+    # Verify ELF architecture and dynamic linkage.
+    #
+
+    PKGCONF_HEADER="$SRCDIR/.lpm-pkgconf-header"
+    PKGCONF_DYNAMIC="$SRCDIR/.lpm-pkgconf-dynamic"
+    LIBPKGCONF_HEADER="$SRCDIR/.lpm-libpkgconf-header"
+
+    readelf -h \
+        "$pkgdir/usr/bin/pkgconf" \
+        > "$PKGCONF_HEADER"
+
+    grep -Fq 'ELF64' "$PKGCONF_HEADER"
+
+    readelf -d \
+        "$pkgdir/usr/bin/pkgconf" \
+        > "$PKGCONF_DYNAMIC"
+
+    grep -Fq 'libpkgconf.so' "$PKGCONF_DYNAMIC"
+
+    readelf -h \
+        "$LIBPKGCONF" \
+        > "$LIBPKGCONF_HEADER"
+
+    grep -Fq 'ELF64' "$LIBPKGCONF_HEADER"
+
+    rm -f \
+        "$PKGCONF_HEADER" \
+        "$PKGCONF_DYNAMIC" \
+        "$LIBPKGCONF_HEADER"
+
+    #
+    # Run the staged executable with the staged library directory.
+    #
+
+    VERSION_OUTPUT="$SRCDIR/.lpm-staged-pkgconf-version"
+
+    LD_LIBRARY_PATH="$pkgdir/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
+        "$pkgdir/usr/bin/pkgconf" \
+        --version \
+        > "$VERSION_OUTPUT"
+
+    grep -Fxq "$VERSION" "$VERSION_OUTPUT"
+
+    rm -f "$VERSION_OUTPUT"
+
+    #
+    # Validate development files and documentation.
+    #
+
+    test -f \
+        "$pkgdir/usr/include/pkgconf/libpkgconf/libpkgconf.h"
+
+    test -f "$pkgdir/usr/share/man/man1/pkgconf.1"
+    test -f "$pkgdir/usr/share/man/man1/pkg-config.1"
+
+    #
+    # Install licensing information.
+    #
+
+    install -Dm644 \
+        "$SRCDIR/COPYING" \
+        "$pkgdir/usr/share/licenses/$NAME/COPYING"
 }
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("9371b2f6372da574d4c6dc96fe9b1463037bcf6afcb6671c1555afde7b17e2de" "c8297817ba0b57d003878db247ff34b4c47a7594c9f67dcfe8ff8d6567956cd5")

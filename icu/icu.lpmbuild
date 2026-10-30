@@ -1,0 +1,257 @@
+#!/bin/bash
+# LPM build script for ICU
+
+NAME="icu"
+VERSION="78.3"
+RELEASE="3"
+ARCH="${ARCH:-x86_64}"
+
+SUMMARY="International Components for Unicode library"
+URL="https://icu.unicode.org/"
+LICENSE=("ICU")
+
+SOURCE=(
+    "https://github.com/unicode-org/icu/releases/download/release-${VERSION}/icu4c-${VERSION}-sources.tgz"
+)
+
+SHA256SUMS=(
+    "3a2e7a47604ba702f345878308e6fefeca612ee895cf4a5f222e7955fabfe0c0"
+)
+
+PATCHES=()
+
+REQUIRES=(
+    "bash"
+    "gcc-libs"
+    "glibc"
+)
+
+BUILD_REQUIRES=(
+    "gcc-libs"
+    "glibc"
+    "make"
+    "python"
+)
+
+PROVIDES=(
+    "icu"
+    "libicu"
+    "libicudata.so"
+    "libicudata.so.78"
+    "libicui18n.so"
+    "libicui18n.so.78"
+    "libicuio.so"
+    "libicuio.so.78"
+    "libicutu.so"
+    "libicutu.so.78"
+    "libicuuc.so"
+    "libicuuc.so.78"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+BUILD_OPTIONS=(
+    "@--stripping"
+    "@--optimize=2"
+)
+
+prepare() {
+    set -euxo pipefail
+
+    if [ -d "$SRCROOT/icu" ]; then
+        if [ -e "$SRCROOT/${NAME}-${VERSION}" ]; then
+            echo "[ERROR] Both ICU source directories already exist" >&2
+            return 1
+        fi
+
+        mv "$SRCROOT/icu" "$SRCROOT/${NAME}-${VERSION}"
+    fi
+
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    test -x source/configure
+    test -f source/common/unicode/utypes.h
+    test -f source/i18n/unicode/ucol.h
+    test -f LICENSE
+
+    rm -rf build
+    mkdir -p build
+}
+
+build() {
+    set -euxo pipefail
+
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    cd build
+
+    ../source/configure \
+        --prefix=/usr \
+        --bindir=/usr/bin \
+        --sbindir=/usr/bin \
+        --libdir=/usr/lib \
+        --includedir=/usr/include \
+        --datadir=/usr/share \
+        --sysconfdir=/etc \
+        --mandir=/usr/share/man \
+        --enable-release \
+        --enable-shared \
+        --enable-icu-config \
+        --disable-static \
+        --disable-debug \
+        --disable-samples \
+        --with-data-packaging=library
+
+    make -j"$(nproc)"
+}
+
+check() {
+    set -euxo pipefail
+
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    local library
+    local info_output="build/.lpm-icuinfo"
+
+    for library in icudata icui18n icuio icuuc; do
+        if [ ! -f "build/lib/lib${library}.so.${VERSION}" ]; then
+            echo "[ERROR] Missing build-tree ICU library: $library" >&2
+            return 1
+        fi
+    done
+
+    test -x build/tools/icuinfo/icuinfo
+    test -x build/bin/uconv
+
+    if ! LD_LIBRARY_PATH="$PWD/build/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
+        build/tools/icuinfo/icuinfo > "$info_output"
+    then
+        echo "[ERROR] Build-tree icuinfo failed to run" >&2
+        return 1
+    fi
+
+    grep -Fq \
+        "<param name=\"version\">${VERSION}</param>" \
+        "$info_output"
+
+    grep -Eq \
+        '<param name="tz.version">[^<]+</param>' \
+        "$info_output"
+
+    rm -f "$info_output"
+}
+
+staging() {
+    set -euxo pipefail
+
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    local program library module
+    local major="${VERSION%%.*}"
+    local dynamic_output
+    local info_output="build/.lpm-staged-icuinfo"
+
+    make \
+        -C build \
+        DESTDIR="$pkgdir" \
+        install
+
+    find "$pkgdir/usr/lib" \
+        -type f \
+        \( -name '*.a' -o -name '*.la' \) \
+        -delete
+
+    for program in \
+        derb \
+        genbrk \
+        gencfu \
+        gencnval \
+        gendict \
+        genrb \
+        icu-config \
+        icuexportdata \
+        icuinfo \
+        makeconv \
+        pkgdata \
+        uconv
+    do
+        if [ ! -x "$pkgdir/usr/bin/$program" ]; then
+            echo "[ERROR] Missing ICU program: /usr/bin/$program" >&2
+            return 1
+        fi
+    done
+
+    for library in icudata icui18n icuio icutu icuuc; do
+        test -L "$pkgdir/usr/lib/lib${library}.so"
+        test -L "$pkgdir/usr/lib/lib${library}.so.${major}"
+        test -f "$pkgdir/usr/lib/lib${library}.so.${VERSION}"
+
+        dynamic_output="build/.lpm-${library}-dynamic"
+
+        LC_ALL=C readelf \
+            -d "$pkgdir/usr/lib/lib${library}.so.${VERSION}" \
+            > "$dynamic_output"
+
+        grep -Fq \
+            "Library soname: [lib${library}.so.${major}]" \
+            "$dynamic_output"
+
+        rm -f "$dynamic_output"
+    done
+
+    test -f "$pkgdir/usr/include/unicode/utypes.h"
+    test -f "$pkgdir/usr/include/unicode/ucol.h"
+    test -f "$pkgdir/usr/include/unicode/unistr.h"
+    test -f "$pkgdir/usr/include/unicode/uvernum.h"
+
+    # Match the version string without treating its dots as regex wildcards.
+    local header_version
+    header_version="$(
+        sed -n \
+            's/^#define[[:space:]]*U_ICU_VERSION[[:space:]]*"\([^"]*\)".*/\1/p' \
+            "$pkgdir/usr/include/unicode/uvernum.h"
+    )"
+
+    if [ "$header_version" != "$VERSION" ]; then
+        echo "[ERROR] Unexpected ICU header version: $header_version" >&2
+        return 1
+    fi
+
+    for module in icu-i18n icu-io icu-uc; do
+        test -s "$pkgdir/usr/lib/pkgconfig/$module.pc"
+    done
+
+    test -s "$pkgdir/usr/lib/libicudata.so.${VERSION}"
+    test -f "$pkgdir/usr/share/icu/${VERSION}/LICENSE"
+    test -f "$pkgdir/usr/share/man/man1/uconv.1"
+
+    # Execute against the staged libraries rather than relying on ldd.
+    if ! LD_LIBRARY_PATH="$pkgdir/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
+        "$pkgdir/usr/bin/icuinfo" > "$info_output"
+    then
+        echo "[ERROR] Staged icuinfo failed to run" >&2
+        return 1
+    fi
+
+    grep -Fq \
+        "<param name=\"version\">${VERSION}</param>" \
+        "$info_output"
+
+    grep -Eq \
+        '<param name="tz.version">[^<]+</param>' \
+        "$info_output"
+
+    rm -f "$info_output"
+
+    install -Dm644 \
+        LICENSE \
+        "$pkgdir/usr/share/licenses/$NAME/LICENSE"
+}
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("3a2e7a47604ba702f345878308e6fefeca612ee895cf4a5f222e7955fabfe0c0")

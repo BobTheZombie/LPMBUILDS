@@ -1,0 +1,37 @@
+#!/bin/bash
+NAME="lpm-networking"
+VERSION="20261016"
+RELEASE="1"
+ARCH="noarch"
+SUMMARY="LPM NetworkManager networking stack and configuration"
+URL="https://github.com/BobTheZombie/LPM.Org"
+LICENSE=("MIT")
+SOURCE=("10-lpm.conf" "20-ipv6.conf")
+SHA256SUMS=(
+    "f1282e16b070b77205f3f1aa0465d07a5f1f1af856af1c7d5a87e0cca6bda6ea"
+    "296e4add10f5cc34823630e71f82c423d11489ae4e39b465d5e90850e3724d64"
+)
+PATCHES=()
+REQUIRES=("networkmanager" "wpa_supplicant" "iproute2" "iw" "wireless-regdb" "iputils" "ethtool" "dnsmasq" "nftables" "ca-certificates")
+BUILD_REQUIRES=()
+PROVIDES=("lpm-networking")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=("linux-firmware")
+SUGGESTS=("dhcpcd")
+BUILD_OPTIONS=()
+prepare() { set -euxo pipefail; test -s "$SRCROOT/10-lpm.conf"; }
+build() { :; }
+staging() {
+    set -euxo pipefail
+    install -Dm644 "$SRCROOT/10-lpm.conf" "$pkgdir/etc/NetworkManager/conf.d/10-lpm.conf"
+    install -Dm644 "$SRCROOT/20-ipv6.conf" "$pkgdir/usr/lib/sysctl.d/20-lpm-networking.conf"
+    install -dm700 "$pkgdir/etc/NetworkManager/system-connections"
+    install -dm755 "$pkgdir/etc/dnsmasq.d"
+}
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("f1282e16b070b77205f3f1aa0465d07a5f1f1af856af1c7d5a87e0cca6bda6ea" "296e4add10f5cc34823630e71f82c423d11489ae4e39b465d5e90850e3724d64")

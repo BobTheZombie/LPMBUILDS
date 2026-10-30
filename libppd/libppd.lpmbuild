@@ -1,0 +1,54 @@
+#!/bin/bash
+# LPM Linux - libppd 2.1.1 (OpenPrinting legacy PPD support)
+NAME="libppd"
+VERSION="2.1.1"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="OpenPrinting library for PPD printer descriptions"
+URL="https://github.com/OpenPrinting/libppd"
+LICENSE=("Apache-2.0 WITH LLVM-exception")
+SOURCE=("https://github.com/OpenPrinting/libppd/releases/download/${VERSION}/libppd-${VERSION}.tar.xz")
+# Verified upstream release archive hash from Ubuntu source package 2.1.1.
+SHA256SUMS=("3fa341cc03964046d2bf6b161d80c1b4b2e20609f38d860bcaa11cb70c1285e4")
+PATCHES=()
+REQUIRES=("glibc" "gcc-libs" "zlib" "libcups" "libcupsfilters")
+BUILD_REQUIRES=("gcc" "make" "pkgconf" "libcups" "libcupsfilters" "zlib" "ghostscript")
+PROVIDES=("libppd" "libppd.so.2")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+    set -euxo pipefail
+    test -f "$SRCROOT/libppd-$VERSION/configure"
+}
+build() {
+    set -euxo pipefail
+    local src="$SRCROOT/libppd-$VERSION"
+    cd "$src"
+    ./configure --prefix=/usr --libdir=/usr/lib --disable-static \
+        --with-cups-rundir=/run/cups \
+        --enable-ppdc-utils \
+        --docdir="/usr/share/doc/libppd-$VERSION"
+    make -j"${LPM_BUILD_JOBS:-$(nproc)}"
+}
+check() {
+    set -euo pipefail
+    test -f "$SRCROOT/libppd-$VERSION/Makefile"
+    # Upstream provides make check; use manually when test dependencies exist.
+}
+staging() {
+    set -euxo pipefail
+    local src="$SRCROOT/libppd-$VERSION"
+    make -C "$src" DESTDIR="$pkgdir" install
+    test -e "$pkgdir/usr/lib/libppd.so.2"
+    test -f "$pkgdir/usr/lib/pkgconfig/libppd.pc"
+    test -f "$pkgdir/usr/include/ppd/ppd.h"
+    if [[ -f "$src/COPYING" ]]; then
+        install -Dm644 "$src/COPYING" "$pkgdir/usr/share/licenses/libppd/COPYING"
+    fi
+    if [[ -f "$src/NOTICE" ]]; then
+        install -Dm644 "$src/NOTICE" "$pkgdir/usr/share/licenses/libppd/NOTICE"
+    fi
+}

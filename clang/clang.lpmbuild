@@ -1,36 +1,205 @@
-# LPM build script for clang
+#!/bin/bash
+# Clang 20.1.6 for LPM Linux.
+# Standalone Clang + clang-tools-extra, linked against installed LLVM 20.1.6.
+
 NAME="clang"
-VERSION="1.0.0"
-RELEASE="1"
+VERSION="20.1.6"
+RELEASE="4"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Placeholder package for clang dependency"
-URL="https://example.com/clang"
-LICENSE=""
-SOURCE=()
-SHA256SUMS=()
+
+SUMMARY="C language family frontend for LLVM"
+URL="https://clang.llvm.org/"
+LICENSE=("Apache-2.0 WITH LLVM-exception")
+
+SOURCE=(
+    "https://github.com/llvm/llvm-project/releases/download/llvmorg-${VERSION}/llvm-project-${VERSION}.src.tar.xz"
+)
+
+# Supplied digest; compare with the official release before publication.
+SHA256SUMS=(
+    "5c70549d524284c184fe9fbff862c3d2d7a61b787570611b5a30e5cc345f145e"
+)
+
 PATCHES=()
-REQUIRES=()
-PROVIDES=("clang")
+
+REQUIRES=(
+    "glibc" "llvm" "gcc-libs" "libxml2" "zlib" "zstd"
+    "xz" "libedit" "ncurses" "libffi"
+)
+
+BUILD_REQUIRES=(
+    "cmake" "ninja" "python" "llvm" "gcc"
+)
+
+PROVIDES=(
+    "clang" "clang++" "clang-analyzer" "clang-tools-extra"
+    "clangd" "clang-tidy"
+)
+
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
+
+# Avoid LTO in compiler bootstrapping without changing other LPM CPU flags.
+_without_lto() {
+    local flag
+    local -a kept=()
+    for flag in $1; do
+        case "$flag" in
+            -flto|-flto=*|-fuse-linker-plugin) ;;
+            *) kept+=("$flag") ;;
+        esac
+    done
+    printf '%s ' "${kept[@]}"
+}
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+
+    local srcdir="$SRCROOT/${NAME}-${VERSION}"
+    test -f "$srcdir/clang/CMakeLists.txt"
+    test -f "$srcdir/clang-tools-extra/CMakeLists.txt"
+    test -f "$srcdir/llvm/CMakeLists.txt"
+    test -d "$srcdir/cmake"
+    test -f "$srcdir/clang/LICENSE.TXT"
+
+    rm -rf "$srcdir/_build-clang"
+    mkdir -p "$srcdir/_build-clang"
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+
+    local srcdir="$SRCROOT/${NAME}-${VERSION}"
+    local builddir="$srcdir/_build-clang"
+    local llvm_config="$(command -v llvm-config)"
+    local llvm_version llvm_cmake_dir llvm_rtti
+
+    llvm_version="$("$llvm_config" --version)"
+    if [[ "$llvm_version" != "$VERSION" ]]; then
+        echo "[ERROR] Clang ${VERSION} requires LLVM ${VERSION}; found ${llvm_version}" >&2
+        return 1
+    fi
+
+    llvm_cmake_dir="$("$llvm_config" --cmakedir)"
+    test -f "$llvm_cmake_dir/LLVMConfig.cmake"
+    test -x "$(dirname "$llvm_config")/llvm-tblgen"
+
+    case "$("$llvm_config" --has-rtti)" in
+        YES|yes|ON) llvm_rtti=ON ;;
+        NO|no|OFF) llvm_rtti=OFF ;;
+        *) echo "[ERROR] Cannot determine installed LLVM RTTI setting" >&2; return 1 ;;
+    esac
+
+    # Clang cannot be linked to LLVM's dylib if the installed LLVM was
+    # configured without one. LLVM_LINK_LLVM_DYLIB is exported by LLVM.
+    if ! find "$("$llvm_config" --libdir)" -maxdepth 1 \
+        -name 'libLLVM.so*' -print -quit | grep -q .; then
+        echo '[ERROR] Installed LLVM shared library (libLLVM.so) is missing' >&2
+        return 1
+    fi
+
+    export CC="${CC:-gcc}" CXX="${CXX:-g++}"
+    export CFLAGS="$(_without_lto "${CFLAGS:-}")"
+    export CXXFLAGS="$(_without_lto "${CXXFLAGS:-}")"
+    export LDFLAGS="$(_without_lto "${LDFLAGS:-}")"
+
+    cmake -S "$srcdir/clang" -B "$builddir" -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DCMAKE_INSTALL_DOCDIR=share/doc/clang \
+        -DCMAKE_C_COMPILER="$CC" \
+        -DCMAKE_CXX_COMPILER="$CXX" \
+        -DLLVM_DIR="$llvm_cmake_dir" \
+        -DLLVM_ENABLE_RTTI="$llvm_rtti" \
+        -DLLVM_LINK_LLVM_DYLIB=ON \
+        -DCLANG_LINK_CLANG_DYLIB=ON \
+        -DBUILD_SHARED_LIBS=OFF \
+        -DCLANG_DEFAULT_PIE_ON_LINUX=ON \
+        -DCLANG_ENABLE_ARCMT=ON \
+        -DCLANG_ENABLE_STATIC_ANALYZER=ON \
+        -DLLVM_EXTERNAL_CLANG_TOOLS_EXTRA_SOURCE_DIR="$srcdir/clang-tools-extra" \
+        -DLLVM_INCLUDE_TESTS=OFF \
+        -DLLVM_BUILD_TESTS=OFF \
+        -DCLANG_INCLUDE_TESTS=OFF \
+        -DLLVM_INCLUDE_DOCS=OFF \
+        -DLLVM_BUILD_DOCS=OFF \
+        -DCLANG_INCLUDE_DOCS=OFF \
+        -DLLVM_ENABLE_SPHINX=OFF \
+        -DLLVM_ENABLE_ASSERTIONS=OFF
+
+    cmake --build "$builddir" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+check() {
+    set -euxo pipefail
+
+    local builddir="$SRCROOT/${NAME}-${VERSION}/_build-clang"
+    local clang="$builddir/bin/clang"
+
+    test -x "$clang"
+    "$clang" --version
+    "$clang" --print-targets | grep -qi wasm
+
+    # Compile native and wasm objects without requiring an external sysroot.
+    printf 'int main(void) { return 0; }\n' | \
+        "$clang" -x c -c - -o "$builddir/lpm-clang-native.o"
+    printf 'int main(void) { return 0; }\n' | \
+        "$clang" --target=wasm32-unknown-unknown -x c -c - \
+        -o "$builddir/lpm-clang-wasm.o"
+
+    if [[ -x "$builddir/bin/clangd" ]]; then
+        "$builddir/bin/clangd" --version
+    fi
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  install -d "$pkgdir/usr/share/doc/clang"
-  printf 'Placeholder package for clang\n' >"$pkgdir/usr/share/doc/clang/README"
+    set -euxo pipefail
+
+    local srcdir="$SRCROOT/${NAME}-${VERSION}"
+    local builddir="$srcdir/_build-clang"
+    local python_dir
+
+    DESTDIR="$pkgdir" cmake --install "$builddir"
+
+    test -x "$pkgdir/usr/bin/clang"
+    if [[ ! -e "$pkgdir/usr/bin/clang++" && ! -L "$pkgdir/usr/bin/clang++" ]]; then
+        ln -s clang "$pkgdir/usr/bin/clang++"
+    fi
+    test -e "$pkgdir/usr/bin/clang++"
+
+    # Keep upstream /usr/libexec and scan-build paths intact: moving every
+    # installed helper breaks tool scripts that refer to their real locations.
+    install -Dm644 "$srcdir/clang/LICENSE.TXT" \
+        "$pkgdir/usr/share/licenses/$NAME/LICENSE"
+
+    # Ship Python libclang bindings for the current LPM Python installation.
+    # LPM's Python hook may byte-compile modules after package installation.
+    python_dir="$(python -c 'import sysconfig; print(sysconfig.get_path("purelib", scheme="posix_prefix", vars={"base":"/usr","platbase":"/usr"}))')"
+    case "$python_dir" in
+        /usr/*) ;;
+        *) echo "[ERROR] Unexpected Python install path: $python_dir" >&2; return 1 ;;
+    esac
+    if [[ -d "$srcdir/clang/bindings/python/clang" ]]; then
+        install -d "$pkgdir$python_dir"
+        cp -a "$srcdir/clang/bindings/python/clang" "$pkgdir$python_dir/"
+    fi
+
+    # Preserve upstream completion/tool locations unless a dedicated, tested
+    # packaging patch updates every reference to them.
+    test -x "$pkgdir/usr/bin/clang"
+    test -e "$pkgdir/usr/bin/clang++"
+    if [[ -e "$pkgdir/usr/bin/clangd" ]]; then
+        test -x "$pkgdir/usr/bin/clangd"
+    fi
+    if [[ -e "$pkgdir/usr/bin/clang-tidy" ]]; then
+        test -x "$pkgdir/usr/bin/clang-tidy"
+    fi
+    if ! find "$pkgdir/usr/lib" -maxdepth 1 \
+        -name 'libclang-cpp.so*' -print -quit | grep -q .; then
+        echo '[ERROR] Monolithic shared libclang-cpp was not installed' >&2
+        return 1
+    fi
+
+    echo "==> Clang ${VERSION} staging complete"
 }

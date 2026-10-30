@@ -1,0 +1,49 @@
+#!/bin/bash
+NAME="libXdamage"
+VERSION="1.1.7"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="libXdamage from X.Org"
+URL="https://www.x.org/"
+LICENSE="MIT"
+
+SOURCE=(
+    "https://www.x.org/releases/individual/lib/${NAME}-${VERSION}.tar.xz"
+)
+
+REQUIRES=(
+  "glibc"
+  "libX11"
+)
+
+PROVIDES=("libXdamage")
+CONFLICTS=()
+OBSOLETES=("libxdamage")
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+  ./configure --prefix=/usr
+  make -j"$(nproc)"
+}
+
+check() { true; }
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+  DESTDIR="$pkgdir" make install
+  [ -f COPYING ] && install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+}
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("127067f521d3ee467b97bcb145aeba1078e2454d448e8748eb984d5b397bde24")

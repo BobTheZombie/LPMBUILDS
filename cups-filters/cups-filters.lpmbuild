@@ -1,0 +1,92 @@
+#!/bin/bash
+# LPM Linux: CUPS Filters 2.0.1 (CUPS 2.x compatibility layer).
+# Self-contained CVE-2025-64524 source fix; upstream 2.0.1 tarball is vulnerable.
+NAME="cups-filters"
+VERSION="2.0.1"
+RELEASE="4"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="OpenPrinting filters and backends for CUPS 2.x"
+URL="https://github.com/OpenPrinting/cups-filters"
+LICENSE=("Apache-2.0 WITH LLVM-exception")
+SOURCE=("https://github.com/OpenPrinting/cups-filters/releases/download/${VERSION}/cups-filters-${VERSION}.tar.xz")
+SHA256SUMS=("39e71de3ce06762b342749f1dc7cba6817738f7bf4d322c1bb9ab10b8569ab80")
+PATCHES=()
+REQUIRES=("glibc" "libcups" "libcupsfilters" "libppd" "bash")
+BUILD_REQUIRES=("gcc" "make" "pkgconf" "glib2" "libcups" "libcupsfilters" "libppd" "poppler" "gettext" "python")
+PROVIDES=("cups-filters")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=("ghostscript")
+SUGGESTS=("cups-browsed" "mupdf-tools")
+
+prepare() {
+    set -euxo pipefail
+    local src="$SRCROOT/cups-filters-$VERSION"
+    test -f "$src/configure"
+    test -f "$src/filter/rastertopclx.c"
+    test -f "$src/filter/foomatic-rip/process.h"
+
+    # GCC 15+/C23: replace unprototyped callback declaration (BLFS fix).
+    sed -i '/proc_func)()/s/()/(FILE*, FILE*, void*)/' \
+        "$src/filter/foomatic-rip/process.h"
+
+    # Backport the relevant upstream safety changes for CVE-2025-64524.
+    # This stays embedded in the lpmbuild so LPM's remote recipe resolver
+    # doesn't need an additional companion patch file in GitLab.
+    python3 - "$src/filter/rastertopclx.c" <<'PY'
+from pathlib import Path
+import sys
+p = Path(sys.argv[1])
+s = p.read_text()
+replacements = [
+    ('CompBuffer = malloc(DotBufferSize * 4);',
+     'CompBuffer = calloc(DotBufferSize * 4, sizeof(unsigned char));'),
+    ('SeedBuffer = malloc(DotBufferSize);',
+     'SeedBuffer = calloc(DotBufferSize, sizeof(unsigned char));'),
+    ('          // Place mode 3 compression data in the buffer; see HP manuals',
+     '          if (count == 0)\n            break;\n\n'
+     '          // Place mode 3 compression data in the buffer; see HP manuals'),
+    ('            count = line_ptr - start;\n#if 0',
+     '            count = line_ptr - start;\n'
+     '            if (count == 0)\n              break;\n#if 0'),
+    ('            count = (line_ptr - start) / 3;\n',
+     '            count = (line_ptr - start) / 3;\n'
+     '            if (count == 0)\n              break;\n'),
+]
+for old, new in replacements:
+    count = s.count(old)
+    if count != 1:
+        raise SystemExit(f"[ERROR] Security patch anchor {old!r} has {count} matches (expected 1)")
+    s = s.replace(old, new, 1)
+p.write_text(s)
+print('[OK] Applied CVE-2025-64524 safety guards and zeroed buffers')
+PY
+}
+
+build() {
+    set -euxo pipefail
+    local src="$SRCROOT/cups-filters-$VERSION"
+    cd "$src"
+    ./configure --prefix=/usr --libdir=/usr/lib --disable-static \
+        --docdir="/usr/share/doc/cups-filters-$VERSION"
+    make -j"${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+check() {
+    set -euo pipefail
+    # CUPS Filters 2.0.1 ships no functional test suite.
+    test -f "$SRCROOT/cups-filters-$VERSION/Makefile"
+}
+
+staging() {
+    set -euxo pipefail
+    local src="$SRCROOT/cups-filters-$VERSION"
+    make -C "$src" DESTDIR="$pkgdir" install
+    find "$pkgdir/usr/lib" -type f -name '*.a' -delete 2>/dev/null || true
+    test -d "$pkgdir/usr/lib/cups/filter"
+    test -e "$pkgdir/usr/lib/cups/filter/foomatic-rip" || \
+        test -e "$pkgdir/usr/bin/foomatic-rip"
+    if [[ -f "$src/LICENSE" ]]; then
+        install -Dm644 "$src/LICENSE" "$pkgdir/usr/share/licenses/cups-filters/LICENSE"
+    fi
+}

@@ -1,0 +1,11 @@
+# Cosmic Greeter system user
+# Used by greetd / COSMIC greeter session
+
+# Create dedicated greeter user (no home, no login shell)
+u cosmic-greeter - "COSMIC greeter user" - /usr/bin/nologin
+
+# Required groups for graphical greeter operation
+m cosmic-greeter video
+m cosmic-greeter input
+m cosmic-greeter render
+

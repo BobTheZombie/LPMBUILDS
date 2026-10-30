@@ -1,0 +1,121 @@
+#!/bin/bash
+# LPM build script for SWIG
+
+NAME="swig"
+VERSION="4.5.1"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+
+SUMMARY="Generate scripting-language bindings for C and C++"
+URL="https://www.swig.org/"
+LICENSE=("GPL-3.0-or-later" "BSD-3-Clause")
+
+SOURCE=(
+    "https://downloads.sourceforge.net/project/swig/swig/swig-${VERSION}/swig-${VERSION}.tar.gz"
+)
+
+SHA256SUMS=("SKIP")
+PATCHES=()
+
+REQUIRES=(
+    "gcc-libs"
+    "glibc"
+    "pcre2"
+)
+
+BUILD_REQUIRES=(
+    "gcc"
+    "make"
+    "pcre2"
+    "pkgconf"
+)
+
+PROVIDES=("swig")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+BUILD_OPTIONS=(
+    "@--stripping"
+    "@--optimize=2"
+)
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    test -x configure
+    test -d Source
+    test -d Lib
+
+    if [ -f Makefile ]; then
+        make distclean
+    fi
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    ./configure \
+        --prefix=/usr \
+        --without-alllang
+
+    make -j"${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+check() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    ./swig -version
+
+    # Generate a Python wrapper without requiring Python development files.
+    mkdir -p .lpm-test
+
+    cat > .lpm-test/example.i <<'EOF'
+%module example
+%inline %{
+int lpm_add(int a, int b) {
+    return a + b;
+}
+%}
+EOF
+
+    ./swig -I"$PWD/Lib" \
+        -python \
+        -o .lpm-test/example_wrap.c \
+        .lpm-test/example.i
+
+    test -s .lpm-test/example_wrap.c
+    test -s .lpm-test/example.py
+
+    rm -rf .lpm-test
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    make -j1 DESTDIR="$pkgdir" install
+
+    test -x "$pkgdir/usr/bin/swig"
+    test -s "$pkgdir/usr/share/swig/${VERSION}/swig.swg"
+    test -s "$pkgdir/usr/share/swig/${VERSION}/python/python.swg"
+
+    "$pkgdir/usr/bin/swig" -version
+
+    for license_file in LICENSE LICENSE-GPL LICENSE-UNIVERSITIES; do
+        if [ -f "$license_file" ]; then
+            install -Dm644 "$license_file" \
+                "$pkgdir/usr/share/licenses/$NAME/$license_file"
+        fi
+    done
+}
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("7fec50b27deddab5455a9633780b6341eddfb96215a7619e93a76eb27178f653")

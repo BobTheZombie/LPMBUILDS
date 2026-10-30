@@ -1,0 +1,56 @@
+#!/bin/bash
+# LPM source recipe - staged installation only; review build features before use.
+NAME="pulseaudio-qt"
+VERSION="1.9.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Qt 6 bindings for PulseAudio client libraries"
+URL="https://invent.kde.org/libraries/pulseaudio-qt"
+LICENSE=("LGPL-2.1-only")
+SOURCE=("https://download.kde.org/stable/pulseaudio-qt/pulseaudio-qt-${VERSION}.tar.xz")
+SHA256SUMS=("SKIP")
+PATCHES=()
+REQUIRES=(
+    "qt6-base"
+    "libpulse"
+)
+BUILD_REQUIRES=(
+    "cmake"
+    "ninja"
+    "extra-cmake-modules"
+    "pkgconf"
+)
+PROVIDES=("pulseaudio-qt")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+_srcdir() {
+    local d="$SRCROOT/pulseaudio-qt-${VERSION}"
+    test -d "$d" || { printf 'Expected source directory not found: %s\n' "$d" >&2; return 1; }
+    printf '%s\n' "$d"
+}
+
+prepare() {
+    set -euo pipefail
+    test -d "$(_srcdir)"
+}
+
+build() {
+    set -euo pipefail
+    local src
+    src="$(_srcdir)"
+    cmake -S "$src" -B "$src/build-lpm" -G Ninja \
+        -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_INSTALL_LIBDIR=lib \
+        -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF
+    cmake --build "$src/build-lpm"
+}
+
+staging() {
+    set -euo pipefail
+    local src
+    src="$(_srcdir)"
+    DESTDIR="$pkgdir" cmake --install "$src/build-lpm"
+    test -e "$pkgdir/usr/lib/libKF6PulseAudioQt.so"
+}

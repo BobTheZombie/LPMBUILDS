@@ -1,0 +1,109 @@
+#!/bin/bash
+# LPM build script for the modern Info-ZIP fork
+
+NAME="unzip"
+VERSION="61"
+RELEASE="3"
+ARCH="${ARCH:-x86_64}"
+
+SUMMARY="Info-ZIP extraction tools with parallel archive processing"
+URL="https://github.com/BobTheZombie/unzip"
+LICENSE=("Info-ZIP")
+
+_COMMIT="601fa2d583ce2de7e17bff3cb3285a1679505585"
+
+SOURCE=(
+    "${NAME}-${VERSION}::git+https://github.com/BobTheZombie/unzip.git#commit=${_COMMIT}"
+)
+
+SHA256SUMS=("SKIP")
+PATCHES=()
+
+REQUIRES=("glibc")
+
+BUILD_REQUIRES=(
+    "git"
+    "gcc"
+    "make"
+    "python"
+    "zlib"
+)
+
+PROVIDES=("unzip" "zipinfo" "unzip-parallel")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+BUILD_OPTIONS=("@--stripping" "@--optimize=2")
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    test "$(git rev-parse HEAD)" = "$_COMMIT"
+    test -f modern/Makefile
+    test -f modern/unzip-parallel.c
+    test -f LICENSE
+
+    make -f modern/Makefile clean
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    # Optional scheduling tune: UNZIP_CPU=znver2 for your Ryzen 4800U.
+    # This does not raise the required instruction-set baseline.
+    make -f modern/Makefile \
+        -j"$(nproc)" \
+        CC=gcc \
+        CPU="${UNZIP_CPU:-generic}" \
+        CFLAGS="${CFLAGS:--O2 -pipe}" \
+        LDFLAGS="${LDFLAGS:-}"
+}
+
+check() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    make -f modern/Makefile \
+        CC=gcc \
+        CPU="${UNZIP_CPU:-generic}" \
+        CFLAGS="${CFLAGS:--O2 -pipe}" \
+        LDFLAGS="${LDFLAGS:-}" \
+        test
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    make -f modern/Makefile \
+        CC=gcc \
+        CPU="${UNZIP_CPU:-generic}" \
+        CFLAGS="${CFLAGS:--O2 -pipe}" \
+        LDFLAGS="${LDFLAGS:-}" \
+        PREFIX=/usr \
+        DESTDIR="$pkgdir" \
+        install
+
+    local program
+    for program in unzip zipinfo funzip unzipsfx unzip-parallel; do
+        test -x "$pkgdir/usr/bin/$program"
+    done
+
+    test -f "$pkgdir/usr/share/man/man1/unzip.1"
+
+    install -Dm644 LICENSE \
+        "$pkgdir/usr/share/licenses/$NAME/LICENSE"
+
+    install -Dm644 modern/README.md \
+        "$pkgdir/usr/share/doc/$NAME/modern-build.md"
+}
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("SKIP")

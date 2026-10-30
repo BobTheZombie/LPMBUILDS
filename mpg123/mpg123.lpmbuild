@@ -1,0 +1,55 @@
+#!/bin/bash
+# LPM Linux - mpg123 decoder, CLI and libmpg123.so for libsndfile MPEG support.
+# Based on BLFS mpg123-1.33.7 (2026-08 release).
+NAME="mpg123"
+VERSION="1.33.7"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="MPEG Layer 1/2/3 decoder library and command-line player"
+URL="https://www.mpg123.de/"
+LICENSE=("LGPL-2.1-only")
+
+SOURCE=("https://downloads.sourceforge.net/mpg123/mpg123-${VERSION}.tar.bz2")
+SHA256SUMS=("31d0e35a4ca567ec9b5ebda6c3062bb4435d6d3eacd6ef0d95cadd7854dc03ee")
+PATCHES=()
+
+REQUIRES=("glibc" "alsa-lib")
+BUILD_REQUIRES=("gcc" "make" "pkgconf" "alsa-lib")
+PROVIDES=("libmpg123.so" "libmpg123.so.0" "libout123.so" "libsyn123.so")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+    set -euxo pipefail
+    test -f "$SRCROOT/$NAME-$VERSION/configure"
+}
+
+build() {
+    set -euxo pipefail
+    local src="$SRCROOT/$NAME-$VERSION"
+    cd "$src"
+    ./configure \
+        --prefix=/usr \
+        --libdir=/usr/lib \
+        --disable-static
+    make -j"${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+check() {
+    set -euxo pipefail
+    local src="$SRCROOT/$NAME-$VERSION"
+    cd "$src"
+    make check
+}
+
+staging() {
+    set -euxo pipefail
+    local src="$SRCROOT/$NAME-$VERSION"
+    cd "$src"
+    make DESTDIR="$pkgdir" install
+    test -f "$pkgdir/usr/include/mpg123.h"
+    test -n "$(find "$pkgdir/usr/lib" -maxdepth 1 -name 'libmpg123.so*' -print -quit)"
+    test -x "$pkgdir/usr/bin/mpg123"
+}

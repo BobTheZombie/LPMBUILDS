@@ -1,0 +1,40 @@
+NAME="automake"
+VERSION="1.19"
+RELEASE="1"
+ARCH="x86_64"
+SUMMARY="A GNU tool for automatically generating Makefile.in files"
+URL="https://www.gnu.org/software/automake/"
+SOURCE=("https://ftp.wayne.edu/gnu/automake/automake-${VERSION}.tar.xz")
+LICENSE=("GPL-2.0-or-later")
+
+REQUIRES=("perl" "autoconf" "m4")
+PROVIDES=("automake")
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-$VERSION"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-$VERSION"
+
+    ./configure --prefix=/usr
+    make -j"$(nproc)"
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-$VERSION"
+    make DESTDIR="$pkgdir" install
+
+    # Remove info dir to avoid conflicts
+    rm -f "$pkgdir/usr/share/info/dir" || true
+}
+
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("e3e2c2e3abf37898138db5b6c1d1dc35c9160c5978be7947d2c741705251d445")

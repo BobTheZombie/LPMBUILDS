@@ -1,35 +1,70 @@
-# LPM build script for dhcpcd
+#!/bin/bash
+# LPM networking stack, release snapshot 2026-10-16
 NAME="dhcpcd"
-VERSION="10.0.6"
+VERSION="10.5.2"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="DHCP client daemon"
-URL="https://roy.marples.name/projects/dhcpcd"
-LICENSE=""
-SOURCE=()
-REQUIRES=("glibc")
-PROVIDES=("dhcpcd")
+SUMMARY='Optional standalone DHCPv4 DHCPv6 and SLAAC client'
+URL=https://github.com/NetworkConfiguration/dhcpcd/releases/download/v10.5.2/dhcpcd-10.5.2.tar.xz
+LICENSE=(BSD-2-Clause)
+SOURCE=(https://github.com/NetworkConfiguration/dhcpcd/releases/download/v10.5.2/dhcpcd-10.5.2.tar.xz dhcpcd.service dhcpcd.sysusers)
+SHA256SUMS=(
+    "3e476657fdb6eeb38b277da3a48d0ac0113ecce5858ebdcddff2b629faed52b4"
+    "ad08a1e51606d2e3d932f9261c7c0da2ec8d2af8e41783d0deeccae02d74f836"
+    "62a9d9006d6fa2f71d70cc72c6241586ea571404b176b9d47fe8a26341f89a13"
+)
+PATCHES=()
+REQUIRES=(glibc)
+BUILD_REQUIRES=(gcc make)
+PROVIDES=(dhcpcd)
 CONFLICTS=()
 OBSOLETES=()
 RECOMMENDS=()
 SUGGESTS=()
+BUILD_OPTIONS=(@--stripping @--optimize=2)
 
-prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+_source() {
+    if [ ! -d "$SRCROOT/${NAME}-${VERSION}" ] && [ -d "$SRCROOT/dhcpcd-10.5.2" ]; then
+        mv "$SRCROOT/dhcpcd-10.5.2" "$SRCROOT/${NAME}-${VERSION}"
+    fi
 }
 
+_licenses() {
+    local f
+    for f in COPYING COPYING.LIB LICENSE LICENSE.txt LICENCE README; do
+        if [ -f "$f" ]; then
+            install -Dm644 "$f" "$pkgdir/usr/share/licenses/$NAME/$(basename "$f")"
+        fi
+    done
+}
+_cleanup() {
+    if [ -d "$pkgdir/usr/lib" ]; then
+        find "$pkgdir/usr/lib" -type f \( -name '*.a' -o -name '*.la' \) -delete
+    fi
+    rm -f "$pkgdir/usr/share/info/dir"
+}
+
+prepare() { set -euxo pipefail; _source; cd "$SRCROOT/${NAME}-${VERSION}"; test -x configure; }
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr --sbindir=/usr/bin --sysconfdir=/etc
-  make -j"$(nproc)"
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    ./configure --prefix=/usr --sbindir=/usr/bin --libexecdir=/usr/lib/dhcpcd \
+        --sysconfdir=/etc --localstatedir=/var --runstatedir=/run \
+        --privsepuser=dhcpcd --with-hooks=20-resolv.conf
+    make -j"${LPM_BUILD_JOBS:-$(nproc)}"
+}
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    make DESTDIR="$pkgdir" install
+    install -Dm644 "$SRCROOT/dhcpcd.service" "$pkgdir/usr/lib/systemd/system/dhcpcd.service"
+    install -Dm644 "$SRCROOT/dhcpcd.sysusers" "$pkgdir/usr/lib/sysusers.d/dhcpcd.conf"
+    _licenses
 }
 
-staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
-  install -Dm644 dhcpcd.conf "$pkgdir/etc/dhcpcd.conf"
-}
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("3e476657fdb6eeb38b277da3a48d0ac0113ecce5858ebdcddff2b629faed52b4" "ad08a1e51606d2e3d932f9261c7c0da2ec8d2af8e41783d0deeccae02d74f836" "62a9d9006d6fa2f71d70cc72c6241586ea571404b176b9d47fe8a26341f89a13")

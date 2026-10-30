@@ -1,34 +1,39 @@
-# LPM build script for python-setuptools
+#!/bin/bash
 NAME="python-setuptools"
-VERSION="75.1.0"
+VERSION="84.2.1"
 RELEASE="1"
-ARCH="${ARCH:-x86_64}"
-SUMMARY="Build and distribute Python packages"
-URL="https://github.com/pypa/setuptools"
-LICENSE=""
-SOURCE=()
+ARCH="noarch"
+SUMMARY="PyPA setuptools (published pure-Python bootstrap wheel)"
+URL="https://pypi.org/project/setuptools/"
+LICENSE=("MIT")
+SOURCE=("https://files.pythonhosted.org/packages/ef/55/6dc6d6bb953bdfc52519a0059592c52b6e3b8ad51cf8256dffceb55b0610/setuptools-84.2.1-py3-none-any.whl")
+SHA256SUMS=("ca140b45d5325a9478f880e351484f62fef15f336462e449ca0c03c873d589c2")
 REQUIRES=("python")
-PROVIDES=("python-setuptools")
-CONFLICTS=()
-OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
-
+BUILD_REQUIRES=("python")
+PROVIDES=("python-setuptools" "setuptools")
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+    test -f "$SRCROOT/setuptools-84.2.1-py3-none-any.whl"
+    python3 -c 'import ensurepip'
 }
-
-build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
-}
-
+build() { true; }
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euxo pipefail
+    python3 - "$pkgdir" "$SRCROOT/setuptools-84.2.1-py3-none-any.whl" <<'PYINSTALL'
+import ensurepip
+import pathlib
+import runpy
+import sys
+root, wheel = sys.argv[1:]
+bundle = next((pathlib.Path(ensurepip.__file__).parent / "_bundled").glob("pip-*.whl"))
+sys.path.insert(0, str(bundle))
+sys.argv = ["pip", "--isolated", "install", "--no-index", "--no-deps", "--ignore-installed",
+            "--no-compile", "--root", root, "--prefix", "/usr", wheel]
+runpy.run_module("pip", run_name="__main__")
+PYINSTALL
 }
+
+
+
+# Final audited source digests
+SHA256SUMS=("ca140b45d5325a9478f880e351484f62fef15f336462e449ca0c03c873d589c2")

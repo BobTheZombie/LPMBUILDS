@@ -1,0 +1,162 @@
+#!/bin/bash
+# LPM build script for e2fsprogs
+
+NAME="e2fsprogs"
+VERSION="1.47.4"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+
+SUMMARY="Ext2, Ext3 and Ext4 filesystem utilities and libraries"
+URL="https://e2fsprogs.sourceforge.net/"
+LICENSE=(
+    "GPL-2.0-or-later"
+    "LGPL-2.0-or-later"
+    "MIT"
+)
+
+SOURCE=(
+    "https://www.kernel.org/pub/linux/kernel/people/tytso/e2fsprogs/v${VERSION}/e2fsprogs-${VERSION}.tar.xz"
+)
+
+SHA256SUMS=(
+    "fd5bf388cbdbe006a3d3b318d983b2948382440acc85a87f1e7d108653e8db0b"
+)
+
+PATCHES=()
+
+REQUIRES=(
+    "glibc"
+    "libarchive"
+    "util-linux"
+    "util-linux-libs"
+)
+
+BUILD_REQUIRES=(
+    "gcc"
+    "gettext"
+    "libarchive"
+    "make"
+    "pkgconf"
+    "texinfo"
+    "util-linux-libs"
+)
+
+PROVIDES=(
+    "e2fsprogs"
+    "libext2fs"
+    "libext2fs.so"
+    "libext2fs.so.2"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=("lvm2")
+
+BUILD_OPTIONS=(
+    "@--stripping"
+    "@--optimize=2"
+)
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    test -x configure
+    test -f Makefile.in
+    test -f NOTICE
+
+    if [ -f Makefile ]; then
+        make distclean
+    fi
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    ./configure \
+        --prefix=/usr \
+        --bindir=/usr/bin \
+        --sbindir=/usr/bin \
+        --libdir=/usr/lib \
+        --sysconfdir=/etc \
+        --mandir=/usr/share/man \
+        --infodir=/usr/share/info \
+        --enable-elf-shlibs \
+        --enable-symlink-install \
+        --enable-relative-symlinks \
+        --disable-libblkid \
+        --disable-libuuid \
+        --disable-uuidd \
+        --disable-fsck \
+        --disable-fuse2fs \
+        --disable-rpath \
+        --with-libarchive \
+        --with-crond-dir=no \
+        --with-systemd-unit-dir=/usr/lib/systemd/system \
+        --with-udev-rules-dir=/usr/lib/udev/rules.d
+
+    make -j"${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+check() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    # Test only a temporary regular-file image, never a block device.
+    (
+        testdir="$(mktemp -d "$PWD/.lpm-e2fsprogs-test.XXXXXX")"
+        trap 'rm -rf -- "$testdir"' EXIT
+
+        truncate -s 32M "$testdir/ext4.img"
+
+        MKE2FS_CONFIG="$PWD/misc/mke2fs.conf" \
+            ./misc/mke2fs -q -t ext4 -F "$testdir/ext4.img"
+
+        ./e2fsck/e2fsck -f -n "$testdir/ext4.img"
+    )
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    make -j1 DESTDIR="$pkgdir" install
+    make -j1 DESTDIR="$pkgdir" install-libs
+
+    find "$pkgdir/usr/lib" \
+        -type f \
+        \( -name '*.a' -o -name '*.la' \) \
+        -delete
+
+    rm -f "$pkgdir/usr/share/info/dir"
+
+    local program
+    for program in \
+        e2fsck fsck.ext2 fsck.ext3 fsck.ext4 \
+        mke2fs mkfs.ext2 mkfs.ext3 mkfs.ext4 \
+        tune2fs resize2fs dumpe2fs debugfs e2image
+    do
+        test -x "$pkgdir/usr/bin/$program"
+    done
+
+    test -e "$pkgdir/usr/lib/libext2fs.so"
+    test -e "$pkgdir/usr/lib/libext2fs.so.2"
+    test -f "$pkgdir/usr/include/ext2fs/ext2fs.h"
+    test -s "$pkgdir/usr/lib/pkgconfig/ext2fs.pc"
+    test -f "$pkgdir/etc/mke2fs.conf"
+
+    # These belong to util-linux.
+    test ! -e "$pkgdir/usr/bin/fsck"
+    test ! -e "$pkgdir/usr/lib/libuuid.so"
+    test ! -e "$pkgdir/usr/lib/libblkid.so"
+
+    install -Dm644 NOTICE \
+        "$pkgdir/usr/share/licenses/$NAME/NOTICE"
+}
+
+
+
+# Final audited source digests
+SHA256SUMS=("fd5bf388cbdbe006a3d3b318d983b2948382440acc85a87f1e7d108653e8db0b")

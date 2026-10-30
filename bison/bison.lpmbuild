@@ -1,34 +1,42 @@
-# LPM build script for bison
 NAME="bison"
 VERSION="3.8.2"
 RELEASE="1"
-ARCH="${ARCH:-x86_64}"
-SUMMARY="Parser generator"
+ARCH="x86_64"
+SUMMARY="GNU parser generator"
 URL="https://www.gnu.org/software/bison/"
-LICENSE=""
-SOURCE=()
-REQUIRES=("glibc" "m4")
+SOURCE=("https://ftp.wayne.edu/gnu/bison/bison-${VERSION}.tar.xz")
+LICENSE=("GPL-3.0-or-later")
+
+REQUIRES=(
+  "m4" 
+  "flex"
+  )
+  
 PROVIDES=("bison")
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+    cd "$SRCROOT/bison-${VERSION}"
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+    set -euxo pipefail
+    cd "$SRCROOT/bison-${VERSION}"
+    ./configure --prefix=/usr --libdir=/usr/lib
+    make -j"$(nproc)"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euxo pipefail
+    cd "$SRCROOT/bison-${VERSION}"
+    make DESTDIR="$pkgdir" install
 }
+
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("9bba0214ccf7f1079c5d59210045227bcf619519840ebfa80cd3849cff5a5bf2")

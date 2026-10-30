@@ -1,34 +1,224 @@
-# LPM build script for perl
+#!/bin/bash
+# LPM build script for Perl
+
 NAME="perl"
-VERSION="5.40.0"
-RELEASE="1"
+VERSION="5.44.0"
+RELEASE="4"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Practical Extraction and Reporting Language"
+
+SUMMARY="Highly capable, feature-rich programming language"
 URL="https://www.perl.org/"
-LICENSE=""
-SOURCE=()
-REQUIRES=("glibc" "gdbm")
-PROVIDES=("perl")
+LICENSE=(
+    "GPL-1.0-or-later"
+    "Artistic-1.0-Perl"
+)
+
+SOURCE=(
+    "https://www.cpan.org/src/5.0/perl-${VERSION}.tar.xz"
+    "https://gitlab.archlinux.org/archlinux/packaging/packages/perl/-/raw/main/detect-old-perl-modules.sh"
+    "https://gitlab.com/lpm-org/packages/-/raw/main/perl/detect-old-perl-modules.hook"
+    "https://gitlab.archlinux.org/archlinux/packaging/packages/perl/-/raw/main/generate-rebuild-list.sh"
+)
+
+# Audited source digests, corresponding to the four SOURCE entries above.
+SHA256SUMS=(
+    "505cf43912e9480495c344c70260452e32aa2a73c546a026b3f100053b23ce91"
+    "c5db3dcd1db71724fa4df5db34586688aa8db92ac6ffcbddaaa213c71cceff20"
+    "362d6770d12bdbfb3bf7724fb2d757c0fffa4daf61666eb193c8b7093a1e34f9"
+    "0ff6b3912ac50bc075199ba7b3d7c519278eb887fc5957687122c6eda85590ff"
+)
+
+PATCHES=()
+REQUIRES=("glibc")
+BUILD_REQUIRES=("glibc" "make")
+PROVIDES=("perl" "libperl.so")
 CONFLICTS=()
 OBSOLETES=()
 RECOMMENDS=()
 SUGGESTS=()
 
+BUILD_OPTIONS=(
+    "@--stripping"
+    "@--optimize=2"
+)
+
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+
+    test -f "$SRCDIR/Configure"
+    test -f "$SRCDIR/Makefile.SH"
+    test -f "$SRCDIR/Artistic"
+    test -f "$SRCDIR/Copying"
+    test -f "$SRCROOT/detect-old-perl-modules.sh"
+    test -f "$SRCROOT/detect-old-perl-modules.hook"
+    test -f "$SRCROOT/generate-rebuild-list.sh"
+
+    cd "$SRCDIR"
+    make distclean 2>/dev/null || true
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+    set -euxo pipefail
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    PERL_API="${VERSION%.*}"
+    cd "$SRCDIR"
+
+    sh Configure -des \
+        -Dprefix=/usr \
+        -Dvendorprefix=/usr \
+        -Dsiteprefix=/usr \
+        -Dscriptdir=/usr/bin \
+        -Dsitescript=/usr/bin \
+        -Dvendorscript=/usr/bin \
+        -Dprivlib=/usr/share/perl5/core_perl \
+        -Darchlib="/usr/lib/perl5/${PERL_API}/core_perl" \
+        -Dsitelib=/usr/share/perl5/site_perl \
+        -Dsitearch="/usr/lib/perl5/${PERL_API}/site_perl" \
+        -Dvendorlib=/usr/share/perl5/vendor_perl \
+        -Dvendorarch="/usr/lib/perl5/${PERL_API}/vendor_perl" \
+        -Dman1dir=/usr/share/man/man1 \
+        -Dman3dir=/usr/share/man/man3 \
+        -Dpager="/usr/bin/less -isR" \
+        -Dinc_version_list=none \
+        -Duseshrplib \
+        -Duseithreads \
+        -Duse64bitint \
+        -Dcccdlflags=-fPIC \
+        -Dlddlflags="-shared -Wl,-z,relro -Wl,-z,now"
+
+    make -j"$(nproc)"
+}
+
+check() {
+    set -euxo pipefail
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    PERL_API="${VERSION%.*}"
+
+    test -x "$SRCDIR/perl"
+    test -f "$SRCDIR/libperl.so"
+
+    # -Duseshrplib links the uninstalled perl executable to libperl.so in
+    # the source tree, which is not in the system loader's search paths.
+    export LD_LIBRARY_PATH="$SRCDIR${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+
+    # Bootstrap-friendly runtime and ABI validation (no full test suite).
+    "$SRCDIR/perl" -I"$SRCDIR/lib" \
+        -e 'die "incorrect Perl version\n" unless $] == 5.044000'
+
+    "$SRCDIR/perl" -I"$SRCDIR/lib" \
+        -e 'use Config; die "threads disabled\n" unless $Config{useithreads} eq "define"'
+
+    "$SRCDIR/perl" -I"$SRCDIR/lib" \
+        -e 'use Config; die "shared libperl disabled\n" unless $Config{useshrplib} eq "true"'
+
+    "$SRCDIR/perl" -I"$SRCDIR/lib" -MConfig -e '
+        die "incorrect vendor prefix\n" unless $Config{vendorprefix} eq "/usr";
+        die "incorrect vendorlib\n" unless $Config{vendorlib} eq "/usr/share/perl5/vendor_perl";
+        die "incorrect vendorarch\n" unless $Config{vendorarch} eq "/usr/lib/perl5/5.44/vendor_perl";
+    '
+
+    PERL_HEADER="$SRCDIR/.lpm-perl-header"
+    LIBPERL_SYMBOLS="$SRCDIR/.lpm-libperl-symbols"
+
+    readelf -h "$SRCDIR/perl" > "$PERL_HEADER"
+    grep -Fq 'ELF64' "$PERL_HEADER"
+
+    readelf -Ws "$SRCDIR/libperl.so" > "$LIBPERL_SYMBOLS"
+    grep -Eq '[[:space:]]perl_alloc$' "$LIBPERL_SYMBOLS"
+    grep -Eq '[[:space:]]perl_construct$' "$LIBPERL_SYMBOLS"
+
+    rm -f "$PERL_HEADER" "$LIBPERL_SYMBOLS"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euxo pipefail
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    PERL_API="${VERSION%.*}"
+    cd "$SRCDIR"
+
+    make DESTDIR="$pkgdir" install
+    rm -f "$pkgdir/usr/share/info/dir"
+
+    install -Dm755 \
+        "$SRCROOT/detect-old-perl-modules.sh" \
+        "$pkgdir/usr/libexec/lpm/hooks/detect-old-perl-modules"
+
+    install -Dm755 \
+        "$SRCROOT/generate-rebuild-list.sh" \
+        "$pkgdir/usr/libexec/lpm/hooks/generate-perl-rebuild-list"
+
+    PERL_HOOK="$pkgdir/usr/share/liblpm/hooks/detect-old-perl-modules.hook"
+    install -Dm644 "$SRCROOT/detect-old-perl-modules.hook" "$PERL_HOOK"
+
+    sed -Ei \
+        's|^[[:space:]]*Exec[[:space:]]*=.*detect-old-perl-modules[^[:space:]]*.*$|Exec = /usr/libexec/lpm/hooks/detect-old-perl-modules|' \
+        "$PERL_HOOK"
+
+    find "$pkgdir/usr/lib" -type f \( -name '*.a' -o -name '*.la' \) -delete
+
+    for PROGRAM in \
+        perl corelist cpan enc2xs encguess h2ph h2xs instmodsh json_pp \
+        perldoc perlivp perlthanks pl2pm pod2html pod2man pod2text \
+        pod2usage podchecker prove ptar ptardiff shasum splain xsubpp
+    do
+        if [ ! -x "$pkgdir/usr/bin/$PROGRAM" ]; then
+            echo "[ERROR] Missing Perl program: $PROGRAM" >&2
+            return 1
+        fi
+    done
+
+    test -d "$pkgdir/usr/share/perl5/core_perl"
+    test -d "$pkgdir/usr/lib/perl5/${PERL_API}/core_perl"
+
+    # Perl 5.44 installs libperl.so under its versioned CORE directory.
+    # Add a tracked /usr/lib linker-visible symlink so /usr/bin/perl works
+    # after installing the package, without an LD_LIBRARY_PATH override.
+    CORE_LIB="$pkgdir/usr/lib/perl5/${PERL_API}/core_perl/CORE/libperl.so"
+    if [ ! -f "$CORE_LIB" ]; then
+        echo "[ERROR] Missing installed libperl.so: $CORE_LIB" >&2
+        find "$pkgdir/usr/lib/perl5/${PERL_API}/core_perl" -name 'libperl.so*' -print >&2
+        return 1
+    fi
+    ln -sfn "perl5/${PERL_API}/core_perl/CORE/libperl.so" \
+        "$pkgdir/usr/lib/libperl.so"
+    test -f "$pkgdir/usr/lib/libperl.so"
+
+    PERL_HEADER="$SRCDIR/.lpm-staged-perl-header"
+    PERL_DYNAMIC="$SRCDIR/.lpm-staged-perl-dynamic"
+    LIBPERL_HEADER="$SRCDIR/.lpm-libperl-header"
+    LIBPERL_SYMBOLS="$SRCDIR/.lpm-libperl-symbols"
+
+    readelf -h "$pkgdir/usr/bin/perl" > "$PERL_HEADER"
+    grep -Fq 'ELF64' "$PERL_HEADER"
+
+    readelf -d "$pkgdir/usr/bin/perl" > "$PERL_DYNAMIC"
+    grep -Fq 'libperl.so' "$PERL_DYNAMIC"
+
+    readelf -h "$CORE_LIB" > "$LIBPERL_HEADER"
+    grep -Fq 'ELF64' "$LIBPERL_HEADER"
+
+    readelf -Ws "$CORE_LIB" > "$LIBPERL_SYMBOLS"
+    grep -Eq '[[:space:]]perl_alloc$' "$LIBPERL_SYMBOLS"
+    grep -Eq '[[:space:]]perl_construct$' "$LIBPERL_SYMBOLS"
+
+    rm -f "$PERL_HEADER" "$PERL_DYNAMIC" "$LIBPERL_HEADER" "$LIBPERL_SYMBOLS"
+
+    test -x "$pkgdir/usr/libexec/lpm/hooks/detect-old-perl-modules"
+    test -x "$pkgdir/usr/libexec/lpm/hooks/generate-perl-rebuild-list"
+    test -f "$PERL_HOOK"
+    grep -Fx \
+        'Exec = /usr/libexec/lpm/hooks/detect-old-perl-modules' \
+        "$PERL_HOOK" >/dev/null
+
+    if grep -Eq '/usr/share/libalpm/|/usr/bin/detect-old-perl-modules' "$PERL_HOOK"; then
+        echo "[ERROR] Perl hook still contains an Arch-specific path" >&2
+        sed -n '1,120p' "$PERL_HOOK" >&2
+        return 1
+    fi
+
+    install -Dm644 "$SRCDIR/Artistic" \
+        "$pkgdir/usr/share/licenses/$NAME/Artistic"
+    install -Dm644 "$SRCDIR/Copying" \
+        "$pkgdir/usr/share/licenses/$NAME/Copying"
 }

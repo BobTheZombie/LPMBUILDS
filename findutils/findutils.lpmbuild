@@ -1,34 +1,135 @@
-# LPM build script for findutils
+#!/bin/bash
+# LPM build script for GNU findutils
+
 NAME="findutils"
-VERSION="4.10.0"
+VERSION="4.11.0"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="GNU find, xargs, locate"
+
+SUMMARY="GNU find, xargs, locate and updatedb utilities"
 URL="https://www.gnu.org/software/findutils/"
-LICENSE=""
-SOURCE=()
-REQUIRES=("glibc")
-PROVIDES=("findutils")
+LICENSE=("GPL-3.0-or-later")
+
+SOURCE=(
+    "https://ftp.wayne.edu/gnu/findutils/findutils-${VERSION}.tar.xz"
+)
+
+SHA256SUMS=(
+    "bfd19cb06cc71f3352d567e90284d8cdac02ac89774bbeadf0b533b0c11432fd"
+)
+
+PATCHES=()
+
+REQUIRES=(
+    "bash"
+    "coreutils"
+    "glibc"
+    "sed"
+)
+
+BUILD_REQUIRES=(
+    "gcc"
+    "gettext"
+    "make"
+    "perl"
+    "python"
+    "texinfo"
+)
+
+PROVIDES=(
+    "findutils"
+    "find"
+    "xargs"
+    "locate"
+    "updatedb"
+)
+
 CONFLICTS=()
 OBSOLETES=()
 RECOMMENDS=()
 SUGGESTS=()
 
+BUILD_OPTIONS=(
+    "@--stripping"
+    "@--optimize=2"
+)
+
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    test -x configure
+    test -f Makefile.in
+    test -f COPYING
+
+    if [ -f Makefile ]; then
+        make distclean
+    fi
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    ./configure \
+        --prefix=/usr \
+        --bindir=/usr/bin \
+        --libexecdir=/usr/lib/findutils \
+        --sysconfdir=/etc \
+        --localstatedir=/var/lib/locate \
+        --mandir=/usr/share/man \
+        --infodir=/usr/share/info \
+        --without-selinux \
+        --disable-rpath
+
+    make -j"${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+check() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    (
+        testdir="$(mktemp -d "$PWD/.lpm-findutils-test.XXXXXX")"
+        trap 'rm -rf -- "$testdir"' EXIT
+
+        printf '%s\n' "LPM findutils test" \
+            > "$testdir/file with spaces"
+
+        test "$(
+            ./find/find "$testdir" \
+                -type f \
+                -name 'file with spaces' \
+                -print0 |
+            ./xargs/xargs -0 -r printf '%s\n'
+        )" = "$testdir/file with spaces"
+    )
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    make -j1 DESTDIR="$pkgdir" install
+
+    rm -f "$pkgdir/usr/share/info/dir"
+
+    install -dm755 "$pkgdir/var/lib/locate"
+
+    local program
+    for program in find xargs locate updatedb; do
+        test -x "$pkgdir/usr/bin/$program"
+    done
+
+    test -x "$pkgdir/usr/lib/findutils/frcode"
+    test -f "$pkgdir/usr/share/man/man1/find.1"
+    test -f "$pkgdir/usr/share/man/man1/xargs.1"
+
+    install -Dm644 COPYING \
+        "$pkgdir/usr/share/licenses/$NAME/COPYING"
 }
+
+
+
+# Final audited source digests
+SHA256SUMS=("bfd19cb06cc71f3352d567e90284d8cdac02ac89774bbeadf0b533b0c11432fd")

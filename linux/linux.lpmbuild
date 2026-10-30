@@ -1,0 +1,196 @@
+#!/bin/bash
+# LPM owns packaging/install/hooks; kmake owns kernel build and staging.
+
+NAME="linux"
+VERSION="7.2.11"
+RELEASE="2"
+ARCH="${ARCH:-x86_64}"
+
+SUMMARY="Linux kernel and modules with systemd and networking support"
+URL="https://www.kernel.org/"
+LICENSE=("GPL-2.0-only")
+
+SOURCE=(
+    "https://cdn.kernel.org/pub/linux/kernel/v${VERSION%%.*}.x/linux-${VERSION}.tar.xz"
+    "config-7.0.6"
+)
+
+SHA256SUMS=(
+    "fd0fc479f983a8c05313f13e9c36330fe6651cf725396748c40d5cd93fa1e6a4"
+    "SKIP"
+)
+
+PATCHES=()
+
+REQUIRES=(
+    "bash"
+    "e2fsprogs"
+    "kmod"
+    "lpm"
+    "mkinitcpio"
+    "systemd"
+    "util-linux"
+    "zstd"
+)
+
+BUILD_REQUIRES=(
+    "bc"
+    "binutils"
+    "bison"
+    "cpio"
+    "elfutils"
+    "flex"
+    "gcc"
+    "kmod"
+    "lpm"
+    "m4"
+    "make"
+    "openssl"
+    "perl"
+    "python"
+    "xz"
+    "zstd"
+)
+
+PROVIDES=("linux" "linux-kernel")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=("linux-firmware")
+SUGGESTS=()
+
+BUILD_OPTIONS=()
+
+_kernel() {
+    local cache="${LPM_COMPILER_CACHE:-auto}"
+
+    # Preserve compiler-cache wrappers already supplied by LPM.
+    # --cache none prevents kmake from adding another wrapper.
+    case "${LPM_COMPILER_CACHE_ACTIVE:-none}" in
+        ccache|sccache)
+            cache=none
+            ;;
+    esac
+
+    command lpm kmake \
+        --source "$SRCROOT/${NAME}-${VERSION}" \
+        --output "$SRCROOT/${NAME}-${VERSION}/_build" \
+        --arch "$ARCH" \
+        --localversion="-lpm${RELEASE}" \
+        --cache "$cache" \
+        "$@"
+}
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    test "$ARCH" = x86_64
+    test -s "$SRCROOT/config-7.0.6"
+
+    # Verify that the installed LPM actually supports kmake.
+    _kernel --help >/dev/null
+
+
+    mkdir -p _build
+
+    local -a required=(
+        X86_64
+        SMP
+        MODULES
+        BLK_DEV_INITRD
+        RD_ZSTD
+        EFI
+        EFI_STUB
+        EFI_PARTITION
+        DEVTMPFS
+        DEVTMPFS_MOUNT
+        PROC_FS
+        SYSFS
+        TMPFS
+        TMPFS_POSIX_ACL
+        CGROUPS
+        MEMCG
+        NAMESPACES
+        NET
+        INET
+        IPV6
+        UNIX
+        BLOCK
+        PCI
+        SCSI
+        ATA
+        BLK_DEV_DM
+        EXT4_FS
+        SATA_AHCI
+        BLK_DEV_SD
+        BLK_DEV_NVME
+        PRINTK
+        VT
+        VT_CONSOLE
+        FRAMEBUFFER_CONSOLE
+    )
+
+    local -a requirements=()
+    local symbol
+
+    for symbol in "${required[@]}"; do
+        requirements+=(--require "$symbol")
+    done
+
+    printf 'CONFIG_%s=y\n' "${required[@]}" \
+        > _build/lpm-boot.fragment
+
+    # Import the full configuration, merge boot requirements,
+    # resolve Kconfig dependencies, and record kmake build state.
+    _kernel configure \
+        --config "$SRCROOT/config-7.0.6" \
+        --fragment "$PWD/_build/lpm-boot.fragment" \
+        "${requirements[@]}"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    _kernel build
+}
+
+check() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    _kernel check
+
+    test "$(cat _build/include/config/kernel.release)" \
+        = "${VERSION}-lpm${RELEASE}"
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    # kmake installs modules, image, config, System.map and pkgbase,
+    # removes development links, and generates module dependencies.
+    _kernel stage \
+        --destdir "$pkgdir" \
+        --pkgbase "$NAME"
+
+    install -Dm644 COPYING \
+        "$pkgdir/usr/share/licenses/$NAME/COPYING"
+
+    local moddir="$pkgdir/usr/lib/modules/${VERSION}-lpm${RELEASE}"
+
+    test -s "$moddir/vmlinuz"
+    test -s "$moddir/config"
+    test -s "$moddir/modules.dep"
+    test "$(cat "$moddir/pkgbase")" = "$NAME"
+
+    test ! -e "$pkgdir/usr/include/linux"
+    test ! -e "$pkgdir/lib"
+}
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("fd0fc479f983a8c05313f13e9c36330fe6651cf725396748c40d5cd93fa1e6a4" "c88a5466ddadf1a832132c27ca85d446fc9b019f5aedf7aff8299bfffe13663b")

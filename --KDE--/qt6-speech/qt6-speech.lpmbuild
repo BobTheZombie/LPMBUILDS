@@ -1,0 +1,93 @@
+#!/bin/bash
+# LPM Linux - Qt TextToSpeech (qtspeech) 6.12.0
+
+NAME="qt6-speech"
+VERSION="6.12.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Qt 6 text-to-speech API and QML bindings"
+URL="https://doc.qt.io/qt-6/qttexttospeech-index.html"
+LICENSE=("LGPL-3.0-only" "GPL-2.0-only" "GPL-3.0-only" "BSD-3-Clause")
+
+SOURCE=(
+  "https://download.qt.io/official_releases/qt/6.12/${VERSION}/submodules/qtspeech-everywhere-src-${VERSION}.tar.xz"
+)
+SHA256SUMS=(
+  "9a60ce5bee54a9343740feab2582bffb996812f43d6c5585aade26dbd04933db"
+)
+PATCHES=()
+
+REQUIRES=(
+  "qt6-base"
+  "qt6-multimedia"
+  "qt6-declarative"
+)
+BUILD_REQUIRES=(
+  "cmake"
+  "ninja"
+  "pkgconf"
+  "qt6-base"
+  "qt6-multimedia"
+  "qt6-declarative"
+)
+PROVIDES=("qt6-speech" "qtspeech")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=("speech-dispatcher" "flite")
+
+_qtspeech_source_dir() {
+  local dir
+  for dir in \
+    "$SRCROOT/${NAME}-${VERSION}" \
+    "$SRCROOT/qtspeech-everywhere-src-${VERSION}" \
+    "$SRCROOT"; do
+    if [[ -f "$dir/CMakeLists.txt" ]] && grep -Eq 'qt_internal_project_setup|qt_build_repo|qt_build_module|qt_internal_add_module' "$dir/CMakeLists.txt"; then
+      printf '%s\n' "$dir"
+      return 0
+    fi
+  done
+  echo "[ERROR] qtspeech ${VERSION} source tree not found under $SRCROOT" >&2
+  return 1
+}
+
+prepare() {
+  set -euo pipefail
+  local src
+  src="$(_qtspeech_source_dir)"
+  test -f "$src/CMakeLists.txt"
+  mkdir -p "$SRCROOT/.lpm-qtspeech-build"
+}
+
+build() {
+  set -euo pipefail
+  local src builddir
+  src="$(_qtspeech_source_dir)"
+  builddir="$SRCROOT/.lpm-qtspeech-build"
+
+  cmake -S "$src" -B "$builddir" -G Ninja \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DCMAKE_INSTALL_LIBDIR=lib \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DQT_BUILD_TESTS=OFF \
+    -DQT_BUILD_EXAMPLES=OFF
+  cmake --build "$builddir" --parallel "${LPM_BUILD_JOBS:-6}"
+}
+
+check() {
+  set -euo pipefail
+  local builddir="$SRCROOT/.lpm-qtspeech-build"
+  test -f "$builddir/CMakeCache.txt"
+  # No speech engine / audio output required in the headless build chroot.
+}
+
+staging() {
+  set -euo pipefail
+  local builddir="$SRCROOT/.lpm-qtspeech-build"
+  DESTDIR="$pkgdir" cmake --install "$builddir"
+  test -f "$pkgdir/usr/lib/cmake/Qt6TextToSpeech/Qt6TextToSpeechConfig.cmake" || {
+    echo '[ERROR] Qt6TextToSpeech CMake package is missing from staging' >&2
+    return 1
+  }
+  echo "[OK] ${NAME}-${VERSION} staged Qt6TextToSpeech CMake files"
+}

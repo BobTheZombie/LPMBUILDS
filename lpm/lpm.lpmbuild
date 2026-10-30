@@ -1,34 +1,228 @@
-# LPM build script for lpm
+#!/bin/bash
+# LPM standalone CLI package
+
 NAME="lpm"
-VERSION="0.1.0"
+VERSION="1.2.1030"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Linux Package Manager (LPM)"
-URL="https://gitlab.com/ryzenos1/lpm"
-LICENSE=""
-SOURCE=()
-REQUIRES=("python" "openssl" "zstd" "sqlite" "tar" "gnupg" "curl" "ca-certificates")
-PROVIDES=("lpm")
+
+SUMMARY="Linux Package Manager with dependency solving and staged builds"
+URL="https://github.com/BobTheZombie/LPM.Org"
+LICENSE=("MIT")
+
+_COMMIT="e22bfa01f878cd833351536550119126a95eb003"
+
+SOURCE=(
+    "https://github.com/BobTheZombie/LPM.Org/archive/${_COMMIT}.tar.gz"
+)
+
+SHA256SUMS=("SKIP")
+PATCHES=()
+
+REQUIRES=(
+    "bash"
+    "git"
+    "glibc"
+    "lpm-filesystem"
+    "openssl"
+    "python>=3.14"
+    "sqlite"
+    "tar"
+    "xz"
+    "zstd"
+)
+
+BUILD_REQUIRES=(
+    "binutils"
+    "gcc"
+    "make"
+    "patchelf"
+    "python"
+)
+
+REQUIRES_PYTHON_DEPENDENCIES=(
+    "setuptools"
+    "wheel"
+    "packaging>=24"
+    "nuitka"
+    "ordered-set"
+    "zstandard"
+    "tqdm"
+)
+
+PROVIDES=(
+    "lpm"
+    "lpm-core"
+    "linux-package-manager-1.0"
+    "liblpm"
+    "lpm-hooks"
+)
+
 CONFLICTS=()
 OBSOLETES=()
 RECOMMENDS=()
-SUGGESTS=()
+SUGGESTS=("python-pyside6")
+
+# Nuitka controls LTO. Preserve bundled ELF files and their RPATH.
+BUILD_OPTIONS=(
+    "@--optimize=2"
+)
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+
+    if [ ! -d "$SRCROOT/${NAME}-${VERSION}" ]; then
+        test -d "$SRCROOT/LPM.Org-${_COMMIT}"
+        mv "$SRCROOT/LPM.Org-${_COMMIT}" \
+            "$SRCROOT/${NAME}-${VERSION}"
+    fi
+
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    test -f src/lpm/app.py
+    test -f etc/lpm/lpm.conf
+    test -f LICENSE
+
+    command -v patchelf
+    python3 -m nuitka --version
+    python3 -c 'import packaging, zstandard, tqdm'
+
+    rm -rf build/standalone
+    rm -f build/build-info.json
+    mkdir -p build/standalone
+
+    cat > build/standalone/lpm_cli.py <<'PY'
+from lpm.app import main
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+PY
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    export PYTHONPATH="$PWD/src:$PWD${PYTHONPATH:+:$PYTHONPATH}"
+
+    python3 -m nuitka \
+        --mode=standalone \
+        --output-dir=build/standalone \
+        --output-filename=lpm.bin \
+        --include-package=lpm \
+        --include-package=packaging \
+        --include-package=zstandard \
+        --include-package=tqdm \
+        --include-package-data=lpm \
+        --nofollow-import-to=PySide6,shiboken6 \
+        --lto=yes \
+        --jobs="${LPM_BUILD_JOBS:-$(nproc)}" \
+        --python-flag=-O \
+        build/standalone/lpm_cli.py
+
+    test -x build/standalone/lpm_cli.dist/lpm.bin
+
+    local build_date
+    if [ -n "${SOURCE_DATE_EPOCH:-}" ]; then
+        build_date="$(
+            date -u -d "@${SOURCE_DATE_EPOCH}" \
+                '+%Y-%m-%dT%H:%M:%SZ'
+        )"
+    else
+        build_date="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+    fi
+
+    make \
+        VERSION="$VERSION" \
+        BUILD_DATE="$build_date" \
+        build/build-info.json
+}
+
+check() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    local binary="$PWD/build/standalone/lpm_cli.dist/lpm.bin"
+    test -x "$binary"
+
+    (
+        cd /tmp
+        unset PYTHONPATH PYTHONHOME
+        "$binary" --help >/dev/null
+        "$binary" buildpkg --help >/dev/null
+        "$binary" rebuild-stage2 --help >/dev/null
+    )
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    install -dm755 \
+        "$pkgdir/usr/lib/lpm" \
+        "$pkgdir/usr/bin"
+
+    # Copy the entire standalone distribution, including bundled libraries.
+    cp -a --no-preserve=ownership \
+        build/standalone/lpm_cli.dist/. \
+        "$pkgdir/usr/lib/lpm/"
+
+    cat > "$pkgdir/usr/bin/lpm" <<'SH'
+#!/bin/sh
+exec /usr/lib/lpm/lpm.bin "$@"
+SH
+    chmod 755 "$pkgdir/usr/bin/lpm"
+
+    install -Dm644 build/build-info.json \
+        "$pkgdir/usr/share/lpm/build-info.json"
+
+    install -Dm644 etc/lpm/lpm.conf \
+        "$pkgdir/etc/lpm/lpm.conf"
+
+    install -Dm644 usr/lib/sysusers.d/lpm.conf \
+        "$pkgdir/usr/lib/sysusers.d/lpm.conf"
+
+    install -Dm644 usr/lib/tmpfiles.d/lpm.conf \
+        "$pkgdir/usr/lib/tmpfiles.d/lpm.conf"
+
+    install -dm755 \
+        "$pkgdir/usr/share/liblpm/hooks" \
+        "$pkgdir/usr/libexec/lpm/hooks"
+
+    cp -a --no-preserve=ownership \
+        usr/share/liblpm/hooks/. \
+        "$pkgdir/usr/share/liblpm/hooks/"
+
+    cp -a --no-preserve=ownership \
+        usr/libexec/lpm/hooks/. \
+        "$pkgdir/usr/libexec/lpm/hooks/"
+
+    install -Dm644 README.md \
+        "$pkgdir/usr/share/doc/lpm/README.md"
+
+    install -Dm644 LICENSE \
+        "$pkgdir/usr/share/licenses/lpm/LICENSE"
+
+    test -x "$pkgdir/usr/bin/lpm"
+    test -x "$pkgdir/usr/lib/lpm/lpm.bin"
+    test -f "$pkgdir/etc/lpm/lpm.conf"
+    test -f "$pkgdir/usr/lib/sysusers.d/lpm.conf"
+    test -f "$pkgdir/usr/lib/tmpfiles.d/lpm.conf"
+    test -f "$pkgdir/usr/share/lpm/build-info.json"
+    test -f "$pkgdir/usr/share/licenses/lpm/LICENSE"
+    test ! -e "$pkgdir/usr/bin/lpm-ui"
+
+    (
+        cd /tmp
+        unset PYTHONPATH PYTHONHOME
+        "$pkgdir/usr/lib/lpm/lpm.bin" --help >/dev/null
+        "$pkgdir/usr/lib/lpm/lpm.bin" buildpkg --help >/dev/null
+        "$pkgdir/usr/lib/lpm/lpm.bin" rebuild-stage2 --help >/dev/null
+    )
 }
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("9ccbad552fac11454b8e1c8e41ef2955509d4e271c0c0e359d962b3a08f048b4")

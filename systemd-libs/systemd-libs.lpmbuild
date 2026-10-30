@@ -1,0 +1,53 @@
+#!/bin/bash
+# Compatibility metadata package for LPM Linux's unsplit systemd installation.
+# This package DOES NOT provide library files. The existing systemd package must.
+# Long-term: split libsystemd/libudev ownership from systemd and retire this bridge.
+NAME="systemd-libs"
+VERSION="1.0.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Compatibility package for libsystemd and libudev supplied by systemd"
+URL="https://systemd.io/"
+LICENSE=("LGPL-2.1-or-later")
+SOURCE=()
+SHA256SUMS=()
+PATCHES=()
+REQUIRES=("systemd")
+BUILD_REQUIRES=()
+PROVIDES=("systemd-libs")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+_verify_systemd_libraries() {
+    local soname d found
+    for soname in libsystemd.so.0 libudev.so.1; do
+        found=0
+        for d in /usr/lib /usr/lib64 /lib /lib64; do
+            if [ -r "$d/$soname" ]; then
+                found=1
+                break
+            fi
+        done
+        if [ "$found" -ne 1 ]; then
+            printf 'Missing %s; install/build systemd client libraries before systemd-libs.\n' "$soname" >&2
+            return 1
+        fi
+    done
+}
+
+prepare() { :; }
+build() { _verify_systemd_libraries; }
+staging() {
+    set -euo pipefail
+    _verify_systemd_libraries
+    install -dm755 "$pkgdir/usr/share/doc/systemd-libs"
+    cat >"$pkgdir/usr/share/doc/systemd-libs/README.LPM" <<'EOF'
+This LPM Linux package is a compatibility bridge, not a second copy of systemd.
+The systemd package supplies libsystemd.so.0 and libudev.so.1.
+Do not install this package on systems where systemd does not supply both libraries.
+For a real split package, move ownership of these libraries from systemd to
+systemd-libs in a coordinated package transaction.
+EOF
+}

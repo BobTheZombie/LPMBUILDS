@@ -1,36 +1,43 @@
-# LPM build script for wlroots
+#!/bin/bash
 NAME="wlroots"
-VERSION="1.0.0"
+VERSION="0.19.3"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Placeholder package for wlroots dependency"
-URL="https://example.com/wlroots"
-LICENSE=""
-SOURCE=()
-SHA256SUMS=()
+SUMMARY="wlroots upstream package"
+URL="https://gitlab.freedesktop.org/wlroots/wlroots/-/archive/88a869855742281c98c22cab9641b317b8d065ef/"
+LICENSE=("MIT")
+SOURCE=("https://gitlab.freedesktop.org/wlroots/wlroots/-/archive/88a869855742281c98c22cab9641b317b8d065ef/wlroots-88a869855742281c98c22cab9641b317b8d065ef.tar.gz")
+SHA256SUMS=("587256827f7e1bcbb7384d1c04c0e21682565169e7a906560f723820bcf78af2")
 PATCHES=()
-REQUIRES=()
+REQUIRES=("glibc" "libdisplay-info" "libdrm" "libinput" "libliftoff" "libxcb" "libxkbcommon" "pixman" "seatd" "systemd" "vulkan-loader" "wayland" "xcb-util-errors" "xcb-util-renderutil" "xcb-util-wm")
+BUILD_REQUIRES=("meson" "ninja" "pkgconf" "vulkan-headers" "wayland-protocols" "xorgproto")
 PROVIDES=("wlroots")
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
-
-prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
-}
-
+BUILD_OPTIONS=("@--stripping" "@--optimize=2")
+prepare() { set -euxo pipefail; cd "$SRCROOT/${NAME}-${VERSION}"; }
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    meson setup build --prefix=/usr --libdir=lib --buildtype=release --wrap-mode=nodownload 
+    meson compile -C build -j "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    meson install -C build --no-rebuild --destdir "$pkgdir"
+    local f
+    for f in COPYING COPYING.LIB LICENSE LICENSE.md LICENSE.txt; do
+        if [ -f "$f" ]; then install -Dm644 "$f" "$pkgdir/usr/share/licenses/$NAME/$f"; fi
+    done
+    if [ -d LICENSES ]; then
+        install -dm755 "$pkgdir/usr/share/licenses/$NAME"
+        cp -a LICENSES/. "$pkgdir/usr/share/licenses/$NAME/"
+    fi
 }
 
-staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  install -d "$pkgdir/usr/share/doc/wlroots"
-  printf 'Placeholder package for wlroots\n' >"$pkgdir/usr/share/doc/wlroots/README"
-}
+
+
+
+# Final audited source digests
+SHA256SUMS=("587256827f7e1bcbb7384d1c04c0e21682565169e7a906560f723820bcf78af2")

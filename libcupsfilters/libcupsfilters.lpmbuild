@@ -1,0 +1,51 @@
+#!/bin/bash
+# LPM Linux - OpenPrinting libcupsfilters 2.1.2
+# 2.1.x QPDF-based branch recommended by OpenPrinting due to 2.2.x regressions.
+NAME="libcupsfilters"
+VERSION="2.1.2"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="OpenPrinting filters library for CUPS 2.x"
+URL="https://github.com/OpenPrinting/libcupsfilters"
+LICENSE=("Apache-2.0 WITH LLVM-exception")
+SOURCE=("https://github.com/OpenPrinting/libcupsfilters/releases/download/${VERSION}/libcupsfilters-${VERSION}.tar.xz")
+# TODO: replace with SHA256 calculated from the official 2.1.2 release archive.
+# BLFS publishes the corresponding MD5 d8d6e84404b576e4bfd979b83c5219ac.
+SHA256SUMS=("SKIP")
+PATCHES=()
+REQUIRES=("glibc" "gcc-libs" "libcups" "glib2" "dbus" "lcms2" "qpdf" "poppler" "fontconfig" "zlib")
+BUILD_REQUIRES=("gcc" "make" "pkgconf" "libcups" "glib2" "dbus" "lcms2" "qpdf" "poppler" "fontconfig" "ghostscript" "gettext" "libpng" "libjpeg-turbo" "libtiff" "libexif")
+PROVIDES=("libcupsfilters" "libcupsfilters.so.2")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=("ghostscript" "mupdf-tools")
+SUGGESTS=("libjxl" "pdfio")
+
+prepare() {
+    set -euxo pipefail
+    test -f "$SRCROOT/libcupsfilters-$VERSION/configure"
+}
+build() {
+    set -euxo pipefail
+    local src="$SRCROOT/libcupsfilters-$VERSION"
+    cd "$src"
+    ./configure --prefix=/usr --libdir=/usr/lib --disable-static \
+        --docdir="/usr/share/doc/libcupsfilters-$VERSION"
+    make -j"${LPM_BUILD_JOBS:-$(nproc)}"
+}
+check() {
+    set -euo pipefail
+    test -f "$SRCROOT/libcupsfilters-$VERSION/Makefile"
+    # Do not run testfonts-dependent checks without a known TTF test environment.
+}
+staging() {
+    set -euxo pipefail
+    local src="$SRCROOT/libcupsfilters-$VERSION"
+    make -C "$src" DESTDIR="$pkgdir" install
+    test -e "$pkgdir/usr/lib/libcupsfilters.so.2" || test -e "$pkgdir/usr/lib/libcupsfilters.so"
+    test -d "$pkgdir/usr/include/cupsfilters"
+    test -f "$pkgdir/usr/lib/pkgconfig/libcupsfilters.pc"
+    if [[ -f "$src/LICENSE" ]]; then
+        install -Dm644 "$src/LICENSE" "$pkgdir/usr/share/licenses/libcupsfilters/LICENSE"
+    fi
+}

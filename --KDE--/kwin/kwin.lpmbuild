@@ -1,0 +1,142 @@
+#!/bin/bash
+# LPM Linux: KDE Plasma 6.8.1 KWin (Wayland compositor)
+# Includes Night Light, screen locking, color management and accessibility.
+# SHA-256: KDE official Plasma 6.8.1 release manifest.
+NAME="kwin"
+VERSION="6.8.1"
+RELEASE="2"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="KDE Plasma 6: KWin compositing window manager and Wayland compositor"
+URL="https://invent.kde.org/plasma/kwin"
+LICENSE=("SEE-UPSTREAM")
+SOURCE=(
+    "https://download.kde.org/stable/plasma/${VERSION}/kwin-${VERSION}.tar.xz"
+)
+SHA256SUMS=(
+    "f3d725f81061c1ba97fdef8aeb2101a5c5e03c77f11e9a2abaa1dfed4489d3b6"
+)
+PATCHES=()
+
+REQUIRES=(
+    "qt6-base"
+    "qt6-declarative"
+    "qt6-5compat"
+    "qt6-positioning"
+    "kdecoration"
+    "aurorae"
+    "breeze"
+    "milou"
+    "libplasma"
+    "kwayland"
+    "kglobalaccel6"
+    "kglobalacceld"
+    "kconfig6"
+    "kcoreaddons6"
+    "ki18n6"
+    "kwindowsystem6"
+    "kcmutils6"
+    "plasma-wayland-protocols>=1.23.0"
+    "libdisplay-info>=0.2.0"
+    "libei"
+    "libinput>=1.28"
+    "libxcvt>=0.1.1"
+    "wayland>=1.26.0"
+    "wayland-protocols>=1.49"
+    "mesa"
+    "libdrm>=2.4.127"
+    "knighttime>=6.8.0"
+    "kscreenlocker>=6.8.0"
+    "lcms2"
+    "libqaccessibilityclient-qt6"
+    "libcap"
+    "libepoxy"
+    "libcanberra"
+)
+
+BUILD_REQUIRES=(
+    "cmake"
+    "ninja"
+    "pkgconf"
+    "extra-cmake-modules"
+    "qt6-base"
+    "qt6-declarative"
+    "qt6-5compat"
+    "qt6-positioning"
+    "kdecoration"
+    "aurorae"
+    "breeze"
+    "milou"
+    "libplasma"
+    "kwayland"
+    "kglobalaccel6"
+    "kglobalacceld"
+    "kconfig6"
+    "kcoreaddons6"
+    "ki18n6"
+    "kwindowsystem6"
+    "kcmutils6"
+    "plasma-wayland-protocols>=1.23.0"
+    "libdisplay-info>=0.2.0"
+    "libei"
+    "libinput>=1.28"
+    "libxcvt>=0.1.1"
+    "wayland>=1.26.0"
+    "wayland-protocols>=1.49"
+    "mesa"
+    "libdrm>=2.4.127"
+    "knighttime>=6.8.0"
+    "kscreenlocker>=6.8.0"
+    "lcms2"
+    "libqaccessibilityclient-qt6"
+    "libcap"
+    "libepoxy"
+    "libcanberra"
+)
+
+REQUIRES_PYTHON_DEPENDENCIES=()
+PROVIDES=()
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+    set -euxo pipefail
+    test -f "$SRCROOT/${NAME}-${VERSION}/CMakeLists.txt"
+}
+
+build() {
+    set -euxo pipefail
+    local src="$SRCROOT/${NAME}-${VERSION}"
+    local builddir="$src/build"
+
+    cmake -S "$src" -B "$builddir" -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DKDE_INSTALL_LIBDIR=lib \
+        -DKDE_INSTALL_USE_QT_SYS_PATHS=ON \
+        -DBUILD_TESTING=OFF \
+        -DBUILD_SHARED_LIBS=ON \
+        -DKWIN_BUILD_DECORATIONS=ON \
+        -DKWIN_BUILD_KCMS=ON \
+        -DKWIN_BUILD_SCREENLOCKER=ON \
+        -DKWIN_BUILD_GLOBALSHORTCUTS=ON \
+        -DKWIN_BUILD_NOTIFICATIONS=ON \
+        -DKWIN_BUILD_X11=ON \
+        -DKWIN_BUILD_QACCESSIBILITYCLIENT=ON
+
+    cmake --build "$builddir" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+staging() {
+    set -euxo pipefail
+    local builddir="$SRCROOT/${NAME}-${VERSION}/build"
+    test -n "${pkgdir:-}" && test "$pkgdir" != "/"
+
+    DESTDIR="$pkgdir" cmake --install "$builddir"
+
+    # Prove the Wayland compositor and exported CMake target were staged.
+    test -f "$pkgdir/usr/lib/cmake/KWin/KWinConfig.cmake"
+    test -n "$(find "$pkgdir/usr" -type f -name 'kwin_wayland' -print -quit)"
+    test -n "$(find "$pkgdir/usr" -mindepth 1 -print -quit)"
+}

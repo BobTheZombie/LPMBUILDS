@@ -1,0 +1,38 @@
+NAME="gperf"
+VERSION="3.3"
+RELEASE="1"
+ARCH="x86_64"
+SUMMARY="Perfect hash function generator"
+URL="https://www.gnu.org/software/gperf/"
+SOURCE=("https://ftp.wayne.edu/gnu/gperf/gperf-${VERSION}.tar.gz")
+LICENSE=("GPL-3.0-or-later")
+
+REQUIRES=("glibc")
+PROVIDES=("gperf")
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/gperf-${VERSION}"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/gperf-${VERSION}"
+    ./configure --prefix=/usr --libdir=/usr/lib
+    make -j"$(nproc)"
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/gperf-${VERSION}"
+    make DESTDIR="$pkgdir" install
+}
+
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("fd87e0aba7e43ae054837afd6cd4db03a3f2693deb3619085e6ed9d8d9604ad8")

@@ -1,0 +1,33 @@
+_xmlcatalog() {
+    xmlcatalog --noout "$@" /etc/xml/catalog
+}
+
+post_install() {
+    local destination="/usr/share/xml/docbook/xsl-stylesheets-1.79.2"
+    local scheme version type uri
+
+    test -f "$destination/manpages/docbook.xsl"
+    install -dm755 /etc/xml
+
+    if [ ! -f /etc/xml/catalog ]; then
+        _xmlcatalog --create
+    fi
+
+    for scheme in http https; do
+        for version in 1.79.2 current; do
+            for uri in \
+                "$scheme://cdn.docbook.org/release/xsl/$version/" \
+                "$scheme://docbook.sourceforge.net/release/xsl-ns/$version/"
+            do
+                _xmlcatalog --del "$uri" || true
+
+                for type in rewriteSystem rewriteURI; do
+                    _xmlcatalog --add \
+                        "$type" \
+                        "$uri" \
+                        "file://$destination/"
+                done
+            done
+        done
+    done
+}

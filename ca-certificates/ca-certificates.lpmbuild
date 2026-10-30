@@ -1,34 +1,43 @@
-# LPM build script for ca-certificates
+#!/bin/bash
 NAME="ca-certificates"
-VERSION="2025.01"
+VERSION="20260925"
 RELEASE="1"
-ARCH="${ARCH:-x86_64}"
-SUMMARY="Common CA certificates bundle"
-URL="https://www.mozilla.org/"
-LICENSE=""
-SOURCE=()
-REQUIRES=()
+ARCH="noarch"
+SUMMARY="Mozilla CA trust bundle published by curl"
+URL="https://curl.se/ca/"
+LICENSE=("MPL-2.0")
+SOURCE=("cacert.pem")
+SHA256SUMS=(
+    "a41b5d356aea97a529fe27e0f7316d2f9d946d75927476cf9cf1b90637d00505"
+)
+PATCHES=()
+REQUIRES=("openssl")
+BUILD_REQUIRES=("python" "openssl")
 PROVIDES=("ca-certificates")
 CONFLICTS=()
 OBSOLETES=()
 RECOMMENDS=()
 SUGGESTS=()
-
-prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
-}
-
-build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
-}
-
+BUILD_OPTIONS=()
+prepare() { set -euxo pipefail; test -s "$SRCROOT/cacert.pem"; }
+build() { :; }
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euxo pipefail
+    install -Dm644 "$SRCROOT/cacert.pem" "$pkgdir/etc/ssl/certs/ca-certificates.crt"
+    ln -sfn certs/ca-certificates.crt "$pkgdir/etc/ssl/cert.pem"
+    python3 - "$SRCROOT/cacert.pem" "$pkgdir/etc/ssl/certs" <<'PYTHON'
+import pathlib,re,sys
+text=pathlib.Path(sys.argv[1]).read_text()
+certificates=re.findall(r'-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----',text,re.S)
+assert certificates, 'empty certificate bundle'
+for index,certificate in enumerate(certificates):
+    (pathlib.Path(sys.argv[2])/f'mozilla-{index:03d}.pem').write_text(certificate+'\n')
+PYTHON
+    openssl rehash "$pkgdir/etc/ssl/certs"
 }
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("a41b5d356aea97a529fe27e0f7316d2f9d946d75927476cf9cf1b90637d00505")

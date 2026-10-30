@@ -1,0 +1,64 @@
+#!/bin/bash
+NAME="linux-firmware"
+VERSION="20260916"
+RELEASE="1"
+ARCH="noarch"
+SUMMARY="Firmware for Linux network adapters and other supported hardware"
+URL="https://gitlab.com/kernel-firmware/linux-firmware"
+LICENSE=("LicenseRef-linux-firmware")
+SOURCE=("https://www.kernel.org/pub/linux/kernel/firmware/linux-firmware-${VERSION}.tar.xz")
+SHA256SUMS=(
+    "f80dcb757a623deda62200c08e0e1a88c76fb6b54964f31b35fa74da1c90ccc5"
+)
+PATCHES=()
+REQUIRES=()
+BUILD_REQUIRES=("make" "python" "bash" "rsync")
+PROVIDES=("linux-firmware")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+BUILD_OPTIONS=()
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/linux-firmware-${VERSION}"
+}
+
+build() {
+    # Nothing to compile
+    true
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/linux-firmware-${VERSION}"
+
+    # Install firmware payload
+    install -d "$pkgdir/lib/firmware"
+    # Copy all, but skip readmes and markdown to keep package smaller
+    # (adjust excludes if you want absolutely everything)
+    rsync -a \
+      --exclude 'README*' \
+      --exclude '*.md' \
+      --exclude '.git*' \
+      ./ "$pkgdir/lib/firmware/"
+
+    # Docs / licensing
+    install -d "$pkgdir/usr/share/doc/$NAME"
+    echo "This package aggregates firmware from many upstreams; see per-file LICENSE.* in /lib/firmware." \
+      > "$pkgdir/usr/share/doc/$NAME/README"
+
+    # Copy top-level license file if present (not all snapshots have it)
+    if [ -f COPYING ]; then
+      install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+    fi
+
+    # Do NOT strip: these are binary blobs, not ELF executables.
+}
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("f80dcb757a623deda62200c08e0e1a88c76fb6b54964f31b35fa74da1c90ccc5")

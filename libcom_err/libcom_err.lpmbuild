@@ -1,0 +1,23 @@
+#!/bin/bash
+NAME="libcom_err"
+VERSION="1.47.4"
+RELEASE="2"
+ARCH="any"
+SUMMARY="Compatibility dependency for e2fsprogs common error library"
+URL="https://e2fsprogs.sourceforge.net/"
+LICENSE=("MIT")
+SOURCE=()
+SHA256SUMS=()
+REQUIRES=("e2fsprogs")
+PROVIDES=("libcom_err" "libcom_err.so")
+prepare() { true; }
+build() { true; }
+staging() {
+    install -dm755 "$pkgdir/usr/share/doc/$NAME"
+    printf '%s\n' 'e2fsprogs owns libcom_err and its development files.' > "$pkgdir/usr/share/doc/$NAME/README"
+}
+
+
+
+# Final audited source digests
+SHA256SUMS=()

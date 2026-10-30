@@ -1,49 +1,376 @@
-# LPM build script for gcc
+#!/bin/bash
+# LPM build script for GCC
+
 NAME="gcc"
-VERSION="14.2.0"
-RELEASE="1"
+VERSION="16.2.0"
+RELEASE="2"
 ARCH="${ARCH:-x86_64}"
+
 SUMMARY="GNU Compiler Collection"
 URL="https://gcc.gnu.org/"
-LICENSE=""
-SOURCE=()
-REQUIRES=("glibc" "linux-headers" "binutils" "zlib" "gmp" "mpfr" "mpc" "isl" "make")
-PROVIDES=("gcc")
+LICENSE=(
+    "GPL-3.0-or-later"
+    "GPL-3.0-with-GCC-exception"
+    "LGPL-2.1-or-later"
+    "GFDL-1.3-or-later"
+)
+
+SOURCE=(
+    "https://ftp.wayne.edu/gnu/gcc/gcc-${VERSION}/gcc-${VERSION}.tar.xz"
+)
+
+SHA256SUMS=(
+    "e6738e29597f733270731aa90600f37ffdc045079dfc27ec7e8192cc81085c3e"
+)
+
+PATCHES=()
+
+REQUIRES=(
+    "binutils"
+    "gcc-libs"
+    "glibc"
+    "gmp"
+    "isl"
+    "mpc"
+    "mpfr"
+    "zlib"
+    "zstd"
+)
+
+BUILD_REQUIRES=(
+    "binutils"
+    "gcc-libs"
+    "gettext"
+    "glibc"
+    "gmp"
+    "isl"
+    "m4"
+    "make"
+    "mpc"
+    "mpfr"
+    "perl"
+    "texinfo"
+    "zlib"
+    "zstd"
+)
+
+PROVIDES=(
+    "gcc"
+    "cc"
+    "c++"
+    "cpp"
+    "g++"
+    "gfortran"
+    "gcc-ar"
+    "gcc-nm"
+    "gcc-ranlib"
+)
+
 CONFLICTS=()
 OBSOLETES=()
 RECOMMENDS=()
 SUGGESTS=()
 
+# GCC performs its own bootstrap LTO. Do not inject LPM's generic LTO flags.
+BUILD_OPTIONS=(
+    "@--stripping"
+    "@--optimize=2"
+)
+
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  mkdir -p build
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/gcc-${VERSION}"
+    BUILDDIR="$SRCDIR/build"
+
+    test -x "$SRCDIR/configure"
+    test -x "$SRCDIR/config.guess"
+    test -f "$SRCDIR/config/bootstrap-lto.mk"
+    test -f "$SRCDIR/gcc/BASE-VER"
+    test -f "$SRCDIR/COPYING3"
+    test -f "$SRCDIR/COPYING.RUNTIME"
+    test -f "$SRCDIR/COPYING.LIB"
+    test "$(cat "$SRCDIR/gcc/BASE-VER")" = "$VERSION"
+
+    rm -rf "$BUILDDIR"
+    mkdir -p "$BUILDDIR"
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  cd build
-  ../configure --prefix=/usr \
-  --libdir=/usr/lib \
-  --libexecdir=/usr/lib \
-  --with-system-zlib \
-  --enable-languages=c,c++,fortran \
-  --enable-shared \
-  --enable-threads=posix \
-  --enable-checking=release \
-  --enable-__cxa_atexit \
-  --disable-multilib \
-  --disable-werror \
-  --with-pkgversion="Arch Linux" \
-  --with-bugurl=https://bugs.archlinux.org/
-  make -j"$(nproc)"
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/gcc-${VERSION}"
+    BUILDDIR="$SRCDIR/build"
+    BUILD_TRIPLET="$("$SRCDIR/config.guess")"
+    
+    # Install native 64-bit target libraries under /usr/lib.
+sed -i \
+    's@lib64@lib@g' \
+    "$SRCDIR/gcc/config/i386/t-linux64"
+
+    cd "$BUILDDIR"
+
+    "$SRCDIR/configure" \
+        --prefix=/usr \
+        --bindir=/usr/bin \
+        --libdir=/usr/lib \
+        --libexecdir=/usr/lib \
+        --includedir=/usr/include \
+        --infodir=/usr/share/info \
+        --mandir=/usr/share/man \
+        --build="$BUILD_TRIPLET" \
+        --host="$BUILD_TRIPLET" \
+        --with-system-zlib \
+        --with-zstd \
+        --with-linker-hash-style=gnu \
+        --with-build-config=bootstrap-lto \
+        --with-pkgversion="LPM Linux ${VERSION}-${RELEASE}" \
+        --with-bugurl="https://github.com/BobTheZombie/LPM.Org/issues" \
+        --enable-languages=c,c++,fortran,lto \
+        --enable-bootstrap \
+        --enable-checking=release \
+        --enable-default-pie \
+        --enable-default-ssp \
+        --enable-host-pie \
+        --enable-linker-build-id \
+        --enable-lto \
+        --enable-plugin \
+        --enable-shared \
+        --enable-threads=posix \
+        --enable-__cxa_atexit \
+        --enable-clocale=gnu \
+        --enable-libstdcxx-backtrace \
+        --enable-libstdcxx-time \
+        --enable-cet=auto \
+        --enable-nls \
+        --disable-libssp \
+        --disable-multilib \
+        --disable-werror \
+        --without-included-gettext
+
+    # Three-stage LTO bootstrap. This does not use PGO/profiledbootstrap.
+    make \
+        -j"$(nproc)" \
+        STAGE1_CFLAGS="-O2 -pipe" \
+        BOOT_CFLAGS="-O2 -pipe" \
+        bootstrap
+}
+
+check() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/gcc-${VERSION}"
+    BUILDDIR="$SRCDIR/build"
+
+    for PROGRAM in cc1 cc1plus f951 lto1; do
+        test -x "$BUILDDIR/gcc/$PROGRAM"
+    done
+
+    TEST_C="$BUILDDIR/.lpm-gcc-test.c"
+    TEST_CPP="$BUILDDIR/.lpm-gxx-test.cc"
+    TEST_F="$BUILDDIR/.lpm-gfortran-test.f90"
+
+    printf '%s\n' \
+        '#include <stdio.h>' \
+        'int main(void) { puts("LPM GCC C/LTO test"); return 0; }' \
+        > "$TEST_C"
+
+    printf '%s\n' \
+        '#include <iostream>' \
+        'int main() { std::cout << "LPM GCC C++/LTO test\\n"; }' \
+        > "$TEST_CPP"
+
+    printf '%s\n' \
+        'program main' \
+        '  print *, "LPM GCC Fortran test"' \
+        'end program main' \
+        > "$TEST_F"
+
+    "$BUILDDIR/gcc/xgcc" -B"$BUILDDIR/gcc/" \
+        -O2 -flto "$TEST_C" -o "$TEST_C.out"
+    "$TEST_C.out"
+
+    "$BUILDDIR/gcc/xg++" -B"$BUILDDIR/gcc/" \
+        -O2 -flto "$TEST_CPP" -o "$TEST_CPP.out"
+    "$TEST_CPP.out"
+
+    "$BUILDDIR/gcc/gfortran" -B"$BUILDDIR/gcc/" \
+        -O2 "$TEST_F" -o "$TEST_F.out"
+    "$TEST_F.out"
+
+    "$BUILDDIR/gcc/xgcc" -B"$BUILDDIR/gcc/" \
+        -print-prog-name=lto1 | grep -Fq '/lto1'
+
+    rm -f \
+        "$TEST_C" "$TEST_C.out" \
+        "$TEST_CPP" "$TEST_CPP.out" \
+        "$TEST_F" "$TEST_F.out"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  cd build
-  make DESTDIR="$pkgdir" install
-  ln -sf gcc "$pkgdir/usr/bin/cc"
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/gcc-${VERSION}"
+    BUILDDIR="$SRCDIR/build"
+
+    make -C "$BUILDDIR" DESTDIR="$pkgdir" install
+
+    rm -f "$pkgdir/usr/share/info/dir"
+
+    find "$pkgdir/usr/lib" -type f -name '*.la' -delete
+
+    # gcc-libs owns the versioned runtime payload. GCC retains development
+    # linker names, static archives, headers, and compiler support objects.
+    find "$pkgdir/usr/lib" \
+        -maxdepth 1 \
+        \( -type f -o -type l \) \
+        \( \
+            -name 'libasan.so.[0-9]*' \
+            -o -name 'libatomic.so.[0-9]*' \
+            -o -name 'libgcc_s.so.[0-9]*' \
+            -o -name 'libgfortran.so.[0-9]*' \
+            -o -name 'libgomp.so.[0-9]*' \
+            -o -name 'libitm.so.[0-9]*' \
+            -o -name 'liblsan.so.[0-9]*' \
+            -o -name 'libquadmath.so.[0-9]*' \
+            -o -name 'libstdc++.so.[0-9]*' \
+            -o -name 'libtsan.so.[0-9]*' \
+            -o -name 'libubsan.so.[0-9]*' \
+        \) \
+        -delete
+
+    if [ -d "$pkgdir/usr/lib64" ] &&
+       find "$pkgdir/usr/lib64" -mindepth 1 -print -quit | grep -q .
+    then
+        echo "[ERROR] GCC installed files under /usr/lib64" >&2
+        find "$pkgdir/usr/lib64" -mindepth 1 -print >&2
+        return 1
+    fi
+
+    rm -rf "$pkgdir/usr/lib64"
+
+    ln -sfn gcc "$pkgdir/usr/bin/cc"
+    ln -sfn g++ "$pkgdir/usr/bin/c++"
+
+    GCC_LIBDIR="$(
+        find "$pkgdir/usr/lib/gcc" \
+            -mindepth 2 -maxdepth 2 \
+            -type d -name "$VERSION" \
+            -print -quit
+    )"
+
+    if [ -z "$GCC_LIBDIR" ] || [ ! -d "$GCC_LIBDIR" ]; then
+        echo "[ERROR] Missing GCC support directory" >&2
+        return 1
+    fi
+
+    LTO_PLUGIN="$(
+        find "$GCC_LIBDIR" -maxdepth 1 \
+            \( -type f -o -type l \) \
+            -name 'liblto_plugin.so' -print -quit
+    )"
+
+    if [ -z "$LTO_PLUGIN" ] || [ ! -e "$LTO_PLUGIN" ]; then
+        echo "[ERROR] Missing GCC LTO plugin" >&2
+        return 1
+    fi
+
+    install -dm755 "$pkgdir/usr/lib/bfd-plugins"
+
+    # Keep the packaged link relative; an absolute /usr link appears dangling
+    # while validating under DESTDIR and can accidentally resolve to the host.
+    LTO_PLUGIN_REL="$(
+        realpath -m \
+            --relative-to="$pkgdir/usr/lib/bfd-plugins" \
+            "$LTO_PLUGIN"
+    )"
+
+    ln -sfn "$LTO_PLUGIN_REL" \
+        "$pkgdir/usr/lib/bfd-plugins/liblto_plugin.so"
+
+    for PROGRAM in \
+        gcc g++ gfortran cpp gcc-ar gcc-nm gcc-ranlib \
+        gcov gcov-dump gcov-tool lto-dump
+    do
+        if [ ! -x "$pkgdir/usr/bin/$PROGRAM" ]; then
+            echo "[ERROR] Missing GCC program: $PROGRAM" >&2
+            return 1
+        fi
+    done
+
+    test "$(readlink "$pkgdir/usr/bin/cc")" = gcc
+    test "$(readlink "$pkgdir/usr/bin/c++")" = g++
+
+    for PROGRAM in cc1 cc1plus f951 lto1; do
+        test -x "$GCC_LIBDIR/$PROGRAM"
+    done
+
+    test -f "$GCC_LIBDIR/include/stddef.h"
+    test -f "$GCC_LIBDIR/include/stdarg.h"
+    test -f "$pkgdir/usr/include/c++/${VERSION}/iostream"
+    test -f "$pkgdir/usr/include/c++/${VERSION}/vector"
+    test -e "$pkgdir/usr/lib/bfd-plugins/liblto_plugin.so"
+
+    for PATTERN in \
+        'libgcc_s.so.[0-9]*' \
+        'libstdc++.so.[0-9]*' \
+        'libgfortran.so.[0-9]*' \
+        'libatomic.so.[0-9]*' \
+        'libgomp.so.[0-9]*' \
+        'libquadmath.so.[0-9]*'
+    do
+        MATCH="$(
+            find "$pkgdir/usr/lib" -maxdepth 1 \
+                \( -type f -o -type l \) \
+                -name "$PATTERN" -print -quit
+        )"
+        if [ -n "$MATCH" ]; then
+            echo "[ERROR] Runtime file owned by gcc-libs remains: $MATCH" >&2
+            return 1
+        fi
+    done
+
+    GCC_HEADER="$SRCDIR/.lpm-gcc-header"
+    GCC_DYNAMIC="$SRCDIR/.lpm-gcc-dynamic"
+    LTO_HEADER="$SRCDIR/.lpm-lto-header"
+
+    readelf -h "$pkgdir/usr/bin/gcc" > "$GCC_HEADER"
+    grep -Fq ELF64 "$GCC_HEADER"
+    readelf -d "$pkgdir/usr/bin/gcc" > "$GCC_DYNAMIC"
+    grep -Fq libc.so.6 "$GCC_DYNAMIC"
+    readelf -h "$GCC_LIBDIR/lto1" > "$LTO_HEADER"
+    grep -Fq ELF64 "$LTO_HEADER"
+
+    rm -f "$GCC_HEADER" "$GCC_DYNAMIC" "$LTO_HEADER"
+
+    strings "$pkgdir/usr/bin/gcc" > "$SRCDIR/.lpm-gcc-strings"
+    grep -Fq "LPM Linux ${VERSION}-${RELEASE}" \
+        "$SRCDIR/.lpm-gcc-strings"
+    rm -f "$SRCDIR/.lpm-gcc-strings"
+
+    test -f "$pkgdir/usr/share/man/man1/gcc.1"
+    test -f "$pkgdir/usr/share/man/man1/g++.1"
+    test -f "$pkgdir/usr/share/man/man1/gfortran.1"
+
+    GCC_INFO="$(
+        find "$pkgdir/usr/share/info" -maxdepth 1 \
+            -type f -name 'gcc.info*' -print -quit
+    )"
+    if [ -z "$GCC_INFO" ] || [ ! -f "$GCC_INFO" ]; then
+        echo "[ERROR] Missing GCC Info documentation" >&2
+        return 1
+    fi
+
+    install -Dm644 "$SRCDIR/COPYING3" \
+        "$pkgdir/usr/share/licenses/$NAME/COPYING3"
+    install -Dm644 "$SRCDIR/COPYING.RUNTIME" \
+        "$pkgdir/usr/share/licenses/$NAME/COPYING.RUNTIME"
+    install -Dm644 "$SRCDIR/COPYING.LIB" \
+        "$pkgdir/usr/share/licenses/$NAME/COPYING.LIB"
 }
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("e6738e29597f733270731aa90600f37ffdc045079dfc27ec7e8192cc81085c3e")

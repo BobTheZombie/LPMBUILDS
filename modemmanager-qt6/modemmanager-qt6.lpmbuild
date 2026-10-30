@@ -1,0 +1,102 @@
+#!/bin/bash
+# LPM Linux: KDE Frameworks 6 ModemManagerQt 6.31.0
+# Upstream release: https://download.kde.org/stable/frameworks/6.31/
+
+NAME="modemmanager-qt6"
+VERSION="6.31.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="KDE Frameworks 6 Qt interface to ModemManager's D-Bus API"
+URL="https://invent.kde.org/frameworks/modemmanager-qt"
+LICENSE=("LGPL-2.1-or-later")
+
+# KDE tarball uses the upstream name modemmanager-qt, not modemmanager-qt6.
+SOURCE=("https://download.kde.org/stable/frameworks/6.31/modemmanager-qt-${VERSION}.tar.xz")
+SHA256SUMS=("e816565ce4b915fa885a6b039e582a477e84bb01bca3229df5f1b79dfa01b810")
+PATCHES=()
+
+# ModemManager supplies the 'ModemManager.pc' pkg-config module and headers.
+# mbim-glib is an upstream dependency of ModemManager; do not substitute it.
+REQUIRES=(
+    "glibc"
+    "gcc-libs"
+    "qt6-base>=6.10.0"
+    "modemmanager"
+)
+BUILD_REQUIRES=(
+    "cmake"
+    "ninja"
+    "pkgconf"
+    "extra-cmake-modules>=6.31.0"
+    "qt6-base>=6.10.0"
+    "modemmanager"
+)
+PROVIDES=("modemmanager-qt" "modemmanager-qt6"  "libKF6ModemManagerQt.so.6")
+CONFLICTS=()
+OBSOLETES=()
+BUILD_OPTIONS=("@--stripping" "@--optimize=2")
+
+_modemmanager_qt_srcdir() {
+    local dir
+    for dir in \
+        "$SRCROOT/modemmanager-qt-${VERSION}" \
+        "$SRCROOT/${NAME}-${VERSION}"; do
+        if [[ -f "$dir/CMakeLists.txt" ]] && \
+           grep -q 'project(ModemManagerQt' "$dir/CMakeLists.txt"; then
+            printf '%s\n' "$dir"
+            return 0
+        fi
+    done
+    echo "[ERROR] Could not locate ModemManagerQt source in SRCROOT=$SRCROOT" >&2
+    return 1
+}
+
+prepare() {
+    set -euxo pipefail
+    local src
+    src="$(_modemmanager_qt_srcdir)"
+    # Clean a previous failed configure to avoid stale cached CMake options.
+    rm -rf "$src/build"
+}
+
+build() {
+    set -euxo pipefail
+    local src
+    src="$(_modemmanager_qt_srcdir)"
+
+    # KDE's FindModemManager.cmake explicitly queries 'ModemManager'.
+    pkg-config --atleast-version=1.0 ModemManager
+    pkg-config --modversion ModemManager
+
+    cmake -S "$src" -B "$src/build" -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DKDE_INSTALL_LIBDIR=lib \
+        -DKDE_INSTALL_USE_QT_SYS_PATHS=ON \
+        -DBUILD_SHARED_LIBS=ON \
+        -DBUILD_TESTING=OFF \
+        -DBUILD_EXAMPLES=OFF
+
+    cmake --build "$src/build" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+staging() {
+    set -euxo pipefail
+    local src
+    src="$(_modemmanager_qt_srcdir)"
+    test -n "${pkgdir:-}" && test "$pkgdir" != /
+
+    DESTDIR="$pkgdir" cmake --install "$src/build"
+
+    # Both the runtime library and the development CMake package are needed
+    # when building the rest of the Plasma / KDE stack.
+    test -f "$pkgdir/usr/lib/cmake/KF6ModemManagerQt/KF6ModemManagerQtConfig.cmake"
+    test -e "$pkgdir/usr/lib/libKF6ModemManagerQt.so.6"
+
+    if [[ -f "$src/LICENSES/LGPL-2.1-or-later.txt" ]]; then
+        install -Dm644 "$src/LICENSES/LGPL-2.1-or-later.txt" \
+            "$pkgdir/usr/share/licenses/$NAME/LGPL-2.1-or-later.txt"
+    elif [[ -f "$src/COPYING.LIB" ]]; then
+        install -Dm644 "$src/COPYING.LIB" "$pkgdir/usr/share/licenses/$NAME/COPYING.LIB"
+    fi
+}

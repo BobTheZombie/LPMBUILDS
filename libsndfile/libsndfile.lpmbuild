@@ -1,31 +1,132 @@
-# LPM build script for libsndfile
+#!/bin/bash
+# LPM Linux - libsndfile (adapted from Arch Linux pkgbuild, David Runge)
+# Preserve external FLAC/Ogg/Vorbis/MP3/Opus support, the CVE-2022-33065
+# backport, and a separate static build for the upstream test suite.
+# LPM additionally fixes the upstream ALAC bool enum for GCC 15+/C23.
+
 NAME="libsndfile"
 VERSION="1.2.2"
-RELEASE="1"
+RELEASE="5"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="C library for reading and writing files containing sampled sound"
+SUMMARY="A C library for reading and writing files containing sampled audio data"
 URL="https://libsndfile.github.io/libsndfile/"
-LICENSE="LGPL-2.1-or-later"
-SOURCE=("https://github.com/libsndfile/libsndfile/releases/download/${VERSION}/libsndfile-${VERSION}.tar.xz")
-CHECKSUMS=("3799ca9924d3125038880367bf1468e53a1b7e3686a934f098b7e1d286cdb80e")
-REQUIRES=("glibc" "libogg" "libvorbis" "flac")
-PROVIDES=("libsndfile")
+LICENSE=("LGPL-2.1-or-later")
+
+SOURCE=(
+    "https://github.com/libsndfile/libsndfile/releases/download/${VERSION}/libsndfile-${VERSION}.tar.xz"
+    "libsndfile-1.2.2-CVE-2022-33065.patch::https://github.com/libsndfile/libsndfile/commit/0754562e13d2e63a248a1c82f90b30bc0ffe307c.patch"
+)
+SHA256SUMS=(
+    "3799ca9924d3125038880367bf1468e53a1b7e3686a934f098b7e1d286cdb80e"
+    "f42720a0307a5d3785c2719729d0eeaa0f15e6fe1c3645f5028fef89a35d7bd2"
+)
+PATCHES=(
+    "libsndfile-1.2.2-CVE-2022-33065.patch::https://github.com/libsndfile/libsndfile/commit/0754562e13d2e63a248a1c82f90b30bc0ffe307c.patch"
+)
+
+REQUIRES=(
+    "glibc"
+    "flac"
+    "lame"
+    "libogg"
+    "libvorbis"
+    "mpg123"
+    "opus"
+)
+BUILD_REQUIRES=(
+    "alsa-lib"
+    "cmake"
+    "flac"
+    "lame"
+    "libogg"
+    "libvorbis"
+    "mpg123"
+    "ninja"
+    "opus"
+    "pkgconf"
+    "python"
+    "sqlite"
+)
+PROVIDES=("libsndfile.so" "libsndfile.so.1")
 CONFLICTS=()
 OBSOLETES=()
 RECOMMENDS=()
-SUGGESTS=()
+SUGGESTS=("alsa-lib")
 
-prepare() { set -euxo pipefail; cd "$SRCROOT"; }
+prepare() {
+    set -euxo pipefail
+    local src="$SRCROOT/$NAME-$VERSION"
+    test -f "$src/CMakeLists.txt"
+
+    # LPM automatically applies the declared CVE patch before prepare().
+    # The vendored ALAC sources define enum members 'false' and 'true'.
+    # Those are reserved under C23. Replace the private enum with stdbool.
+    local f
+    for f in "$src/src/ALAC/alac_decoder.c" "$src/src/ALAC/alac_encoder.c"; do
+        test -f "$f"
+        if grep -q '^typedef enum$' "$f"; then
+            grep -q '^} bool ;$' "$f"
+            sed -i '/^typedef enum$/,/^} bool ;$/d' "$f"
+        fi
+        if ! grep -q '^#include <stdbool.h>$' "$f"; then
+            sed -i '/^#include <stdlib.h>$/a #include <stdbool.h>' "$f"
+        fi
+        grep -q '^#include <stdbool.h>$' "$f"
+        if grep -q '^} bool ;$' "$f"; then
+            echo "ERROR: obsolete ALAC bool enum remains in $f" >&2
+            return 1
+        fi
+    done
+}
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr --sysconfdir=/etc --disable-static
-  make -j"$(nproc)"
+    set -euxo pipefail
+    local src="$SRCROOT/$NAME-$VERSION"
+    local jobs="${LPM_BUILD_JOBS:-$(nproc)}"
+    local common=(
+        -G Ninja
+        -DCMAKE_BUILD_TYPE=None
+        -DCMAKE_INSTALL_PREFIX=/usr
+        -DCMAKE_INSTALL_LIBDIR=lib
+        -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+        -DCMAKE_C_STANDARD=99
+        -DCMAKE_C_STANDARD_REQUIRED=ON
+        -DENABLE_EXTERNAL_LIBS=ON
+        -DENABLE_MPEG=ON
+    )
+
+    # Upstream 1.2.2 disables tests for shared-library builds. Use a
+    # separate, static test build just as the Arch recipe does.
+    cmake -S "$src" -B "$src/build-test" "${common[@]}" \
+        -DBUILD_SHARED_LIBS=OFF \
+        -DBUILD_TESTING=ON
+    cmake --build "$src/build-test" --parallel "$jobs"
+
+    # Runtime package: shared libsndfile + utilities and external codecs.
+    cmake -S "$src" -B "$src/build" "${common[@]}" \
+        -DBUILD_SHARED_LIBS=ON \
+        -DBUILD_TESTING=OFF \
+        -DBUILD_PROGRAMS=ON
+    cmake --build "$src/build" --parallel "$jobs"
+}
+
+check() {
+    set -euxo pipefail
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euxo pipefail
+    local src="$SRCROOT/$NAME-$VERSION"
+    DESTDIR="$pkgdir" cmake --install "$src/build"
+
+    local doc
+    for doc in AUTHORS ChangeLog README README.md; do
+        if [ -f "$src/$doc" ]; then
+            install -Dm644 "$src/$doc" "$pkgdir/usr/share/doc/$NAME/$doc"
+        fi
+    done
+
+    test -f "$pkgdir/usr/include/sndfile.h"
+    test -n "$(find "$pkgdir/usr/lib" -maxdepth 1 -name 'libsndfile.so*' -print -quit)"
+    test -f "$pkgdir/usr/lib/pkgconfig/sndfile.pc"
 }

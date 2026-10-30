@@ -1,0 +1,132 @@
+#!/bin/bash
+# LPM Linux: glslang / glslangValidator
+# Build against system-installed SPIRV-Tools; do not vendor dependencies.
+
+NAME="glslang"
+VERSION="16.6.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+
+SUMMARY="GLSL/ESSL shader compiler and validator with SPIR-V output"
+URL="https://github.com/KhronosGroup/glslang"
+LICENSE=("BSD-3-Clause" "BSD-2-Clause" "MIT" "Apache-2.0" "GPL-3.0-or-later")
+
+SOURCE=(
+    "https://github.com/KhronosGroup/glslang/archive/${VERSION}/glslang-${VERSION}.tar.gz"
+)
+
+# SHA-256 of the GitHub tag archive, published in FreeBSD's glslang distinfo.
+SHA256SUMS=(
+    "9c09b901149c729df745057dafa815278aaa101b84d2b6e14f16a42de52f97f2"
+)
+
+PATCHES=()
+
+REQUIRES=(
+    "glibc"
+    "gcc-libs"
+    "spirv-tools"
+)
+
+BUILD_REQUIRES=(
+    "cmake"
+    "ninja"
+    "python"
+    "spirv-headers"
+    "spirv-tools"
+    "gcc"
+)
+
+PROVIDES=(
+    "glslang"
+    "glslangValidator"
+    "glslang-validator"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() {
+    set -euxo pipefail
+
+    local srcdir="$SRCROOT/${NAME}-${VERSION}"
+    test -f "$srcdir/CMakeLists.txt"
+    test -f "$srcdir/LICENSE.txt"
+    test -f "$srcdir/StandAlone/CMakeLists.txt"
+
+    rm -rf "$srcdir/build"
+    mkdir -p "$srcdir/build"
+}
+
+build() {
+    set -euxo pipefail
+
+    local srcdir="$SRCROOT/${NAME}-${VERSION}"
+    local builddir="$srcdir/build"
+
+    cmake -S "$srcdir" -B "$builddir" -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DBUILD_SHARED_LIBS=ON \
+        -DBUILD_EXTERNAL=OFF \
+        -DALLOW_EXTERNAL_SPIRV_TOOLS=ON \
+        -DENABLE_SPIRV=ON \
+        -DENABLE_OPT=ON \
+        -DENABLE_GLSLANG_BINARIES=ON \
+        -DGLSLANG_ENABLE_INSTALL=ON \
+        -DGLSLANG_TESTS=OFF
+
+    cmake --build "$builddir" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+check() {
+    set -euxo pipefail
+
+    local builddir="$SRCROOT/${NAME}-${VERSION}/build"
+    local validator="$builddir/StandAlone/glslangValidator"
+    local shader="$builddir/lpm-smoke.vert"
+    local spv="$builddir/lpm-smoke.spv"
+
+    test -x "$validator"
+    "$validator" --version
+
+    cat > "$shader" <<'SHADER'
+#version 450
+layout(location = 0) in vec3 position;
+void main() {
+    gl_Position = vec4(position, 1.0);
+}
+SHADER
+
+    "$validator" -V "$shader" -o "$spv"
+    test -s "$spv"
+    spirv-val "$spv"
+}
+
+staging() {
+    set -euxo pipefail
+
+    local srcdir="$SRCROOT/${NAME}-${VERSION}"
+    local builddir="$srcdir/build"
+
+    DESTDIR="$pkgdir" cmake --install "$builddir"
+
+    # Upstream normally installs this symlink. Ensure it exists in the package.
+    if [[ ! -e "$pkgdir/usr/bin/glslangValidator" ]]; then
+        rm -f "$pkgdir/usr/bin/glslangValidator"
+        ln -s glslang "$pkgdir/usr/bin/glslangValidator"
+    fi
+
+    install -Dm644 "$srcdir/LICENSE.txt" \
+        "$pkgdir/usr/share/licenses/$NAME/LICENSE.txt"
+
+    test -x "$pkgdir/usr/bin/glslang"
+    test -x "$pkgdir/usr/bin/glslangValidator"
+    test -d "$pkgdir/usr/include/glslang"
+    test -d "$pkgdir/usr/lib/cmake/glslang"
+    test -e "$pkgdir/usr/lib/libglslang.so"
+    test -e "$pkgdir/usr/lib/libSPIRV.so"
+
+    echo "==> glslang ${VERSION}: glslangValidator and shared libraries staged"
+}

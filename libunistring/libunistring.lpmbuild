@@ -1,0 +1,41 @@
+NAME="libunistring"
+VERSION="1.4.2"
+RELEASE="1"
+ARCH="x86_64"
+SUMMARY="Library for manipulating Unicode strings"
+URL="https://www.gnu.org/software/libunistring/"
+SOURCE=("https://ftp.wayne.edu/gnu/libunistring/libunistring-${VERSION}.tar.xz")
+LICENSE=("GPL-2.0-or-later" "LGPL-3.0-or-later")
+
+REQUIRES=("glibc")
+PROVIDES=("libunistring")
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/libunistring-${VERSION}"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/libunistring-${VERSION}"
+    ./configure \
+        --prefix=/usr \
+        --libdir=/usr/lib \
+        --disable-static
+    make -j"$(nproc)"
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/libunistring-${VERSION}"
+    make DESTDIR="$pkgdir" install
+}
+
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("5b46e74377ed7409c5b75e7a96f95377b095623b689d8522620927964a41499c")

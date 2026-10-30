@@ -1,0 +1,43 @@
+#!/bin/bash
+NAME="ghc"
+VERSION="9.14.1"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="ghc upstream package"
+URL="https://downloads.haskell.org/~ghc/9.14.1/"
+LICENSE=("BSD-3-Clause")
+SOURCE=("https://downloads.haskell.org/~ghc/9.14.1/ghc-9.14.1-x86_64-deb12-linux.tar.xz")
+SHA256SUMS=("60f7ab75f28df892729fbaff3a54f58ee3ad7e731929f1b2f3eb0208f73de841")
+PATCHES=()
+REQUIRES=("gcc-libs" "glibc" "gmp" "libffi" "ncurses")
+BUILD_REQUIRES=("gcc" "gmp" "libffi" "make" "ncurses")
+PROVIDES=("ghc" "ghc-libs")
+CONFLICTS=()
+OBSOLETES=()
+BUILD_OPTIONS=("@--stripping" "@--optimize=2")
+prepare() { set -euxo pipefail; cd "$SRCROOT/${NAME}-${VERSION}"; }
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    ./configure --prefix=/usr
+    make -j"${LPM_BUILD_JOBS:-$(nproc)}"
+}
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    make DESTDIR="$pkgdir" install
+    local f
+    for f in COPYING COPYING.LIB LICENSE LICENSE.md LICENSE.txt; do
+        if [ -f "$f" ]; then install -Dm644 "$f" "$pkgdir/usr/share/licenses/$NAME/$f"; fi
+    done
+    if [ -d LICENSES ]; then
+        install -dm755 "$pkgdir/usr/share/licenses/$NAME"
+        cp -a LICENSES/. "$pkgdir/usr/share/licenses/$NAME/"
+    fi
+}
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("60f7ab75f28df892729fbaff3a54f58ee3ad7e731929f1b2f3eb0208f73de841")

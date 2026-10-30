@@ -1,0 +1,66 @@
+#!/bin/bash
+# LPM source recipe - staged installation only; review build features before use.
+NAME="udisks2"
+VERSION="2.11.2"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="D-Bus storage management daemon, libraries and udisksctl"
+URL="https://github.com/storaged-project/udisks"
+LICENSE=("GPL-2.0-or-later")
+SOURCE=("https://github.com/storaged-project/udisks/archive/refs/tags/udisks-${VERSION}.tar.gz")
+SHA256SUMS=("SKIP")
+PATCHES=()
+REQUIRES=(
+    "glib2"
+    "libgudev"
+    "polkit"
+    "libblockdev"
+    "util-linux"
+    "systemd-libs"
+)
+BUILD_REQUIRES=(
+    "autoconf"
+    "automake"
+    "libtool"
+    "pkgconf"
+    "gcc"
+    "make"
+    "gettext"
+)
+PROVIDES=("udisks2")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+_srcdir() {
+    local d="$SRCROOT/udisks-udisks-${VERSION}"
+    test -d "$d" || { printf 'Expected source directory not found: %s\n' "$d" >&2; return 1; }
+    printf '%s\n' "$d"
+}
+
+prepare() {
+    set -euo pipefail
+    test -d "$(_srcdir)"
+}
+
+build() {
+    set -euo pipefail
+    local src
+    src="$(_srcdir)"
+    cd "$src"
+    NOCONFIGURE=1 ./autogen.sh
+    ./configure --prefix=/usr --libdir=/usr/lib --libexecdir=/usr/lib/udisks2 \
+        --sysconfdir=/etc --localstatedir=/var --disable-man \
+        --with-systemdsystemunitdir=/usr/lib/systemd/system \
+        --with-udevdir=/usr/lib/udev
+    make -j"${LPM_BUILD_JOBS:-4}"
+}
+
+staging() {
+    set -euo pipefail
+    local src
+    src="$(_srcdir)"
+    make -C "$src" DESTDIR="$pkgdir" install
+    test -x "$pkgdir/usr/bin/udisksctl"
+}

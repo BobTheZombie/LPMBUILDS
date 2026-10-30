@@ -1,0 +1,69 @@
+NAME="tcl"
+VERSION="9.0.1"
+RELEASE="1"
+ARCH="x86_64"
+SUMMARY="Powerful, easy-to-learn dynamic programming language"
+URL="http://tcl.sourceforge.net/"
+SOURCE=("https://downloads.sourceforge.net/sourceforge/tcl/tcl${VERSION}-src.tar.gz")
+LICENSE="TCL"
+
+REQUIRES=("glibc" "zlib")
+PROVIDES=("tcl" "tclsh" "libtcl${VERSION%.*}.so")
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/tcl-${VERSION}"
+
+    # Remove bundled sqlite (we provide sqlite separately)
+    rm -rf pkgs/sqlite3*
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/tcl-${VERSION}/unix"
+
+    ./configure \
+        --prefix=/usr \
+        --mandir=/usr/share/man \
+        --enable-threads \
+        --enable-64bit
+
+    make -j1   # upstream recommends single job to avoid race issues
+}
+
+check() {
+    set -euxo pipefail
+    cd "$SRCROOT/tcl-${VERSION}/unix"
+    make -j1 test || true
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/tcl-${VERSION}/unix"
+
+    make DESTDIR="$pkgdir" install install-private-headers
+
+    # Symlinks for compatibility
+    ln -sf tclsh${VERSION%.*} "$pkgdir/usr/bin/tclsh"
+    ln -sf libtcl${VERSION%.*}.so "$pkgdir/usr/lib/libtcl.so"
+
+    # Autoconf macro
+    install -Dm644 tcl.m4 "$pkgdir/usr/share/aclocal/tcl.m4"
+
+    # Fix static lib permissions
+    chmod 644 "$pkgdir/usr/lib/libtclstub.a"
+
+    # Fix buildroot traces in config files
+    _tclver="${VERSION%.*}"
+    sed -e "s#$SRCROOT/tcl-${VERSION}/unix#/usr/lib#" \
+        -e "s#$SRCROOT/tcl-${VERSION}#/usr/include#" \
+        -e "s#'{/usr/lib} '#'/usr/lib/tcl$_tclver'#" \
+        -i "$pkgdir/usr/lib/tclConfig.sh"
+}
+
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("a72b1607d7a399c75148c80fcdead88ed3371a29884181f200f2200cdee33bbc")

@@ -1,0 +1,74 @@
+#!/bin/bash
+# LPM networking stack, release snapshot 2026-10-16
+NAME="ethtool"
+VERSION="7.2"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY='Ethernet hardware diagnostics and configuration'
+URL=https://www.kernel.org/pub/software/network/ethtool/ethtool-7.1.tar.xz
+LICENSE=(GPL-2.0-or-later)
+SOURCE=(https://www.kernel.org/pub/software/network/ethtool/ethtool-7.2.tar.xz)
+SHA256SUMS=(
+    "44256ddf4631ed08d816b7b8725f4b2e0f05e96b8c7ca64ee5c81449da2b6507"
+)
+PATCHES=()
+REQUIRES=(glibc libmnl)
+BUILD_REQUIRES=(gcc make pkgconf glibc libmnl)
+PROVIDES=(ethtool ethtool)
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+BUILD_OPTIONS=(@--stripping @--optimize=2)
+
+_source() {
+    if [ ! -d "$SRCROOT/${NAME}-${VERSION}" ] && [ -d "$SRCROOT/ethtool-7.1" ]; then
+        mv "$SRCROOT/ethtool-7.1" "$SRCROOT/${NAME}-${VERSION}"
+    fi
+}
+
+_licenses() {
+    local f
+    for f in COPYING COPYING.LIB LICENSE LICENSE.txt LICENCE README; do
+        if [ -f "$f" ]; then
+            install -Dm644 "$f" "$pkgdir/usr/share/licenses/$NAME/$(basename "$f")"
+        fi
+    done
+}
+_cleanup() {
+    if [ -d "$pkgdir/usr/lib" ]; then
+        find "$pkgdir/usr/lib" -type f \( -name '*.a' -o -name '*.la' \) -delete
+    fi
+    rm -f "$pkgdir/usr/share/info/dir"
+}
+
+prepare() {
+    set -euxo pipefail
+    _source
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    if [ -f Makefile ]; then make distclean; fi
+    :
+    test -x configure
+}
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    ./configure --prefix=/usr --libdir=/usr/lib --sbindir=/usr/bin \
+        --sysconfdir=/etc --localstatedir=/var 
+    make -j"${LPM_BUILD_JOBS:-$(nproc)}"
+}
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    make -j1 DESTDIR="$pkgdir" install
+    _cleanup
+    :
+    _licenses
+}
+
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("44256ddf4631ed08d816b7b8725f4b2e0f05e96b8c7ca64ee5c81449da2b6507")

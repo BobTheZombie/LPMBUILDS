@@ -1,41 +1,384 @@
+#!/bin/bash
 # LPM build script for glibc
+
 NAME="glibc"
-VERSION="2.40"
-RELEASE="1"
+VERSION="2.44"
+RELEASE="4"
 ARCH="${ARCH:-x86_64}"
+
 SUMMARY="GNU C Library"
 URL="https://www.gnu.org/software/libc/"
-LICENSE=""
-SOURCE=()
-REQUIRES=("filesystem")
-PROVIDES=("glibc")
+LICENSE=(
+    "LGPL-2.1-or-later"
+    "GPL-2.0-or-later"
+)
+
+SOURCE=(
+    "https://ftp.wayne.edu/gnu/glibc/glibc-${VERSION}.tar.xz"
+    "https://www.linuxfromscratch.org/patches/lfs/13.1/glibc-${VERSION}-upstream_fixes-1.patch"
+    "https://www.linuxfromscratch.org/patches/lfs/13.1/glibc-fhs-1.patch"
+
+    "https://gitlab.archlinux.org/archlinux/packaging/packages/glibc/-/raw/main/locale-gen"
+    "https://gitlab.archlinux.org/archlinux/packaging/packages/glibc/-/raw/main/locale.gen.txt"
+    "https://gitlab.archlinux.org/archlinux/packaging/packages/glibc/-/raw/main/10-glibc-locale-gen.hook"
+    "https://gitlab.archlinux.org/archlinux/packaging/packages/glibc/-/raw/main/10-glibc-remove-locale-archive.hook"
+    "https://gitlab.archlinux.org/archlinux/packaging/packages/glibc/-/raw/main/11-glibc-ldconfig.hook"
+    "https://gitlab.archlinux.org/archlinux/packaging/packages/glibc/-/raw/main/11-glibc-remove-ldconfig-cache.hook"
+    "https://gitlab.archlinux.org/archlinux/packaging/packages/glibc/-/raw/main/12-glibc-iconvconfig.hook"
+    "https://gitlab.archlinux.org/archlinux/packaging/packages/glibc/-/raw/main/12-glibc-remove-iconvconfig-cache.hook"
+)
+
+SHA256SUMS=(
+    "SKIP"
+    "SKIP"
+    "SKIP"
+    "SKIP"
+    "SKIP"
+    "SKIP"
+    "SKIP"
+    "SKIP"
+    "SKIP"
+    "SKIP"
+    "SKIP"
+)
+
+PATCHES=(
+    "glibc-fhs-1.patch"
+    "glibc-${VERSION}-upstream_fixes-1.patch"
+)
+
+REQUIRES=(
+)
+
+BUILD_REQUIRES=(
+)
+
+PROVIDES=(
+    "glibc"
+    "libc"
+    "libc.so"
+    "libc.so.6"
+    "libm.so.6"
+    "libpthread.so.0"
+    "ld-linux-x86-64.so.2"
+)
+
 CONFLICTS=()
 OBSOLETES=()
 RECOMMENDS=()
 SUGGESTS=()
 
+#
+# Glibc must not be built with LTO.
+#
+
+BUILD_OPTIONS=(
+    "@--optimize=2"
+)
+
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  mkdir -p build
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    BUILDDIR="$SRCDIR/build"
+
+    test -f "$SRCDIR/configure"
+    test -f "$SRCDIR/Makeconfig"
+    test -f "$SRCDIR/localedata/SUPPORTED"
+    test -f /usr/include/linux/version.h
+
+    test -f "$SRCROOT/locale-gen"
+    test -f "$SRCROOT/locale.gen.txt"
+
+    for HOOK in \
+        10-glibc-locale-gen.hook \
+        10-glibc-remove-locale-archive.hook \
+        11-glibc-ldconfig.hook \
+        11-glibc-remove-ldconfig-cache.hook \
+        12-glibc-iconvconfig.hook \
+        12-glibc-remove-iconvconfig-cache.hook
+    do
+        test -f "$SRCROOT/$HOOK"
+    done
+
+    rm -rf "$BUILDDIR"
+    mkdir -p "$BUILDDIR"
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  cd build
-  ../configure --prefix=/usr \
-  --libdir=/usr/lib \
-  --enable-kernel=3.2 \
-  --enable-stack-protector=strong \
-  --with-headers=/usr/include \
-  --enable-systemtap
-  make -j"$(nproc)"
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    BUILDDIR="$SRCDIR/build"
+
+    cd "$BUILDDIR"
+
+    #
+    # Install root administration utilities into /usr/bin when respected by
+    # upstream. Some utilities, notably iconvconfig, may still use /usr/sbin;
+    # staging detects their actual installed locations.
+    #
+
+    printf '%s\n' \
+        'rootsbindir=/usr/bin' \
+        > configparms
+
+    ../configure \
+        --prefix=/usr \
+        --libdir=/usr/lib \
+        --libexecdir=/usr/lib \
+        --with-headers=/usr/include \
+        --enable-kernel=4.19 \
+        --enable-stack-protector=strong \
+        --enable-bind-now \
+        --enable-fortify-source \
+        --disable-werror \
+        --disable-nscd \
+        libc_cv_slibdir=/usr/lib
+
+    make -j"$(nproc)"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  cd build
-  make DESTDIR="$pkgdir" install
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    BUILDDIR="$SRCDIR/build"
+
+    install -dm755 \
+        "$pkgdir/etc" \
+        "$pkgdir/usr/lib"
+
+    #
+    # Glibc's installation expects this file to exist. The filesystem package
+    # owns the real system copy, so remove it from the payload afterward.
+    #
+
+    touch "$pkgdir/etc/ld.so.conf"
+
+    make \
+        -C "$BUILDDIR" \
+        install_root="$pkgdir" \
+        install
+
+    rm -f \
+        "$pkgdir/etc/ld.so.conf" \
+        "$pkgdir/etc/nsswitch.conf"
+
+    find "$pkgdir/usr/lib" \
+        -type f \
+        -name '*.la' \
+        -delete
+
+    #
+    # Install locale-gen and construct /etc/locale.gen.
+    #
+
+    install -Dm755 \
+        "$SRCROOT/locale-gen" \
+        "$pkgdir/usr/bin/locale-gen"
+
+    install -Dm644 \
+        "$SRCROOT/locale.gen.txt" \
+        "$pkgdir/etc/locale.gen"
+
+    sed \
+        -e '1,3d' \
+        -e 's|/| |g' \
+        -e 's|\\| |g' \
+        -e 's|^|#|' \
+        "$SRCDIR/localedata/SUPPORTED" \
+        >> "$pkgdir/etc/locale.gen"
+
+    #
+    # Install glibc's normalized supported-locale list.
+    #
+
+    install -dm755 \
+        "$pkgdir/usr/share/i18n"
+
+    sed \
+        -e '1,3d' \
+        -e 's|/| |g' \
+        -e 's| \\||g' \
+        "$SRCDIR/localedata/SUPPORTED" \
+        > "$pkgdir/usr/share/i18n/SUPPORTED"
+
+    #
+    # C.UTF-8 is built into current glibc and should not be generated into the
+    # locale archive.
+    #
+
+    sed -i \
+        '/^[#[:space:]]*C\.UTF-8[[:space:]]/d' \
+        "$pkgdir/etc/locale.gen"
+
+    #
+    # Install ALPM-compatible transaction hooks in LPM's liblpm hook
+    # directory.
+    #
+
+    install -dm755 \
+        "$pkgdir/usr/share/liblpm/hooks"
+
+    for HOOK in \
+        10-glibc-locale-gen.hook \
+        10-glibc-remove-locale-archive.hook \
+        11-glibc-ldconfig.hook \
+        11-glibc-remove-ldconfig-cache.hook \
+        12-glibc-iconvconfig.hook \
+        12-glibc-remove-iconvconfig-cache.hook
+    do
+        install -m644 \
+            "$SRCROOT/$HOOK" \
+            "$pkgdir/usr/share/liblpm/hooks/$HOOK"
+    done
+
+    #
+    # Locate administration utilities. Upstream does not consistently honor
+    # rootsbindir for every program.
+    #
+
+    ICONVCONFIG="$(
+        find "$pkgdir/usr" \
+            -type f \
+            -name iconvconfig \
+            -perm -111 \
+            -print \
+            -quit
+    )"
+
+    LDCONFIG="$(
+        find "$pkgdir/usr" \
+            -type f \
+            -name ldconfig \
+            -perm -111 \
+            -print \
+            -quit
+    )"
+
+    if [ -z "$ICONVCONFIG" ] || [ ! -x "$ICONVCONFIG" ]; then
+        echo "[ERROR] Missing glibc utility: iconvconfig" >&2
+        return 1
+    fi
+
+    if [ -z "$LDCONFIG" ] || [ ! -x "$LDCONFIG" ]; then
+        echo "[ERROR] Missing glibc utility: ldconfig" >&2
+        return 1
+    fi
+
+    ICONVCONFIG_PATH="${ICONVCONFIG#"$pkgdir"}"
+    LDCONFIG_PATH="${LDCONFIG#"$pkgdir"}"
+
+    echo "[OK] Found iconvconfig at $ICONVCONFIG_PATH"
+    echo "[OK] Found ldconfig at $LDCONFIG_PATH"
+
+    #
+    # Adjust the imported Arch hooks to use the actual paths installed by this
+    # glibc build.
+    #
+
+    sed -i \
+        -e "s|/usr/bin/iconvconfig|$ICONVCONFIG_PATH|g" \
+        -e "s|/usr/sbin/iconvconfig|$ICONVCONFIG_PATH|g" \
+        "$pkgdir/usr/share/liblpm/hooks/"*iconvconfig*.hook
+
+    sed -i \
+        -e "s|/usr/bin/ldconfig|$LDCONFIG_PATH|g" \
+        -e "s|/usr/sbin/ldconfig|$LDCONFIG_PATH|g" \
+        "$pkgdir/usr/share/liblpm/hooks/"*ldconfig*.hook
+
+    #
+    # Validate the dynamic loader and core libraries.
+    #
+
+    test -e "$pkgdir/usr/lib/ld-linux-x86-64.so.2"
+    test -e "$pkgdir/usr/lib/libc.so.6"
+    test -f "$pkgdir/usr/lib/libc.so"
+    test -e "$pkgdir/usr/lib/libm.so.6"
+    test -e "$pkgdir/usr/lib/libpthread.so.0"
+
+    #
+    # Validate regular user utilities.
+    #
+
+    for PROGRAM in \
+        getconf \
+        iconv \
+        ldd \
+        locale \
+        localedef \
+        locale-gen
+    do
+        if [ ! -x "$pkgdir/usr/bin/$PROGRAM" ]; then
+            echo "[ERROR] Missing glibc utility: /usr/bin/$PROGRAM" >&2
+            return 1
+        fi
+    done
+
+    test -x "$ICONVCONFIG"
+    test -x "$LDCONFIG"
+
+    #
+    # Validate development headers.
+    #
+
+    test -f "$pkgdir/usr/include/stdio.h"
+    test -f "$pkgdir/usr/include/stdlib.h"
+    test -f "$pkgdir/usr/include/string.h"
+    test -f "$pkgdir/usr/include/pthread.h"
+
+    #
+    # Verify the staged ABI.
+    #
+    # Do not use grep -q in a pipeline under pipefail. grep -q exits after
+    # finding a match, causing readelf to receive SIGPIPE and return 141.
+    #
+
+    readelf -h "$pkgdir/usr/lib/libc.so.6" |
+        grep -F 'ELF64' >/dev/null
+
+    readelf -Ws "$pkgdir/usr/lib/libc.so.6" |
+        grep -E '[[:space:]](__libc_start_main|malloc)@@' >/dev/null
+
+    readelf -l "$pkgdir/usr/bin/locale" |
+        grep -F '/usr/lib/ld-linux-x86-64.so.2' >/dev/null
+
+    #
+    # Validate locale configuration and transaction hooks.
+    #
+
+    test -s "$pkgdir/etc/locale.gen"
+    test -s "$pkgdir/usr/share/i18n/SUPPORTED"
+
+    for HOOK in \
+        10-glibc-locale-gen.hook \
+        10-glibc-remove-locale-archive.hook \
+        11-glibc-ldconfig.hook \
+        11-glibc-remove-ldconfig-cache.hook \
+        12-glibc-iconvconfig.hook \
+        12-glibc-remove-iconvconfig-cache.hook
+    do
+        test -f "$pkgdir/usr/share/liblpm/hooks/$HOOK"
+    done
+
+    #
+    # Ensure hooks no longer reference nonexistent utility paths.
+    #
+
+    if grep -R \
+        -E 'Exec[[:space:]]*=[[:space:]]*/usr/(s)?bin/iconvconfig' \
+        "$pkgdir/usr/share/liblpm/hooks/"*iconvconfig*.hook |
+        grep -v -F "$ICONVCONFIG_PATH"
+    then
+        echo "[ERROR] iconvconfig hook contains an invalid Exec path" >&2
+        return 1
+    fi
+
 }
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("37f600f2bef3c5e8300147059568b2a2e40a7ad6ccc65ce942556d49429cc667" "500567ff0a22e295bfe3b55e9b397796f71a19f01e1ff7fb29c9189482ee1809" "643552db030e2f2d7ffde4f558e0f5f83d3fabf34a2e0e56ebdb49750ac27b0d" "6932c404fcba3e6ded66a459201b6f8eb94c964fd27ea9e0fcafd0433dcc34a8" "2a7dd6c906b6c54a68f48a21898664a32fdb136cbd9ff7bfd48f01d1aaa649ae" "a0685f238eccdd9029b5f98683c424c45f8c7c2b606517b235a8bdae3eb73232" "68d1c2d20399142c1cbc8bde8f055ddef976ad7840cbf9273703270587f8a4d0" "fdf2879654541a1ad006703f4ff5524e0f61b4d2c05e5de93ddd8484c56b15fc" "8d9688181613c6bedf483f7113b7f324d527ec8d095ef2333ab01963530ab850" "03fbbf6f4c5ba419a9fd3a00a64e8905507955ced571dc0e2058fc17c6aec5e4" "df1c2648974875e1b67a02aa5c1caee3094d10001144d312a7c5494068492019")

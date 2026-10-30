@@ -1,0 +1,65 @@
+NAME="grub"
+VERSION="2.14"
+RELEASE="1"
+ARCH="x86_64"
+SUMMARY="GNU GRUB bootloader with BIOS and UEFI support"
+URL="https://www.gnu.org/software/grub/"
+SOURCE=("https://ftp.wayne.edu/gnu/grub/grub-${VERSION}.tar.xz")
+LICENSE=("GPL-3.0-or-later")
+
+REQUIRES=(
+  "glibc"
+  "efibootmgr"
+  "gettext"
+  "xz"
+  "bzip2"
+  "freetype"
+  "lvm2"
+  "device-mapper"
+)
+PROVIDES=("grub" "grub-install" "grub-mkconfig")
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/grub-${VERSION}"
+    echo depends bli part_gpt > grub-core/extra_deps.lst
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/grub-${VERSION}"
+
+    ./configure \
+       --prefix=/usr \
+       --sysconfdir=/etc \
+       --libdir=/usr/lib \
+       --mandir=/usr/share/man \
+       --disable-werror \
+       --disable-efiemu \
+       --enable-grub-mkfont \
+       --enable-device-mapper \
+       --enable-boot-time \
+       --with-platform=efi \
+       --target=x86_64
+    CFLAGS+="-march=x86-64"
+    # Parallel build with fallback
+    make -j"$(nproc)" || make -j1
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/grub-${VERSION}"
+
+    make DESTDIR="$pkgdir" install
+
+    # Cleanup stray build files
+    find "$pkgdir" -name "*.la" -delete || true
+    find "$pkgdir" -type f -name "*.pyc" -delete || true
+}
+
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("bc8d3c73535b8838d8c8e2654d73edc4e6ae8c8acdb45d5df5dc9a1547446d43")

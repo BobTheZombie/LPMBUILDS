@@ -1,34 +1,100 @@
-# LPM build script for util-linux
+#!/bin/bash
 NAME="util-linux"
-VERSION="2.40"
+VERSION="2.42.4"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Miscellaneous system utilities"
-URL="https://github.com/util-linux/util-linux"
-LICENSE=""
-SOURCE=()
-REQUIRES=("glibc")
+SUMMARY="Linux system utilities with staged PAM and systemd integration"
+URL="https://www.kernel.org/pub/linux/utils/util-linux/"
+LICENSE=("GPL-2.0-or-later")
+SOURCE=("https://www.kernel.org/pub/linux/utils/util-linux/v${VERSION%.*}/util-linux-${VERSION}.tar.xz")
+SHA256SUMS=("fbd62a100ab7bb8746ba0661255c3c48185b1e9021507c624da01fbc696330ec")
+SOURCE+=("login.pam")
+SHA256SUMS+=("75f258fdc9a6f4e751821d4e8d55b9f9fa1ecb63ad0dc46d4e08e37f4c52e3aa")
+SOURCE+=("su.pam")
+SHA256SUMS+=("5c3c7ff00641d570fff02a63829e9f2b93b13f6965612b2f3dad57abe49d688b")
+SOURCE+=("su-l.pam")
+SHA256SUMS+=("5c3c7ff00641d570fff02a63829e9f2b93b13f6965612b2f3dad57abe49d688b")
+SOURCE+=("runuser.pam")
+SHA256SUMS+=("2aad646e387d2b971dad3ec9941d7ddccbc1b6a96ab80dc7c5d035c75a742a94")
+SOURCE+=("runuser-l.pam")
+SHA256SUMS+=("2aad646e387d2b971dad3ec9941d7ddccbc1b6a96ab80dc7c5d035c75a742a94")
+SOURCE+=("chfn.pam")
+SHA256SUMS+=("75f258fdc9a6f4e751821d4e8d55b9f9fa1ecb63ad0dc46d4e08e37f4c52e3aa")
+SOURCE+=("chsh.pam")
+SHA256SUMS+=("75f258fdc9a6f4e751821d4e8d55b9f9fa1ecb63ad0dc46d4e08e37f4c52e3aa")
+PATCHES=()
+REQUIRES=("glibc" "util-linux-libs" "ncurses" "readline" "libcap-ng" "libxcrypt" "zlib" "sqlite")
+BUILD_REQUIRES=("gcc" "make" "pkgconf" "util-linux-libs" "ncurses" "readline" "libcap-ng" "libxcrypt" "zlib" "sqlite")
 PROVIDES=("util-linux")
+STAGE_2_REQUIRES=("systemd" "pam" "audit")
+STAGE_2_BUILD_REQUIRES=("util-linux-libs" "pam" "audit")
 CONFLICTS=()
 OBSOLETES=()
 RECOMMENDS=()
 SUGGESTS=()
-
+BUILD_OPTIONS=("@--stripping" "@--optimize=2")
+if [ "${LPM_BUILD_STAGE:-1}" = 2 ]; then
+    REQUIRES+=("pam" "audit" "systemd" "python")
+    BUILD_REQUIRES+=("pam" "audit" "systemd" "python")
+fi
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    test -x configure
+    rm -rf build
+    mkdir build
 }
-
-build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+_build_util() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    local -a integration=(--without-systemd --without-udev --without-audit \
+        --disable-libmount-udev-support --disable-login --disable-su \
+        --disable-runuser --disable-chfn-chsh --disable-pam-lastlog2 \
+        --disable-pylibmount --without-python)
+    if [ "$1" = 2 ]; then
+        integration=(--with-systemd --with-udev --with-audit --enable-login \
+            --enable-su --enable-runuser --enable-chfn-chsh --enable-pam-lastlog2 \
+            --enable-pylibmount --with-python=3)
+    fi
+    cd build
+    ../configure --prefix=/usr --bindir=/usr/bin --sbindir=/usr/bin --libdir=/usr/lib \
+        --sysconfdir=/etc --localstatedir=/var --runstatedir=/run \
+        --disable-static --disable-asciidoc --disable-bash-completion \
+        --disable-makeinstall-chown --disable-chfn-chsh-password \
+        --without-selinux --without-econf --with-ncursesw \
+        --with-systemdsystemunitdir=/usr/lib/systemd/system \
+        --with-sysusersdir=/usr/lib/sysusers.d --with-tmpfilesdir=/usr/lib/tmpfiles.d \
+        "${integration[@]}"
+    make -j"$(nproc)"
 }
-
+build() { _build_util 1; }
+build_stage2() { _build_util 2; }
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    make -C build DESTDIR="$pkgdir" install
+    # Libraries are owned by the independent util-linux-libs package.
+    find "$pkgdir/usr/lib" -maxdepth 1 \( -type f -o -type l \) -name 'lib*.so*' -delete
+    rm -rf "$pkgdir/usr/include" "$pkgdir/usr/lib/pkgconfig" "$pkgdir/usr/share/man/man3"
+    find "$pkgdir/usr/lib" -type f \( -name '*.a' -o -name '*.la' \) -delete
+    local program
+    for program in mount umount lsblk blkid fdisk findmnt; do test -x "$pkgdir/usr/bin/$program"; done
+    if [ "${LPM_BUILD_STAGE:-1}" = 2 ]; then
+        install -dm755 "$pkgdir/etc/pam.d"
+        for program in login su su-l runuser runuser-l chfn chsh; do
+            install -m644 "$SRCROOT/$program.pam" "$pkgdir/etc/pam.d/$program"
+        done
+        test -x "$pkgdir/usr/bin/login"
+        test -x "$pkgdir/usr/bin/su"
+        test -x "$pkgdir/usr/bin/runuser"
+        # Upstream install assigns setuid permissions; never silently ignore missing helpers.
+        chmod 4755 "$pkgdir/usr/bin/su" "$pkgdir/usr/bin/chfn" "$pkgdir/usr/bin/chsh"
+    fi
+    install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
 }
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("fbd62a100ab7bb8746ba0661255c3c48185b1e9021507c624da01fbc696330ec" "75f258fdc9a6f4e751821d4e8d55b9f9fa1ecb63ad0dc46d4e08e37f4c52e3aa" "5c3c7ff00641d570fff02a63829e9f2b93b13f6965612b2f3dad57abe49d688b" "5c3c7ff00641d570fff02a63829e9f2b93b13f6965612b2f3dad57abe49d688b" "2aad646e387d2b971dad3ec9941d7ddccbc1b6a96ab80dc7c5d035c75a742a94" "2aad646e387d2b971dad3ec9941d7ddccbc1b6a96ab80dc7c5d035c75a742a94" "75f258fdc9a6f4e751821d4e8d55b9f9fa1ecb63ad0dc46d4e08e37f4c52e3aa" "75f258fdc9a6f4e751821d4e8d55b9f9fa1ecb63ad0dc46d4e08e37f4c52e3aa")

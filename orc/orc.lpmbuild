@@ -1,0 +1,83 @@
+#!/bin/bash
+# LPM Linux standalone build recipe for orc 0.4.44
+# GStreamer coordinated stable series 1.28.8; Orc is versioned separately.
+NAME="orc"
+VERSION="0.4.44"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Optimized Inner Loop Runtime Compiler and SIMD library"
+URL="https://gstreamer.freedesktop.org/"
+LICENSE=("BSD-2-Clause")
+SOURCE=("https://gstreamer.freedesktop.org/src/${NAME}/${NAME}-${VERSION}.tar.xz")
+SHA256SUMS=("4aeb97aea2b58224029dc2b23d7d064cfa990cb4fb8c4da440bcbe9c95bc5d2d")
+PATCHES=()
+REQUIRES=(
+    "glibc"
+)
+BUILD_REQUIRES=(
+    "meson"
+    "ninja"
+    "pkgconf"
+    "python"
+)
+PROVIDES=("${NAME}")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+BUILD_OPTIONS=("@--stripping" "@--optimize=2")
+
+_gst_srcdir() {
+    local candidate
+    for candidate in         "$SRCROOT/${NAME}-${VERSION}"         "$SRCROOT/${NAME}"         "$SRCROOT"; do
+        if [[ -f "$candidate/meson.build" ]]; then
+            printf '%s\n' "$candidate"
+            return 0
+        fi
+    done
+    echo "[ERROR] Cannot locate extracted $NAME $VERSION source in $SRCROOT" >&2
+    return 1
+}
+
+prepare() {
+    set -euxo pipefail
+    local srcdir
+    srcdir="$(_gst_srcdir)"
+    rm -rf "$srcdir/build"
+}
+
+build() {
+    set -euxo pipefail
+    local srcdir
+    srcdir="$(_gst_srcdir)"
+    meson setup "$srcdir/build" "$srcdir" \
+        --prefix=/usr \
+        --libdir=lib \
+        --buildtype=release \
+        --wrap-mode=nodownload \
+        -Ddefault_library=shared
+    meson compile -C "$srcdir/build" -j "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+check() {
+    # Runtime tests are not run against the packaging host; stage checks follow.
+    set -euxo pipefail
+    local srcdir
+    srcdir="$(_gst_srcdir)"
+    test -f "$srcdir/build/build.ninja"
+}
+
+staging() {
+    set -euxo pipefail
+    local srcdir
+    srcdir="$(_gst_srcdir)"
+    DESTDIR="$pkgdir" meson install -C "$srcdir/build" --no-rebuild
+    test -e "$pkgdir/usr/lib/pkgconfig/orc-0.4.pc" || { echo "[ERROR] Missing staged file: /usr/lib/pkgconfig/orc-0.4.pc" >&2; return 1; }
+    test -n "$(find "$pkgdir/usr/lib" -name "liborc-0.4.so*" -print -quit)"
+
+    if [[ -f "$srcdir/COPYING" ]]; then
+        install -Dm644 "$srcdir/COPYING" \
+            "$pkgdir/usr/share/licenses/$NAME/COPYING"
+    fi
+    echo "[OK] $NAME $VERSION staged"
+}

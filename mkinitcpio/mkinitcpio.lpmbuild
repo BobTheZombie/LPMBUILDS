@@ -1,0 +1,150 @@
+#!/bin/bash
+# LPM build script for mkinitcpio
+
+NAME="mkinitcpio"
+VERSION="42.2"
+RELEASE="2"
+ARCH="noarch"
+
+SUMMARY="Modular initramfs image creation utility"
+URL="https://gitlab.archlinux.org/archlinux/mkinitcpio/mkinitcpio"
+LICENSE=("GPL-2.0-only")
+
+SOURCE=(
+    "https://github.com/archlinux/mkinitcpio/archive/refs/tags/v${VERSION}.tar.gz"
+    "mkinitcpio.conf"
+)
+
+SHA256SUMS=(
+    "0b79a89f9bf768f7413c55f8f09d9ec0efd77e312811935fe6a6ef06aadf3e0b"
+    "SKIP"
+)
+
+PATCHES=()
+
+REQUIRES=(
+    "bash"
+    "binutils"
+    "busybox-static"
+    "coreutils"
+    "findutils"
+    "gawk"
+    "grep"
+    "kmod"
+    "libarchive"
+    "pigz"
+    "sed"
+    "systemd"
+    "util-linux"
+    "zstd"
+)
+
+BUILD_REQUIRES=(
+    "bash"
+    "meson"
+    "ninja"
+    "pkgconf"
+    "python"
+    "systemd"
+)
+
+PROVIDES=("mkinitcpio")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=("e2fsprogs" "btrfs-progs" "xfsprogs")
+
+BUILD_OPTIONS=()
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    test -f meson.build
+    test -f meson.options
+    test -f LICENSE
+    test -s "$SRCROOT/mkinitcpio.conf"
+
+    test -x /usr/lib/initcpio/busybox
+    command -v bsdtar
+    command -v bsdcpio
+
+    bash -n "$SRCROOT/mkinitcpio.conf"
+
+    # GitHub tag archives lack the Git metadata used for version discovery.
+    sed -i \
+        "/^[[:space:]]*version: run_command(/c\\    version: '${VERSION}'," \
+        meson.build
+
+    grep -Fq "version: '${VERSION}'," meson.build
+
+    rm -rf build
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    meson setup build \
+        --prefix=/usr \
+        --bindir=bin \
+        --libdir=lib \
+        --sysconfdir=/etc \
+        --localstatedir=/var \
+        --buildtype=release \
+        --wrap-mode=nodownload \
+        -Dsystemd=enabled \
+        -Dkernel_install=true \
+        -Dalpm=false \
+        -Dpresets=true \
+        -Ddocs=false \
+        -Dsystemd_hooks=false
+
+    meson compile -C build
+}
+
+check() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    bash -O extglob -n build/mkinitcpio
+    bash -O extglob -n build/lsinitcpio
+    bash -O extglob -n build/functions
+
+    MKINITCPIO_LIBRARY="$PWD/build" \
+        bash build/mkinitcpio --version
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    meson install \
+        -C build \
+        --no-rebuild \
+        --destdir "$pkgdir"
+
+    install -Dm644 "$SRCROOT/mkinitcpio.conf" \
+        "$pkgdir/etc/mkinitcpio.conf"
+
+    install -Dm644 LICENSE \
+        "$pkgdir/usr/share/licenses/$NAME/LICENSE"
+
+    test -x "$pkgdir/usr/bin/mkinitcpio"
+    test -x "$pkgdir/usr/bin/lsinitcpio"
+    test -f "$pkgdir/usr/lib/initcpio/functions"
+    test -f "$pkgdir/usr/lib/initcpio/init"
+    test -f "$pkgdir/usr/lib/initcpio/install/base"
+    test -f "$pkgdir/usr/lib/initcpio/install/udev"
+    test -f "$pkgdir/usr/lib/initcpio/install/systemd"
+    test -x "$pkgdir/usr/lib/kernel/install.d/50-mkinitcpio.install"
+    test -s "$pkgdir/etc/mkinitcpio.conf"
+
+    test ! -e "$pkgdir/usr/share/libalpm/hooks/90-mkinitcpio-install.hook"
+}
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("0b79a89f9bf768f7413c55f8f09d9ec0efd77e312811935fe6a6ef06aadf3e0b" "51650d65cb584cd26b6d54c3aef7bd503ea6e8090111338df11762948b39e93e")

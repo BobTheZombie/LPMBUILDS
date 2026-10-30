@@ -1,34 +1,303 @@
+#!/bin/bash
 # LPM build script for file
+
 NAME="file"
-VERSION="5.45"
+VERSION="5.48"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="File type identification"
-URL="https://astron.com/pub/file/"
-LICENSE=""
-SOURCE=()
-REQUIRES=("glibc")
-PROVIDES=("file")
+
+SUMMARY="File type identification utility and libmagic library"
+URL="https://www.astron.com/pub/file/"
+LICENSE=("BSD-2-Clause")
+
+SOURCE=(
+    "https://www.astron.com/pub/file/file-${VERSION}.tar.gz"
+)
+
+SHA256SUMS=(
+    "SKIP"
+)
+
+PATCHES=()
+
+REQUIRES=(
+    "bzip2"
+    "glibc"
+    "libseccomp"
+    "xz"
+    "zlib"
+    "zstd"
+)
+
+BUILD_REQUIRES=(
+    "bzip2"
+    "glibc"
+    "make"
+    "xz"
+    "zlib"
+    "zstd"
+)
+
+PROVIDES=(
+    "file"
+    "libmagic"
+    "libmagic.so"
+    "libmagic.so.1"
+    "libmagic.pc"
+)
+
 CONFLICTS=()
 OBSOLETES=()
 RECOMMENDS=()
 SUGGESTS=()
 
+BUILD_OPTIONS=(
+    "@--stripping"
+    "@--optimize=2"
+)
+
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    BUILDDIR="$SRCDIR/build"
+
+    test -f "$SRCDIR/configure"
+    test -f "$SRCDIR/Makefile.in"
+    test -f "$SRCDIR/COPYING"
+    test -d "$SRCDIR/magic"
+    test -d "$SRCDIR/src"
+
+    rm -rf "$BUILDDIR"
+    mkdir -p "$BUILDDIR"
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    BUILDDIR="$SRCDIR/build"
+
+    cd "$BUILDDIR"
+
+    ../configure \
+        --prefix=/usr \
+        --bindir=/usr/bin \
+        --libdir=/usr/lib \
+        --includedir=/usr/include \
+        --datadir=/usr/share \
+        --mandir=/usr/share/man \
+        --enable-shared \
+        --enable-fsect-man5 \
+        --disable-static
+
+    make -j"$(nproc)"
+}
+
+check() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    BUILDDIR="$SRCDIR/build"
+
+    FILE_BINARY="$BUILDDIR/src/file"
+
+    test -x "$FILE_BINARY"
+
+    LIBMAGIC="$(
+        find "$BUILDDIR/src" \
+            -type f \
+            -name 'libmagic.so.*' \
+            -print \
+            -quit
+    )"
+
+    if [ -z "$LIBMAGIC" ] || [ ! -f "$LIBMAGIC" ]; then
+        echo "[ERROR] Missing build-tree libmagic library" >&2
+        return 1
+    fi
+
+    VERSION_OUTPUT="$BUILDDIR/.lpm-file-version"
+
+    "$FILE_BINARY" --version > "$VERSION_OUTPUT"
+
+    grep -Eq \
+        "^file-${VERSION}([[:space:]]|$)" \
+        "$VERSION_OUTPUT"
+
+    rm -f "$VERSION_OUTPUT"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    BUILDDIR="$SRCDIR/build"
+
+    make \
+        -C "$BUILDDIR" \
+        DESTDIR="$pkgdir" \
+        install
+
+    #
+    # Remove static and Libtool libraries.
+    #
+
+    find "$pkgdir/usr/lib" \
+        -type f \
+        \( -name '*.a' -o -name '*.la' \) \
+        -delete
+
+    #
+    # Validate the command-line utility.
+    #
+
+    test -x "$pkgdir/usr/bin/file"
+
+    #
+    # Validate shared-library links and locate the real library.
+    #
+
+    test -L "$pkgdir/usr/lib/libmagic.so"
+    test -L "$pkgdir/usr/lib/libmagic.so.1"
+
+    LIBMAGIC="$(
+        find "$pkgdir/usr/lib" \
+            -maxdepth 1 \
+            -type f \
+            -name 'libmagic.so.1.*' \
+            -print \
+            -quit
+    )"
+
+    if [ -z "$LIBMAGIC" ] || [ ! -f "$LIBMAGIC" ]; then
+        echo "[ERROR] Missing installed libmagic shared library" >&2
+        return 1
+    fi
+
+    #
+    # Validate development files.
+    #
+
+    test -f "$pkgdir/usr/include/magic.h"
+    test -f "$pkgdir/usr/lib/pkgconfig/libmagic.pc"
+
+    grep -Fxq \
+        "Version: ${VERSION}" \
+        "$pkgdir/usr/lib/pkgconfig/libmagic.pc"
+
+    grep -Eq \
+        '^Libs:.*-lmagic([[:space:]]|$)' \
+        "$pkgdir/usr/lib/pkgconfig/libmagic.pc"
+
+    #
+    # Locate and validate the compiled magic database.
+    #
+
+    MAGIC_DATABASE="$(
+        find "$pkgdir/usr/share" \
+            -type f \
+            -name magic.mgc \
+            -print \
+            -quit
+    )"
+
+    if [ -z "$MAGIC_DATABASE" ] || [ ! -s "$MAGIC_DATABASE" ]; then
+        echo "[ERROR] Missing compiled magic database" >&2
+        return 1
+    fi
+
+    #
+    # Validate ELF architecture and runtime linkage.
+    #
+
+    FILE_HEADER="$SRCDIR/.lpm-file-header"
+    FILE_DYNAMIC="$SRCDIR/.lpm-file-dynamic"
+    LIBMAGIC_HEADER="$SRCDIR/.lpm-libmagic-header"
+    LIBMAGIC_DYNAMIC="$SRCDIR/.lpm-libmagic-dynamic"
+
+    readelf -h \
+        "$pkgdir/usr/bin/file" \
+        > "$FILE_HEADER"
+
+    grep -Fq 'ELF64' "$FILE_HEADER"
+
+    readelf -d \
+        "$pkgdir/usr/bin/file" \
+        > "$FILE_DYNAMIC"
+
+    grep -Fq 'libmagic.so.1' "$FILE_DYNAMIC"
+
+    readelf -h \
+        "$LIBMAGIC" \
+        > "$LIBMAGIC_HEADER"
+
+    grep -Fq 'ELF64' "$LIBMAGIC_HEADER"
+
+    readelf -d \
+        "$LIBMAGIC" \
+        > "$LIBMAGIC_DYNAMIC"
+
+    grep -Fq \
+        'Library soname: [libmagic.so.1]' \
+        "$LIBMAGIC_DYNAMIC"
+
+    rm -f \
+        "$FILE_HEADER" \
+        "$FILE_DYNAMIC" \
+        "$LIBMAGIC_HEADER" \
+        "$LIBMAGIC_DYNAMIC"
+
+    #
+    # Run the staged utility with its staged shared library and database.
+    #
+
+    VERSION_OUTPUT="$SRCDIR/.lpm-staged-file-version"
+
+    LD_LIBRARY_PATH="$pkgdir/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
+        "$pkgdir/usr/bin/file" \
+        --version \
+        > "$VERSION_OUTPUT"
+
+    grep -Eq \
+        "^file-${VERSION}([[:space:]]|$)" \
+        "$VERSION_OUTPUT"
+
+    rm -f "$VERSION_OUTPUT"
+
+    IDENTIFICATION_OUTPUT="$SRCDIR/.lpm-file-identification"
+
+    LD_LIBRARY_PATH="$pkgdir/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
+        "$pkgdir/usr/bin/file" \
+        -m "$MAGIC_DATABASE" \
+        "$pkgdir/usr/bin/file" \
+        > "$IDENTIFICATION_OUTPUT"
+
+    grep -Fq \
+        'ELF 64-bit' \
+        "$IDENTIFICATION_OUTPUT"
+
+    rm -f "$IDENTIFICATION_OUTPUT"
+
+    #
+    # Validate documentation.
+    #
+
+    test -f "$pkgdir/usr/share/man/man1/file.1"
+    test -f "$pkgdir/usr/share/man/man3/libmagic.3"
+    test -f "$pkgdir/usr/share/man/man5/magic.5"
+
+    #
+    # Install licensing information.
+    #
+
+    install -Dm644 \
+        "$SRCDIR/COPYING" \
+        "$pkgdir/usr/share/licenses/$NAME/COPYING"
 }
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("ed14656883b23a364b4057c05595d93252da9bc473d30106519519d0da141283")

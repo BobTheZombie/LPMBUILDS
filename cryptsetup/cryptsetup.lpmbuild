@@ -1,0 +1,57 @@
+#!/bin/bash
+NAME="cryptsetup"
+VERSION="2.8.8"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Encrypted block device management"
+URL="https://gitlab.com/cryptsetup/cryptsetup"
+LICENSE=("GPL-2.0-or-later")
+SOURCE=("https://www.kernel.org/pub/linux/utils/cryptsetup/v${VERSION%.*}/cryptsetup-${VERSION}.tar.xz")
+SHA256SUMS=("3acfa685f2dd7fcc832e0b77bc7093aa7da554a51ce8dafbb4138eaa854eee35")
+PATCHES=()
+REQUIRES=("glibc" "openssl" "json-c" "popt" "util-linux-libs" "device-mapper")
+BUILD_REQUIRES=("gcc" "make" "pkgconf" "openssl" "json-c" "popt" "util-linux-libs" "device-mapper")
+PROVIDES=("cryptsetup" "libcryptsetup" "libcryptsetup.so")
+STAGE_2_REQUIRES=("systemd")
+STAGE_2_BUILD_REQUIRES=("util-linux-libs" "device-mapper")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+BUILD_OPTIONS=("@--stripping" "@--optimize=2")
+if [ "${LPM_BUILD_STAGE:-1}" = 2 ]; then
+    REQUIRES+=("systemd")
+    BUILD_REQUIRES+=("systemd")
+fi
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    if [ -f Makefile ]; then make distclean; fi
+}
+_build_cryptsetup() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    ./configure --prefix=/usr --sbindir=/usr/bin --libdir=/usr/lib \
+        --sysconfdir=/etc --disable-static --disable-asciidoc \
+        --with-crypto_backend=openssl --disable-ssh-token \
+        --enable-udev="$1" --with-tmpfilesdir=/usr/lib/tmpfiles.d
+    make -j"$(nproc)"
+}
+build() { _build_cryptsetup no; }
+build_stage2() { _build_cryptsetup yes; }
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    make DESTDIR="$pkgdir" install
+    test -x "$pkgdir/usr/bin/cryptsetup"
+    test -e "$pkgdir/usr/lib/libcryptsetup.so"
+    test -s "$pkgdir/usr/lib/pkgconfig/libcryptsetup.pc"
+    find "$pkgdir/usr/lib" -type f \( -name '*.a' -o -name '*.la' \) -delete
+    install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+}
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("3acfa685f2dd7fcc832e0b77bc7093aa7da554a51ce8dafbb4138eaa854eee35")

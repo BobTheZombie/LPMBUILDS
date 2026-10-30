@@ -1,0 +1,11 @@
+[terminal]
+# Run the greeter on VT 1 (standard)
+vt = 1
+
+[default_session]
+# Launch COSMIC Greeter
+command = "cosmic-comp /bin/cosmic-greeter"
+
+# Run as the dedicated greeter user
+user = "cosmic-greeter"
+

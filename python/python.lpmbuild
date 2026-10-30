@@ -1,39 +1,133 @@
-# LPM build script for python
+#!/bin/bash
+# LPM build script for CPython
+# Full Python stdlib install (includes encodings/idna.py)
+
 NAME="python"
-VERSION="3.12.5"
+VERSION="3.14.8"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Python programming language"
+SUMMARY="The Python programming language (CPython)"
 URL="https://www.python.org/"
-LICENSE=""
-SOURCE=()
-REQUIRES=("glibc" "openssl" "libffi" "zlib" "bzip2" "xz" "sqlite" "readline" "ncurses")
-PROVIDES=("python")
+LICENSE=("PSF-2.0")
+
+SOURCE=(
+  "https://www.python.org/ftp/python/${VERSION}/Python-${VERSION}.tar.xz"
+  "https://github.com/python/cpython/commit/927eb448aad6436d794ec9f55780013e25609600.patch"
+  "Python-3.14.8-openssl_4-1.patch"
+)
+
+REQUIRES=(
+  "glibc"
+  "zlib"
+  "xz"
+  "bzip2"
+  "openssl"
+  "libffi"
+  "sqlite"
+  "readline"
+  "ncurses"
+  "expat"
+  "gdbm"
+
+  # Build deps
+  "pkg-config"
+  "make"
+)
+
+PROVIDES=(
+  "python"
+  "python3"
+
+
+)
+
+PATCHES=("927eb448aad6436d794ec9f55780013e25609600.patch"
+         "Python-3.14.8-openssl_4-1.patch"
+)
+
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
+
+_srcdir="${NAME}-${VERSION}"
 
 prepare() {
   set -euxo pipefail
-  cd "$SRCROOT"
-  :
+  cd "$SRCROOT/$_srcdir"
 }
 
 build() {
   set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr \
-  --enable-shared \
-  --with-ensurepip=install \
-  --with-system-expat \
-  --with-system-ffi \
-  --enable-optimizations
+  cd "$SRCROOT/$_srcdir"
+
+  # Ensure consistent build behavior
+  export CFLAGS="${CFLAGS:-} -fno-semantic-interposition"
+  export LDFLAGS="${LDFLAGS:-}"
+
+  ./configure \
+    --prefix=/usr \
+    --enable-shared \
+    --with-computed-gotos \
+    --with-ensurepip=install \
+    --with-system-expat \
+    --with-system-ffi \
+    --enable-optimizations \
+    --with-openssl=/usr \
+    --with-openssl-rpath=auto \
+    --enable-ipv6 \
+    --enable-loadable-sqlite-extensions \
+    --with-static-libpython \
+    --with-tzpath=/usr/share/zoneinfo
+
   make -j"$(nproc)"
 }
 
-staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+check() {
+  # Test suite is large; skip by default
+  true
 }
+
+_staging_python_upstream() {
+    set -euxo pipefail
+
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    
+    
+    # Hack to avoid building again
+    sed -i 's/^all:.*$/all: build_all/' Makefile
+
+    make DESTDIR="${pkgdir}" install
+
+  # Why are these not done by default...
+  _pybasever=${VERSION%.*}
+  
+  ln -s python3               "${pkgdir}"/usr/bin/python
+  ln -s python3-config        "${pkgdir}"/usr/bin/python-config
+  ln -s idle3                 "${pkgdir}"/usr/bin/idle
+  ln -s pydoc3                "${pkgdir}"/usr/bin/pydoc
+  ln -s python${_pybasever}.1 "${pkgdir}"/usr/share/man/man1/python.1
+
+
+    install -Dm644 \
+        LICENSE \
+        "$pkgdir/usr/share/licenses/$NAME/LICENSE"
+}
+
+
+# python-pip owns installed pip; stdlib ensurepip retains its private bootstrap wheel.
+RECOMMENDS+=("python-pip")
+staging() {
+    set -euxo pipefail
+    _staging_python_upstream
+    local site
+    for site in "$pkgdir"/usr/lib/python*/site-packages; do
+        [ -d "$site" ] || continue
+        rm -rf "$site/pip"
+        find "$site" -maxdepth 1 -type d -name 'pip-*.dist-info' -exec rm -rf '{}' +
+    done
+    rm -f "$pkgdir/usr/bin/pip" "$pkgdir/usr/bin/pip3" "$pkgdir/usr/bin/pip3.14"
+}
+
+
+
+# Final audited source digests
+SHA256SUMS=("c2215904f02b175596dc49351585104f4bc20341e1c47378b26a2c274360ce73" "76d1307b5f73ed9eb5e46b672c8f55bd93474173f4ca834a54d0ee7536fa0a7f" "c05595eb33a46aa2f20c6f3d707694f2e0148030cd968efd94ec3828384f564e")

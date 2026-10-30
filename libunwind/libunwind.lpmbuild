@@ -1,0 +1,83 @@
+#!/bin/bash
+# LPM build script for libunwind 1.8.3
+# GCC 16 defaults to C23; libunwind 1.8.3's test sources use pre-C23 C
+# function declarations. Force GNU C17 for this package only.
+
+NAME="libunwind"
+VERSION="1.8.3"
+RELEASE="2"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Portable and efficient C programming interface for stack unwinding"
+URL="https://github.com/libunwind/libunwind"
+LICENSE=("MIT")
+
+SOURCE=(
+    "https://github.com/libunwind/libunwind/releases/download/v${VERSION}/libunwind-${VERSION}.tar.gz"
+)
+SHA256SUMS=("be30d910e67f58d82e753231f1357f326a1a088acf126b21ff77e60aab19b90b")
+PATCHES=()
+
+REQUIRES=("glibc" "xz" "zlib")
+BUILD_REQUIRES=("autoconf" "automake" "gcc" "libtool" "make" "xz" "zlib")
+PROVIDES=("libunwind")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+BUILD_OPTIONS=("@--stripping" "@--optimize=2")
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    if [ ! -x ./configure ]; then
+        autoreconf -fiv
+    fi
+
+    # Append after LPM's compiler flags so GCC 16 does not use C23.
+    # Autoconf writes this setting into the generated Makefiles.
+    CFLAGS="${CFLAGS:-} -std=gnu17" \
+        ./configure \
+            --prefix=/usr \
+            --libdir=/usr/lib \
+            --sysconfdir=/etc \
+            --disable-static
+
+    make -j"${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+check() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    # Building 'all' already compiles the upstream test programs.
+    # Do not require the full test suite in the packaging pipeline.
+    test -e src/.libs/libunwind.so
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    make DESTDIR="$pkgdir" install
+
+    # Verify the runtime library and public headers are packaged.
+    test -e "$pkgdir/usr/lib/libunwind.so"
+    test -f "$pkgdir/usr/include/libunwind.h"
+
+    local f
+    for f in COPYING COPYING.LIB LICENSE LICENSE.md LICENSE.txt; do
+        if [ -f "$f" ]; then
+            install -Dm644 "$f" "$pkgdir/usr/share/licenses/$NAME/$f"
+        fi
+    done
+    if [ -d LICENSES ]; then
+        install -dm755 "$pkgdir/usr/share/licenses/$NAME"
+        cp -a LICENSES/. "$pkgdir/usr/share/licenses/$NAME/"
+    fi
+}

@@ -1,34 +1,70 @@
-# LPM build script for pam
+#!/bin/bash
 NAME="pam"
-VERSION="1.6.1"
+VERSION="1.7.3"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Linux-PAM: Pluggable Authentication Modules"
+SUMMARY="Linux Pluggable Authentication Modules"
 URL="https://github.com/linux-pam/linux-pam"
-LICENSE=""
-SOURCE=()
+LICENSE=("BSD-3-Clause")
+SOURCE=("https://github.com/linux-pam/linux-pam/releases/download/v${VERSION}/Linux-PAM-${VERSION}.tar.xz")
+SHA256SUMS=("2ce4765fd49df6693771ef2941f81e33d8ee14b94a81a5c7b369aa3b137b85a5")
+SOURCE+=("system-auth")
+SHA256SUMS+=("23f363a5785355df5f3f8d54f34354cfa7518abd3530a16c3c3c9e5a184cddc8")
+SOURCE+=("system-login")
+SHA256SUMS+=("75f258fdc9a6f4e751821d4e8d55b9f9fa1ecb63ad0dc46d4e08e37f4c52e3aa")
+PATCHES=()
 REQUIRES=("glibc" "libxcrypt")
-PROVIDES=("pam")
+BUILD_REQUIRES=("gcc" "meson" "ninja" "pkgconf" "libxcrypt")
+PROVIDES=("pam" "libpam.so" "libpam.so.0")
+STAGE_2_REQUIRES=("systemd" "audit")
+STAGE_2_BUILD_REQUIRES=("audit")
 CONFLICTS=()
 OBSOLETES=()
 RECOMMENDS=()
 SUGGESTS=()
-
+BUILD_OPTIONS=("@--stripping" "@--optimize=2")
+if [ "${LPM_BUILD_STAGE:-1}" = 2 ]; then
+    REQUIRES+=("systemd" "audit")
+    BUILD_REQUIRES+=("systemd" "audit")
+fi
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+    if [ ! -d "$SRCROOT/${NAME}-${VERSION}" ] && [ -d "$SRCROOT/Linux-PAM-${VERSION}" ]; then
+        mv "$SRCROOT/Linux-PAM-${VERSION}" "$SRCROOT/${NAME}-${VERSION}"
+    fi
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    test -f meson.build
+    rm -rf build
 }
-
-build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+_build_pam() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    meson setup build --prefix=/usr --bindir=bin --sbindir=bin --libdir=lib \
+        --sysconfdir=/etc --buildtype=release --wrap-mode=nofallback \
+        -Ddefault_library=shared -Dsecuredir=/usr/lib/security \
+        -Dvendordir=/usr/lib/pam.d -Dsystemdunitdir=/usr/lib/systemd/system \
+        -Daudit="$1" -Dlogind="$1" -Delogind=disabled -Dselinux=disabled \
+        -Deconf=disabled -Dnis=disabled -Dpam_userdb=disabled \
+        -Ddocs=disabled -Dexamples=false -Dxtests=false
+    meson compile -C build -j "$(nproc)"
 }
-
+build() { _build_pam disabled; }
+build_stage2() { _build_pam enabled; }
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    meson install -C build --no-rebuild --destdir "$pkgdir"
+    install -Dm644 "$SRCROOT/system-auth" "$pkgdir/etc/pam.d/system-auth"
+    install -Dm644 "$SRCROOT/system-login" "$pkgdir/etc/pam.d/system-login"
+    test -e "$pkgdir/usr/lib/libpam.so.0"
+    test -f "$pkgdir/usr/lib/security/pam_unix.so"
+    test -f "$pkgdir/usr/include/security/pam_appl.h"
+    find "$pkgdir/usr/lib" -type f \( -name '*.a' -o -name '*.la' \) -delete
+    install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
 }
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("2ce4765fd49df6693771ef2941f81e33d8ee14b94a81a5c7b369aa3b137b85a5" "23f363a5785355df5f3f8d54f34354cfa7518abd3530a16c3c3c9e5a184cddc8" "75f258fdc9a6f4e751821d4e8d55b9f9fa1ecb63ad0dc46d4e08e37f4c52e3aa")

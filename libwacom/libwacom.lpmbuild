@@ -1,0 +1,88 @@
+#!/bin/bash
+
+NAME="libwacom"
+VERSION="2.20.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Library to identify graphics tablets and their features"
+URL="https://github.com/linuxwacom/libwacom"
+LICENSE=("MIT")
+
+SOURCE=(
+  "https://github.com/linuxwacom/libwacom/releases/download/libwacom-${VERSION}/libwacom-${VERSION}.tar.xz"
+)
+
+SHA256SUMS=(
+  "370b45b5e05a91960df0aeb9c9481ae05846aab92ab2d4ec66945a0da4216888"
+)
+
+REQUIRES=(
+  "glibc"
+  "glib2"
+  "libgudev"
+  "systemd"
+)
+
+BUILD_REQUIRES=(
+  "meson"
+  "ninja"
+  "pkgconf"
+  "python"
+)
+
+PROVIDES=(
+  "libwacom"
+  "libwacom.so"
+  "libwacom-list-local-devices"
+  "libwacom-show-stylus"
+  "libwacom-update-db"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  rm -rf build
+
+  meson setup build \
+    --prefix=/usr \
+    --libdir=lib \
+    --buildtype=release \
+    -Ddefault_library=shared \
+    -Dtests=disabled
+
+  meson compile -C build
+}
+
+check() {
+  true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  DESTDIR="$pkgdir" meson install -C build
+
+  for f in COPYING LICENSE; do
+    if [ -f "$f" ]; then
+      install -Dm644 "$f" "$pkgdir/usr/share/licenses/$NAME/$f"
+    fi
+  done
+}
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("370b45b5e05a91960df0aeb9c9481ae05846aab92ab2d4ec66945a0da4216888")

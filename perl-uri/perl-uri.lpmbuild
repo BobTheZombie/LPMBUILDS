@@ -1,0 +1,132 @@
+#!/bin/bash
+# LPM Linux - perl-uri / URI 5.40
+# Provides URI::Escape needed to configure KDE Frameworks KDocTools 6.31.0.
+
+NAME="perl-uri"
+VERSION="5.40"
+RELEASE="2"
+ARCH="any"
+SUMMARY="Uniform Resource Identifiers and URI::Escape for Perl"
+URL="https://metacpan.org/dist/URI"
+LICENSE=("Artistic-1.0-Perl" "GPL-1.0-or-later")
+SOURCE=(
+    "https://cpan.metacpan.org/authors/id/O/OA/OALDERS/URI-${VERSION}.tar.gz"
+)
+SHA256SUMS=(
+    "ef5d2ef099a1a24a6e83ffe543de73337805d3d39c00b84fa205d725ad1a1b63"
+)
+PATCHES=()
+REQUIRES=("perl" "perl-mime-base32")
+BUILD_REQUIRES=("perl" "make")
+PROVIDES=("perl-uri")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+# Resolve Perl vendor destination from actual @INC and Config.
+_vendorlib() {
+    perl -MConfig -e '
+        my @configured = grep { defined($_) && m{^/usr/} }
+            ($Config{installvendorlib}, $Config{vendorlib});
+        for my $path (@configured) {
+            if (grep { $_ eq $path } @INC) {
+                print "$path\n";
+                exit 0;
+            }
+        }
+        for my $path (@INC) {
+            if ($path =~ m{^/usr/} && $path =~ /vendor_perl/) {
+                print "$path\n";
+                exit 0;
+            }
+        }
+        die "[ERROR] Perl has no usable /usr vendor library path in \@INC; " .
+            "check Perl Configure vendorlib/installvendorlib settings\n";
+    '
+}
+
+_vendorman3dir() {
+    perl -MConfig -e '
+        my $path = $Config{installvendorman3dir} ||
+                   $Config{vendorman3dir} ||
+                   "/usr/share/man/man3";
+        $path = "/usr/share/man/man3" unless $path =~ m{^/usr/};
+        print "$path\n";
+    '
+}
+
+_srcdir() {
+    local d
+    for d in "$SRCROOT/URI-$VERSION" "$SRCROOT/$NAME-$VERSION"; do
+        if [[ -f "$d/Makefile.PL" ]]; then
+            printf '%s\n' "$d"
+            return 0
+        fi
+    done
+    echo "[ERROR] Could not find URI-$VERSION source under $SRCROOT" >&2
+    return 1
+}
+
+prepare() {
+    set -euo pipefail
+    test -f "$(_srcdir)/Makefile.PL"
+}
+
+build() {
+    set -euo pipefail
+    local src
+    src="$(_srcdir)"
+    cd "$src"
+    unset PERL_MM_OPT PERL5LIB PERL_LOCAL_LIB_ROOT
+    export PERL_MM_USE_DEFAULT=1
+    local vendorlib vendorman3
+    vendorlib="$(_vendorlib)"
+    vendorman3="$(_vendorman3dir)"
+    echo "[LPM perl-uri r2] vendorlib=$vendorlib mandir=$vendorman3"
+    rm -f Makefile
+    perl Makefile.PL \
+        INSTALLDIRS=vendor \
+        INSTALLVENDORLIB="$vendorlib" \
+        INSTALLVENDORARCH="$vendorlib" \
+        INSTALLVENDORMAN3DIR="$vendorman3" \
+        NO_PACKLIST=1 NO_PERLLOCAL=1
+    make -j"${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+check() {
+    set -euo pipefail
+    local src
+    src="$(_srcdir)"
+    cd "$src"
+    # Only test the KDE-required module, avoiding optional CPAN test dependencies.
+    perl -Ilib -MURI::Escape -e 'use strict; use warnings; die "encode failed\n" unless URI::Escape::uri_escape("a b") eq "a%20b";'
+}
+
+staging() {
+    set -euo pipefail
+    local src vendorlib vendorman3
+    src="$(_srcdir)"
+    vendorlib="$(_vendorlib)"
+    vendorman3="$(_vendorman3dir)"
+    cd "$src"
+    unset PERL_MM_OPT PERL5LIB PERL_LOCAL_LIB_ROOT
+    test -n "$pkgdir"
+    make DESTDIR="$pkgdir" \
+        INSTALLDIRS=vendor \
+        INSTALLVENDORLIB="$vendorlib" \
+        INSTALLVENDORARCH="$vendorlib" \
+        INSTALLVENDORMAN3DIR="$vendorman3" \
+        install
+    find "$pkgdir" -type f \( -name '.packlist' -o -name 'perllocal.pod' \) -delete
+    if [[ -f "$src/LICENSE" ]]; then
+        install -Dm644 "$src/LICENSE" "$pkgdir/usr/share/licenses/$NAME/LICENSE"
+    fi
+    if [[ ! -s "$pkgdir$vendorlib/URI/Escape.pm" ]]; then
+        echo "[ERROR] URI::Escape was not installed to $pkgdir$vendorlib/URI/Escape.pm" >&2
+        find "$pkgdir" -maxdepth 8 -type f -print >&2
+        return 1
+    fi
+    perl -I"$pkgdir$vendorlib" -MURI::Escape -e 'exit 0'
+    echo "[OK] perl-uri $VERSION-$RELEASE staged to $vendorlib"
+}

@@ -1,0 +1,62 @@
+#!/bin/bash
+# LPM Linux: KDE Plasma 6.8.1 printer management frontend
+NAME="print-manager"
+VERSION="6.8.1"
+RELEASE="2"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="KDE Plasma printer and print-job management"
+URL="https://invent.kde.org/plasma/print-manager"
+LICENSE=("LGPL-2.0-or-later")
+SOURCE=("https://download.kde.org/stable/plasma/${VERSION}/print-manager-${VERSION}.tar.xz")
+SHA256SUMS=("f4221be42a240eec23c4a653a433d97d9bcca909eb656e90dbf0c74fa86cca5b")
+PATCHES=()
+REQUIRES=(
+    "glibc" "gcc-libs" "libcups"
+    "qt6-base>=6.11.0" "qt6-declarative>=6.11.0"
+    "kcmutils6>=6.30.0" "kconfig6>=6.30.0" "kconfigwidgets6>=6.30.0"
+    "kcoreaddons6>=6.30.0" "kdbusaddons6>=6.30.0" "kdeclarative6>=6.30.0"
+    "ki18n6>=6.30.0" "kio6>=6.30.0" "kirigami6>=6.30.0"
+    "kirigami-addons>=1.10.0" "kitemmodels6>=6.30.0" "knotifications6>=6.30.0"
+    "kwidgetsaddons6>=6.30.0" "kwindowsystem6>=6.30.0"
+    "libplasma>=6.8.0"
+)
+BUILD_REQUIRES=("cmake" "ninja" "pkgconf" "extra-cmake-modules>=6.30.0" "kdoctools6" "qt6-tools")
+PROVIDES=("print-manager" "plasma-print-manager")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=("system-config-printer" "samba")
+
+prepare() {
+    set -euxo pipefail
+    local src="$SRCROOT/print-manager-$VERSION"
+    test -f "$src/CMakeLists.txt"
+    rm -rf "$src/build"
+}
+
+build() {
+    set -euxo pipefail
+    local src="$SRCROOT/print-manager-$VERSION"
+    cmake -S "$src" -B "$src/build" -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DBUILD_TESTING=OFF \
+        -DBUILD_WITH_CUPS3=OFF \
+        -DSCP_INSTALL=OFF \
+        -DKDE_INSTALL_USE_QT_SYS_PATHS=ON
+    cmake --build "$src/build" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+check() {
+    set -euo pipefail
+    test -f "$SRCROOT/print-manager-$VERSION/build/build.ninja"
+}
+
+staging() {
+    set -euxo pipefail
+    local src="$SRCROOT/print-manager-$VERSION"
+    DESTDIR="$pkgdir" cmake --install "$src/build"
+    test -x "$pkgdir/usr/bin/plasma-print-queue"
+    test -f "$pkgdir/usr/share/applications/kcm_printer_manager.desktop"
+}

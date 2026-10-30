@@ -1,0 +1,56 @@
+#!/bin/bash
+# LPM source recipe - staged installation only; review build features before use.
+NAME="libei"
+VERSION="1.6.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Emulated-input libraries for Wayland and Xwayland"
+URL="https://libinput.pages.freedesktop.org/libei/"
+LICENSE=("MIT")
+SOURCE=("https://gitlab.freedesktop.org/libinput/libei/-/archive/${VERSION}/libei-${VERSION}.tar.bz2")
+SHA256SUMS=("SKIP")
+PATCHES=()
+REQUIRES=(
+    "libevdev"
+    "libxkbcommon"
+    "systemd-libs"
+)
+BUILD_REQUIRES=(
+    "meson"
+    "ninja"
+    "pkgconf"
+    "gcc"
+)
+PROVIDES=("libei")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+_srcdir() {
+    local d="$SRCROOT/libei-${VERSION}"
+    test -d "$d" || { printf 'Expected source directory not found: %s\n' "$d" >&2; return 1; }
+    printf '%s\n' "$d"
+}
+
+prepare() {
+    set -euo pipefail
+    test -d "$(_srcdir)"
+}
+
+build() {
+    set -euo pipefail
+    local src
+    src="$(_srcdir)"
+    meson setup "$src/build-lpm" "$src" --prefix=/usr --libdir=lib --buildtype=release \
+        -D tests=disabled
+    ninja -C "$src/build-lpm"
+}
+
+staging() {
+    set -euo pipefail
+    local src
+    src="$(_srcdir)"
+    DESTDIR="$pkgdir" ninja -C "$src/build-lpm" install
+    test -e "$pkgdir/usr/lib/libei.so"
+}

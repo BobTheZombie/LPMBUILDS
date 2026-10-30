@@ -1,0 +1,73 @@
+NAME="pcre2"
+VERSION="10.49"
+RELEASE="1"
+ARCH="x86_64"
+SUMMARY="Perl Compatible Regular Expressions library (version 2)"
+URL="https://www.pcre.org/"
+SOURCE=("https://github.com/PhilipHazel/pcre2/releases/download/pcre2-${VERSION}/pcre2-${VERSION}.tar.gz")
+LICENSE=("BSD")
+
+REQUIRES=(glibc)
+PROVIDES=(pcre2 libpcre2-8.so libpcre2-16.so libpcre2-32.so)
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-$VERSION"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-$VERSION"
+
+    ./configure \
+        --prefix=/usr \
+        --sysconfdir=/etc \
+        --libdir=/usr/lib \
+        --enable-pcre2-8 \
+        --enable-pcre2-16 \
+        --enable-pcre2-32 \
+        --enable-unicode \
+        --enable-jit \
+        --enable-pcre2grep-libz \
+        --enable-pcre2grep-libbz2 \
+        --enable-pcre2test-libreadline \
+        --disable-static
+
+    make -j"$(nproc)"
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-$VERSION"
+
+    make DESTDIR="$pkgdir" install
+
+    # Remove static libs and libtool files
+    rm -f "$pkgdir"/usr/lib/*.a
+    rm -f "$pkgdir"/usr/lib/*.la
+
+
+    # -------- Split runtime libs --------
+    splitdir="$BUILDROOT/pcre2-libs"
+    rm -rf "$splitdir"
+    mkdir -p "$splitdir/usr/lib"
+
+    mv "$pkgdir"/usr/lib/libpcre2-*.so* "$splitdir/usr/lib/" || true
+
+    "$LPM_SPLIT_PACKAGE" \
+        --stagedir "$splitdir" \
+        --name pcre2-libs \
+        --summary "Runtime libraries for PCRE2" \
+        --provides pcre2-libs \
+        --provides libpcre2-8.so \
+        --provides libpcre2-16.so \
+        --provides libpcre2-32.so \
+        --requires glibc
+}
+
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("929f0b20e62879252a15886b06c89f1edef61a363cbd5826fb041080a5e557ae")

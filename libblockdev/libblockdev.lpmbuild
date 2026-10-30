@@ -1,0 +1,96 @@
+#!/bin/bash
+# libblockdev 3.5.0: plugin-enabled build suitable for UDisks2 2.11.x.
+# Upstream release tarball contains a pre-generated ./configure.
+NAME="libblockdev"
+VERSION="3.5.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Plugin-based library for low-level block device management"
+URL="https://github.com/storaged-project/libblockdev"
+LICENSE=("LGPL-2.1-or-later")
+SOURCE=("https://github.com/storaged-project/libblockdev/releases/download/${VERSION}/libblockdev-${VERSION}.tar.gz")
+SHA256SUMS=("SKIP")
+PATCHES=()
+
+# Important: UDisks2 2.11.x needs crypto, mdraid and nvme support.
+# This package deliberately keeps those plugins enabled.
+REQUIRES=(
+    "glib2"
+    "kmod"
+    "systemd-libs"
+    "util-linux"
+    "e2fsprogs"
+    "cryptsetup"
+    "keyutils"
+    "libbytesize"
+    "libnvme"
+)
+BUILD_REQUIRES=(
+    "gcc"
+    "make"
+    "pkgconf"
+    "glib2"
+    "kmod"
+    "systemd-libs"
+    "util-linux"
+    "e2fsprogs"
+    "cryptsetup"
+    "keyutils"
+    "libbytesize"
+    "libnvme"
+)
+PROVIDES=("libblockdev")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=("lvm2" "btrfs-progs" "libatasmart" "mdadm")
+
+_srcdir() {
+    local d="$SRCROOT/libblockdev-${VERSION}"
+    test -d "$d" || { printf 'Source directory missing: %s\n' "$d" >&2; return 1; }
+    printf '%s\n' "$d"
+}
+
+prepare() {
+    set -euo pipefail
+    test -x "$(_srcdir)/configure"
+}
+
+build() {
+    set -euo pipefail
+    local src
+    src="$(_srcdir)"
+    cd "$src"
+    ./configure \
+        --prefix=/usr \
+        --libdir=/usr/lib \
+        --sysconfdir=/etc \
+        --disable-static \
+        --disable-tests \
+        --without-gtk-doc \
+        --without-python3 \
+        --without-escrow \
+        --without-tools \
+        --without-lvm \
+        --without-lvm_dbus \
+        --without-nvdimm \
+        --without-smart \
+        --without-smartmontools \
+        --without-btrfs
+    make -j"${LPM_BUILD_JOBS:-4}"
+}
+
+staging() {
+    set -euo pipefail
+    local src
+    src="$(_srcdir)"
+    make -C "$src" DESTDIR="$pkgdir" install
+    # UDisks requires these core and optional plugin implementations.
+    test -e "$pkgdir/usr/lib/libblockdev.so" || test -n "$(find "$pkgdir/usr/lib" -maxdepth 1 -name 'libblockdev.so.*' -print -quit)"
+    for plugin in crypto mdraid nvme fs loop swap part; do
+        find "$pkgdir/usr/lib" -type f -name "libbd_${plugin}.so*" -print -quit | grep -q . || {
+            printf 'Required libblockdev plugin missing: %s\n' "$plugin" >&2
+            return 1
+        }
+    done
+}

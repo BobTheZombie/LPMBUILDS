@@ -1,43 +1,271 @@
+#!/bin/bash
 # LPM build script for binutils
+
 NAME="binutils"
-VERSION="2.43.1"
-RELEASE="1"
+VERSION="2.47"
+RELEASE="2"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Binary utilities (ld, as, etc.)"
+
+SUMMARY="GNU binary utilities"
 URL="https://www.gnu.org/software/binutils/"
-LICENSE=""
-SOURCE=()
-REQUIRES=("glibc" "zlib" "xz")
-PROVIDES=("binutils")
+LICENSE=(
+    "GPL-3.0-or-later"
+    "LGPL-2.1-or-later"
+)
+
+SOURCE=(
+    "https://ftp.wayne.edu/gnu/binutils/binutils-${VERSION}.tar.xz"
+)
+
+SHA256SUMS=(
+    "SKIP"
+)
+
+PATCHES=()
+
+REQUIRES=(
+    "glibc"
+    "zlib"
+    "zstd"
+)
+
+BUILD_REQUIRES=(
+    "bison"
+    "flex"
+    "make"
+    "texinfo"
+    "zlib"
+    "zstd"
+)
+
+PROVIDES=(
+    "binutils"
+    "ar"
+    "as"
+    "ld"
+    "ld.bfd"
+    "ld.gold"
+    "nm"
+    "objcopy"
+    "objdump"
+    "ranlib"
+    "readelf"
+    "strip"
+    "libbfd.so"
+    "libctf.so"
+    "libopcodes.so"
+)
+
 CONFLICTS=()
 OBSOLETES=()
 RECOMMENDS=()
 SUGGESTS=()
 
+BUILD_OPTIONS=(
+    "@--optimize=2"
+)
+
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  mkdir -p build
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    BUILDDIR="$SRCDIR/build"
+
+    test -f "$SRCDIR/configure"
+    test -f "$SRCDIR/Makefile.in"
+
+    rm -rf "$BUILDDIR"
+    mkdir -p "$BUILDDIR"
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  cd build
-  ../configure --prefix=/usr \
-  --with-lib-path=/usr/lib:/usr/local/lib \
-  --with-system-zlib \
-  --enable-gold \
-  --enable-ld=default \
-  --enable-plugins \
-  --enable-shared \
-  --disable-werror
-  make -j"$(nproc)"
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    BUILDDIR="$SRCDIR/build"
+
+    cd "$BUILDDIR"
+
+    "$SRCDIR/configure" \
+        --prefix=/usr \
+        --bindir=/usr/bin \
+        --sbindir=/usr/bin \
+        --libdir=/usr/lib \
+        --libexecdir=/usr/lib \
+        --includedir=/usr/include \
+        --datadir=/usr/share \
+        --mandir=/usr/share/man \
+        --infodir=/usr/share/info \
+        --with-lib-path=/usr/lib:/usr/local/lib \
+        --with-system-zlib \
+        --with-zstd \
+        --enable-default-hash-style=gnu \
+        --enable-new-dtags \
+        --enable-ld=default \
+        --enable-plugins \
+        --enable-shared \
+        --disable-static \
+        --disable-werror \
+        --disable-gdb \
+        --disable-gdbserver \
+        --disable-libdecnumber \
+        --enable-readline
+
+    make -j"$(nproc)"
+}
+
+check() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    BUILDDIR="$SRCDIR/build"
+
+    test -x "$BUILDDIR/binutils/ar"
+    test -x "$BUILDDIR/binutils/nm-new"
+    test -x "$BUILDDIR/binutils/objcopy"
+    test -x "$BUILDDIR/binutils/objdump"
+    test -x "$BUILDDIR/binutils/readelf"
+    test -x "$BUILDDIR/binutils/strip-new"
+    test -x "$BUILDDIR/gas/as-new"
+    test -x "$BUILDDIR/ld/ld-new"
+
+    "$BUILDDIR/binutils/readelf" \
+        -h "$BUILDDIR/binutils/readelf" |
+        grep -F 'ELF64' >/dev/null
+
+    "$BUILDDIR/ld/ld-new" --version |
+        grep -F 'GNU ld' >/dev/null
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  cd build
-  make DESTDIR="$pkgdir" install
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    BUILDDIR="$SRCDIR/build"
+
+    make \
+        -C "$BUILDDIR" \
+        DESTDIR="$pkgdir" \
+        install
+
+    #
+    # Remove Libtool metadata. Shared libraries and linker scripts remain.
+    #
+
+    find "$pkgdir/usr/lib" \
+        -type f \
+        -name '*.la' \
+        -delete
+
+    #
+    # Remove any static archives that escaped --disable-static.
+    #
+
+    find "$pkgdir/usr/lib" \
+        -maxdepth 1 \
+        -type f \
+        -name '*.a' \
+        -delete
+
+    #
+    # Validate core programs.
+    #
+
+    for PROGRAM in \
+        addr2line \
+        ar \
+        as \
+        c++filt \
+        elfedit \
+        gprof \
+        ld \
+        ld.bfd \
+        nm \
+        objcopy \
+        objdump \
+        ranlib \
+        readelf \
+        size \
+        strings \
+        strip
+    do
+        if [ ! -x "$pkgdir/usr/bin/$PROGRAM" ]; then
+            echo "[ERROR] Missing binutils program: /usr/bin/$PROGRAM" >&2
+            return 1
+        fi
+    done
+
+    #
+    # Validate development headers.
+    #
+
+    test -f "$pkgdir/usr/include/ansidecl.h"
+    test -f "$pkgdir/usr/include/bfd.h"
+    test -f "$pkgdir/usr/include/bfdlink.h"
+    test -f "$pkgdir/usr/include/ctf-api.h"
+    test -f "$pkgdir/usr/include/dis-asm.h"
+
+    #
+    # Validate shared libraries.
+    #
+
+    for LIBRARY in \
+        libbfd.so \
+        libctf.so \
+        libctf-nobfd.so \
+        libopcodes.so
+    do
+        if [ ! -e "$pkgdir/usr/lib/$LIBRARY" ]; then
+            echo "[ERROR] Missing binutils library: /usr/lib/$LIBRARY" >&2
+            return 1
+        fi
+    done
+
+    BFD_LIBRARY="$(
+        find "$pkgdir/usr/lib" \
+            -maxdepth 1 \
+            -type f \
+            -name 'libbfd-*.so' \
+            -print \
+            -quit
+    )"
+
+    test -n "$BFD_LIBRARY"
+    test -f "$BFD_LIBRARY"
+
+    readelf -h "$pkgdir/usr/bin/readelf" |
+        grep -F 'ELF64' >/dev/null
+
+    "$pkgdir/usr/bin/ld" --version |
+        grep -F 'GNU ld' >/dev/null
+
+    #
+    # Ensure the installed programs can locate their shared libraries.
+    #
+
+    if ldd "$pkgdir/usr/bin/ld" 2>&1 |
+        grep -F 'not found' >/dev/null
+    then
+        echo "[ERROR] Installed GNU ld has unresolved libraries" >&2
+        ldd "$pkgdir/usr/bin/ld" >&2
+        return 1
+    fi
+
+    #
+    # Licensing
+    #
+
+    install -Dm644 \
+        "$SRCDIR/COPYING3" \
+        "$pkgdir/usr/share/licenses/$NAME/COPYING3"
+
+    install -Dm644 \
+        "$SRCDIR/COPYING.LIB" \
+        "$pkgdir/usr/share/licenses/$NAME/COPYING.LIB"
 }
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("154ab23b60070e8f27013c22977f1129425d67d1e8acd6e13010e617811e4cff")

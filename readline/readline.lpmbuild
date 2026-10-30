@@ -1,34 +1,367 @@
-# LPM build script for readline
+#!/bin/bash
+# LPM build script for GNU Readline
+
 NAME="readline"
-VERSION="8.2"
+VERSION="8.3.6"
+_BASEVERSION="8.3"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Line editing library"
+
+SUMMARY="GNU command-line editing and history library"
 URL="https://tiswww.case.edu/php/chet/readline/rltop.html"
-LICENSE=""
-SOURCE=()
-REQUIRES=("glibc" "ncurses")
-PROVIDES=("readline")
+LICENSE=("GPL-3.0-or-later")
+
+SOURCE=(
+    "https://ftp.wayne.edu/gnu/readline/readline-${_BASEVERSION}.tar.gz"
+)
+
+SHA256SUMS=(
+    "SKIP"
+)
+
+PATCHES=()
+
+REQUIRES=(
+    "glibc"
+    "ncurses"
+)
+
+BUILD_REQUIRES=(
+    "glibc"
+    "make"
+    "ncurses"
+)
+
+PROVIDES=(
+    "readline"
+    "libhistory.so"
+    "libhistory.so.8"
+    "libreadline.so"
+    "libreadline.so.8"
+)
+
 CONFLICTS=()
 OBSOLETES=()
 RECOMMENDS=()
 SUGGESTS=()
 
-prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+BUILD_OPTIONS=(
+    "@--stripping"
+    "@--optimize=2"
+)
+
+_prepare_upstream() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+
+    test -f "$SRCDIR/configure"
+    test -f "$SRCDIR/Makefile.in"
+    test -f "$SRCDIR/COPYING"
+    test -f "$SRCDIR/readline.c"
+    test -f "$SRCDIR/history.c"
+
+    cd "$SRCDIR"
+
+    make distclean 2>/dev/null || true
+
+    #
+    # Prevent the install target from moving an existing shared library aside
+    # as libreadline.old or libhistory.old during staged package builds.
+    #
+
+    sed -i \
+        '/MV.*old/d' \
+        "$SRCDIR/Makefile.in"
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+
+    cd "$SRCDIR"
+
+    ./configure \
+        --prefix=/usr \
+        --bindir=/usr/bin \
+        --libdir=/usr/lib \
+        --includedir=/usr/include \
+        --datadir=/usr/share \
+        --mandir=/usr/share/man \
+        --infodir=/usr/share/info \
+        --docdir="/usr/share/doc/readline-${VERSION}" \
+        --with-curses \
+        --enable-shared \
+        --disable-static
+
+    #
+    # Link Readline against the wide-character ncurses ABI.
+    #
+
+    make \
+        SHLIB_LIBS="-lncursesw" \
+        -j"$(nproc)"
+}
+
+check() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+
+    #
+    # Do not run the complete upstream tests during bootstrap builds.
+    #
+
+    LIBREADLINE="$(
+        find "$SRCDIR/shlib" \
+            -maxdepth 1 \
+            -type f \
+            -name 'libreadline.so.*' \
+            -print \
+            -quit
+    )"
+
+    LIBHISTORY="$(
+        find "$SRCDIR/shlib" \
+            -maxdepth 1 \
+            -type f \
+            -name 'libhistory.so.*' \
+            -print \
+            -quit
+    )"
+
+    if [ -z "$LIBREADLINE" ] || [ ! -f "$LIBREADLINE" ]; then
+        echo "[ERROR] Missing build-tree libreadline shared library" >&2
+        return 1
+    fi
+
+    if [ -z "$LIBHISTORY" ] || [ ! -f "$LIBHISTORY" ]; then
+        echo "[ERROR] Missing build-tree libhistory shared library" >&2
+        return 1
+    fi
+
+    READLINE_HEADER="$SRCDIR/.lpm-readline-header"
+    READLINE_DYNAMIC="$SRCDIR/.lpm-readline-dynamic"
+
+    readelf -h \
+        "$LIBREADLINE" \
+        > "$READLINE_HEADER"
+
+    grep -Fq \
+        'ELF64' \
+        "$READLINE_HEADER"
+
+    readelf -d \
+        "$LIBREADLINE" \
+        > "$READLINE_DYNAMIC"
+
+    grep -Fq \
+        'libncursesw.so' \
+        "$READLINE_DYNAMIC"
+
+    rm -f \
+        "$READLINE_HEADER" \
+        "$READLINE_DYNAMIC"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+
+    cd "$SRCDIR"
+
+    make \
+        DESTDIR="$pkgdir" \
+        SHLIB_LIBS="-lncursesw" \
+        install
+
+    #
+    # Remove static and Libtool libraries.
+    #
+
+    find "$pkgdir/usr/lib" \
+        -type f \
+        \( -name '*.a' -o -name '*.la' \) \
+        -delete
+
+    #
+    # Remove the global Info index. It should be maintained by an LPM
+    # transaction hook instead of being owned by Readline.
+    #
+
+    rm -f "$pkgdir/usr/share/info/dir"
+
+    #
+    # Ensure shared libraries are executable and readable.
+    #
+
+    find "$pkgdir/usr/lib" \
+        -maxdepth 1 \
+        -type f \
+        \( \
+            -name 'libreadline.so.*' \
+            -o -name 'libhistory.so.*' \
+        \) \
+        -exec chmod 755 {} +
+
+    #
+    # Validate shared-library compatibility names.
+    #
+
+    for LIBRARY in \
+        libreadline.so \
+        libreadline.so.8 \
+        libhistory.so \
+        libhistory.so.8
+    do
+        if [ ! -e "$pkgdir/usr/lib/$LIBRARY" ]; then
+            echo "[ERROR] Missing Readline library: $LIBRARY" >&2
+            return 1
+        fi
+    done
+
+    #
+    # Locate the real shared libraries.
+    #
+
+    LIBREADLINE="$(
+        find "$pkgdir/usr/lib" \
+            -maxdepth 1 \
+            -type f \
+            -name 'libreadline.so.8.*' \
+            -print \
+            -quit
+    )"
+
+    LIBHISTORY="$(
+        find "$pkgdir/usr/lib" \
+            -maxdepth 1 \
+            -type f \
+            -name 'libhistory.so.8.*' \
+            -print \
+            -quit
+    )"
+
+    if [ -z "$LIBREADLINE" ] || [ ! -f "$LIBREADLINE" ]; then
+        echo "[ERROR] Missing real libreadline shared library" >&2
+        return 1
+    fi
+
+    if [ -z "$LIBHISTORY" ] || [ ! -f "$LIBHISTORY" ]; then
+        echo "[ERROR] Missing real libhistory shared library" >&2
+        return 1
+    fi
+
+    #
+    # Validate ELF architecture, SONAME, and ncurses linkage.
+    #
+
+    READLINE_HEADER="$SRCDIR/.lpm-staged-readline-header"
+    READLINE_DYNAMIC="$SRCDIR/.lpm-staged-readline-dynamic"
+    HISTORY_HEADER="$SRCDIR/.lpm-staged-history-header"
+    HISTORY_DYNAMIC="$SRCDIR/.lpm-staged-history-dynamic"
+
+    readelf -h \
+        "$LIBREADLINE" \
+        > "$READLINE_HEADER"
+
+    grep -Fq \
+        'ELF64' \
+        "$READLINE_HEADER"
+
+    readelf -d \
+        "$LIBREADLINE" \
+        > "$READLINE_DYNAMIC"
+
+    grep -Fq \
+        'Library soname: [libreadline.so.8]' \
+        "$READLINE_DYNAMIC"
+
+    grep -Fq \
+        'libncursesw.so' \
+        "$READLINE_DYNAMIC"
+
+    readelf -h \
+        "$LIBHISTORY" \
+        > "$HISTORY_HEADER"
+
+    grep -Fq \
+        'ELF64' \
+        "$HISTORY_HEADER"
+
+    readelf -d \
+        "$LIBHISTORY" \
+        > "$HISTORY_DYNAMIC"
+
+    grep -Fq \
+        'Library soname: [libhistory.so.8]' \
+        "$HISTORY_DYNAMIC"
+
+    rm -f \
+        "$READLINE_HEADER" \
+        "$READLINE_DYNAMIC" \
+        "$HISTORY_HEADER" \
+        "$HISTORY_DYNAMIC"
+
+    #
+    # Validate development headers.
+    #
+
+    for HEADER in \
+        chardefs.h \
+        history.h \
+        keymaps.h \
+        readline.h \
+        rlconf.h \
+        rlstdc.h \
+        rltypedefs.h \
+        tilde.h
+    do
+        if [ ! -f "$pkgdir/usr/include/readline/$HEADER" ]; then
+            echo "[ERROR] Missing Readline header: $HEADER" >&2
+            return 1
+        fi
+    done
+
+    #
+    # Validate documentation.
+    #
+
+    test -f "$pkgdir/usr/share/man/man3/readline.3"
+    test -f "$pkgdir/usr/share/info/readline.info"
+
+    #
+    # Install licensing information.
+    #
+
+    install -Dm644 \
+        "$SRCDIR/COPYING" \
+        "$pkgdir/usr/share/licenses/$NAME/COPYING"
 }
+
+_GNU_PATCHES=("readline83-001" "readline83-002" "readline83-003" "readline83-004" "readline83-005" "readline83-006")
+SOURCE+=("https://ftp.wayne.edu/gnu/readline/readline-8.3-patches/readline83-001" "https://ftp.wayne.edu/gnu/readline/readline-8.3-patches/readline83-002" "https://ftp.wayne.edu/gnu/readline/readline-8.3-patches/readline83-003" "https://ftp.wayne.edu/gnu/readline/readline-8.3-patches/readline83-004" "https://ftp.wayne.edu/gnu/readline/readline-8.3-patches/readline83-005" "https://ftp.wayne.edu/gnu/readline/readline-8.3-patches/readline83-006")
+SHA256SUMS+=("21f0a03106dbe697337cd25c70eb0edbaa2bdb6d595b45f83285cdd35bac84de" "e27364396ba9f6debf7cbaaf1a669e2b2854241ae07f7eca74ca8a8ba0c97472" "72dee13601ce38f6746eb15239999a7c56f8e1ff5eb1ec8153a1f213e4acdb29" "1f189c4566aa35950964647b9ec3be1a821e42b86048129c63eb7f9d4d2f5a74" "5481adbe161c9f6ba972c74db9e18c7aa351d3df3035cc4a673a1aa06247d1c6" "4ebd261a608287796e171af0ea9af5a1e3122e46672accda2484b6698c47c1a4")
+
+prepare() {
+    set -euxo pipefail
+    _prepare_upstream
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    local patch current number
+    for patch in "${_GNU_PATCHES[@]}"; do
+        current="$(awk '/^[0-9]+$/ {n=$0} END {print n+0}' patchlevel)"
+        number="${patch##*-}"
+        number=$((10#$number))
+        if (( number <= current )); then continue; fi
+        test "$number" -eq "$((current + 1))"
+        patch --batch --forward -Np0 -i "$SRCROOT/$patch"
+    done
+}
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("fe5383204467828cd495ee8d1d3c037a7eba1389c22bc6a041f627976f9061cc" "21f0a03106dbe697337cd25c70eb0edbaa2bdb6d595b45f83285cdd35bac84de" "e27364396ba9f6debf7cbaaf1a669e2b2854241ae07f7eca74ca8a8ba0c97472" "72dee13601ce38f6746eb15239999a7c56f8e1ff5eb1ec8153a1f213e4acdb29" "1f189c4566aa35950964647b9ec3be1a821e42b86048129c63eb7f9d4d2f5a74" "5481adbe161c9f6ba972c74db9e18c7aa351d3df3035cc4a673a1aa06247d1c6" "4ebd261a608287796e171af0ea9af5a1e3122e46672accda2484b6698c47c1a4")

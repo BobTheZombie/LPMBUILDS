@@ -1,0 +1,43 @@
+#!/bin/bash
+NAME="syndication6"
+VERSION="6.31.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="syndication6 upstream package"
+URL="https://download.kde.org/stable/frameworks/6.31/"
+LICENSE=("BSD-2-Clause" "CC0-1.0" "GPL-2.0-or-later" "LGPL-2.0-or-later" "Qt-Commercial-exception-1.0")
+SOURCE=("https://download.kde.org/stable/frameworks/6.31/syndication-6.31.0.tar.xz")
+SHA256SUMS=("7cd3ac299ff01736b7a9a1a2eb3700561810267a2e3af50935c3f3cce9635077")
+PATCHES=()
+REQUIRES=("gcc-libs" "glibc" "kcodecs6" "qt6-base")
+BUILD_REQUIRES=("cmake" "extra-cmake-modules" "ninja" "pkgconf")
+PROVIDES=("syndication6")
+CONFLICTS=()
+OBSOLETES=()
+BUILD_OPTIONS=("@--stripping" "@--optimize=2")
+prepare() { set -euxo pipefail; cd "$SRCROOT/${NAME}-${VERSION}"; }
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    cmake -S . -B build -G Ninja -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_INSTALL_LIBDIR=lib -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON -DBUILD_TESTING=OFF -DBUILD_QCH=OFF -DCMAKE_PREFIX_PATH=/usr/lib/qt6
+    cmake --build build --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    DESTDIR="$pkgdir" cmake --install build
+    local f
+    for f in COPYING COPYING.LIB LICENSE LICENSE.md LICENSE.txt; do
+        if [ -f "$f" ]; then install -Dm644 "$f" "$pkgdir/usr/share/licenses/$NAME/$f"; fi
+    done
+    if [ -d LICENSES ]; then
+        install -dm755 "$pkgdir/usr/share/licenses/$NAME"
+        cp -a LICENSES/. "$pkgdir/usr/share/licenses/$NAME/"
+    fi
+}
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("7cd3ac299ff01736b7a9a1a2eb3700561810267a2e3af50935c3f3cce9635077")

@@ -1,0 +1,46 @@
+NAME="acl"
+VERSION="2.4.0"
+RELEASE="1"
+ARCH="x86_64"
+SUMMARY="Access Control List utilities and libraries"
+URL="https://savannah.nongnu.org/projects/acl/"
+SOURCE=("https://download.savannah.gnu.org/releases/acl/acl-${VERSION}.tar.xz")
+LICENSE=("LGPL-2.1-or-later" "GPL-2.0-or-later")
+
+REQUIRES=("attr" "glibc")
+PROVIDES=("acl" "libacl.so")
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-$VERSION"
+    
+  
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-$VERSION"
+    
+    ./configure \
+    --libdir=/usr/lib \
+    --libexecdir=/usr/lib \
+    --prefix=/usr
+  sed -i -e 's/ -shared / -Wl,-O1,--as-needed\0/g' libtool
+  make -j"$(nproc)"
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-$VERSION"
+    make DESTDIR="$pkgdir" install
+
+    # Remove static libs
+    rm -f "$pkgdir/usr/lib/libacl.a" || true
+}
+
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("SKIP")

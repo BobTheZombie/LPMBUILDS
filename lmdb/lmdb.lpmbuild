@@ -1,0 +1,120 @@
+#!/bin/bash
+# LPM Linux - LMDB 1.0.0 (Symas Lightning Memory-Mapped Database)
+# Adapted from the Arch Linux LMDB 1.0.0 PKGBUILD.
+# WARNING: LMDB 1.x has a different ABI and database format than LMDB 0.9.x.
+
+NAME="lmdb"
+VERSION="1.0.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+
+SUMMARY="Symas Lightning Memory-Mapped Database"
+URL="https://symas.com/lmdb"
+LICENSE=("OLDAP-2.8")
+
+# Use an archive rather than a git+ source: compatible with LPM's URL fetcher.
+SOURCE=(
+    "https://git.openldap.org/openldap/openldap/-/archive/LMDB_${VERSION}/openldap-LMDB_${VERSION}.tar.bz2"
+)
+# This is NOT Arch's SHA512 of its Git source checkout. Verify the exact
+# downloaded archive before replacing SKIP and publishing to a signed repo.
+SHA256SUMS=("SKIP")
+PATCHES=()
+
+REQUIRES=("glibc")
+BUILD_REQUIRES=("gcc" "make" "binutils")
+PROVIDES=("lmdb" "liblmdb.so" "liblmdb.so.1")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+    set -euxo pipefail
+
+    local srcdir="$SRCROOT/${NAME}-${VERSION}"
+
+    if [[ ! -f "$srcdir/libraries/liblmdb/Makefile" ]]; then
+        # GitLab archives usually unpack as openldap-LMDB_<tag>-<revision>.
+        local candidate parent
+        candidate="$(find "$SRCROOT" -mindepth 2 -maxdepth 4 -type f \
+            -path '*/libraries/liblmdb/Makefile' -print -quit)"
+        [[ -n "$candidate" ]] || {
+            echo "[ERROR] Could not locate LMDB source under $SRCROOT" >&2
+            return 1
+        }
+        parent="${candidate%/libraries/liblmdb/Makefile}"
+        if [[ "$parent" != "$srcdir" ]]; then
+            [[ ! -e "$srcdir" ]] || {
+                echo "[ERROR] Incomplete/conflicting source directory: $srcdir" >&2
+                return 1
+            }
+            mv "$parent" "$srcdir"
+        fi
+    fi
+
+    test -f "$srcdir/libraries/liblmdb/Makefile"
+    test -f "$srcdir/libraries/liblmdb/lmdb.h"
+    test -f "$srcdir/libraries/liblmdb/LICENSE"
+}
+
+build() {
+    set -euxo pipefail
+
+    local libsrc="$SRCROOT/${NAME}-${VERSION}/libraries/liblmdb"
+
+    make -C "$libsrc" -j"${LPM_BUILD_JOBS:-$(nproc)}" \
+        prefix=/usr \
+        OPT="${CFLAGS:--O2}" \
+        CPPFLAGS="${CPPFLAGS:-}" \
+        LDFLAGS="${LDFLAGS:+${LDFLAGS} }-pthread" \
+        all
+}
+
+check() {
+    set -euxo pipefail
+
+    local libsrc="$SRCROOT/${NAME}-${VERSION}/libraries/liblmdb"
+
+    # Run upstream's built-in database test.
+    make -C "$libsrc" \
+        prefix=/usr \
+        OPT="${CFLAGS:--O2}" \
+        CPPFLAGS="${CPPFLAGS:-}" \
+        LDFLAGS="${LDFLAGS:+${LDFLAGS} }-pthread" \
+        test
+}
+
+staging() {
+    set -euxo pipefail
+
+    local libsrc="$SRCROOT/${NAME}-${VERSION}/libraries/liblmdb"
+
+    # Upstream uses DESTDIR directly (no DSTROOT); leave man pages in
+    # /usr/share/man, where the 1.0.0 Makefile installs them.
+    make -C "$libsrc" prefix=/usr DESTDIR="$pkgdir" install
+
+    # LMDB 1.0.0 creates lmdb.pc via 'make all', but does not install it.
+    install -Dm644 "$libsrc/lmdb.pc" \
+        "$pkgdir/usr/lib/pkgconfig/lmdb.pc"
+
+    install -Dm644 "$libsrc/LICENSE" \
+        "$pkgdir/usr/share/licenses/${NAME}/LICENSE"
+
+    # LPM's shared-library-first packaging convention.
+    rm -f "$pkgdir/usr/lib/liblmdb.a"
+
+    test -s "$pkgdir/usr/lib/liblmdb.so.1.0"
+    test -e "$pkgdir/usr/lib/liblmdb.so.1"
+    test -e "$pkgdir/usr/lib/liblmdb.so"
+    test -s "$pkgdir/usr/include/lmdb.h"
+    test -x "$pkgdir/usr/bin/mdb_stat"
+    test -x "$pkgdir/usr/bin/mdb_copy"
+    test -x "$pkgdir/usr/bin/mdb_dump"
+    test -x "$pkgdir/usr/bin/mdb_load"
+    test -x "$pkgdir/usr/bin/mdb_drop"
+    test -s "$pkgdir/usr/lib/pkgconfig/lmdb.pc"
+    test -s "$pkgdir/usr/share/man/man1/mdb_stat.1"
+
+    echo "[OK] LMDB $VERSION staged with liblmdb.so.1, tools, headers, pkg-config and man pages"
+}

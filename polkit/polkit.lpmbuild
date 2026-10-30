@@ -1,0 +1,75 @@
+#!/bin/bash
+# LPM networking stack, release snapshot 2026-10-16
+NAME="polkit"
+VERSION="128"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY='Authorization framework for NetworkManager'
+URL=https://github.com/polkit-org/polkit/archive/refs/tags/128.tar.gz
+LICENSE=(LGPL-2.0-or-later)
+SOURCE=(polkit-1 https://github.com/polkit-org/polkit/archive/refs/tags/128.tar.gz)
+SHA256SUMS=(
+    "5c2d377a87121e7c399534fb91e2ffc0cc1e75d44a8f07ee6f55c9c089bc81e4"
+    "6edb06bf1448e49e428f9597a97af6a05d62146dd0b58f86eeaebcee3f5ecfaa"
+)
+PATCHES=()
+REQUIRES=(glibc glib2 duktape expat pam systemd)
+BUILD_REQUIRES=(gcc meson ninja pkgconf gettext python glib2 duktape expat pam systemd)
+PROVIDES=(polkit polkit-gobject-1 libpolkit-gobject-1.so)
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+BUILD_OPTIONS=(@--stripping @--optimize=2)
+
+_source() {
+    if [ ! -d "$SRCROOT/${NAME}-${VERSION}" ] && [ -d "$SRCROOT/polkit-128" ]; then
+        mv "$SRCROOT/polkit-128" "$SRCROOT/${NAME}-${VERSION}"
+    fi
+}
+
+_licenses() {
+    local f
+    for f in COPYING COPYING.LIB LICENSE LICENSE.txt LICENCE README; do
+        if [ -f "$f" ]; then
+            install -Dm644 "$f" "$pkgdir/usr/share/licenses/$NAME/$(basename "$f")"
+        fi
+    done
+}
+_cleanup() {
+    if [ -d "$pkgdir/usr/lib" ]; then
+        find "$pkgdir/usr/lib" -type f \( -name '*.a' -o -name '*.la' \) -delete
+    fi
+    rm -f "$pkgdir/usr/share/info/dir"
+}
+
+prepare() { set -euxo pipefail; _source; cd "$SRCROOT/${NAME}-${VERSION}"; rm -rf _build; }
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    meson setup _build --prefix=/usr --libdir=lib --libexecdir=lib/polkit-1 \
+        --sysconfdir=/etc --localstatedir=/var --buildtype=release --wrap-mode=nodownload \
+        -Dsession_tracking=logind -Dauthfw=pam -Dpam_include=system-auth \
+        -Dsystemdsystemunitdir=/usr/lib/systemd/system \
+        -Dintrospection=false -Dgtk_doc=false -Dman=false -Dtests=false
+    meson compile -C _build -j "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    meson install -C _build --no-rebuild --destdir "$pkgdir"
+    install -dm755 "$pkgdir/usr/lib/sysusers.d"
+    printf '%s
+' 'u polkitd - "PolicyKit daemon" /var/lib/polkit-1 /usr/bin/nologin'         > "$pkgdir/usr/lib/sysusers.d/polkit.conf"
+    test -s "$pkgdir/usr/lib/pkgconfig/polkit-gobject-1.pc"
+    install -Dm644 "$SRCROOT/polkit-1" "$pkgdir/etc/pam.d/polkit-1"
+    _cleanup
+    _licenses
+}
+
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("5c2d377a87121e7c399534fb91e2ffc0cc1e75d44a8f07ee6f55c9c089bc81e4" "6edb06bf1448e49e428f9597a97af6a05d62146dd0b58f86eeaebcee3f5ecfaa")

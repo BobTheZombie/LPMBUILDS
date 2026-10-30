@@ -1,0 +1,151 @@
+#!/bin/bash
+# LPM build script for libglvnd
+
+NAME="libglvnd"
+VERSION="1.7.0"
+RELEASE="2"
+ARCH="${ARCH:-x86_64}"
+
+SUMMARY="Vendor-neutral OpenGL dispatch library"
+URL="https://gitlab.freedesktop.org/glvnd/libglvnd"
+LICENSE=("MIT")
+
+SOURCE=(
+    "https://gitlab.freedesktop.org/glvnd/libglvnd/-/archive/v${VERSION}/libglvnd-v${VERSION}.tar.gz"
+)
+
+SHA256SUMS=(
+    "2b6e15b06aafb4c0b6e2348124808cbd9b291c647299eaaba2e3202f51ff2f3d"
+)
+
+PATCHES=()
+
+REQUIRES=(
+    "glibc"
+    "libX11"
+    "libXext"
+)
+
+BUILD_REQUIRES=(
+    "gcc"
+    "meson"
+    "ninja"
+    "pkgconf"
+    "python"
+    "libX11"
+    "libXext"
+    "xorgproto"
+)
+
+PROVIDES=(
+    "libglvnd"
+    "libGL.so"
+    "libGL.so.1"
+    "libGLdispatch.so"
+    "libGLdispatch.so.0"
+    "libGLX.so"
+    "libGLX.so.0"
+    "libOpenGL.so"
+    "libOpenGL.so.0"
+    "libEGL.so"
+    "libEGL.so.1"
+    "libGLESv1_CM.so"
+    "libGLESv1_CM.so.1"
+    "libGLESv2.so"
+    "libGLESv2.so.2"
+)
+
+CONFLICTS=("mesa-libgl")
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+BUILD_OPTIONS=(
+    "@--stripping"
+    "@--optimize=2"
+)
+
+prepare() {
+    set -euxo pipefail
+
+    if [ ! -d "$SRCROOT/${NAME}-${VERSION}" ] &&
+       [ -d "$SRCROOT/${NAME}-v${VERSION}" ]; then
+        mv "$SRCROOT/${NAME}-v${VERSION}" \
+            "$SRCROOT/${NAME}-${VERSION}"
+    fi
+
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    test -f meson.build
+    test -f meson_options.txt
+    test -f src/GLdispatch/GLdispatch.c
+
+    rm -rf build
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    meson setup build \
+        --prefix=/usr \
+        --libdir=lib \
+        --buildtype=release \
+        --wrap-mode=nodownload \
+        -Ddefault_library=shared \
+        -Dx11=enabled \
+        -Dglx=enabled \
+        -Degl=true \
+        -Dgles1=true \
+        -Dgles2=true \
+        -Dheaders=true
+
+    meson compile -C build \
+        -j "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    meson install -C build \
+        --no-rebuild \
+        --destdir "$pkgdir"
+
+    find "$pkgdir/usr/lib" \
+        -type f \
+        \( -name '*.a' -o -name '*.la' \) \
+        -delete
+
+    local library
+    for library in \
+        libGL.so \
+        libGL.so.1 \
+        libGLdispatch.so.0 \
+        libGLX.so.0 \
+        libOpenGL.so.0 \
+        libEGL.so.1 \
+        libGLESv1_CM.so.1 \
+        libGLESv2.so.2
+    do
+        test -e "$pkgdir/usr/lib/$library"
+    done
+
+    local module
+    for module in gl glx opengl egl glesv1_cm glesv2; do
+        test -s "$pkgdir/usr/lib/pkgconfig/$module.pc"
+    done
+
+    test -f "$pkgdir/usr/include/GL/gl.h"
+    test -f "$pkgdir/usr/include/GL/glx.h"
+    test -f "$pkgdir/usr/include/EGL/egl.h"
+
+    # Upstream embeds its license notice in source files.
+    install -dm755 "$pkgdir/usr/share/licenses/$NAME"
+
+    sed -n '1,/^[[:space:]]*\*\//p' \
+        src/GLdispatch/GLdispatch.c \
+        > "$pkgdir/usr/share/licenses/$NAME/LICENSE"
+
+    test -s "$pkgdir/usr/share/licenses/$NAME/LICENSE"
+}

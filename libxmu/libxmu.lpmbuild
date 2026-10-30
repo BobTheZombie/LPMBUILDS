@@ -1,14 +1,14 @@
 # LPM build script for libxmu
 NAME="libxmu"
-VERSION="1.1.4"
+VERSION="1.3.1"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="X11 miscellaneous utility library"
 URL="https://www.x.org/"
 LICENSE="MIT"
 SOURCE=("https://xorg.freedesktop.org/archive/individual/lib/libXmu-${VERSION}.tar.xz")
-CHECKSUMS=("210de3ab9c3e9382572c25d17c2518a854ce6e2c62c5f8315deac7579e758244")
-REQUIRES=("glibc" "libx11" "libxext" "libxt" "xorgproto")
+CHECKSUMS=("81a99e94c4501e81c427cbaa4a11748b584933e94b7a156830c3621256857bc4")
+REQUIRES=("glibc" "libX11" "libXext" "libxt" "xorgproto")
 PROVIDES=("libxmu")
 CONFLICTS=()
 OBSOLETES=()
@@ -29,3 +29,9 @@ staging() {
   cd "$SRCROOT"
   make DESTDIR="$pkgdir" install
 }
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("81a99e94c4501e81c427cbaa4a11748b584933e94b7a156830c3621256857bc4")

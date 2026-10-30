@@ -1,34 +1,148 @@
-# LPM build script for make
+#!/bin/bash
+# LPM build script for GNU Make
+
 NAME="make"
 VERSION="4.4.1"
-RELEASE="1"
+RELEASE="2"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="GNU make"
+
+SUMMARY="GNU utility for maintaining groups of programs"
 URL="https://www.gnu.org/software/make/"
-LICENSE=""
-SOURCE=()
-REQUIRES=("glibc")
-PROVIDES=("make")
+LICENSE=("GPL-3.0-or-later")
+
+SOURCE=(
+    "https://ftp.wayne.edu/gnu/make/make-${VERSION}.tar.gz"
+)
+
+SHA256SUMS=(
+    "SKIP"
+)
+
+PATCHES=()
+
+REQUIRES=(
+    "glibc"
+)
+
+BUILD_REQUIRES=(
+)
+
+PROVIDES=(
+    "make"
+)
+
 CONFLICTS=()
 OBSOLETES=()
 RECOMMENDS=()
 SUGGESTS=()
 
+BUILD_OPTIONS=(
+    "@--stripping"
+    "@--optimize=2"
+)
+
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    BUILDDIR="$SRCDIR/build"
+
+    test -f "$SRCDIR/configure"
+    test -f "$SRCDIR/Makefile.in"
+    test -f "$SRCDIR/COPYING"
+
+    rm -rf "$BUILDDIR"
+    mkdir -p "$BUILDDIR"
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    BUILDDIR="$SRCDIR/build"
+
+    cd "$BUILDDIR"
+
+    ../configure \
+        --prefix=/usr \
+        --bindir=/usr/bin \
+        --mandir=/usr/share/man \
+        --infodir=/usr/share/info \
+        --docdir="/usr/share/doc/${NAME}-${VERSION}" \
+        --without-guile
+
+    make -j"$(nproc)"
+}
+
+check() {
+    set -euxo pipefail
+
+    BUILDDIR="$SRCROOT/${NAME}-${VERSION}/build"
+
+    #
+    # Skip the complete test suite during bootstrap builds, but verify that
+    # the resulting binary starts and reports the expected release.
+    #
+
+    test -x "$BUILDDIR/make"
+
+    "$BUILDDIR/make" --version |
+        grep -Fq "GNU Make ${VERSION}"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    BUILDDIR="$SRCDIR/build"
+
+    make \
+        -C "$BUILDDIR" \
+        DESTDIR="$pkgdir" \
+        install
+
+    #
+    # Remove metadata that is not used by this package.
+    #
+
+    find "$pkgdir/usr/lib" \
+        -type f \
+        \( -name '*.la' -o -name '*.a' \) \
+        -delete 2>/dev/null || true
+
+    #
+    # Validate the installed payload.
+    #
+
+    test -x "$pkgdir/usr/bin/make"
+    test -f "$pkgdir/usr/share/man/man1/make.1"
+
+    "$pkgdir/usr/bin/make" --version |
+        grep -Fq "GNU Make ${VERSION}"
+
+    if ! find "$pkgdir/usr/share/info" \
+        -maxdepth 1 \
+        -type f \
+        -name 'make.info*' \
+        -print \
+        -quit |
+        grep -q .
+    then
+        echo "[ERROR] Missing GNU Make Info documentation" >&2
+        return 1
+    fi
+
+    #
+    # Install licensing information.
+    #
+
+    install -Dm644 \
+        "$SRCDIR/COPYING" \
+        "$pkgdir/usr/share/licenses/$NAME/COPYING"
 }
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("dd16fb1d67bfab79a72f5e8390735c49e3e8e70b4945a15ab1f81ddb78658fb3")

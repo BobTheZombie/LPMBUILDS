@@ -1,0 +1,50 @@
+#!/bin/bash
+NAME="libXdmcp"
+VERSION="1.1.5"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="libXdmcp from X.Org"
+URL="https://www.x.org/"
+LICENSE="MIT"
+
+SOURCE=(
+  "https://www.x.org/releases/individual/lib/${NAME}-${VERSION}.tar.xz"
+)
+
+REQUIRES=(
+  "glibc"
+  "xorgproto"
+  "libXau"
+)
+
+PROVIDES=("libXdmcp")
+CONFLICTS=()
+OBSOLETES=("libxdmcp")
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+  ./configure --prefix=/usr
+  make -j"$(nproc)"
+}
+
+check() { true; }
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+  DESTDIR="$pkgdir" make install
+  [ -f COPYING ] && install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+}
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("d8a5222828c3adab70adf69a5583f1d32eb5ece04304f7f8392b6a353aa2228c")

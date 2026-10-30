@@ -1,0 +1,67 @@
+#!/bin/bash
+# LPM networking stack, release snapshot 2026-10-16
+NAME="duktape"
+VERSION="2.7.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY='Embedded JavaScript engine for polkit'
+URL=https://duktape.org/duktape-2.7.0.tar.xz
+LICENSE=(MIT)
+SOURCE=(https://duktape.org/duktape-2.7.0.tar.xz)
+SHA256SUMS=(
+    "90f8d2fa8b5567c6899830ddef2c03f3c27960b11aca222fa17aa7ac613c2890"
+)
+PATCHES=()
+REQUIRES=(glibc)
+BUILD_REQUIRES=(gcc make)
+PROVIDES=(duktape libduktape.so)
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+BUILD_OPTIONS=(@--stripping @--optimize=2)
+
+_source() {
+    if [ ! -d "$SRCROOT/${NAME}-${VERSION}" ] && [ -d "$SRCROOT/duktape-2.7.0" ]; then
+        mv "$SRCROOT/duktape-2.7.0" "$SRCROOT/${NAME}-${VERSION}"
+    fi
+}
+
+_licenses() {
+    local f
+    for f in COPYING COPYING.LIB LICENSE LICENSE.txt LICENCE README; do
+        if [ -f "$f" ]; then
+            install -Dm644 "$f" "$pkgdir/usr/share/licenses/$NAME/$(basename "$f")"
+        fi
+    done
+}
+_cleanup() {
+    if [ -d "$pkgdir/usr/lib" ]; then
+        find "$pkgdir/usr/lib" -type f \( -name '*.a' -o -name '*.la' \) -delete
+    fi
+    rm -f "$pkgdir/usr/share/info/dir"
+}
+
+prepare() { set -euxo pipefail; _source; cd "$SRCROOT/${NAME}-${VERSION}"; test -f Makefile.sharedlibrary
+    # Place libm after the object/source so --as-needed retains it.
+    sed -i 's|/duktape.c$|/duktape.c -lm|' Makefile.sharedlibrary
+}
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    make -f Makefile.sharedlibrary -j"${LPM_BUILD_JOBS:-$(nproc)}" INSTALL_PREFIX=/usr LIBDIR=/lib
+}
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    make -f Makefile.sharedlibrary INSTALL_PREFIX=/usr LIBDIR=/lib DESTDIR="$pkgdir" install
+    test -s "$pkgdir/usr/lib/pkgconfig/duktape.pc"
+    _licenses
+}
+
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("90f8d2fa8b5567c6899830ddef2c03f3c27960b11aca222fa17aa7ac613c2890")

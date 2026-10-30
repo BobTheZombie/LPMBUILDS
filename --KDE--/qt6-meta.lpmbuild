@@ -1,0 +1,52 @@
+#!/bin/bash
+# LPM Linux: complete Qt 6 module meta package for the Plasma 6.8.1 chain.
+# Build/install this recipe with dependency resolution enabled.
+
+NAME="qt6-meta"
+VERSION="6.11.2"
+RELEASE="1"
+ARCH="any"
+
+SUMMARY="Complete Qt 6.11.2 module set for LPM Linux KDE Plasma"
+URL="https://www.qt.io/"
+LICENSE=("MIT") # Metadata-only recipe; contains no upstream Qt payload.
+
+SOURCE=()
+SHA256SUMS=()
+PATCHES=()
+
+# LPM recursively builds missing REQUIRES while running `lpm buildpkg`.
+# Keep modules aligned to the Qt 6.11.2 source set in the Plasma bundle.
+REQUIRES=(
+    "qt6-base>=6.11.2"
+    "qt6-shadertools>=6.11.2"
+    "qt6-declarative>=6.11.2"
+    "qt6-5compat>=6.11.2"
+    "qt6-imageformats>=6.11.2"
+    "qt6-multimedia>=6.11.2"
+    "qt6-quick3d>=6.11.2"
+    "qt6-sensors>=6.11.2"
+    "qt6-svg>=6.11.2"
+    "qt6-tools>=6.11.2"
+    "qt6-translations>=6.11.2"
+    "qt6-wayland>=6.11.2"
+    "qt6-webchannel>=6.11.2"
+    "qt6-websockets>=6.11.2"
+)
+
+# REQUIRES already triggers dependency builds in LPM. Do not duplicate
+# those same modules in BUILD_REQUIRES.
+BUILD_REQUIRES=()
+REQUIRES_PYTHON_DEPENDENCIES=()
+
+PROVIDES=("qt6-full" "qt6-complete")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+# Intentionally no files: LPM recognizes SOURCE-less / empty-payload
+# recipes with REQUIRES as dependency meta packages.
+prepare() { :; }
+build() { :; }
+staging() { :; }

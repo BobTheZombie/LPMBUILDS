@@ -1,0 +1,98 @@
+#!/bin/bash
+# LPM Linux standalone build recipe for gst-plugins-bad 1.28.8
+# GStreamer coordinated stable series 1.28.8; Orc is versioned separately.
+NAME="gst-plugins-bad"
+VERSION="1.28.8"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Additional GStreamer codecs, parsers and advanced media plugins"
+URL="https://gstreamer.freedesktop.org/"
+LICENSE=("LGPL-2.1-or-later")
+SOURCE=("https://gstreamer.freedesktop.org/src/${NAME}/${NAME}-${VERSION}.tar.xz")
+SHA256SUMS=("670d888bde8242579b0d8e91f60cf337aa7be20ca7c315ebfbdd6e5a9218d104")
+PATCHES=()
+REQUIRES=(
+    "glibc"
+    "glib2"
+    "gstreamer"
+    "gst-plugins-base"
+    "orc"
+    "libdrm"
+    "libva"
+    "libvpx"
+    "libjpeg"
+    "libpng"
+)
+BUILD_REQUIRES=(
+    "meson"
+    "ninja"
+    "pkgconf"
+    "python"
+    "libdrm"
+    "libva"
+    "libvpx"
+    "libjpeg"
+    "libpng"
+)
+PROVIDES=("${NAME}")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+BUILD_OPTIONS=("@--stripping" "@--optimize=2")
+
+_gst_srcdir() {
+    local candidate
+    for candidate in         "$SRCROOT/${NAME}-${VERSION}"         "$SRCROOT/${NAME}"         "$SRCROOT"; do
+        if [[ -f "$candidate/meson.build" ]]; then
+            printf '%s\n' "$candidate"
+            return 0
+        fi
+    done
+    echo "[ERROR] Cannot locate extracted $NAME $VERSION source in $SRCROOT" >&2
+    return 1
+}
+
+prepare() {
+    set -euxo pipefail
+    local srcdir
+    srcdir="$(_gst_srcdir)"
+    rm -rf "$srcdir/build"
+}
+
+build() {
+    set -euxo pipefail
+    local srcdir
+    srcdir="$(_gst_srcdir)"
+    meson setup "$srcdir/build" "$srcdir" \
+        --prefix=/usr \
+        --libdir=lib \
+        --buildtype=release \
+        --wrap-mode=nodownload \
+        -Dtests=disabled \
+        -Ddoc=disabled \
+        -Ddefault_library=shared
+    meson compile -C "$srcdir/build" -j "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+check() {
+    # Runtime tests are not run against the packaging host; stage checks follow.
+    set -euxo pipefail
+    local srcdir
+    srcdir="$(_gst_srcdir)"
+    test -f "$srcdir/build/build.ninja"
+}
+
+staging() {
+    set -euxo pipefail
+    local srcdir
+    srcdir="$(_gst_srcdir)"
+    DESTDIR="$pkgdir" meson install -C "$srcdir/build" --no-rebuild
+    test -n "$(find "$pkgdir/usr/lib/gstreamer-1.0" -type f -name "libgst*.so" -print -quit)" || { echo "[ERROR] No GStreamer plugins staged" >&2; return 1; }
+
+    if [[ -f "$srcdir/COPYING" ]]; then
+        install -Dm644 "$srcdir/COPYING" \
+            "$pkgdir/usr/share/licenses/$NAME/COPYING"
+    fi
+    echo "[OK] $NAME $VERSION staged"
+}

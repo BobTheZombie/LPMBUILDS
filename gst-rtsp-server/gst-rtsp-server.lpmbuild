@@ -1,0 +1,92 @@
+#!/bin/bash
+# LPM Linux standalone build recipe for gst-rtsp-server 1.28.8
+# GStreamer coordinated stable series 1.28.8; Orc is versioned separately.
+NAME="gst-rtsp-server"
+VERSION="1.28.8"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="GStreamer RTSP server libraries"
+URL="https://gstreamer.freedesktop.org/"
+LICENSE=("LGPL-2.1-or-later")
+SOURCE=("https://gstreamer.freedesktop.org/src/${NAME}/${NAME}-${VERSION}.tar.xz")
+SHA256SUMS=("59181ed21a5bc0533fb4f77cb7bc6005d89365e834b0c1294afb9ab5f7d96fe0")
+PATCHES=()
+REQUIRES=(
+    "glibc"
+    "glib2"
+    "gstreamer"
+    "gst-plugins-base"
+    "gst-plugins-good"
+)
+BUILD_REQUIRES=(
+    "meson"
+    "ninja"
+    "pkgconf"
+    "python"
+    "gobject-introspection"
+)
+PROVIDES=("${NAME}")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+BUILD_OPTIONS=("@--stripping" "@--optimize=2")
+
+_gst_srcdir() {
+    local candidate
+    for candidate in         "$SRCROOT/${NAME}-${VERSION}"         "$SRCROOT/${NAME}"         "$SRCROOT"; do
+        if [[ -f "$candidate/meson.build" ]]; then
+            printf '%s\n' "$candidate"
+            return 0
+        fi
+    done
+    echo "[ERROR] Cannot locate extracted $NAME $VERSION source in $SRCROOT" >&2
+    return 1
+}
+
+prepare() {
+    set -euxo pipefail
+    local srcdir
+    srcdir="$(_gst_srcdir)"
+    rm -rf "$srcdir/build"
+}
+
+build() {
+    set -euxo pipefail
+    local srcdir
+    srcdir="$(_gst_srcdir)"
+    meson setup "$srcdir/build" "$srcdir" \
+        --prefix=/usr \
+        --libdir=lib \
+        --buildtype=release \
+        --wrap-mode=nodownload \
+        -Dtests=disabled \
+        -Dexamples=disabled \
+        -Ddoc=disabled \
+        -Dintrospection=enabled \
+        -Ddefault_library=shared
+    meson compile -C "$srcdir/build" -j "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+check() {
+    # Runtime tests are not run against the packaging host; stage checks follow.
+    set -euxo pipefail
+    local srcdir
+    srcdir="$(_gst_srcdir)"
+    test -f "$srcdir/build/build.ninja"
+}
+
+staging() {
+    set -euxo pipefail
+    local srcdir
+    srcdir="$(_gst_srcdir)"
+    DESTDIR="$pkgdir" meson install -C "$srcdir/build" --no-rebuild
+    test -e "$pkgdir/usr/lib/pkgconfig/gstreamer-rtsp-server-1.0.pc" || { echo "[ERROR] Missing staged file: /usr/lib/pkgconfig/gstreamer-rtsp-server-1.0.pc" >&2; return 1; }
+    test -n "$(find "$pkgdir/usr/lib" -name "libgstrtspserver-1.0.so*" -print -quit)"
+
+    if [[ -f "$srcdir/COPYING" ]]; then
+        install -Dm644 "$srcdir/COPYING" \
+            "$pkgdir/usr/share/licenses/$NAME/COPYING"
+    fi
+    echo "[OK] $NAME $VERSION staged"
+}

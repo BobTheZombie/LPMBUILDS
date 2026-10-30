@@ -1,0 +1,50 @@
+#  base filesystem tmpfiles configuration
+#
+# Generic distribution defaults may be copied from /usr/share/factory
+# when the corresponding /etc file does not already exist.
+#
+# Machine-specific configuration MUST NOT be managed here:
+#   /etc/fstab
+#   /etc/hostname
+#   /etc/resolv.conf
+#   /etc/machine-id
+
+# Generic /etc defaults
+
+C /etc/hosts
+C /etc/issue
+C /etc/ld.so.conf
+C /etc/motd
+C /etc/nsswitch.conf
+C /etc/profile
+C /etc/profile.d/locale.sh
+C /etc/shells
+
+# Runtime directories
+
+d /run/lock 0755 root root -
+d /run/user 0755 root root -
+
+# Temporary directories
+
+d /tmp 1777 root root 10d
+d /var/tmp 1777 root root 30d
+
+# Logging and spool directories
+
+d /var/log 0755 root root -
+d /var/spool 0755 root root -
+d /var/spool/mail 0755 root mail -
+d /var/spool/cron 0755 root root -
+d /var/spool/samba 1777 root root -
+
+# Persistent state/cache directories
+
+d /var/lib 0755 root root -
+d /var/lib/misc 0755 root root -
+d /var/cache 0755 root root -
+
+# Home directories
+
+d /root 0750 root root -
+d /home 0755 root root -

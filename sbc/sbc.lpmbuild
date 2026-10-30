@@ -1,0 +1,52 @@
+#!/bin/bash
+# LPM Linux build recipe: SBC Bluetooth audio codec library
+# Upstream: https://www.kernel.org/pub/linux/bluetooth/
+
+NAME="sbc"
+VERSION="2.2"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Bluetooth Subband Codec (SBC) encoder and decoder library"
+URL="https://git.kernel.org/pub/scm/bluetooth/sbc.git"
+LICENSE=("GPL-2.0-or-later" "LGPL-2.1-or-later")
+
+SOURCE=("https://www.kernel.org/pub/linux/bluetooth/${NAME}-${VERSION}.tar.xz")
+SHA256SUMS=("a1ada76ef35e5af9c2fbd063754dc9e37a8d989417c6eb1ecebb089b1383ae9e")
+PATCHES=()
+
+REQUIRES=("glibc")
+BUILD_REQUIRES=("gcc" "make" "pkgconf")
+PROVIDES=("sbc" "libsbc.so.1")
+CONFLICTS=()
+OBSOLETES=()
+BUILD_OPTIONS=("@--stripping" "@--optimize=2")
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    ./configure \
+        --prefix=/usr \
+        --libdir=/usr/lib \
+        --disable-static \
+        --disable-tester \
+        --enable-tools
+    make -j "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    make DESTDIR="$pkgdir" install
+
+    install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+    install -Dm644 COPYING.LIB "$pkgdir/usr/share/licenses/$NAME/COPYING.LIB"
+
+    test -f "$pkgdir/usr/lib/pkgconfig/sbc.pc"
+    test -f "$pkgdir/usr/include/sbc/sbc.h"
+    test -L "$pkgdir/usr/lib/libsbc.so"
+}

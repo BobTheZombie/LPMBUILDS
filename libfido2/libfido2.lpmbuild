@@ -1,0 +1,50 @@
+#!/bin/bash
+NAME="libfido2"
+VERSION="1.17.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="FIDO2 authentication library"
+URL="https://developers.yubico.com/libfido2/"
+LICENSE=("BSD-2-Clause")
+SOURCE=("https://github.com/Yubico/libfido2/archive/refs/tags/${VERSION}.tar.gz")
+SHA256SUMS=("c1012c8871d71b65872fd5ff1a9d6b0838a55683a03e85ba97479ce57129c736")
+PATCHES=()
+REQUIRES=("glibc" "openssl" "libcbor" "systemd")
+BUILD_REQUIRES=("gcc" "cmake" "make" "pkgconf" "openssl" "libcbor" "systemd")
+PROVIDES=("libfido2" "libfido2.so")
+STAGE_2_REQUIRES=()
+STAGE_2_BUILD_REQUIRES=()
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+BUILD_OPTIONS=("@--stripping" "@--optimize=2")
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    rm -rf build
+}
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    cmake -S . -B build -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_INSTALL_LIBDIR=lib \
+        -DCMAKE_BUILD_TYPE=Release -DBUILD_STATIC_LIBS=OFF -DBUILD_SHARED_LIBS=ON \
+        -DBUILD_TESTS=OFF -DBUILD_EXAMPLES=OFF -DBUILD_MANPAGES=OFF -DBUILD_TOOLS=ON -Wno-dev
+    cmake --build build -j "$(nproc)"
+}
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    DESTDIR="$pkgdir" cmake --install build
+    test -e "$pkgdir/usr/lib/libfido2.so"
+    test -f "$pkgdir/usr/include/fido.h"
+    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$NAME/LICENSE"
+}
+
+
+
+SOURCE=("https://developers.yubico.com/libfido2/Releases/libfido2-1.17.0.tar.gz")
+
+
+# Final audited source digests
+SHA256SUMS=("c1012c8871d71b65872fd5ff1a9d6b0838a55683a03e85ba97479ce57129c736")

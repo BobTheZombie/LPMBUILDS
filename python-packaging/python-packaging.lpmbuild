@@ -1,0 +1,39 @@
+#!/bin/bash
+NAME="python-packaging"
+VERSION="26.3"
+RELEASE="1"
+ARCH="noarch"
+SUMMARY="PyPA packaging (published pure-Python bootstrap wheel)"
+URL="https://pypi.org/project/packaging/"
+LICENSE=("MIT")
+SOURCE=("https://files.pythonhosted.org/packages/63/34/ba1c580383c9eada3711951fef0795c80b829a078d72188184bcab9dd527/packaging-26.3-py3-none-any.whl")
+SHA256SUMS=("d7193f7c8e4e93f444fde0262bf90af30e16fa0ad0ad44cb553c87339b23cd1c")
+REQUIRES=("python")
+BUILD_REQUIRES=("python")
+PROVIDES=("python-packaging" "packaging")
+prepare() {
+    set -euxo pipefail
+    test -f "$SRCROOT/packaging-26.3-py3-none-any.whl"
+    python3 -c 'import ensurepip'
+}
+build() { true; }
+staging() {
+    set -euxo pipefail
+    python3 - "$pkgdir" "$SRCROOT/packaging-26.3-py3-none-any.whl" <<'PYINSTALL'
+import ensurepip
+import pathlib
+import runpy
+import sys
+root, wheel = sys.argv[1:]
+bundle = next((pathlib.Path(ensurepip.__file__).parent / "_bundled").glob("pip-*.whl"))
+sys.path.insert(0, str(bundle))
+sys.argv = ["pip", "--isolated", "install", "--no-index", "--no-deps", "--ignore-installed",
+            "--no-compile", "--root", root, "--prefix", "/usr", wheel]
+runpy.run_module("pip", run_name="__main__")
+PYINSTALL
+}
+
+
+
+# Final audited source digests
+SHA256SUMS=("d7193f7c8e4e93f444fde0262bf90af30e16fa0ad0ad44cb553c87339b23cd1c")

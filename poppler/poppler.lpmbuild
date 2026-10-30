@@ -1,0 +1,63 @@
+#!/bin/bash
+# LPM Linux - Poppler 26.10.0 (single package for core, utilities, GLib and Qt6)
+# Disables Qt5, NSS and GPGME to keep base build requirements limited.
+NAME="poppler"
+VERSION="26.10.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="PDF rendering library and utilities with Qt6 and GLib frontends"
+URL="https://poppler.freedesktop.org/"
+LICENSE=("GPL-2.0-only" "GPL-3.0-or-later" "LGPL-2.0-or-later" "MIT")
+SOURCE=("https://poppler.freedesktop.org/poppler-${VERSION}.tar.xz")
+SHA256SUMS=("6792cb7c69205007ad87d2e936cecc5b3a31fac29ab54ffc3175fdb6b2a6ce35")
+PATCHES=()
+REQUIRES=("glibc" "gcc-libs" "freetype2" "fontconfig" "cairo" "libjpeg-turbo" "libpng" "libtiff" "lcms2" "openjpeg2" "zlib" "brotli" "qt6-base" "glib2")
+BUILD_REQUIRES=("cmake" "ninja" "pkgconf" "gcc" "freetype2" "fontconfig" "cairo" "libjpeg-turbo" "libpng" "libtiff" "lcms2" "openjpeg2" "zlib" "brotli" "qt6-base" "glib2" "glib2-devel" "boost" "gperf")
+PROVIDES=("poppler" "poppler-cpp" "poppler-glib" "poppler-qt6" "libpoppler.so")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=("poppler-data")
+SUGGESTS=()
+
+prepare() {
+    set -euxo pipefail
+    local src="$SRCROOT/poppler-$VERSION"
+    test -f "$src/CMakeLists.txt"
+    rm -rf "$src/build"
+}
+build() {
+    set -euxo pipefail
+    local src="$SRCROOT/poppler-$VERSION"
+    cmake -S "$src" -B "$src/build" -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DBUILD_SHARED_LIBS=ON \
+        -DBUILD_TESTING=OFF \
+        -DBUILD_MANUAL_TESTS=OFF \
+        -DENABLE_UTILS=ON \
+        -DENABLE_CPP=ON \
+        -DENABLE_GLIB=ON \
+        -DENABLE_QT5=OFF \
+        -DENABLE_QT6=ON \
+        -DENABLE_GOBJECT_INTROSPECTION=OFF \
+        -DENABLE_GTK_DOC=OFF \
+        -DENABLE_NSS3=OFF \
+        -DENABLE_GPGME=OFF \
+        -DENABLE_LIBCURL=OFF \
+        -DENABLE_BROTLI=ON
+    cmake --build "$src/build" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+check() {
+    set -euo pipefail
+    test -f "$SRCROOT/poppler-$VERSION/build/build.ninja"
+}
+staging() {
+    set -euxo pipefail
+    local src="$SRCROOT/poppler-$VERSION"
+    DESTDIR="$pkgdir" cmake --install "$src/build"
+    test -x "$pkgdir/usr/bin/pdfinfo"
+    test -x "$pkgdir/usr/bin/pdftoppm"
+    test -d "$pkgdir/usr/include/poppler"
+    find "$pkgdir/usr/lib" -maxdepth 1 -name 'libpoppler.so*' -print -quit | grep -q .
+}

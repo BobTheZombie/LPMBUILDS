@@ -1,0 +1,112 @@
+#!/bin/bash
+# LPM Linux - KDE Plasma 6.8.1 kactivitymanagerd (Boost dependency corrected)
+NAME="kactivitymanagerd"
+VERSION="6.8.1"
+RELEASE="2"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="KDE Plasma 6 activity management daemon"
+URL="https://kde.org/plasma-desktop/"
+LICENSE=("SEE-UPSTREAM")
+SOURCE=(
+    "https://download.kde.org/stable/plasma/${VERSION}/${NAME}-${VERSION}.tar.xz"
+)
+SHA256SUMS=(
+    "49c70743b29376ea69818048d2cc8f8ae8cb2deaaaddbd003fbf37c7275e0ad2"
+)
+PATCHES=()
+REQUIRES=(
+    "qt6-base"
+    "qt6-declarative"
+    "plasma-activities"
+    "boost"
+    "kconfig6"
+    "kcoreaddons6"
+    "kio6"
+    "kdbusaddons6"
+    "ki18n6"
+    "kcrash6"
+    "kglobalaccel6"
+    "kxmlgui6"
+)
+BUILD_REQUIRES=(
+    "cmake"
+    "ninja"
+    "pkgconf"
+    "python"
+    "extra-cmake-modules"
+    "qt6-base"
+    "qt6-declarative"
+    "plasma-activities"
+    "boost"
+    "kconfig6"
+    "kcoreaddons6"
+    "kio6"
+    "kdbusaddons6"
+    "ki18n6"
+    "kcrash6"
+    "kglobalaccel6"
+    "kxmlgui6"
+)
+REQUIRES_PYTHON_DEPENDENCIES=()
+PROVIDES=()
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+    set -euxo pipefail
+    local src="$SRCROOT/${NAME}-${VERSION}"
+    test -f "$src/CMakeLists.txt"
+    test -f "$src/src/CMakeLists.txt"
+    # Boost::headers is available in Boost >=1.82. CMake >=3.30 can
+    # suppress FindBoost MODULE (CMP0167), so use BoostConfig.cmake instead.
+    python3 - "$src/src/CMakeLists.txt" <<'PY'
+from pathlib import Path
+import sys
+p = Path(sys.argv[1])
+s = p.read_text()
+a = 'find_package(Boost ${Boost_MINIMUM_VERSION} MODULE REQUIRED)'
+b = 'find_package(Boost ${Boost_MINIMUM_VERSION} CONFIG REQUIRED)'
+if a in s:
+    s = s.replace(a, b, 1)
+elif b not in s:
+    raise RuntimeError('Unexpected upstream Boost find_package call')
+a = 'include_directories (${Boost_INCLUDE_DIRS})'
+b = '''# Use the exported include path from the modern Boost CMake package.
+if(TARGET Boost::headers)
+    link_libraries(Boost::headers)
+else()
+    include_directories (${Boost_INCLUDE_DIRS})
+endif()'''
+if a in s:
+    s = s.replace(a, b, 1)
+elif b not in s:
+    raise RuntimeError('Unexpected upstream Boost include directive')
+p.write_text(s)
+PY
+}
+
+build() {
+    set -euxo pipefail
+    local src="$SRCROOT/${NAME}-${VERSION}"
+    local builddir="$src/build"
+    cmake -S "$src" -B "$builddir" -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DKDE_INSTALL_LIBDIR=lib \
+        -DBUILD_TESTING=OFF \
+        -DBUILD_SHARED_LIBS=ON \
+        -DKDE_INSTALL_USE_QT_SYS_PATHS=ON
+    cmake --build "$builddir" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+staging() {
+    set -euxo pipefail
+    local builddir="$SRCROOT/${NAME}-${VERSION}/build"
+    test -n "${pkgdir:-}" && test "$pkgdir" != /
+    DESTDIR="$pkgdir" cmake --install "$builddir"
+    test -d "$pkgdir/usr"
+    test -n "$(find "$pkgdir/usr" -type f -name 'kactivitymanagerd' -print -quit)"
+    test -n "$(find "$pkgdir/usr" -type f -name 'org.kde.ActivityManager.service' -print -quit)"
+}

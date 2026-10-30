@@ -1,0 +1,206 @@
+#!/bin/bash
+# LPM Linux full KDE Plasma 6.8.1 meta-package
+# Based on the generated 158-recipe Plasma 6.8.1 source chain (2026-10-25).
+# Every declared REQUIRES is resolved and built by LPM if not installed.
+# The program discover is optional until a working PackageKit backend exists.
+NAME="plasma6-full"
+VERSION="6.8.1"
+RELEASE="1"
+ARCH="any"
+SUMMARY="Complete KDE Plasma 6 desktop, Qt 6, Frameworks 6, and KDE applications"
+URL="https://kde.org/plasma-desktop/"
+LICENSE="NONE"
+SOURCE=()
+SHA256SUMS=()
+PATCHES=()
+
+REQUIRES=(
+    # Qt 6.11.2: full Qt module stack
+    "qt6-5compat"
+    "qt6-base"
+    "qt6-declarative"
+    "qt6-imageformats"
+    "qt6-multimedia"
+    "qt6-quick3d"
+    "qt6-sensors"
+    "qt6-shadertools"
+    "qt6-svg"
+    "qt6-tools"
+    "qt6-translations"
+    "qt6-wayland"
+    "qt6-webchannel"
+    "qt6-websockets"
+
+    # KDE Frameworks 6.31.0: all available Frameworks
+    "attica6"
+    "baloo6"
+    "bluez-qt6"
+    "breeze-icons6"
+    "extra-cmake-modules"
+    "frameworkintegration6"
+    "karchive6"
+    "kauth6"
+    "kbookmarks6"
+    "kcalendarcore6"
+    "kcmutils6"
+    "kcodecs6"
+    "kcolorscheme6"
+    "kcompletion6"
+    "kconfig6"
+    "kconfigwidgets6"
+    "kcontacts6"
+    "kcoreaddons6"
+    "kcrash6"
+    "kdav6"
+    "kdbusaddons6"
+    "kdeclarative6"
+    "kded6"
+    "kdesu6"
+    "kdnssd6"
+    "kdoctools6"
+    "kfilemetadata6"
+    "kglobalaccel6"
+    "kguiaddons6"
+    "kholidays6"
+    "ki18n6"
+    "kiconthemes6"
+    "kidletime6"
+    "kimageformats6"
+    "kio6"
+    "kirigami6"
+    "kitemmodels6"
+    "kitemviews6"
+    "kjobwidgets6"
+    "kmime6"
+    "knewstuff6"
+    "knotifications6"
+    "knotifyconfig6"
+    "kpackage6"
+    "kparts6"
+    "kpeople6"
+    "kplotting6"
+    "kpty6"
+    "kquickcharts6"
+    "krunner6"
+    "kservice6"
+    "kstatusnotifieritem6"
+    "ksvg6"
+    "ktexteditor6"
+    "ktexttemplate6"
+    "ktextwidgets6"
+    "kunitconversion6"
+    "kuserfeedback6"
+    "kwallet6"
+    "kwidgetsaddons6"
+    "kwindowsystem6"
+    "kxmlgui6"
+    "modemmanager-qt6"
+    "networkmanager-qt6"
+    "prison6"
+    "purpose6"
+    "qqc2-desktop-style6"
+    "solid6"
+    "sonnet6"
+    "syndication6"
+    "syntax-highlighting6"
+    "threadweaver6"
+
+    # KDE supporting infrastructure
+    "plasma-wayland-protocols"
+    "polkit-qt6"
+
+    # Plasma 6.8.1: compositor, desktop, settings, themes, services
+    "aurorae"
+    "bluedevil"
+    "breeze"
+    "breeze-gtk"
+    "drkonqi"
+    "kactivitymanagerd"
+    "kde-cli-tools"
+    "kde-gtk-config"
+    "kdecoration"
+    "kdeplasma-addons"
+    "kglobalacceld"
+    "kinfocenter"
+    "kmenuedit"
+    "knighttime"
+    "kpipewire"
+    "kscreen"
+    "kscreenlocker"
+    "ksshaskpass"
+    "ksystemstats"
+    "kwallet-pam"
+    "kwayland"
+    "kwayland-integration"
+    "kwin"
+    "kwrited"
+    "layer-shell-qt"
+    "libkscreen"
+    "libksysguard"
+    "libplasma"
+    "milou"
+    "ocean-sound-theme"
+    "oxygen"
+    "oxygen-sounds"
+    "plasma-activities"
+    "plasma-activities-stats"
+    "plasma-browser-integration"
+    "plasma-desktop"
+    "plasma-disks"
+    "plasma-firewall"
+    "plasma-integration"
+    "plasma-nm"
+    "plasma-pa"
+    "plasma-setup"
+    "plasma-systemmonitor"
+    "plasma-thunderbolt"
+    "plasma-vault"
+    "plasma-welcome"
+    "plasma-workspace"
+    "plasma-workspace-wallpapers"
+    "plasma5support"
+    "polkit-kde-agent-1"
+    "powerdevil"
+    "print-manager"
+    "qqc2-breeze-style"
+    "sddm-kcm"
+    "spectacle"
+    "systemsettings"
+    "xdg-desktop-portal-kde"
+
+    # KDE Gear 26.08.2: desktop applications
+    "ark"
+    "dolphin"
+    "ffmpegthumbs"
+    "gwenview"
+    "kate"
+    "kdeconnect-kde"
+    "kdegraphics-thumbnailers"
+    "kio-extras"
+    "konsole"
+
+    # Display manager
+    "sddm"
+
+    # Core and desktop installation profiles
+    "plasma-core"
+    "plasma-meta"
+
+)
+BUILD_REQUIRES=()
+REQUIRES_PYTHON_DEPENDENCIES=()
+
+PROVIDES=(
+    "plasma6-desktop-full"
+    "kde-plasma-full"
+)
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=("discover")
+
+# This meta package intentionally stages no filesystem payload.
+prepare() { :; }
+build() { :; }
+staging() { :; }
+

@@ -1,0 +1,11 @@
+[Unit]
+Description=Standalone DNS and DHCP server
+After=network.target
+[Service]
+Type=simple
+ExecStartPre=/usr/bin/dnsmasq --test
+ExecStart=/usr/bin/dnsmasq --keep-in-foreground --pid-file=
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+[Install]
+WantedBy=multi-user.target

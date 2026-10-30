@@ -1,34 +1,235 @@
+#!/bin/bash
 # LPM build script for zstd
+
 NAME="zstd"
-VERSION="1.5.6"
+VERSION="1.5.7"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Zstandard compression"
+
+SUMMARY="Fast real-time compression algorithm"
 URL="https://facebook.github.io/zstd/"
-LICENSE=""
-SOURCE=()
-REQUIRES=("glibc" "zlib")
-PROVIDES=("zstd")
+LICENSE=("BSD-3-Clause")
+
+SOURCE=(
+    "https://github.com/facebook/zstd/releases/download/v${VERSION}/zstd-${VERSION}.tar.gz"
+)
+
+SHA256SUMS=(
+    "eb33e51f49a15e023950cd7825ca74a4a2b43db8354825ac24fc1b7ee09e6fa3"
+)
+
+PATCHES=()
+
+REQUIRES=(
+    "glibc"
+    "lz4"
+    "xz"
+    "zlib"
+)
+
+BUILD_REQUIRES=(
+    "lz4"
+    "make"
+    "pkgconf"
+    "xz"
+    "zlib"
+)
+
+PROVIDES=(
+    "zstd"
+    "libzstd"
+    "libzstd.so"
+    "libzstd.so.1"
+    "libzstd.pc"
+)
+
 CONFLICTS=()
 OBSOLETES=()
 RECOMMENDS=()
 SUGGESTS=()
 
+BUILD_OPTIONS=(
+    "@--stripping"
+    "@--optimize=2"
+)
+
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+
+    test -f "$SRCDIR/Makefile"
+    test -f "$SRCDIR/lib/Makefile"
+    test -f "$SRCDIR/programs/Makefile"
+    test -f "$SRCDIR/lib/zstd.h"
+    test -f "$SRCDIR/LICENSE"
+    test -f "$SRCDIR/COPYING"
+
+    cd "$SRCDIR"
+
+    make clean
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+
+    make \
+        -C "$SRCDIR" \
+        -j"$(nproc)" \
+        PREFIX=/usr \
+        LIBDIR=/usr/lib \
+        ZSTD_LEGACY_SUPPORT=0 \
+        ZSTD_MULTITHREAD=1 \
+        ZSTD_ZLIB_SUPPORT=1 \
+        ZSTD_LZMA_SUPPORT=1 \
+        ZSTD_LZ4_SUPPORT=1
+}
+
+check() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+
+    #
+    # Do not run the complete test suite during bootstrap builds. Validate the
+    # executable and shared-library build products instead.
+    #
+
+    test -x "$SRCDIR/programs/zstd"
+    test -f "$SRCDIR/lib/libzstd.so.${VERSION}"
+
+    readelf \
+        -d "$SRCDIR/lib/libzstd.so.${VERSION}" |
+        grep -Fq 'Library soname: [libzstd.so.1]'
+
+    "$SRCDIR/programs/zstd" \
+        --version |
+        grep -Fq "$VERSION"
+
+    #
+    # Verify that the CLI was built with all requested wrapper formats.
+    #
+
+    "$SRCDIR/programs/zstd" \
+        --help 2>&1 |
+        grep -Fq -- '--format='
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+
+    make \
+        -C "$SRCDIR" \
+        PREFIX=/usr \
+        LIBDIR=/usr/lib \
+        DESTDIR="$pkgdir" \
+        ZSTD_LEGACY_SUPPORT=0 \
+        ZSTD_MULTITHREAD=1 \
+        ZSTD_ZLIB_SUPPORT=1 \
+        ZSTD_LZMA_SUPPORT=1 \
+        ZSTD_LZ4_SUPPORT=1 \
+        install
+
+    #
+    # This package provides the shared library. Do not ship static archives or
+    # Libtool metadata.
+    #
+
+    find "$pkgdir/usr/lib" \
+        -type f \
+        \( -name '*.a' -o -name '*.la' \) \
+        -delete
+
+    #
+    # Validate command-line tools.
+    #
+
+    for PROGRAM in \
+        zstd \
+        zstdmt \
+        unzstd \
+        zstdcat
+    do
+        if [ ! -x "$pkgdir/usr/bin/$PROGRAM" ]; then
+            echo "[ERROR] Missing zstd program: $PROGRAM" >&2
+            return 1
+        fi
+    done
+
+    #
+    # Validate the shared library and its complete symlink chain.
+    #
+
+    test -f \
+        "$pkgdir/usr/lib/libzstd.so.${VERSION}"
+
+    test -L \
+        "$pkgdir/usr/lib/libzstd.so.1"
+
+    test -L \
+        "$pkgdir/usr/lib/libzstd.so"
+
+    test "$(
+        readlink "$pkgdir/usr/lib/libzstd.so.1"
+    )" = "libzstd.so.${VERSION}"
+
+    readelf \
+        -d "$pkgdir/usr/lib/libzstd.so.${VERSION}" |
+        grep -Fq 'Library soname: [libzstd.so.1]'
+
+    #
+    # Validate development files.
+    #
+
+    for HEADER in \
+        zdict.h \
+        zstd.h \
+        zstd_errors.h
+    do
+        if [ ! -f "$pkgdir/usr/include/$HEADER" ]; then
+            echo "[ERROR] Missing zstd header: $HEADER" >&2
+            return 1
+        fi
+    done
+
+    test -f \
+        "$pkgdir/usr/lib/pkgconfig/libzstd.pc"
+
+    grep -Eq \
+        '^libdir=(\$\{exec_prefix\}/lib|/usr/lib)$' \
+        "$pkgdir/usr/lib/pkgconfig/libzstd.pc"
+
+    #
+    # Ensure no files escaped into the split /usr/lib64 layout.
+    #
+
+    if [ -d "$pkgdir/usr/lib64" ] &&
+       find "$pkgdir/usr/lib64" -mindepth 1 -print -quit |
+       grep -q .
+    then
+        echo "[ERROR] zstd installed files under /usr/lib64" >&2
+        return 1
+    fi
+
+    #
+    # Licensing.
+    #
+
+    install -Dm644 \
+        "$SRCDIR/LICENSE" \
+        "$pkgdir/usr/share/licenses/$NAME/LICENSE"
+
+    install -Dm644 \
+        "$SRCDIR/COPYING" \
+        "$pkgdir/usr/share/licenses/$NAME/COPYING"
 }
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("eb33e51f49a15e023950cd7825ca74a4a2b43db8354825ac24fc1b7ee09e6fa3")

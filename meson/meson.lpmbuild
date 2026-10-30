@@ -1,0 +1,47 @@
+NAME="meson"
+VERSION="1.12.1"
+RELEASE="1"
+ARCH="x86_64"
+SUMMARY="High productivity build system"
+URL="https://mesonbuild.com"
+SOURCE=("https://github.com/mesonbuild/meson/releases/download/${VERSION}/meson-${VERSION}.tar.gz")
+LICENSE=("Apache-2.0")
+
+REQUIRES=("python" "ninja")
+PROVIDES=("meson")
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-$VERSION"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-$VERSION"
+
+    # Build/install Python package into staging area
+    python3 setup.py build
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-$VERSION"
+
+    python3 setup.py install \
+        --root="$pkgdir" \
+        --optimize=1 \
+        --skip-build
+
+    # Ensure meson script is in PATH
+    install -Dm755 meson.py "$pkgdir/usr/bin/meson"
+
+    # Clean up setuptools cruft if any
+    rm -rf "$pkgdir/usr/lib/python3.*/site-packages/meson-*.egg-info"
+}
+
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("ab0a6ca09f8ef70c564c8241fb5a23957886a0b53fb58412b5e07eaf07dba743")

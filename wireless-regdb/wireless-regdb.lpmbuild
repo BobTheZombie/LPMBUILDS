@@ -1,0 +1,61 @@
+#!/bin/bash
+# LPM networking stack, release snapshot 2026-10-16
+NAME="wireless-regdb"
+VERSION="2026.09.03"
+RELEASE="1"
+ARCH="noarch"
+SUMMARY='Signed wireless regulatory database'
+URL=https://www.kernel.org/pub/software/network/wireless-regdb/wireless-regdb-2026.09.03.tar.xz
+LICENSE=(ISC)
+SOURCE=(https://www.kernel.org/pub/software/network/wireless-regdb/wireless-regdb-2026.09.03.tar.xz)
+SHA256SUMS=(
+    "b22e0901227b820cd1c280abe681a15b773a5103a5e10dc442e94ebb34cbf58d"
+)
+PATCHES=()
+REQUIRES=()
+BUILD_REQUIRES=()
+PROVIDES=(wireless-regdb)
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+BUILD_OPTIONS=()
+
+_source() {
+    if [ ! -d "$SRCROOT/${NAME}-${VERSION}" ] && [ -d "$SRCROOT/wireless-regdb-2026.09.03" ]; then
+        mv "$SRCROOT/wireless-regdb-2026.09.03" "$SRCROOT/${NAME}-${VERSION}"
+    fi
+}
+
+_licenses() {
+    local f
+    for f in COPYING COPYING.LIB LICENSE LICENSE.txt LICENCE README; do
+        if [ -f "$f" ]; then
+            install -Dm644 "$f" "$pkgdir/usr/share/licenses/$NAME/$(basename "$f")"
+        fi
+    done
+}
+_cleanup() {
+    if [ -d "$pkgdir/usr/lib" ]; then
+        find "$pkgdir/usr/lib" -type f \( -name '*.a' -o -name '*.la' \) -delete
+    fi
+    rm -f "$pkgdir/usr/share/info/dir"
+}
+
+prepare() { set -euxo pipefail; _source; cd "$SRCROOT/${NAME}-${VERSION}"; test -s regulatory.db; test -s regulatory.db.p7s; }
+build() { :; }
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    install -Dm644 regulatory.db "$pkgdir/usr/lib/firmware/regulatory.db"
+    install -Dm644 regulatory.db.p7s "$pkgdir/usr/lib/firmware/regulatory.db.p7s"
+    # Preserve the upstream signature; do not regenerate or locally re-sign it.
+    _licenses
+}
+
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("b22e0901227b820cd1c280abe681a15b773a5103a5e10dc442e94ebb34cbf58d")

@@ -1,0 +1,150 @@
+
+#!/bin/bash
+# LPM Linux - Qt Quick 3D 6.12.0
+# Qt Quick 3D rendering and QML integration.
+
+NAME="qt6-quick3d"
+VERSION="6.12.0"
+BASE="${VERSION%.*}"
+RELEASE="3"
+ARCH="${ARCH:-x86_64}"
+
+SUMMARY="Qt 6 Quick 3D rendering and QML integration"
+URL="https://www.qt.io/"
+LICENSE=("LGPL-3.0-only" "GPL-3.0-only WITH Qt-GPL-exception-1.0")
+
+SOURCE=(
+    "https://download.qt.io/archive/qt/${BASE}/${VERSION}/submodules/qtquick3d-everywhere-src-${VERSION}.tar.xz"
+)
+
+SHA256SUMS=(
+    "6ced6edbd25fb5a632fe770ae820b376bf50233e8d62002c79a69a505a2e429e"
+)
+
+PATCHES=()
+
+REQUIRES=(
+    "qt6-base"
+    "qt6-declarative"
+    "qt6-shadertools"
+    "qt6-quicktimeline"
+)
+
+BUILD_REQUIRES=(
+    "cmake"
+    "ninja"
+    "pkgconf"
+    "python"
+    "qt6-base"
+    "qt6-declarative"
+    "qt6-shadertools"
+    "qt6-quicktimeline"
+)
+
+REQUIRES_PYTHON_DEPENDENCIES=()
+
+PROVIDES=("qtquick3d")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+    set -euxo pipefail
+
+    local src="$SRCROOT/$NAME-$VERSION"
+    local original="$SRCROOT/qtquick3d-everywhere-src-$VERSION"
+
+    # Handle either LPM-normalized or upstream source directory names.
+    if [[ ! -f "$src/CMakeLists.txt" && -f "$original/CMakeLists.txt" ]]; then
+        mv "$original" "$src"
+    fi
+
+    if [[ ! -f "$src/CMakeLists.txt" ]]; then
+        echo "[ERROR] Qt Quick 3D source directory missing: $src" >&2
+        return 1
+    fi
+
+    # Avoid silently reusing a configuration that skipped Qt Quick 3D.
+    rm -rf "$src/build" "$src/.lpm-qt-probe"
+}
+
+build() {
+    set -euxo pipefail
+
+    local src="$SRCROOT/$NAME-$VERSION"
+    local builddir="$src/build"
+    local probe="$src/.lpm-qt-probe"
+
+    # Verify *matching* Qt CMake exports before configuring the module.
+    # This heredoc is intentionally unquoted so VERSION is expanded by Bash.
+    mkdir -p "$probe"
+    cat > "$probe/CMakeLists.txt" <<CMAKE
+cmake_minimum_required(VERSION 3.22)
+project(LPMQtQuick3DPrerequisites LANGUAGES CXX)
+
+find_package(Qt6 ${VERSION} EXACT CONFIG REQUIRED
+    COMPONENTS Core Qml Quick ShaderTools QuickTimeline)
+find_package(Qt6ShaderToolsTools ${VERSION} EXACT CONFIG REQUIRED)
+
+foreach(_component IN ITEMS Core Qml Quick ShaderTools QuickTimeline)
+    if(NOT TARGET Qt6::\${_component})
+        message(FATAL_ERROR "Qt6::\${_component} target missing")
+    endif()
+endforeach()
+CMAKE
+
+    cmake -S "$probe" -B "$probe/build" -G Ninja \
+        -DCMAKE_PREFIX_PATH=/usr
+    rm -rf "$probe"
+
+    cmake -S "$src" -B "$builddir" -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DCMAKE_PREFIX_PATH=/usr \
+        -DQT_BUILD_TESTS=OFF \
+        -DQT_BUILD_EXAMPLES=OFF \
+        -DBUILD_TESTING=OFF \
+        -DBUILD_SHARED_LIBS=ON
+
+    if [[ ! -s "$builddir/build.ninja" ]]; then
+        echo "[ERROR] Qt Quick 3D generated no Ninja build file" >&2
+        return 1
+    fi
+    if ! grep -q 'libQt6Quick3D\.so' "$builddir/build.ninja"; then
+        echo "[ERROR] Qt Quick 3D library target was not generated" >&2
+        echo "[ERROR] Check matching Qt Quick, ShaderTools, and QuickTimeline installations" >&2
+        return 1
+    fi
+
+    cmake --build "$builddir" \
+        --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+staging() {
+    set -euxo pipefail
+
+    local builddir="$SRCROOT/$NAME-$VERSION/build"
+
+    DESTDIR="$pkgdir" cmake --install "$builddir"
+
+    if [[ ! -d "$pkgdir/usr/lib" ]] || \
+       ! find "$pkgdir/usr/lib" -maxdepth 1 -type f \
+           -name 'libQt6Quick3D.so.*' -print -quit | grep -q .; then
+        echo "[ERROR] Qt Quick 3D shared library missing from staging" >&2
+        return 1
+    fi
+
+    if [[ ! -f "$pkgdir/usr/lib/cmake/Qt6Quick3D/Qt6Quick3DConfig.cmake" ]]; then
+        echo "[ERROR] Qt6Quick3D CMake configuration missing from staging" >&2
+        return 1
+    fi
+
+    if [[ ! -f "$pkgdir/usr/lib/qt6/qml/QtQuick3D/qmldir" ]]; then
+        echo "[ERROR] QtQuick3D QML module missing from staging" >&2
+        return 1
+    fi
+
+    echo "[OK] Qt Quick 3D $VERSION staged successfully"
+}

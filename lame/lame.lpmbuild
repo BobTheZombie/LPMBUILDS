@@ -1,0 +1,93 @@
+#!/bin/bash
+# LPM Linux - LAME MP3 encoder, stable 3.x ABI for libsndfile.
+# Based on BLFS's 3.100 autotools configuration. Do not depend on
+# libsndfile here: libsndfile depends on libmp3lame and would create a cycle.
+NAME="lame"
+VERSION="4.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="LAME MP3 encoder and libmp3lame shared library"
+URL="https://lame.sourceforge.io/"
+LICENSE=("LGPL-2.0-or-later")
+
+SOURCE=("https://downloads.sourceforge.net/lame/lame-${VERSION}.tar.gz"
+        "https://gitlab.archlinux.org/archlinux/packaging/packages/lame/-/raw/main/lame-cbr-abr-quality-settings-clamp.patch"
+        "https://gitlab.archlinux.org/archlinux/packaging/packages/lame/-/raw/main/lame-symbols.patch")
+SHA256SUMS=("ddfe36cab873794038ae2c1210557ad34857a4b6bdc515785d1da9e175b1da1e")
+PATCHES=(
+        "lame-symbols.patch"
+        "lame-cbr-abr-quality-settings-clamp.patch"
+)
+
+REQUIRES=("glibc"
+          "mpg123>=1.26.0"
+)
+
+BUILD_REQUIRES=(
+        "gcc" 
+        "make" 
+        "mpg123>=1.26.0"
+        "pkgconf"
+)
+
+PROVIDES=("libmp3lame.so" "libmp3lame.so.0")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+    set -euxo pipefail
+    local src="$SRCROOT/$NAME-$VERSION"
+    
+}
+
+build() {
+    set -euxo pipefail
+    local src="$SRCROOT/$NAME-$VERSION"
+    cd "$src"
+    # Older LAME C code is not uniformly prepared for GCC 16's C23 default.
+    # Append (rather than replace) LPM CPU/optimization flags.
+    export CFLAGS+=" -Wno-implicit-function-declaration -Wno-incompatible-pointer-types"
+    
+    # Retain LPM's -march, -mtune, optimization, and PIC flags.
+    export CFLAGS="${CFLAGS:+$CFLAGS }-std=gnu17"
+    # Feed Autoconf's ordinary link checks a terminfo library too.
+    export LIBS="${LIBS:+$LIBS }-ltinfo"
+
+    ./configure \
+        --prefix=/usr \
+        --libdir=/usr/lib \
+        --enable-shared \
+        --disable-static \
+        --enable-mp3rtp
+
+    # LAME's frontend/Makefile has LDADD supplying -lncurses -lm but on
+    # systems with split ncurses/tinfo those do not resolve tgetent().
+    # Ensure the library follows all frontend objects/other libraries.
+    # Do not rely solely on LIBS: older LAME versions may drop it from LDADD.
+    test -f frontend/Makefile
+    grep -Eq '^LDADD[[:space:]]*=' frontend/Makefile
+    if ! grep -Eq '^LDADD[[:space:]]*\+=[[:space:]]*-ltinfo([[:space:]]|$)' frontend/Makefile; then
+        printf '\n# LPM: split ncurses/tinfo, link terminal capabilities last\nLDADD += -ltinfo\n' \
+            >> frontend/Makefile
+    fi
+    make -j"${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+check() {
+    set -euxo pipefail
+    local src="$SRCROOT/$NAME-$VERSION"
+    cd "$src"
+    LD_LIBRARY_PATH="$src/libmp3lame/.libs${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" make test
+}
+
+staging() {
+    set -euxo pipefail
+    local src="$SRCROOT/$NAME-$VERSION"
+    cd "$src"
+    make DESTDIR="$pkgdir" pkghtmldir=/usr/share/doc/lame-${VERSION} install
+    test -f "$pkgdir/usr/include/lame/lame.h"
+    test -n "$(find "$pkgdir/usr/lib" -maxdepth 1 -name 'libmp3lame.so*' -print -quit)"
+    test -x "$pkgdir/usr/bin/lame"
+}

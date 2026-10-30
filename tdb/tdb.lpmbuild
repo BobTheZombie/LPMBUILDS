@@ -1,0 +1,78 @@
+#!/bin/bash
+# LPM build script for tdb
+
+NAME="tdb"
+VERSION="1.4.15"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Trivial Database library"
+URL="https://www.samba.org/ftp/tdb/"
+LICENSE=("GPL-3.0-or-later")
+
+SOURCE=(
+  "https://samba.org/ftp/${NAME}/${NAME}-${VERSION}.tar.gz"
+)
+
+SHA256SUMS=("SKIP")
+
+REQUIRES=(
+  "glibc"
+)
+
+BUILD_REQUIRES=(
+  "python"
+  "pkgconf"
+  "which"
+)
+
+PROVIDES=(
+  "tdb"
+  "libtdb.so"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+}
+
+build() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  ./configure \
+    --prefix=/usr \
+    --libdir=/usr/lib 
+
+  make -j"$(nproc)"
+}
+
+check() {
+  true
+}
+
+staging() {
+  set -euxo pipefail
+  cd "$SRCROOT/$_srcdir"
+
+  make DESTDIR="$pkgdir" install
+
+  test -f "$pkgdir/usr/lib/libtdb.so"
+  test -f "$pkgdir/usr/lib/pkgconfig/tdb.pc"
+
+  for f in COPYING LICENSE; do
+    if [ -f "$f" ]; then
+      install -Dm644 "$f" \
+        "$pkgdir/usr/share/licenses/$NAME/$f"
+    fi
+  done
+}
+
+
+
+# Final audited source digests
+SHA256SUMS=("fba09d8df1f1b9072aeae8e78b2bd43c5afef20b2f6deefa633aa14a377a8dd2")

@@ -1,0 +1,103 @@
+#!/bin/bash
+# LPM build script for libksba
+
+NAME="libksba"
+VERSION="1.8.1"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+
+SUMMARY="X.509 certificate and CMS parsing library"
+URL="https://gnupg.org/software/libksba/"
+LICENSE=("GPL-3.0-or-later" "LGPL-3.0-or-later")
+
+SOURCE=(
+    "https://www.gnupg.org/ftp/gcrypt/libksba/libksba-${VERSION}.tar.bz2"
+)
+
+SHA256SUMS=("SKIP")
+PATCHES=()
+
+REQUIRES=(
+    "glibc"
+    "libgpg-error"
+)
+
+BUILD_REQUIRES=(
+    "gcc"
+    "make"
+    "pkgconf"
+    "libgpg-error"
+)
+
+PROVIDES=(
+    "libksba"
+    "libksba.so"
+    "libksba.so.8"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+BUILD_OPTIONS=(
+    "@--stripping"
+    "@--optimize=2"
+)
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    ./configure \
+        --prefix=/usr \
+        --libdir=/usr/lib \
+        --includedir=/usr/include \
+        --datadir=/usr/share \
+        --infodir=/usr/share/info \
+        --enable-shared \
+        --disable-static
+
+    make -j"$(nproc)"
+}
+
+check() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    make -j"$(nproc)" check
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    make DESTDIR="$pkgdir" install
+
+    find "$pkgdir/usr/lib" \
+        -type f \
+        \( -name '*.a' -o -name '*.la' \) \
+        -delete
+
+    rm -f "$pkgdir/usr/share/info/dir"
+
+    test -e "$pkgdir/usr/lib/libksba.so"
+    test -e "$pkgdir/usr/lib/libksba.so.8"
+    test -f "$pkgdir/usr/include/ksba.h"
+    test -s "$pkgdir/usr/lib/pkgconfig/ksba.pc"
+
+    install -Dm644 COPYING \
+        "$pkgdir/usr/share/licenses/$NAME/COPYING"
+}
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("c2f84393011827219ae117131dba8e7684c2bed0961eed11b0642c2acba440b5")

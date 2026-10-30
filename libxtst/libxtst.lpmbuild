@@ -1,14 +1,14 @@
 # LPM build script for libxtst
 NAME="libxtst"
-VERSION="1.2.4"
+VERSION="1.2.6"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="X11 Testing -- Record extension library"
 URL="https://www.x.org/"
 LICENSE="MIT"
 SOURCE=("https://xorg.freedesktop.org/archive/individual/lib/libXtst-${VERSION}.tar.xz")
-CHECKSUMS=("84f5f30b9254b4ffee14b5b0940e2622153b0d3aed8286a3c5b7eeb340ca33c8")
-REQUIRES=("glibc" "libx11" "libxext" "xorgproto")
+CHECKSUMS=("f94f0b37c07d80d877f3eda2c2405cc7e62aa9842f6310354aa349e3d66a4fe5")
+REQUIRES=("glibc" "libX11" "libXext" "xorgproto")
 PROVIDES=("libxtst")
 CONFLICTS=()
 OBSOLETES=()
@@ -29,3 +29,9 @@ staging() {
   cd "$SRCROOT"
   make DESTDIR="$pkgdir" install
 }
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("f94f0b37c07d80d877f3eda2c2405cc7e62aa9842f6310354aa349e3d66a4fe5")

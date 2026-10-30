@@ -1,0 +1,2 @@
+u ldap - "OpenLDAP Server" /var/lib/openldap-data
+m ldap ldap

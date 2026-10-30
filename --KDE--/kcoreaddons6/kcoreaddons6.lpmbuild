@@ -1,0 +1,116 @@
+#!/bin/bash
+# LPM Linux - KDE Frameworks 6 KCoreAddons 6.31.0
+# Core library and QML plugin; optional Python bindings are disabled.
+
+NAME="kcoreaddons6"
+VERSION="6.31.0"
+BASE="${VERSION%.*}"
+RELEASE="2"
+ARCH="${ARCH:-x86_64}"
+
+SUMMARY="KDE Frameworks 6 core addons and QML integration"
+URL="https://invent.kde.org/frameworks/kcoreaddons"
+LICENSE=("SEE-UPSTREAM")
+
+SOURCE=(
+    "https://download.kde.org/stable/frameworks/${BASE}/kcoreaddons-${VERSION}.tar.xz"
+)
+SHA256SUMS=(
+    "d3a843249177a6e51714a7211c73829cb071dbebe4f30404423bbbc57ca5ee95"
+)
+PATCHES=()
+
+REQUIRES=(
+    "qt6-base>=6.12.0"
+    "qt6-declarative>=6.12.0"
+)
+BUILD_REQUIRES=(
+    "cmake>=3.30"
+    "ninja"
+    "pkgconf"
+    "extra-cmake-modules>=6.31.0"
+    "util-linux"
+    "qt6-base>=6.12.0"
+    "qt6-declarative>=6.12.0"
+)
+
+PROVIDES=("kcoreaddons" "kf6-kcoreaddons")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+    set -euxo pipefail
+
+    local src="$SRCROOT/$NAME-$VERSION"
+    local upstream="$SRCROOT/kcoreaddons-$VERSION"
+
+    if [[ ! -f "$src/CMakeLists.txt" && -f "$upstream/CMakeLists.txt" ]]; then
+        mv "$upstream" "$src"
+    fi
+    if [[ ! -f "$src/CMakeLists.txt" ]]; then
+        echo "[ERROR] KCoreAddons source tree missing: $src" >&2
+        return 1
+    fi
+
+    # Never silently reuse an earlier, incompletely configured tree.
+    rm -rf "$src/build"
+}
+
+build() {
+    set -euxo pipefail
+
+    local src="$SRCROOT/$NAME-$VERSION"
+    local builddir="$src/build"
+
+    cmake -S "$src" -B "$builddir" -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DCMAKE_PREFIX_PATH=/usr \
+        -DBUILD_TESTING=OFF \
+        -DBUILD_SHARED_LIBS=ON \
+        -DBUILD_PYTHON_BINDINGS=ON \
+        -DKCOREADDONS_USE_QML=ON \
+        -DKDE_INSTALL_USE_QT_SYS_PATHS=ON \
+        -DKDE_INSTALL_QMLDIR=lib/qt6/qml
+
+    if [[ ! -f "$builddir/build.ninja" ]]; then
+        echo "[ERROR] KCoreAddons Ninja build targets missing" >&2
+        return 1
+    fi
+
+    cmake --build "$builddir" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+staging() {
+    set -euxo pipefail
+
+    local builddir="$SRCROOT/$NAME-$VERSION/build"
+    local libdir="$pkgdir/usr/lib"
+    local cmakedir="$libdir/cmake/KF6CoreAddons"
+    local qmldir="$libdir/qt6/qml/org/kde/coreaddons"
+
+    DESTDIR="$pkgdir" cmake --install "$builddir"
+
+    if ! find "$libdir" -maxdepth 1 -type f \
+        -name 'libKF6CoreAddons.so.6*' -print -quit | grep -q .; then
+        echo "[ERROR] KF6 CoreAddons shared library was not staged" >&2
+        return 1
+    fi
+
+    for cmakefile in KF6CoreAddonsConfig.cmake KF6CoreAddonsTargets.cmake; do
+        if [[ ! -f "$cmakedir/$cmakefile" ]]; then
+            echo "[ERROR] Missing $cmakedir/$cmakefile" >&2
+            return 1
+        fi
+    done
+
+    if [[ ! -f "$qmldir/qmldir" ]]; then
+        echo "[ERROR] KCoreAddons QML module missing: $qmldir/qmldir" >&2
+        return 1
+    fi
+
+    echo "[OK] KCoreAddons $VERSION staged with C++ and QML components"
+}

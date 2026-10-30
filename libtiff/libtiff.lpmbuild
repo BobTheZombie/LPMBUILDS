@@ -1,31 +1,161 @@
+#!/bin/bash
 # LPM build script for libtiff
+
 NAME="libtiff"
-VERSION="4.6.0"
+VERSION="4.7.2"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Library for reading and writing TIFF images"
+
+SUMMARY="Library and utilities for manipulation of TIFF images"
 URL="https://libtiff.gitlab.io/libtiff/"
-LICENSE="libtiff"
-SOURCE=("https://download.osgeo.org/libtiff/tiff-${VERSION}.tar.gz")
-CHECKSUMS=("88b3979e6d5c7e32b50d7ec72fb15af724f6ab2cbf7e10880c360a77e4b5d99a")
-REQUIRES=("glibc" "zlib" "xz" "zstd" "libjpeg-turbo")
-PROVIDES=("libtiff")
+LICENSE=("libtiff")
+
+SOURCE=(
+    "https://download.osgeo.org/libtiff/tiff-${VERSION}.tar.xz"
+)
+
+SHA256SUMS=("SKIP")
+PATCHES=()
+
+REQUIRES=(
+    "gcc-libs"
+    "glibc"
+    "libjpeg"
+    "xz"
+    "zlib"
+    "zstd"
+)
+
+BUILD_REQUIRES=(
+    "libjpeg"
+    "cmake"
+    "gcc"
+    "ninja"
+    "pkgconf"
+    "xz"
+    "zlib"
+    "zstd"
+)
+
+PROVIDES=(
+    "libtiff"
+    "libtiff.so"
+    "libtiff.so.6"
+    "libtiffxx.so"
+    "libtiffxx.so.6"
+)
+
 CONFLICTS=()
 OBSOLETES=()
 RECOMMENDS=()
 SUGGESTS=()
 
-prepare() { set -euxo pipefail; cd "$SRCROOT"; }
+BUILD_OPTIONS=(
+    "@--stripping"
+    "@--optimize=2"
+)
+
+prepare() {
+    set -euxo pipefail
+
+    if [ ! -d "$SRCROOT/${NAME}-${VERSION}" ] &&
+       [ -d "$SRCROOT/tiff-${VERSION}" ]; then
+        mv "$SRCROOT/tiff-${VERSION}" \
+            "$SRCROOT/${NAME}-${VERSION}"
+    fi
+
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    test -f CMakeLists.txt
+    test -f libtiff/tiff.h
+    test -f LICENSE.md
+
+    if [ ! -f build/CMakeLists.txt ]; then
+        echo "[ERROR] Missing upstream build/CMakeLists.txt; extract fresh sources" >&2
+        return 1
+    fi
+
+    # Keep upstream's build/ source directory intact.
+    rm -rf _build
+
+    if [ ! -e /usr/lib/libjpeg.so ]; then
+        echo "[ERROR] Missing /usr/lib/libjpeg.so; install the JPEG development library" >&2
+        return 1
+    fi
+}
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr --disable-static --with-jpeg --with-zlib --with-lzma --with-zstd
-  make -j"$(nproc)"
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    cmake -S . -B _build -G Ninja \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_BINDIR=bin \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DCMAKE_INSTALL_INCLUDEDIR=include \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DBUILD_SHARED_LIBS=ON \
+        -Dtiff-tools=ON \
+        -Dtiff-tests=ON \
+        -Dtiff-docs=OFF \
+        -Dtiff-contrib=OFF \
+        -Dtiff-cxx=ON \
+        -Djbig=OFF \
+        -Dwebp=OFF \
+        -Dlzma=ON \
+        -Dzlib=ON \
+        -Dzstd=ON \
+        -Djpeg=ON \
+        -DJPEG_LIBRARY=/usr/lib/libjpeg.so
+
+    cmake --build _build \
+        --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+check() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    ctest --test-dir _build \
+        --output-on-failure \
+        --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    DESTDIR="$pkgdir" cmake --install _build
+
+    find "$pkgdir/usr/lib" \
+        -type f \
+        \( -name '*.a' -o -name '*.la' \) \
+        -delete
+
+    for library in \
+        libtiff.so \
+        libtiff.so.6 \
+        libtiffxx.so \
+        libtiffxx.so.6
+    do
+        test -e "$pkgdir/usr/lib/$library"
+    done
+
+    test -f "$pkgdir/usr/include/tiff.h"
+    test -f "$pkgdir/usr/include/tiffio.h"
+    test -f "$pkgdir/usr/include/tiffio.hxx"
+    test -s "$pkgdir/usr/lib/pkgconfig/libtiff-4.pc"
+
+    for program in tiffinfo tiffdump tiffcp tiffset; do
+        test -x "$pkgdir/usr/bin/$program"
+    done
+
+    install -Dm644 LICENSE.md \
+        "$pkgdir/usr/share/licenses/$NAME/LICENSE.md"
 }
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("4996f0c4f93094719b1ca5c6279b20e588773ba8a247533e486416fb662ddb88")

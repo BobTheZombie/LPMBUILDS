@@ -1,0 +1,158 @@
+#!/bin/bash
+# LPM build script for elfutils
+
+NAME="elfutils"
+VERSION="0.196"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+
+SUMMARY="ELF and DWARF libraries and binary inspection utilities"
+URL="https://sourceware.org/elfutils/"
+LICENSE=("GPL-2.0-or-later" "LGPL-3.0-or-later")
+
+SOURCE=(
+    "https://sourceware.org/elfutils/ftp/${VERSION}/elfutils-${VERSION}.tar.bz2"
+)
+
+SHA256SUMS=(
+    "fd5cc6b77ad6773cac93cb3f415f9318ac3b3455eecf801f6b4a742c4f6c7209"
+)
+
+PATCHES=()
+
+REQUIRES=(
+    "bzip2"
+    "glibc"
+    "xz"
+    "zlib"
+    "zstd"
+)
+
+BUILD_REQUIRES=(
+    "bison"
+    "bzip2"
+    "flex"
+    "gcc"
+    "gettext"
+    "make"
+    "pkgconf"
+    "xz"
+    "zlib"
+    "zstd"
+)
+
+PROVIDES=(
+    "elfutils"
+    "libelf"
+    "libelf.so"
+    "libelf.so.1"
+    "libdw"
+    "libdw.so"
+    "libdw.so.1"
+    "libasm.so"
+    "libasm.so.1"
+)
+
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+BUILD_OPTIONS=(
+    "@--stripping"
+    "@--optimize=2"
+)
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    test -f configure
+    test -f libelf/libelf.h
+    test -f libdw/libdw.h
+    test -f COPYING
+
+    if [ -f Makefile ]; then
+        make distclean
+    fi
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    ./configure \
+        --prefix=/usr \
+        --bindir=/usr/bin \
+        --libdir=/usr/lib \
+        --includedir=/usr/include \
+        --sysconfdir=/etc \
+        --mandir=/usr/share/man \
+        --disable-debuginfod \
+        --disable-libdebuginfod \
+        --with-bzlib \
+        --with-lzma \
+        --with-zstd
+
+    make -j"${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+check() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    make -j"${LPM_BUILD_JOBS:-$(nproc)}" check
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    make -j1 DESTDIR="$pkgdir" install
+
+    find "$pkgdir/usr/lib" \
+        -type f \
+        \( -name '*.a' -o -name '*.la' \) \
+        -delete
+
+    local library program license_file
+
+    for library in elf dw asm; do
+        test -e "$pkgdir/usr/lib/lib${library}.so"
+        test -e "$pkgdir/usr/lib/lib${library}.so.1"
+    done
+
+    for program in \
+        eu-readelf \
+        eu-elflint \
+        eu-elfcompress \
+        eu-addr2line \
+        eu-nm \
+        eu-strip \
+        eu-unstrip
+    do
+        test -x "$pkgdir/usr/bin/$program"
+    done
+
+    test -f "$pkgdir/usr/include/libelf.h"
+    test -f "$pkgdir/usr/include/gelf.h"
+    test -f "$pkgdir/usr/include/elfutils/libdw.h"
+
+    test -s "$pkgdir/usr/lib/pkgconfig/libelf.pc"
+    test -s "$pkgdir/usr/lib/pkgconfig/libdw.pc"
+
+    LD_LIBRARY_PATH="$pkgdir/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
+        "$pkgdir/usr/bin/eu-readelf" \
+        -h "$pkgdir/usr/bin/eu-readelf"
+
+    for license_file in COPYING COPYING-GPLV2 COPYING-LGPLV3; do
+        install -Dm644 "$license_file" \
+            "$pkgdir/usr/share/licenses/$NAME/$license_file"
+    done
+}
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("fd5cc6b77ad6773cac93cb3f415f9318ac3b3455eecf801f6b4a742c4f6c7209")

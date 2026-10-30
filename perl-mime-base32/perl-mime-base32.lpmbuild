@@ -1,0 +1,148 @@
+#!/bin/bash
+# LPM Linux - perl-mime-base32 / MIME::Base32 1.303
+# Pure-Perl Base32 encoder / decoder, required by perl-uri.
+
+NAME="perl-mime-base32"
+VERSION="1.303"
+RELEASE="2"
+ARCH="any"
+
+SUMMARY="Perl MIME::Base32 encoder and decoder"
+URL="https://metacpan.org/dist/MIME-Base32"
+LICENSE=("Artistic-1.0-Perl" "GPL-1.0-or-later")
+
+SOURCE=(
+    "https://cpan.metacpan.org/authors/id/R/RE/REHSACK/MIME-Base32-${VERSION}.tar.gz"
+)
+SHA256SUMS=(
+    "ab21fa99130e33a0aff6cdb596f647e5e565d207d634ba2ef06bdbef50424e99"
+)
+PATCHES=()
+
+REQUIRES=("perl")
+BUILD_REQUIRES=("perl" "make")
+PROVIDES=("perl-mime-base32")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+# Resolve a Perl vendor path from Perl's own configuration and @INC.
+# LFS-based Perl installations may have vendorlib set while installvendorlib
+# is empty. A literal /usr/share/perl5/vendor_perl is not portable to LFS.
+_vendorlib() {
+    perl -MConfig -e '
+        my @configured = grep { defined($_) && m{^/usr/} }
+            ($Config{installvendorlib}, $Config{vendorlib});
+        for my $path (@configured) {
+            if (grep { $_ eq $path } @INC) {
+                print "$path\n";
+                exit 0;
+            }
+        }
+        for my $path (@INC) {
+            if ($path =~ m{^/usr/} && $path =~ /vendor_perl/) {
+                print "$path\n";
+                exit 0;
+            }
+        }
+        die "[ERROR] Perl has no usable /usr vendor library path in \@INC; " .
+            "check Perl Configure vendorlib/installvendorlib settings\n";
+    '
+}
+
+_vendorman3dir() {
+    perl -MConfig -e '
+        my $path = $Config{installvendorman3dir} ||
+                   $Config{vendorman3dir} ||
+                   "/usr/share/man/man3";
+        $path = "/usr/share/man/man3" unless $path =~ m{^/usr/};
+        print "$path\n";
+    '
+}
+
+_srcdir() {
+    local d
+    for d in "$SRCROOT/MIME-Base32-${VERSION}" "$SRCROOT/${NAME}-${VERSION}"; do
+        if [[ -f "$d/Makefile.PL" ]]; then
+            printf '%s\n' "$d"
+            return 0
+        fi
+    done
+    echo "[ERROR] MIME-Base32 source directory missing under $SRCROOT" >&2
+    return 1
+}
+
+prepare() {
+    set -euo pipefail
+    local src
+    src="$(_srcdir)"
+    test -f "$src/Makefile.PL"
+    test -f "$src/lib/MIME/Base32.pm"
+}
+
+build() {
+    set -euo pipefail
+    local src
+    src="$(_srcdir)"
+    cd "$src"
+    unset PERL_MM_OPT PERL5LIB PERL_LOCAL_LIB_ROOT
+    export PERL_MM_USE_DEFAULT=1
+    local vendorlib vendorman3
+    vendorlib="$(_vendorlib)"
+    vendorman3="$(_vendorman3dir)"
+    echo "[LPM perl-mime-base32 r2] vendorlib=$vendorlib mandir=$vendorman3"
+    rm -f Makefile
+    perl Makefile.PL \
+        INSTALLDIRS=vendor \
+        INSTALLVENDORLIB="$vendorlib" \
+        INSTALLVENDORARCH="$vendorlib" \
+        INSTALLVENDORMAN3DIR="$vendorman3" \
+        NO_PACKLIST=1 NO_PERLLOCAL=1
+    make -j"${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+check() {
+    set -euo pipefail
+    local src
+    src="$(_srcdir)"
+    cd "$src"
+    make test
+}
+
+staging() {
+    set -euo pipefail
+    local src vendorlib vendorman3
+    src="$(_srcdir)"
+    vendorlib="$(_vendorlib)"
+    vendorman3="$(_vendorman3dir)"
+    cd "$src"
+    unset PERL_MM_OPT PERL5LIB PERL_LOCAL_LIB_ROOT
+    test -n "$pkgdir"
+
+    # Explicit make overrides are required because Perl's installvendorlib
+    # and installvendorman3dir may be empty on some LFS-style installations.
+    make DESTDIR="$pkgdir" \
+        INSTALLDIRS=vendor \
+        INSTALLVENDORLIB="$vendorlib" \
+        INSTALLVENDORARCH="$vendorlib" \
+        INSTALLVENDORMAN3DIR="$vendorman3" \
+        install
+
+    # LPM owns the installed files, not perllocal.pod or .packlist.
+    find "$pkgdir" -type f \( -name '.packlist' -o -name 'perllocal.pod' \) -delete
+
+    if [[ -f "$src/LICENSE" ]]; then
+        install -Dm644 "$src/LICENSE" \
+            "$pkgdir/usr/share/licenses/$NAME/LICENSE"
+    fi
+
+    if [[ ! -s "$pkgdir$vendorlib/MIME/Base32.pm" ]]; then
+        echo "[ERROR] MIME::Base32 was not installed to $pkgdir$vendorlib/MIME/Base32.pm" >&2
+        find "$pkgdir" -maxdepth 7 -type f -print >&2
+        return 1
+    fi
+    # Verify module can be loaded from the staged vendor directory.
+    perl -I"$pkgdir$vendorlib" -MMIME::Base32 -e 'exit 0'
+    echo "[OK] ${NAME}-${VERSION}-${RELEASE} staged to $vendorlib"
+}

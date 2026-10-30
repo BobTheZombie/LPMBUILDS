@@ -1,0 +1,26 @@
+From: LPM Linux Toolchain Team <toolchain@lpm-linux.invalid>
+Subject: [PATCH 2/2] x86: experimentally raise znver2 and znver3 branch cost
+
+Use the modern Zen branch-misprediction scale for znver2 and znver3 as an
+LPM experiment.  Their existing value predates GCC's 2026 reconsideration of
+the same cost for modern x86 and for znver4/5 specifically.
+
+This patch requires A/B validation on Renoir before it becomes part of the
+stable LPM toolchain.  It is isolated so distributions can omit it while
+retaining the upstream-derived znver4/5 patch.
+
+---
+ gcc/config/i386/x86-tune-costs.h | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/gcc/config/i386/x86-tune-costs.h b/gcc/config/i386/x86-tune-costs.h
+--- a/gcc/config/i386/x86-tune-costs.h
++++ b/gcc/config/i386/x86-tune-costs.h
+@@ -1933 +1933 @@ struct processor_costs znver2_cost = {
+-  COSTS_N_INSNS (2),			/* Branch mispredict scale.  */
++  COSTS_N_INSNS (2) + 3,		/* Branch mispredict scale.  */
+@@ -2082 +2082 @@ struct processor_costs znver3_cost = {
+-  COSTS_N_INSNS (2),			/* Branch mispredict scale.  */
++  COSTS_N_INSNS (2) + 3,		/* Branch mispredict scale.  */
+-- 
+2.50.1

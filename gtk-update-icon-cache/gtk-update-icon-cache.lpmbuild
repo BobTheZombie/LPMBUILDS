@@ -1,0 +1,28 @@
+#!/bin/bash
+NAME="gtk-update-icon-cache"
+VERSION="3.94.0"
+RELEASE="2"
+ARCH="any"
+SUMMARY="Compatibility dependency on gtk3"
+URL="https://gitlab.com/lpm-org/packages"
+LICENSE=("MIT")
+SOURCE=()
+SHA256SUMS=()
+PATCHES=()
+REQUIRES=("gtk3")
+BUILD_REQUIRES=()
+PROVIDES=("gtk-update-icon-cache")
+CONFLICTS=()
+OBSOLETES=()
+prepare() { true; }
+build() { true; }
+staging() {
+    install -dm755 "$pkgdir/usr/share/doc/$NAME"
+    printf '%s\n' 'Compatibility dependency: gtk3 owns the payload.' > "$pkgdir/usr/share/doc/$NAME/README"
+}
+
+
+
+
+# Final audited source digests
+SHA256SUMS=()

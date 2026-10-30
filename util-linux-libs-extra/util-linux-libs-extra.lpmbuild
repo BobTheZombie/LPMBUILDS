@@ -1,0 +1,28 @@
+#!/bin/bash
+NAME="util-linux-libs-extra"
+VERSION="2.42.4"
+RELEASE="2"
+ARCH="any"
+SUMMARY="Compatibility dependency on util-linux-libs"
+URL="https://gitlab.com/lpm-org/packages"
+LICENSE=("MIT")
+SOURCE=()
+SHA256SUMS=()
+PATCHES=()
+REQUIRES=("util-linux-libs")
+BUILD_REQUIRES=()
+PROVIDES=("util-linux-libs-extra")
+CONFLICTS=()
+OBSOLETES=()
+prepare() { true; }
+build() { true; }
+staging() {
+    install -dm755 "$pkgdir/usr/share/doc/$NAME"
+    printf '%s\n' 'Compatibility dependency: util-linux-libs owns the payload.' > "$pkgdir/usr/share/doc/$NAME/README"
+}
+
+
+
+
+# Final audited source digests
+SHA256SUMS=()

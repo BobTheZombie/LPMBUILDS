@@ -1,36 +1,95 @@
-# LPM build script for libpciaccess
+#!/bin/bash
+# LPM build script for X.Org libpciaccess
+# Provides pciaccess.pc and libpciaccess.so for Mesa, libdrm, and X.Org.
+
 NAME="libpciaccess"
-VERSION="1.0.0"
+VERSION="0.19"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Placeholder package for libpciaccess dependency"
-URL="https://example.com/libpciaccess"
-LICENSE=""
-SOURCE=()
-SHA256SUMS=()
+
+SUMMARY="Generic PCI bus access library for X.Org and graphics drivers"
+URL="https://gitlab.freedesktop.org/xorg/lib/libpciaccess"
+LICENSE="MIT"
+
+SOURCE=(
+    "https://xorg.freedesktop.org/releases/individual/lib/libpciaccess-${VERSION}.tar.xz"
+)
+
+SHA256SUMS=(
+    "3c55aa86c82e54a4e3109786f0463530d53b36b6d1cfd14616454f985dd2aa43"
+)
+
 PATCHES=()
-REQUIRES=()
-PROVIDES=("libpciaccess")
+
+REQUIRES=(
+    "glibc"
+    "zlib"
+)
+
+BUILD_REQUIRES=(
+    "meson"
+    "ninja"
+    "pkgconf"
+)
+
+PROVIDES=(
+    "libpciaccess"
+    "pciaccess"
+    "pkgconfig(pciaccess)"
+)
+
 CONFLICTS=()
 OBSOLETES=()
 RECOMMENDS=()
 SUGGESTS=()
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+
+    local srcdir="$SRCROOT/$NAME-$VERSION"
+    test -f "$srcdir/meson.build"
+    rm -rf "$srcdir/build"
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+
+    local srcdir="$SRCROOT/$NAME-$VERSION"
+    cd "$srcdir"
+
+    meson setup build \
+        --prefix=/usr \
+        --libdir=lib \
+        --buildtype=release \
+        --wrap-mode=nodownload \
+        -Ddefault_library=shared \
+        -Dzlib=enabled \
+        -Dinstall-scanpci=false
+
+    ninja -C build -j"${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+check() {
+    set -euxo pipefail
+    cd "$SRCROOT/$NAME-$VERSION"
+    meson test -C build --print-errorlogs
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  install -d "$pkgdir/usr/share/doc/libpciaccess"
-  printf 'Placeholder package for libpciaccess\n' >"$pkgdir/usr/share/doc/libpciaccess/README"
+    set -euxo pipefail
+
+    local srcdir="$SRCROOT/$NAME-$VERSION"
+    cd "$srcdir"
+
+    DESTDIR="$pkgdir" ninja -C build install
+
+    install -Dm644 COPYING \
+        "$pkgdir/usr/share/licenses/$NAME/COPYING"
+
+    # Confirm the shared library and development metadata are included.
+    test -e "$pkgdir/usr/lib/libpciaccess.so"
+    test -f "$pkgdir/usr/lib/pkgconfig/pciaccess.pc"
+    test -f "$pkgdir/usr/include/pciaccess.h"
+
+    echo "==> libpciaccess ${VERSION} staging complete"
 }

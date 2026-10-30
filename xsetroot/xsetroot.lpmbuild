@@ -1,0 +1,52 @@
+#!/bin/bash
+# LPM build script for xsetroot
+
+NAME="xsetroot"
+VERSION="1.1.4"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Root window parameter setting utility for X"
+URL="https://xorg.freedesktop.org/"
+LICENSE="MIT"
+
+SOURCE=(
+  "https://www.x.org/archive//individual/app/${NAME}-${VERSION}.tar.xz"
+)
+
+REQUIRES=(
+  "glibc"
+  "libX11"
+)
+
+PROVIDES=("xsetroot")
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+    set -euxo pipefail
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    ./configure --prefix=/usr
+    make -j"$(nproc)"
+}
+
+check() { true; }
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    DESTDIR="$pkgdir" make install
+}
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("1315a3f7e9abe06357363b93461e272601f67225ce0bc075c430cce35073362b")

@@ -1,35 +1,215 @@
-# LPM build script for expat
+#!/bin/bash
+# LPM build script for Expat
+
 NAME="expat"
-VERSION="2.6.2"
+VERSION="2.9.0"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="XML parser library"
+
+SUMMARY="Fast stream-oriented XML parser library"
 URL="https://libexpat.github.io/"
-LICENSE="MIT"
-SOURCE=("https://github.com/libexpat/libexpat/releases/download/R_${VERSION//./_}/expat-${VERSION}.tar.xz")
-REQUIRES=("glibc")
-PROVIDES=("expat" "libexpat")
+LICENSE=("MIT")
+
+SOURCE=(
+    "https://github.com/libexpat/libexpat/releases/download/R_${VERSION//./_}/expat-${VERSION}.tar.xz"
+)
+
+SHA256SUMS=(
+    "1e6371862cc31999b368c3b89b49994f0677e1bab5f1b2b85ae3741f5d803051"
+)
+
+PATCHES=()
+
+REQUIRES=(
+    "glibc"
+)
+
+BUILD_REQUIRES=(
+    "glibc"
+    "make"
+)
+
+PROVIDES=(
+    "expat"
+    "libexpat"
+    "libexpat.so"
+    "libexpat.so.1"
+)
+
 CONFLICTS=()
 OBSOLETES=()
 RECOMMENDS=()
 SUGGESTS=()
 
+BUILD_OPTIONS=(
+    "@--stripping"
+    "@--optimize=2"
+)
+
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  rm -rf "${NAME}-${VERSION}"
-  tar -xf "expat-${VERSION}.tar.xz"
+    set -euxo pipefail
+
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    test -x configure
+    test -f lib/expat.h
+    test -f lib/expat_external.h
+    test -f lib/xmlparse.c
+    test -f COPYING
+
+    rm -rf build
+    mkdir -p build
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT/${NAME}-${VERSION}"
-  ./configure --prefix=/usr --disable-static
-  make -j"$(nproc)"
+    set -euxo pipefail
+
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    cd build
+
+    export CFLAGS="${CFLAGS:--O2 -pipe}"
+
+    ../configure \
+        --prefix=/usr \
+        --bindir=/usr/bin \
+        --libdir=/usr/lib \
+        --includedir=/usr/include \
+        --datadir=/usr/share \
+        --mandir=/usr/share/man \
+        --docdir="/usr/share/doc/${NAME}-${VERSION}" \
+        --enable-shared \
+        --disable-static \
+        --without-docbook \
+        --without-examples
+
+    make -j"$(nproc)"
+}
+
+check() {
+    set -euxo pipefail
+
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    make -C build check
+
+    test -x build/xmlwf/xmlwf
+
+    TEST_XML="build/.lpm-expat-test.xml"
+    TEST_OUTPUT_DIR="build/.lpm-expat-output"
+
+    rm -rf "$TEST_OUTPUT_DIR"
+    mkdir -p "$TEST_OUTPUT_DIR"
+
+    printf '%s\n' \
+        '<?xml version="1.0" encoding="UTF-8"?>' \
+        '<lpm><package name="expat"/></lpm>' \
+        > "$TEST_XML"
+
+    LD_LIBRARY_PATH="$PWD/build/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
+        build/xmlwf/xmlwf \
+            -d "$TEST_OUTPUT_DIR" \
+            "$TEST_XML" \
+            > /dev/null
+
+    test -s "$TEST_OUTPUT_DIR/.lpm-expat-test.xml"
+
+    grep -Fxq \
+        '<lpm><package name="expat"></package></lpm>' \
+        "$TEST_OUTPUT_DIR/.lpm-expat-test.xml"
+
+    rm -f "$TEST_XML"
+    rm -rf "$TEST_OUTPUT_DIR"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT/${NAME}-${VERSION}"
-  make DESTDIR="$pkgdir" install
+    set -euxo pipefail
+
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    make \
+        -C build \
+        DESTDIR="$pkgdir" \
+        install
+
+    find "$pkgdir/usr/lib" \
+        -type f \
+        \( -name '*.a' -o -name '*.la' \) \
+        -delete
+
+    test -x "$pkgdir/usr/bin/xmlwf"
+
+    test -L "$pkgdir/usr/lib/libexpat.so"
+    test -L "$pkgdir/usr/lib/libexpat.so.1"
+
+    LIBEXPAT="$(
+        find "$pkgdir/usr/lib" \
+            -maxdepth 1 \
+            -type f \
+            -name 'libexpat.so.1.*' \
+            -print \
+            -quit
+    )"
+
+    if [ -z "$LIBEXPAT" ] || [ ! -f "$LIBEXPAT" ]; then
+        echo "[ERROR] Missing real libexpat shared library" >&2
+        return 1
+    fi
+
+    test -f "$pkgdir/usr/include/expat.h"
+    test -f "$pkgdir/usr/include/expat_external.h"
+    test -f "$pkgdir/usr/lib/pkgconfig/expat.pc"
+
+    EXPAT_PC_VERSION="$(
+        sed -n \
+            's/^Version:[[:space:]]*//p' \
+            "$pkgdir/usr/lib/pkgconfig/expat.pc"
+    )"
+
+    if [ "$EXPAT_PC_VERSION" != "$VERSION" ]; then
+        echo "[ERROR] Unexpected Expat pkg-config version: $EXPAT_PC_VERSION" >&2
+        return 1
+    fi
+
+    LIBEXPAT_HEADER="build/.lpm-libexpat-header"
+    LIBEXPAT_DYNAMIC="build/.lpm-libexpat-dynamic"
+    LIBEXPAT_SYMBOLS="build/.lpm-libexpat-symbols"
+
+    readelf -h "$LIBEXPAT" > "$LIBEXPAT_HEADER"
+    grep -Fq 'ELF64' "$LIBEXPAT_HEADER"
+
+    readelf -d "$LIBEXPAT" > "$LIBEXPAT_DYNAMIC"
+    grep -Fq \
+        'Library soname: [libexpat.so.1]' \
+        "$LIBEXPAT_DYNAMIC"
+
+    readelf -Ws "$LIBEXPAT" > "$LIBEXPAT_SYMBOLS"
+    grep -Eq '[[:space:]]XML_ParserCreate$' "$LIBEXPAT_SYMBOLS"
+    grep -Eq '[[:space:]]XML_Parse$' "$LIBEXPAT_SYMBOLS"
+
+    rm -f \
+        "$LIBEXPAT_HEADER" \
+        "$LIBEXPAT_DYNAMIC" \
+        "$LIBEXPAT_SYMBOLS"
+
+    XMLWF_VERSION="build/.lpm-xmlwf-version"
+
+    LD_LIBRARY_PATH="$pkgdir/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
+        "$pkgdir/usr/bin/xmlwf" \
+        -v \
+        > "$XMLWF_VERSION" 2>&1
+
+    grep -Fq "expat_${VERSION}" "$XMLWF_VERSION"
+    rm -f "$XMLWF_VERSION"
+
+    test -f "$pkgdir/usr/share/man/man1/xmlwf.1"
+
+    install -Dm644 \
+        COPYING \
+        "$pkgdir/usr/share/licenses/$NAME/COPYING"
 }
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("1e6371862cc31999b368c3b89b49994f0677e1bab5f1b2b85ae3741f5d803051")

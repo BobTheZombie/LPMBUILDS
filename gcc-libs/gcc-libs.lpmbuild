@@ -1,34 +1,528 @@
-# LPM build script for gcc-libs
+#!/bin/bash
+# LPM build script for GCC runtime libraries
+
 NAME="gcc-libs"
-VERSION="14.2.0"
-RELEASE="1"
+VERSION="16.2.0"
+RELEASE="5"
 ARCH="${ARCH:-x86_64}"
+
 SUMMARY="Runtime libraries shipped by GCC"
 URL="https://gcc.gnu.org/"
-LICENSE=""
-SOURCE=()
-REQUIRES=("glibc")
-PROVIDES=("gcc-libs" "libstdc++" "libgcc_s")
+LICENSE=(
+    "GPL-3.0-or-later"
+    "GPL-3.0-with-GCC-exception"
+    "LGPL-2.1-or-later"
+)
+
+SOURCE=(
+    "https://ftp.wayne.edu/gnu/gcc/gcc-${VERSION}/gcc-${VERSION}.tar.xz"
+    "0001-x86-raise-znver4-znver5-branch-mispredict-cost.patch"
+    "0002-x86-experimental-raise-znver2-znver3-branch-mispredict-cost.patch"
+)
+
+SHA256SUMS=(
+    "SKIP"
+    "SKIP"
+    "SKIP"
+)
+
+PATCHES=(
+    "0001-x86-raise-znver4-znver5-branch-mispredict-cost.patch"
+    "0002-x86-experimental-raise-znver2-znver3-branch-mispredict-cost.patch"
+)
+
+REQUIRES=(
+    "glibc"
+    "zlib"
+    "zstd"
+)
+
+#
+# The LFS bootstrap compiler builds this package. Declaring gcc here would
+# create the source dependency cycle gcc -> gcc-libs -> gcc.
+#
+
+BUILD_REQUIRES=(
+    "bison"
+    "binutils"
+    "flex"
+    "glibc"
+    "gmp"
+    "isl"
+    "m4"
+    "make"
+    "mpc"
+    "mpfr"
+    "perl"
+    "texinfo"
+    "zlib"
+    "zstd"
+)
+
+PROVIDES=(
+    "gcc-libs"
+    "libasan.so"
+    "libatomic.so"
+    "libgcc_s.so"
+    "libgcc_s.so.1"
+    "libgfortran.so"
+    "libgfortran.so.5"
+    "libgomp.so"
+    "libitm.so"
+    "liblsan.so"
+    "libquadmath.so"
+    "libstdc++.so"
+    "libstdc++.so.6"
+    "libtsan.so"
+    "libubsan.so"
+)
+
 CONFLICTS=()
 OBSOLETES=()
 RECOMMENDS=()
 SUGGESTS=()
 
+BUILD_OPTIONS=(
+    "@--stripping"
+    "@--optimize=2"
+)
+
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    BUILDDIR="$SRCDIR/build"
+    FULLDIR="$SRCDIR/full-install"
+
+    test -f "$SRCDIR/configure"
+    test -f "$SRCDIR/config.guess"
+    test -f "$SRCDIR/gcc/BASE-VER"
+    test -f "$SRCDIR/gcc/config/i386/t-linux64"
+    test -f "$SRCDIR/COPYING3"
+    test -f "$SRCDIR/COPYING.RUNTIME"
+
+    test "$(< "$SRCDIR/gcc/BASE-VER")" = "$VERSION"
+
+    #
+    # GCC's x86-64 target makefile maps the native m64 ABI to ../lib64,
+    # independently of --libdir. LPM Linux uses a merged /usr layout with
+    # native libraries in /usr/lib, so change the target multilib OS mapping
+    # before configuring. This is the same class of fix used by LFS.
+    #
+
+    sed -i \
+        's@m64=\.\./lib64@m64=../lib@' \
+        "$SRCDIR/gcc/config/i386/t-linux64"
+
+    grep -Fq \
+        'MULTILIB_OSDIRNAMES = m64=../lib' \
+        "$SRCDIR/gcc/config/i386/t-linux64"
+
+    rm -rf \
+        "$BUILDDIR" \
+        "$FULLDIR"
+
+    mkdir -pv "$BUILDDIR"
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    BUILDDIR="$SRCDIR/build"
+    BUILD_TRIPLET="$("$SRCDIR/config.guess")"
+
+    cd "$BUILDDIR"
+
+    ../configure \
+        --prefix=/usr \
+        --bindir=/usr/bin \
+        --libdir=/usr/lib \
+        --libexecdir=/usr/lib \
+        --includedir=/usr/include \
+        --build="$BUILD_TRIPLET" \
+        --host="$BUILD_TRIPLET" \
+        --with-system-zlib \
+        --with-zstd \
+        --with-linker-hash-style=gnu \
+        --with-pkgversion="LPM Linux ${VERSION}-${RELEASE}" \
+        --with-bugurl="https://github.com/BobTheZombie/LPM.Org/issues" \
+        --enable-languages=c,c++,fortran,lto \
+        --enable-checking=release \
+        --enable-default-pie \
+        --enable-default-ssp \
+        --enable-linker-build-id \
+        --enable-lto \
+        --enable-plugin \
+        --enable-shared \
+        --enable-threads=posix \
+        --enable-__cxa_atexit \
+        --enable-clocale=gnu \
+        --enable-libstdcxx-time \
+        --enable-cet=auto \
+        --disable-bootstrap \
+        --disable-libssp \
+        --disable-libstdcxx-pch \
+        --disable-multilib \
+        --disable-nls \
+        --disable-werror \
+        --without-included-gettext
+
+    make -j"$(nproc)"
+}
+
+check() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    BUILDDIR="$SRCDIR/build"
+
+    #
+    # Do not run GCC's complete testsuite during bootstrap package builds.
+    #
+
+    for LIBRARY in \
+        libgcc_s.so.1 \
+        libstdc++.so.6 \
+        libatomic.so.1 \
+        libgfortran.so.5 \
+        libgomp.so.1 \
+        libitm.so.1 \
+        libquadmath.so.0
+    do
+        LIBRARY_PATH="$(
+            find "$BUILDDIR" \
+                \( -type f -o -type l \) \
+                -name "$LIBRARY" \
+                -print \
+                -quit
+        )"
+
+        if [ -z "$LIBRARY_PATH" ]; then
+            echo "[ERROR] Missing GCC runtime library: $LIBRARY" >&2
+            return 1
+        fi
+    done
+
+    for LIBRARY in \
+        libasan.so \
+        liblsan.so \
+        libtsan.so \
+        libubsan.so
+    do
+        LIBRARY_PATH="$(
+            find "$BUILDDIR" \
+                \( -type f -o -type l \) \
+                -name "${LIBRARY}.[0-9]*" \
+                -print \
+                -quit
+        )"
+
+        if [ -z "$LIBRARY_PATH" ]; then
+            echo "[ERROR] Missing GCC sanitizer runtime: $LIBRARY" >&2
+            return 1
+        fi
+    done
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+    BUILDDIR="$SRCDIR/build"
+    FULLDIR="$SRCDIR/full-install"
+
+    rm -rf "$FULLDIR"
+    mkdir -p "$FULLDIR"
+
+    make \
+        -C "$BUILDDIR" \
+        DESTDIR="$FULLDIR" \
+        install-target-libgcc \
+        install-target-libstdc++-v3 \
+        install-target-libatomic \
+        install-target-libgfortran \
+        install-target-libgomp \
+        install-target-libitm \
+        install-target-libquadmath \
+        install-target-libsanitizer
+
+    #
+    # New builds use /usr/lib because prepare() fixes GCC's native m64 OS
+    # directory mapping. Also accept /usr/lib64 here so an existing build tree
+    # produced before that correction can be staged without recompiling GCC.
+    # The package payload is normalized to /usr/lib in either case.
+    #
+
+    RUNTIME_LIBDIRS=()
+
+    for LIBDIR in \
+        "$FULLDIR/usr/lib" \
+        "$FULLDIR/usr/lib64"
+    do
+        if [ -d "$LIBDIR" ]; then
+            RUNTIME_LIBDIRS+=("$LIBDIR")
+        fi
+    done
+
+    if [ "${#RUNTIME_LIBDIRS[@]}" -eq 0 ]; then
+        echo "[ERROR] GCC installed no runtime library directory" >&2
+        return 1
+    fi
+
+    install -dm755 "$pkgdir/usr/lib"
+
+    #
+    # Copy only versioned runtime libraries. Development linker names remain
+    # owned by the gcc package.
+    #
+
+    find "${RUNTIME_LIBDIRS[@]}" \
+        \( -type f -o -type l \) \
+        \( \
+            -name 'libgcc_s.so.1' \
+            -o -name 'libstdc++.so.6' \
+            -o -name 'libstdc++.so.6.*' \
+            -o -name 'libatomic.so.1' \
+            -o -name 'libatomic.so.1.*' \
+            -o -name 'libgfortran.so.5' \
+            -o -name 'libgfortran.so.5.*' \
+            -o -name 'libgomp.so.1' \
+            -o -name 'libgomp.so.1.*' \
+            -o -name 'libitm.so.1' \
+            -o -name 'libitm.so.1.*' \
+            -o -name 'libquadmath.so.0' \
+            -o -name 'libquadmath.so.0.*' \
+            -o -name 'libasan.so.[0-9]*' \
+            -o -name 'liblsan.so.[0-9]*' \
+            -o -name 'libtsan.so.[0-9]*' \
+            -o -name 'libubsan.so.[0-9]*' \
+        \) \
+        -exec cp \
+            -a \
+            --no-preserve=ownership \
+            -t "$pkgdir/usr/lib" \
+            {} +
+
+    #
+    # Runtime packages must not contain static or Libtool libraries.
+    #
+
+    find "$pkgdir/usr/lib" \
+        -type f \
+        \( -name '*.a' -o -name '*.la' \) \
+        -delete
+
+    #
+    # Validate essential runtime ABI names.
+    #
+
+    for LIBRARY in \
+        libgcc_s.so.1 \
+        libstdc++.so.6 \
+        libatomic.so.1 \
+        libgfortran.so.5 \
+        libgomp.so.1 \
+        libitm.so.1 \
+        libquadmath.so.0
+    do
+        if [ ! -e "$pkgdir/usr/lib/$LIBRARY" ]; then
+            echo "[ERROR] Missing installed GCC runtime: $LIBRARY" >&2
+            return 1
+        fi
+    done
+
+    #
+    # Validate sanitizer runtimes without hard-coding their ABI numbers.
+    #
+
+    for LIBRARY in \
+        libasan.so \
+        liblsan.so \
+        libtsan.so \
+        libubsan.so
+    do
+        MATCH="$(
+            find "$pkgdir/usr/lib" \
+                -maxdepth 1 \
+                \( -type f -o -type l \) \
+                -name "${LIBRARY}.[0-9]*" \
+                -print \
+                -quit
+        )"
+
+        if [ -z "$MATCH" ]; then
+            echo "[ERROR] Missing GCC sanitizer runtime: $LIBRARY" >&2
+            return 1
+        fi
+    done
+
+    #
+    # Ensure gcc-libs does not own development linker names.
+    #
+
+    for LIBRARY in \
+        libasan.so \
+        libatomic.so \
+        libgcc_s.so \
+        libgfortran.so \
+        libgomp.so \
+        libitm.so \
+        liblsan.so \
+        libquadmath.so \
+        libstdc++.so \
+        libtsan.so \
+        libubsan.so
+    do
+        if [ -e "$pkgdir/usr/lib/$LIBRARY" ] ||
+           [ -L "$pkgdir/usr/lib/$LIBRARY" ]
+        then
+            echo "[ERROR] Development linker name entered gcc-libs: $LIBRARY" >&2
+            return 1
+        fi
+    done
+
+    #
+    # Resolve staged library links without accidentally resolving absolute
+    # paths against the host filesystem.
+    #
+
+    resolve_staged_library() {
+        local path="$1"
+        local target
+
+        if [ -L "$path" ]; then
+            target="$(readlink "$path")"
+
+            case "$target" in
+                /*)
+                    printf '%s%s\n' \
+                        "$pkgdir" \
+                        "$target"
+                    ;;
+                *)
+                    printf '%s/%s\n' \
+                        "$(dirname "$path")" \
+                        "$target"
+                    ;;
+            esac
+        else
+            printf '%s\n' "$path"
+        fi
+    }
+
+    LIBSTDCXX_REAL="$(
+        resolve_staged_library \
+            "$pkgdir/usr/lib/libstdc++.so.6"
+    )"
+
+    LIBGCC_REAL="$(
+        resolve_staged_library \
+            "$pkgdir/usr/lib/libgcc_s.so.1"
+    )"
+
+    LIBGFORTRAN_REAL="$(
+        resolve_staged_library \
+            "$pkgdir/usr/lib/libgfortran.so.5"
+    )"
+
+    if [ ! -f "$LIBSTDCXX_REAL" ]; then
+        echo "[ERROR] Invalid libstdc++.so.6 target: $LIBSTDCXX_REAL" >&2
+        return 1
+    fi
+
+    if [ ! -f "$LIBGCC_REAL" ]; then
+        echo "[ERROR] Invalid libgcc_s.so.1 target: $LIBGCC_REAL" >&2
+        return 1
+    fi
+
+    if [ ! -f "$LIBGFORTRAN_REAL" ]; then
+        echo "[ERROR] Invalid libgfortran.so.5 target: $LIBGFORTRAN_REAL" >&2
+        return 1
+    fi
+
+    #
+    # Validate ELF architecture and library SONAMEs.
+    #
+
+    LIBSTDCXX_HEADER="$SRCDIR/.lpm-libstdcxx-header"
+    LIBSTDCXX_DYNAMIC="$SRCDIR/.lpm-libstdcxx-dynamic"
+    LIBGCC_HEADER="$SRCDIR/.lpm-libgcc-header"
+    LIBGCC_DYNAMIC="$SRCDIR/.lpm-libgcc-dynamic"
+    LIBGFORTRAN_HEADER="$SRCDIR/.lpm-libgfortran-header"
+    LIBGFORTRAN_DYNAMIC="$SRCDIR/.lpm-libgfortran-dynamic"
+
+    readelf -h \
+        "$LIBSTDCXX_REAL" \
+        > "$LIBSTDCXX_HEADER"
+
+    grep -Fq \
+        'ELF64' \
+        "$LIBSTDCXX_HEADER"
+
+    readelf -d \
+        "$LIBSTDCXX_REAL" \
+        > "$LIBSTDCXX_DYNAMIC"
+
+    grep -Fq \
+        'Library soname: [libstdc++.so.6]' \
+        "$LIBSTDCXX_DYNAMIC"
+
+    readelf -h \
+        "$LIBGCC_REAL" \
+        > "$LIBGCC_HEADER"
+
+    grep -Fq \
+        'ELF64' \
+        "$LIBGCC_HEADER"
+
+    readelf -d \
+        "$LIBGCC_REAL" \
+        > "$LIBGCC_DYNAMIC"
+
+    grep -Fq \
+        'Library soname: [libgcc_s.so.1]' \
+        "$LIBGCC_DYNAMIC"
+
+    readelf -h \
+        "$LIBGFORTRAN_REAL" \
+        > "$LIBGFORTRAN_HEADER"
+
+    grep -Fq \
+        'ELF64' \
+        "$LIBGFORTRAN_HEADER"
+
+    readelf -d \
+        "$LIBGFORTRAN_REAL" \
+        > "$LIBGFORTRAN_DYNAMIC"
+
+    grep -Fq \
+        'Library soname: [libgfortran.so.5]' \
+        "$LIBGFORTRAN_DYNAMIC"
+
+    rm -f \
+        "$LIBSTDCXX_HEADER" \
+        "$LIBSTDCXX_DYNAMIC" \
+        "$LIBGCC_HEADER" \
+        "$LIBGCC_DYNAMIC" \
+        "$LIBGFORTRAN_HEADER" \
+        "$LIBGFORTRAN_DYNAMIC"
+
+    #
+    # Install runtime licensing information.
+    #
+
+    install -Dm644 \
+        "$SRCDIR/COPYING.RUNTIME" \
+        "$pkgdir/usr/share/licenses/$NAME/COPYING.RUNTIME"
+
+    install -Dm644 \
+        "$SRCDIR/COPYING3" \
+        "$pkgdir/usr/share/licenses/$NAME/COPYING3"
 }
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("e6738e29597f733270731aa90600f37ffdc045079dfc27ec7e8192cc81085c3e" "fd93609c595f7be08cf6c7b870897ab472a39ba80d5fb8215427ebe3635f8c4a" "96189d51b2f7bc4d228201ee448f37ee30b22f77e57ed24e8e28a979be707e96")

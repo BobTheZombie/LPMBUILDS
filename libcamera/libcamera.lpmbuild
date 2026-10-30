@@ -1,36 +1,46 @@
-# LPM build script for libcamera
+#!/bin/bash
 NAME="libcamera"
-VERSION="1.0.0"
-RELEASE="1"
+VERSION="0.7.2"
+RELEASE="2"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Placeholder package for libcamera dependency"
-URL="https://example.com/libcamera"
-LICENSE=""
-SOURCE=()
-SHA256SUMS=()
+SUMMARY="libcamera upstream package"
+URL="https://gitlab.freedesktop.org/camera/libcamera/-/archive/191e202178f02430b5942397c70d215cdd2056fa/"
+LICENSE=("Apache-2.0" "BSD-3-Clause" "GPL-2.0-or-later" "LGPL-2.1-or-later" "MIT")
+SOURCE=("https://gitlab.freedesktop.org/camera/libcamera/-/archive/191e202178f02430b5942397c70d215cdd2056fa/libcamera-191e202178f02430b5942397c70d215cdd2056fa.tar.gz")
+SHA256SUMS=("cb26396dfc8c5359ccdff8670ad6972a663f46d029f6aba0feb543039059dde7")
 PATCHES=()
-REQUIRES=("glibc" "libudev" "pipewire")
+REQUIRES=("elfutils" "gcc-libs" "glibc" "gnutls" "libunwind" "libyaml" "libyuv" "systemd")
+BUILD_REQUIRES=("glib2" "libdrm" "libjpeg" "libtiff" "meson" "ninja" "pkgconf" "pybind11" "python" "qt6-base" "sdl2")
+REQUIRES_PYTHON_DEPENDENCIES=(
+    "ply"
+)
 PROVIDES=("libcamera")
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
+BUILD_OPTIONS=("@--stripping" "@--optimize=2")
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    meson setup build --prefix=/usr --libdir=lib --buildtype=release --wrap-mode=nodownload -Dv4l2=enabled -Dtracing=disabled -Ddocumentation=disabled
+    meson compile -C build -j "${LPM_BUILD_JOBS:-$(nproc)}"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  install -d "$pkgdir/usr/share/doc/libcamera"
-  printf 'Placeholder package for libcamera\n' >"$pkgdir/usr/share/doc/libcamera/README"
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    meson install -C build --no-rebuild --destdir "$pkgdir"
+    local f
+    for f in COPYING COPYING.LIB LICENSE LICENSE.md LICENSE.txt; do
+        if [ -f "$f" ]; then install -Dm644 "$f" "$pkgdir/usr/share/licenses/$NAME/$f"; fi
+    done
+    if [ -d LICENSES ]; then
+        install -dm755 "$pkgdir/usr/share/licenses/$NAME"
+        cp -a LICENSES/. "$pkgdir/usr/share/licenses/$NAME/"
+    fi
 }

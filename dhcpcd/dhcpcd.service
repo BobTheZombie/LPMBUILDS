@@ -1,0 +1,12 @@
+[Unit]
+Description=Standalone DHCPv4 DHCPv6 and SLAAC client
+Wants=network.target
+Before=network.target
+Conflicts=NetworkManager.service
+[Service]
+Type=forking
+PIDFile=/run/dhcpcd/pid
+ExecStart=/usr/bin/dhcpcd -q
+ExecStop=/usr/bin/dhcpcd -x
+[Install]
+WantedBy=multi-user.target

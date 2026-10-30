@@ -1,0 +1,92 @@
+#!/bin/bash
+# LPM Linux: Qt 6.12.0 compatibility module and GraphicalEffects QML plugins.
+# qt5compat-everywhere-src-6.12.0.tar.xz SHA-256: MacPorts Qt 6.12.0 manifest.
+
+NAME="qt6-5compat"
+VERSION="6.12.0"
+RELEASE="2"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Qt 6 compatibility APIs and Qt5Compat.GraphicalEffects QML plugins"
+URL="https://www.qt.io/"
+LICENSE=("LGPL-3.0-only" "GPL-3.0-only WITH Qt-GPL-exception-1.0")
+
+SOURCE=(
+    "https://download.qt.io/archive/qt/6.12/${VERSION}/submodules/qt5compat-everywhere-src-${VERSION}.tar.xz"
+)
+SHA256SUMS=(
+    "78cf1c283795312a7fa31c73eb7f7f556b48374adc484f10ad5a3c0bcb59264e"
+)
+PATCHES=()
+
+REQUIRES=(
+    "qt6-base"
+    "qt6-declarative"
+    "qt6-shadertools"
+)
+BUILD_REQUIRES=(
+    "cmake"
+    "ninja"
+    "pkgconf"
+    "python"
+    "qt6-base"
+    "qt6-declarative"
+    "qt6-shadertools"
+)
+REQUIRES_PYTHON_DEPENDENCIES=()
+PROVIDES=("qt5compat")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+BUILD_OPTIONS=("@--stripping" "@--optimize=2")
+
+prepare() {
+    set -euxo pipefail
+    local src="$SRCROOT/${NAME}-${VERSION}"
+    test -f "$src/CMakeLists.txt"
+
+    # Qt's qt5compat CMakeLists.txt only descends into src/imports if
+    # both Qt Gui and Qt Quick targets are available at configure time.
+    test -f /usr/lib/cmake/Qt6Quick/Qt6QuickConfig.cmake
+    test -f /usr/lib/cmake/Qt6ShaderTools/Qt6ShaderToolsConfig.cmake
+}
+
+build() {
+    set -euxo pipefail
+    local src="$SRCROOT/${NAME}-${VERSION}"
+    local builddir="$src/build"
+
+    cmake -S "$src" -B "$builddir" -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DBUILD_SHARED_LIBS=ON \
+        -DBUILD_TESTING=OFF \
+        -DQT_BUILD_TESTS=OFF \
+        -DQT_BUILD_EXAMPLES=OFF
+
+    cmake --build "$builddir" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+staging() {
+    set -euxo pipefail
+    local src="$SRCROOT/${NAME}-${VERSION}"
+    local builddir="$src/build"
+    local qml_dir="$pkgdir/usr/lib/qt6/qml/Qt5Compat/GraphicalEffects"
+
+    test -n "${pkgdir:-}" && test "$pkgdir" != /
+    DESTDIR="$pkgdir" cmake --install "$builddir"
+
+    # Catch a successful Core5Compat build that silently omitted Qt Quick
+    # GraphicalEffects because Qt Quick / ShaderTools was unavailable.
+    test -f "$qml_dir/qmldir"
+    test -f "$qml_dir/private/qmldir"
+    test -f "$qml_dir/libqtgraphicaleffectsplugin.so"
+    test -f "$pkgdir/usr/lib/cmake/Qt6Core5Compat/Qt6Core5CompatConfig.cmake"
+    compgen -G "$pkgdir/usr/lib/libQt6Core5Compat.so*" >/dev/null
+
+    if [[ -d "$src/LICENSES" ]]; then
+        install -dm755 "$pkgdir/usr/share/licenses/$NAME"
+        cp -a "$src/LICENSES/." "$pkgdir/usr/share/licenses/$NAME/"
+    fi
+}

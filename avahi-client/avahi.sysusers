@@ -1,0 +1,4 @@
+# Service identity for Avahi mDNS/DNS-SD.
+g avahi -
+g netdev -
+u avahi - "Avahi mDNS/DNS-SD daemon" /run/avahi-daemon /usr/bin/nologin

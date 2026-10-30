@@ -1,33 +1,60 @@
-# LPM build script for iw
+#!/bin/bash
+# LPM networking stack, release snapshot 2026-10-16
 NAME="iw"
-VERSION="5.19"
+VERSION="6.17"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="nl80211 based CLI for wireless devices"
-URL="https://wireless.wiki.kernel.org/en/users/Documentation/iw"
-LICENSE=""
-SOURCE=()
-REQUIRES=("glibc" "libnl")
-PROVIDES=("iw")
+SUMMARY='nl80211 wireless configuration and diagnostics'
+URL=https://www.kernel.org/pub/software/network/iw/iw-6.17.tar.xz
+LICENSE=(ISC)
+SOURCE=(https://www.kernel.org/pub/software/network/iw/iw-6.17.tar.xz)
+SHA256SUMS=(
+    "7d182e498289ab39b257da6780d562e415377107f50358ee5b55b8cfe40b1e33"
+)
+PATCHES=()
+REQUIRES=(glibc libnl)
+BUILD_REQUIRES=(gcc make pkgconf libnl)
+PROVIDES=(iw)
 CONFLICTS=()
 OBSOLETES=()
 RECOMMENDS=()
 SUGGESTS=()
+BUILD_OPTIONS=(@--stripping @--optimize=2)
 
-prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+_source() {
+    if [ ! -d "$SRCROOT/${NAME}-${VERSION}" ] && [ -d "$SRCROOT/iw-6.17" ]; then
+        mv "$SRCROOT/iw-6.17" "$SRCROOT/${NAME}-${VERSION}"
+    fi
 }
 
-build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make -j"$(nproc)" NL80211_INC=/usr/include/libnl3 NL80211_LIBS="-lnl-3 -lnl-genl-3"
+_licenses() {
+    local f
+    for f in COPYING COPYING.LIB LICENSE LICENSE.txt LICENCE README; do
+        if [ -f "$f" ]; then
+            install -Dm644 "$f" "$pkgdir/usr/share/licenses/$NAME/$(basename "$f")"
+        fi
+    done
+}
+_cleanup() {
+    if [ -d "$pkgdir/usr/lib" ]; then
+        find "$pkgdir/usr/lib" -type f \( -name '*.a' -o -name '*.la' \) -delete
+    fi
+    rm -f "$pkgdir/usr/share/info/dir"
 }
 
+prepare() { set -euxo pipefail; _source; cd "$SRCROOT/${NAME}-${VERSION}"; test -f Makefile; }
+build() { set -euxo pipefail; cd "$SRCROOT/${NAME}-${VERSION}"; make -j"${LPM_BUILD_JOBS:-$(nproc)}"; }
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    make DESTDIR="$pkgdir" PREFIX=/usr SBINDIR=/usr/bin install
+    test -x "$pkgdir/usr/bin/iw"
+    _licenses
 }
+
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("7d182e498289ab39b257da6780d562e415377107f50358ee5b55b8cfe40b1e33")

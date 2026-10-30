@@ -1,0 +1,52 @@
+#!/bin/bash
+# LPM build script for xev
+
+NAME="xev"
+VERSION="1.2.7"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="X event viewer"
+URL="https://xorg.freedesktop.org/"
+LICENSE="MIT"
+
+SOURCE=(
+  "https://www.x.org/archive//individual/app/${NAME}-${VERSION}.tar.xz"
+)
+
+REQUIRES=(
+  "glibc"
+  "libX11"
+)
+
+PROVIDES=("xev")
+CONFLICTS=()
+OBSOLETES=()
+
+_srcdir="${NAME}-${VERSION}"
+
+prepare() {
+    set -euxo pipefail
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    ./configure --prefix=/usr
+    make -j"$(nproc)"
+}
+
+check() { true; }
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/$_srcdir"
+
+    DESTDIR="$pkgdir" make install
+}
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("95167895924de58e34b1013b2b0c8476e90d0888c6c39e7ae9bc35e3a19dba04")

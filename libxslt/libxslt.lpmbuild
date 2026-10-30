@@ -1,0 +1,41 @@
+NAME="libxslt"
+VERSION="1.1.45"
+RELEASE="1"
+ARCH="x86_64"
+SUMMARY="XML stylesheet transformation library"
+URL="http://xmlsoft.org/XSLT/"
+SOURCE=("https://download.gnome.org/sources/libxslt/1.1/libxslt-${VERSION}.tar.xz")
+LICENSE=("MIT")
+
+REQUIRES=("glibc" "libxml2" "bash" "libgcrypt" "xz" "python")
+PROVIDES=("libxslt" "libxslt.so")
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/libxslt-${VERSION}"
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/libxslt-${VERSION}"
+    ./configure \
+        --prefix=/usr \
+        --libdir=/usr/lib \
+        --disable-static
+    make -j"$(nproc)"
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/libxslt-${VERSION}"
+    make DESTDIR="$pkgdir" install
+}
+
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("9acfe68419c4d06a45c550321b3212762d92f41465062ca4ea19e632ee5d216e")

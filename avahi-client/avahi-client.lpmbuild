@@ -1,0 +1,160 @@
+#!/bin/bash
+# LPM Linux: Avahi 0.9-rc5 (client libraries + working daemon)
+# Named avahi-client to satisfy source dependency resolution on LPM Linux.
+# IMPORTANT: This is a MONOLITHIC Avahi package; do not also install a
+# separately packaged "avahi" that owns the same /usr/lib/libavahi-*.so files.
+NAME="avahi-client"
+VERSION="0.9-rc5"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Avahi mDNS/DNS-SD D-Bus client library, daemon and development headers"
+URL="https://github.com/avahi/avahi"
+LICENSE=("LGPL-2.1-or-later")
+
+SOURCE=(
+    "avahi-${VERSION}.tar.gz::https://codeload.github.com/avahi/avahi/tar.gz/v${VERSION}"
+    "avahi-0.9-rc5-ipv6_race_condition_fix-1.patch"
+    "avahi.sysusers"
+    "avahi.tmpfiles"
+)
+# First digest: OpenWrt upstream GitHub codeload tarball PKG_HASH.
+# Other digests: the locally supplied files in this tarball.
+SHA256SUMS=(
+    "5b0a9d88110b0fc8aaafc5cc0a26e83e7d2a4aca3a36bc27c9b626db7ead27b0"
+    "5ffaf52cecbfffc0d082ce5035177ba2a3309be5f73b7f7e4603e6cbf30bf55c"
+    "085ac95d8aadbf02f417a529ea8e00acd0c050b0a3e194f93d1bca6561259765"
+    "b69d6123fe164602384ca81f517f49d92b7466ac760249e49132034b258656c8"
+)
+# LPM applies PATCHES after extraction, before prepare(), with -p1.
+PATCHES=()
+
+REQUIRES=(
+    "glibc"
+    "dbus"
+    "expat"
+    "glib2"
+    "libdaemon"
+    "libcap"
+)
+BUILD_REQUIRES=(
+    "gcc"
+    "make"
+    "autoconf"
+    "automake"
+    "libtool"
+    "gettext"
+    "pkgconf"
+    "dbus"
+    "expat"
+    "glib2"
+    "libdaemon"
+    "libcap"
+    "patch"
+)
+PROVIDES=(
+    "avahi"
+    "avahi-daemon"
+    "libavahi-client.so"
+    "libavahi-common.so"
+)
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=("nss-mdns")
+
+prepare() {
+    set -euxo pipefail
+    local src="$SRCROOT/$NAME-$VERSION"
+
+    test -f "$src/configure.ac"
+    test -f "$src/avahi-core/server.c"
+    test -f "$SRCROOT/avahi.sysusers"
+    test -f "$SRCROOT/avahi.tmpfiles"
+
+    # No configure script is distributed by the GitHub source archive.
+    # This runs AFTER LPM's automatic IPv6 race-condition patch.
+    cd "$src"
+    autoreconf -fiv
+    test -x "$src/configure"
+}
+
+build() {
+    set -euxo pipefail
+    local src="$SRCROOT/$NAME-$VERSION"
+    cd "$src"
+
+    # GCC 16 defaults to C23; Avahi's Autotools source is older.
+    # Preserve the LPM CPU profile, including -march=znver2.
+    export CFLAGS="${CFLAGS:+$CFLAGS }-std=gnu17"
+    export LC_ALL=C.UTF-8
+    export LANG=C.UTF-8
+
+    ./configure \
+        --prefix=/usr \
+        --sbindir=/usr/bin \
+        --libdir=/usr/lib \
+        --sysconfdir=/etc \
+        --localstatedir=/var \
+        --runstatedir=/run \
+        --disable-static \
+        --enable-dbus \
+        --enable-libdaemon \
+        --disable-libsystemd \
+        --with-xml=expat \
+        --enable-glib \
+        --enable-gobject \
+        --disable-introspection \
+        --disable-gdbm \
+        --disable-libevent \
+        --disable-gtk \
+        --disable-gtk3 \
+        --disable-qt3 \
+        --disable-qt4 \
+        --disable-qt5 \
+        --disable-python \
+        --disable-mono \
+        --disable-monodoc \
+        --disable-autoipd \
+        --disable-compat-howl \
+        --disable-compat-libdns_sd \
+        --disable-manpages \
+        --disable-tests \
+        --with-distro=none \
+        --with-avahi-user=avahi \
+        --with-avahi-group=avahi \
+        --with-avahi-priv-access-group=netdev \
+        --with-dbus-sys=/usr/share/dbus-1/system.d \
+        --with-dbus-system-address=unix:path=/run/dbus/system_bus_socket \
+        --with-systemdsystemunitdir=/usr/lib/systemd/system
+
+    make -j"${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+staging() {
+    set -euxo pipefail
+    local src="$SRCROOT/$NAME-$VERSION"
+    cd "$src"
+
+    make DESTDIR="$pkgdir" install
+
+    # LPM's sysusers/tmpfiles hooks create the service identity and runtime
+    # directory during install. Do not mkdir/chown these on the build host.
+    install -Dm644 "$SRCROOT/avahi.sysusers" \
+        "$pkgdir/usr/lib/sysusers.d/avahi.conf"
+    install -Dm644 "$SRCROOT/avahi.tmpfiles" \
+        "$pkgdir/usr/lib/tmpfiles.d/avahi.conf"
+
+    # Do not ship mutable Avahi runtime state if 'make install' created any.
+    rm -rf "$pkgdir/run" "$pkgdir/var/run"
+
+    test -f "$pkgdir/usr/lib/pkgconfig/avahi-client.pc"
+    test -f "$pkgdir/usr/include/avahi-client/client.h"
+    test -f "$pkgdir/usr/include/avahi-common/address.h"
+    test -n "$(find "$pkgdir/usr/lib" -maxdepth 1 -name 'libavahi-client.so*' -print -quit)"
+    test -n "$(find "$pkgdir/usr/lib" -maxdepth 1 -name 'libavahi-common.so*' -print -quit)"
+    test -x "$pkgdir/usr/bin/avahi-daemon"
+    test -f "$pkgdir/usr/lib/systemd/system/avahi-daemon.service"
+    test -f "$pkgdir/usr/lib/systemd/system/avahi-daemon.socket"
+    test -f "$pkgdir/usr/lib/sysusers.d/avahi.conf"
+    test -f "$pkgdir/usr/lib/tmpfiles.d/avahi.conf"
+}

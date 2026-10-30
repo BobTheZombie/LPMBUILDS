@@ -1,34 +1,44 @@
-# LPM build script for less
+#!/bin/bash
 NAME="less"
-VERSION="661"
+VERSION="710"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Pager program"
+SUMMARY="less upstream package"
 URL="https://www.greenwoodsoftware.com/less/"
-LICENSE=""
-SOURCE=()
-REQUIRES=("ncurses")
+LICENSE=("BSD-2-Clause" "GPL-3.0-or-later")
+SOURCE=("https://www.greenwoodsoftware.com/less/less-710.tar.gz")
+SHA256SUMS=("d1008fb78dcae1323ddab664bcb352a61f022b1b131bd8018548e021d975ec7a")
+PATCHES=()
+REQUIRES=("glibc" "ncurses" "pcre2")
+BUILD_REQUIRES=("gcc" "make" "ncurses" "pcre2")
 PROVIDES=("less")
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
-
-prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
-}
-
+BUILD_OPTIONS=("@--stripping" "@--optimize=2")
+prepare() { set -euxo pipefail; cd "$SRCROOT/${NAME}-${VERSION}"; }
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    if [ ! -x configure ]; then autoreconf -fiv; fi
+    ./configure --prefix=/usr --libdir=/usr/lib --sysconfdir=/etc --disable-static --with-regex=pcre2
+    make -j"${LPM_BUILD_JOBS:-$(nproc)}"
+}
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    make DESTDIR="$pkgdir" install
+    local f
+    for f in COPYING COPYING.LIB LICENSE LICENSE.md LICENSE.txt; do
+        if [ -f "$f" ]; then install -Dm644 "$f" "$pkgdir/usr/share/licenses/$NAME/$f"; fi
+    done
+    if [ -d LICENSES ]; then
+        install -dm755 "$pkgdir/usr/share/licenses/$NAME"
+        cp -a LICENSES/. "$pkgdir/usr/share/licenses/$NAME/"
+    fi
 }
 
-staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
-}
+
+
+
+# Final audited source digests
+SHA256SUMS=("d1008fb78dcae1323ddab664bcb352a61f022b1b131bd8018548e021d975ec7a")

@@ -1,34 +1,41 @@
-# LPM build script for python-wheel
+#!/bin/bash
 NAME="python-wheel"
-VERSION="0.44.0"
+VERSION="0.48.0"
 RELEASE="1"
-ARCH="${ARCH:-x86_64}"
-SUMMARY="Built-package format for Python"
-URL="https://github.com/pypa/wheel"
-LICENSE=""
-SOURCE=()
-REQUIRES=("python" "python-setuptools")
-PROVIDES=("python-wheel")
-CONFLICTS=()
-OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
-
+ARCH="noarch"
+SUMMARY="PyPA wheel (published pure-Python bootstrap wheel)"
+URL="https://pypi.org/project/wheel/"
+LICENSE=("MIT")
+SOURCE=("https://files.pythonhosted.org/packages/2e/29/69cfbb602cd91690c55d38ba9fe53e6a7e76a6fa647bf38f19c138d25449/wheel-0.48.0-py3-none-any.whl")
+SHA256SUMS=("3217dcc807155e45db462d7ef2431f5ddda0d7273b700d05a67b271ceb1287ab")
+REQUIRES=("python")
+BUILD_REQUIRES=("python")
+PROVIDES=("python-wheel" "wheel")
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+    test -f "$SRCROOT/wheel-0.48.0-py3-none-any.whl"
+    python3 -c 'import ensurepip'
 }
-
-build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
-}
-
+build() { true; }
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euxo pipefail
+    python3 - "$pkgdir" "$SRCROOT/wheel-0.48.0-py3-none-any.whl" <<'PYINSTALL'
+import ensurepip
+import pathlib
+import runpy
+import sys
+root, wheel = sys.argv[1:]
+bundle = next((pathlib.Path(ensurepip.__file__).parent / "_bundled").glob("pip-*.whl"))
+sys.path.insert(0, str(bundle))
+sys.argv = ["pip", "--isolated", "install", "--no-index", "--no-deps", "--ignore-installed",
+            "--no-compile", "--root", root, "--prefix", "/usr", wheel]
+runpy.run_module("pip", run_name="__main__")
+PYINSTALL
 }
+
+REQUIRES+=("python-packaging>=24.0")
+
+
+
+# Final audited source digests
+SHA256SUMS=("3217dcc807155e45db462d7ef2431f5ddda0d7273b700d05a67b271ceb1287ab")

@@ -1,34 +1,317 @@
+#!/bin/bash
 # LPM build script for bzip2
+
 NAME="bzip2"
 VERSION="1.0.8"
-RELEASE="1"
+RELEASE="2"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Burrows-Wheeler compression"
+
+SUMMARY="High-quality data compression program and library"
 URL="https://sourceware.org/bzip2/"
-LICENSE=""
-SOURCE=()
-REQUIRES=("glibc")
-PROVIDES=("bzip2")
+LICENSE=("bzip2-1.0.6")
+
+SOURCE=(
+    "https://sourceware.org/pub/bzip2/bzip2-${VERSION}.tar.gz"
+    "https://www.linuxfromscratch.org/patches/lfs/13.1/bzip2-${VERSION}-install_docs-1.patch"
+    "https://gitlab.archlinux.org/archlinux/packaging/packages/bzip2/-/raw/main/bzip2.pc"
+)
+
+SHA256SUMS=(
+    "SKIP"
+    "SKIP"
+)
+
+PATCHES=(
+    "bzip2-${VERSION}-install_docs-1.patch"
+)
+
+REQUIRES=(
+    "glibc"
+)
+
+BUILD_REQUIRES=(
+    "glibc"
+    "make"
+)
+
+PROVIDES=(
+    "bzip2"
+    "libbz2"
+    "libbz2.so"
+    "libbz2.so.1"
+    "bzip2.pc"
+)
+
 CONFLICTS=()
 OBSOLETES=()
 RECOMMENDS=()
 SUGGESTS=()
 
+BUILD_OPTIONS=(
+    "@--stripping"
+    "@--optimize=2"
+)
+
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+
+    test -f "$SRCDIR/Makefile"
+    test -f "$SRCDIR/Makefile-libbz2_so"
+    test -f "$SRCDIR/bzip2.c"
+    test -f "$SRCDIR/bzlib.h"
+    test -f "$SRCDIR/LICENSE"
+
+    cd "$SRCDIR"
+
+    #
+    # The upstream Makefile creates absolute symlinks beneath PREFIX. Use
+    # relative links suitable for a staged package.
+    #
+
+    sed -i \
+        's@\(ln -s -f \)$(PREFIX)/bin/@\1@' \
+        Makefile
+
+    #
+    # Install manual pages under the FHS-compliant share/man directory.
+    #
+
+    sed -i \
+        's@$(PREFIX)/man@$(PREFIX)/share/man@g' \
+        Makefile
+
+    make clean 2>/dev/null || true
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+
+    cd "$SRCDIR"
+
+    #
+    # Build the shared library and dynamically linked bzip2 executable first.
+    #
+
+    make \
+        -f Makefile-libbz2_so \
+        -j"$(nproc)"
+
+    test -f "libbz2.so.${VERSION}"
+    test -x bzip2-shared
+
+    #
+    # Build the normal utilities and static intermediate library. The static
+    # archive is needed during the upstream build but is not packaged.
+    #
+
+    make clean
+
+    make -j"$(nproc)"
+}
+
+check() {
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+
+    test -x "$SRCDIR/bzip2"
+    test -x "$SRCDIR/bzip2-shared"
+    test -f "$SRCDIR/libbz2.so.${VERSION}"
+
+    #
+    # Skip the complete upstream test target during bootstrap builds. Perform
+    # a direct compression and decompression smoke test instead.
+    #
+
+    TEST_INPUT="$SRCDIR/.lpm-bzip2-input"
+    TEST_OUTPUT="$SRCDIR/.lpm-bzip2-output"
+    TEST_ARCHIVE="$SRCDIR/.lpm-bzip2-input.bz2"
+
+    printf '%s\n' \
+        'LPM Linux bzip2 compression test' \
+        > "$TEST_INPUT"
+
+    "$SRCDIR/bzip2" \
+        -c \
+        "$TEST_INPUT" \
+        > "$TEST_ARCHIVE"
+
+    "$SRCDIR/bzip2" \
+        -dc \
+        "$TEST_ARCHIVE" \
+        > "$TEST_OUTPUT"
+
+    cmp "$TEST_INPUT" "$TEST_OUTPUT"
+
+    rm -f \
+        "$TEST_INPUT" \
+        "$TEST_OUTPUT" \
+        "$TEST_ARCHIVE"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install
+    set -euxo pipefail
+
+    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
+
+    cd "$SRCDIR"
+
+    #
+    # bzip2's upstream Makefile does not provide conventional DESTDIR support.
+    # Set PREFIX directly to the staged /usr hierarchy.
+    #
+
+    make \
+        PREFIX="$pkgdir/usr" \
+        install
+
+    #
+    # Replace the statically linked executable with the shared-library build.
+    #
+
+    install -Dm755 \
+        "$SRCDIR/bzip2-shared" \
+        "$pkgdir/usr/bin/bzip2"
+
+    ln -sfn bzip2 \
+        "$pkgdir/usr/bin/bunzip2"
+
+    ln -sfn bzip2 \
+        "$pkgdir/usr/bin/bzcat"
+
+    #
+    # Install the shared library and relative ABI symlinks.
+    #
+
+    install -Dm755 \
+        "$SRCDIR/libbz2.so.${VERSION}" \
+        "$pkgdir/usr/lib/libbz2.so.${VERSION}"
+
+    ln -sfn "libbz2.so.${VERSION}" \
+        "$pkgdir/usr/lib/libbz2.so.1.0"
+
+    ln -sfn "libbz2.so.${VERSION}" \
+        "$pkgdir/usr/lib/libbz2.so.1"
+
+    ln -sfn "libbz2.so.${VERSION}" \
+        "$pkgdir/usr/lib/libbz2.so"
+
+    #
+    # Do not ship the static library.
+    #
+
+    rm -f \
+        "$pkgdir/usr/lib/libbz2.a"
+
+    #
+    # Validate executables.
+    #
+
+    for PROGRAM in \
+        bzip2 \
+        bunzip2 \
+        bzcat \
+        bzip2recover
+    do
+        if [ ! -x "$pkgdir/usr/bin/$PROGRAM" ]; then
+            echo "[ERROR] Missing bzip2 program: $PROGRAM" >&2
+            return 1
+        fi
+    done
+
+    #
+    # Validate compatibility symlinks installed by upstream.
+    #
+
+    test -e "$pkgdir/usr/bin/bzcmp"
+    test -e "$pkgdir/usr/bin/bzdiff"
+    test -e "$pkgdir/usr/bin/bzegrep"
+    test -e "$pkgdir/usr/bin/bzfgrep"
+    test -e "$pkgdir/usr/bin/bzgrep"
+    test -e "$pkgdir/usr/bin/bzless"
+    test -e "$pkgdir/usr/bin/bzmore"
+
+    #
+    # Validate headers and shared libraries.
+    #
+
+    test -f "$pkgdir/usr/include/bzlib.h"
+
+    test -f \
+        "$pkgdir/usr/lib/libbz2.so.${VERSION}"
+
+    test -L "$pkgdir/usr/lib/libbz2.so"
+    test -L "$pkgdir/usr/lib/libbz2.so.1"
+    test -L "$pkgdir/usr/lib/libbz2.so.1.0"
+
+    test ! -e "$pkgdir/usr/lib/libbz2.a"
+
+    #
+    # Confirm that the packaged executable uses the shared library.
+    #
+
+    BZIP2_DYNAMIC="$SRCDIR/.lpm-bzip2-dynamic"
+    LIBBZ2_HEADER="$SRCDIR/.lpm-libbz2-header"
+    LIBBZ2_DYNAMIC="$SRCDIR/.lpm-libbz2-dynamic"
+
+    readelf -d "$pkgdir/usr/bin/bzip2" > "$BZIP2_DYNAMIC"
+    grep -Fq 'libbz2.so.1' "$BZIP2_DYNAMIC"
+
+    readelf -h \
+        "$pkgdir/usr/lib/libbz2.so.${VERSION}" \
+        > "$LIBBZ2_HEADER"
+
+    grep -Fq 'ELF64' "$LIBBZ2_HEADER"
+
+    readelf -d \
+        "$pkgdir/usr/lib/libbz2.so.${VERSION}" \
+        > "$LIBBZ2_DYNAMIC"
+
+    grep -Fq \
+        'Library soname: [libbz2.so.1.0]' \
+        "$LIBBZ2_DYNAMIC"
+
+    rm -f \
+        "$BZIP2_DYNAMIC" \
+        "$LIBBZ2_HEADER" \
+        "$LIBBZ2_DYNAMIC"
+        
+    #
+    # Install and normalize pkg-config metadata.
+    #
+
+    install -Dm644 \
+        "$SRCROOT/bzip2.pc" \
+        "$pkgdir/usr/lib/pkgconfig/bzip2.pc"
+
+    sed -i \
+        -e 's|^prefix=.*|prefix=/usr|' \
+        -e 's|^libdir=.*|libdir=${prefix}/lib|' \
+        -e 's|^includedir=.*|includedir=${prefix}/include|' \
+        -e "s|^Version:.*|Version: ${VERSION}|" \
+        "$pkgdir/usr/lib/pkgconfig/bzip2.pc"   
+
+    #
+    # Validate documentation.
+    #
+
+    test -f "$pkgdir/usr/share/man/man1/bzip2.1"
+
+    #
+    # Install licensing information.
+    #
+
+    install -Dm644 \
+        "$SRCDIR/LICENSE" \
+        "$pkgdir/usr/share/licenses/$NAME/LICENSE"
 }
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("ab5a03176ee106d3f0fa90e381da478ddae405918153cca248e682cd0c4a2269" "35e3bbd9642af51fef2a8a83afba040d272da42d7e3a251d8e43255a7b496702" "eca9d8cd6376df1fb5442667c603032023fb21d8d183684550da0b96ade39654")

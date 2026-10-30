@@ -1,0 +1,44 @@
+#!/bin/bash
+# LPM Linux Plasma 6 core meta-package.
+# plasma6-full already installs the extended KDE desktop stack; this package
+# binds a minimum functioning shell without duplicating its complete manifest.
+NAME="plasma-meta"
+VERSION="6.8.1"
+RELEASE="1"
+ARCH="any"
+SUMMARY="KDE Plasma 6 desktop core metapackage for LPM Linux"
+URL="https://kde.org/plasma-desktop/"
+LICENSE=("MIT")
+SOURCE=()
+SHA256SUMS=()
+PATCHES=()
+REQUIRES=(
+    "kwin"
+    "plasma-workspace"
+    "plasma-desktop"
+    "libplasma"
+    "kglobalacceld"
+    "kactivitymanagerd"
+    "breeze"
+    "kscreen"
+    "systemsettings"
+    "powerdevil"
+)
+BUILD_REQUIRES=()
+PROVIDES=("plasma-meta")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=("plasma-nm" "plasma-pa" "kpipewire" "xdg-desktop-portal-kde")
+SUGGESTS=("spectacle" "plasma-systemmonitor" "discover")
+
+prepare() { :; }
+build() { :; }
+staging() {
+    set -euo pipefail
+    install -dm755 "$pkgdir/usr/share/doc/plasma-meta"
+    cat >"$pkgdir/usr/share/doc/plasma-meta/README.LPM" <<'EOF'
+LPM Linux Plasma 6 core meta-package.
+The plasma6-full recipe governs installation of the extended desktop stack.
+No binaries or libraries are provided by this metadata-only package.
+EOF
+}

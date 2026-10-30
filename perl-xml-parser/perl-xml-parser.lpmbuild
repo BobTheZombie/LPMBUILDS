@@ -1,0 +1,93 @@
+#!/bin/bash
+# LPM Linux - XML::Parser (Perl XS interface to Expat)
+# LFS-compatible 2.47, with upstream deep-nesting security fix.
+NAME="perl-xml-parser"
+VERSION="2.47"
+RELEASE="2"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Perl XML::Parser module backed by Expat"
+URL="https://github.com/cpan-authors/XML-Parser"
+LICENSE=("Artistic-2.0")
+
+SOURCE=(
+    "https://www.cpan.org/modules/by-module/XML/XML-Parser-${VERSION}.tar.gz"
+    "xml-parser-deep-nesting.patch"
+)
+SHA256SUMS=(
+    "ad4aae643ec784f489b956abe952432871a622d4e2b5c619e8855accbfc4d1d8"
+    "b90bec8db0708565d4717470a28f3767ba5f043b990f72e006cfc2403c24a12e"
+)
+
+# LPM automatically applies this patch after extraction, before prepare().
+PATCHES=("xml-parser-deep-nesting.patch")
+
+REQUIRES=(
+    "perl"
+    "expat"
+    "glibc"
+)
+BUILD_REQUIRES=(
+    "perl"
+    "expat"
+    "gcc"
+    "make"
+    "patch"
+)
+PROVIDES=("XML::Parser")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+    set -euxo pipefail
+    local src="$SRCROOT/$NAME-$VERSION"
+    test -f "$src/Makefile.PL"
+    test -f "$src/Expat/Expat.xs"
+    test -f /usr/include/expat.h
+    test -f /usr/lib/libexpat.so
+    # Fail rather than silently build an unpatched upstream version.
+    grep -Fq 'st_serial_stackptr + 1 >= cbv->st_serial_stacksize' \
+        "$src/Expat/Expat.xs"
+}
+
+build() {
+    set -euxo pipefail
+    local src="$SRCROOT/$NAME-$VERSION"
+    cd "$src"
+
+    # The chroot's Perl @INC includes site_perl but not vendor_perl.
+    # Ensure the installed XS extension and .pm files are loadable.
+    export PERL_MM_USE_DEFAULT=1
+    local opt="${CFLAGS:--O2 -pipe}"
+    case " $opt " in
+        *" -std="*) ;;
+        *) opt="$opt -std=gnu17" ;;
+    esac
+    perl Makefile.PL \
+        INSTALLDIRS=site \
+        EXPATLIBPATH=/usr/lib \
+        EXPATINCPATH=/usr/include \
+        "OPTIMIZE=$opt"
+    make -j"${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+check() {
+    set -euxo pipefail
+    local src="$SRCROOT/$NAME-$VERSION"
+    make -C "$src" test
+}
+
+staging() {
+    set -euxo pipefail
+    local src="$SRCROOT/$NAME-$VERSION"
+    make -C "$src" DESTDIR="$pkgdir" install
+
+    # Private MakeMaker installer manifests should not belong to the package.
+    find "$pkgdir/usr" -type f -name .packlist -delete
+    find "$pkgdir/usr" -type f -name perllocal.pod -delete
+
+    test -n "$(find "$pkgdir/usr" -type f -path '*/XML/Parser.pm' -print -quit)"
+    test -n "$(find "$pkgdir/usr" -type f -path '*/XML/Parser/Expat.pm' -print -quit)"
+    test -n "$(find "$pkgdir/usr" -type f -name Expat.so -print -quit)"
+}

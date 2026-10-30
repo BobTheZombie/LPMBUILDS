@@ -1,0 +1,95 @@
+#!/bin/bash
+# LPM Linux: Arch-style OpenPrinting CUPS 2.4.20 split packaging.
+# This recipe is self-contained for remote LPM GitLab fetching.
+# Source SHA256 matches the Arch Linux CUPS 2:2.4.20-1 package.
+NAME="libcups"
+VERSION="2.4.20"
+RELEASE="4"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="OpenPrinting CUPS client libraries, headers and cups-config"
+URL="https://openprinting.github.io/cups/"
+LICENSE=("Apache-2.0 WITH LLVM-exception" "BSD-3-Clause" "BSD-2-Clause" "Zlib")
+SOURCE=("https://github.com/OpenPrinting/cups/releases/download/v${VERSION}/cups-${VERSION}-source.tar.gz")
+SHA256SUMS=("ab4d9cd7f3e58060091d2b24972223d6401675f11c49b65abf4f6ef31dea22ff")
+PATCHES=()
+REQUIRES=(
+    "glibc" "gnutls" "avahi" "zlib"
+)
+BUILD_REQUIRES=(
+    "gcc" "make" "pkgconf" "gnutls" "avahi" "zlib" "acl"
+)
+PROVIDES=("libcups" "libcups.so.2" "libcupsimage.so.2")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+_srcdir() {
+    local d
+    for d in "$SRCROOT/${NAME}-${VERSION}" "$SRCROOT/cups-${VERSION}"; do
+        if [[ -f "$d/configure" && -d "$d/cups" ]]; then
+            printf '%s\n' "$d"
+            return 0
+        fi
+    done
+    printf '[ERROR] CUPS source not found in $SRCROOT=%s\n' "$SRCROOT" >&2
+    return 1
+}
+
+prepare() {
+    set -euxo pipefail
+    local src
+    src="$(_srcdir)"
+    test -f "$src/configure"
+    test -f "$src/cups/Makefile"
+    test -f "$src/LICENSE"
+}
+
+build() {
+    set -euxo pipefail
+    local src
+    src="$(_srcdir)"
+    cd "$src"
+
+    # The Arch split installs only headers/libs into libcups.
+    # CUPS supports a library-only build for LPM's independent recipe.
+    ./configure \
+        --prefix=/usr \
+        --sbindir=/usr/bin \
+        --libdir=/usr/lib \
+        --sysconfdir=/etc \
+        --localstatedir=/var \
+        --with-tls=gnutls \
+        --with-dnssd=avahi \
+        --disable-static
+
+    make -C cups -j"${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+staging() {
+    set -euxo pipefail
+    local src
+    src="$(_srcdir)"
+    test -n "${pkgdir:-}"
+    mkdir -p "$pkgdir"
+
+    # CUPS uses BUILDROOT as its staging prefix. LPM can export DESTDIR,
+    # so clear both inherited prefixes and explicitly set BUILDROOT.
+    echo "[LPM libcups FIX r4] Staging directly to: $pkgdir"
+    env -u DSTROOT -u DESTDIR \
+        make -C "$src/cups" \
+            BUILDROOT="$pkgdir" DSTROOT= DESTDIR= \
+            install-headers install-libs
+
+    # Arch packages cups-config with libcups, but cups.pc with cups.
+    install -Dm755 "$src/cups-config" "$pkgdir/usr/bin/cups-config"
+
+    install -Dm644 "$src/LICENSE" "$pkgdir/usr/share/licenses/libcups/LICENSE"
+    if [[ -f "$src/NOTICE" ]]; then
+        install -Dm644 "$src/NOTICE" "$pkgdir/usr/share/licenses/libcups/NOTICE"
+    fi
+
+    test -e "$pkgdir/usr/lib/libcups.so.2"
+    test -e "$pkgdir/usr/lib/libcupsimage.so.2"
+    echo '[OK] Arch-style libcups package staged'
+}

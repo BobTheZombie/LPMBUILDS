@@ -1,44 +1,85 @@
-# LPM build script for wpa_supplicant
+#!/bin/bash
+# LPM networking stack, release snapshot 2026-10-16
 NAME="wpa_supplicant"
-VERSION="2.10"
+VERSION="2.12"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="WPA supplicant for wireless networking"
-URL="https://w1.fi/wpa_supplicant/"
-LICENSE=""
-SOURCE=()
-REQUIRES=("glibc" "openssl" "dbus")
-PROVIDES=("wpa_supplicant")
+SUMMARY='WPA2 WPA3 and enterprise wireless authentication'
+URL=https://w1.fi/releases/wpa_supplicant-2.12.tar.gz
+LICENSE=(BSD-3-Clause)
+SOURCE=("https://w1.fi/releases/wpa_supplicant-2.12.tar.gz"
+        "wpa-build.config" 
+        "wpa_supplicant.service"
+        "fi.w1.wpa_supplicant1.service")
+SHA256SUMS=(
+    "08e23937e16d0155e55cab2b51f51fbe10d80a1aa91c4e15442645059b737ef6"
+    "36d5635b35a6ea3ad3333e57988382f5560614a212bad1d9c51eb738be287630"
+    "ed7975d35a01c54771d0fc2b5f9fb449a3edf1e9e85141013200f5377ff4ab9c"
+    "e74084ccec5058c0a4c2fbb812ed6e09747f92326decda39236e93596bf92855"
+)
+PATCHES=()
+REQUIRES=("glibc" 
+          "openssl"
+          "dbus"
+          "libnl"
+          "ca-certificates"
+)
+
+BUILD_REQUIRES=("gcc" "make" "pkgconf" "openssl" "dbus" "libnl")
+PROVIDES=(wpa_supplicant)
 CONFLICTS=()
 OBSOLETES=()
 RECOMMENDS=()
 SUGGESTS=()
+BUILD_OPTIONS=(@--stripping @--optimize=2)
+
+_source() {
+    if [ ! -d "$SRCROOT/${NAME}-${VERSION}" ] && [ -d "$SRCROOT/wpa_supplicant-2.12" ]; then
+        mv "$SRCROOT/wpa_supplicant-2.12" "$SRCROOT/${NAME}-${VERSION}"
+    fi
+}
+
+_licenses() {
+    local f
+    for f in COPYING COPYING.LIB LICENSE LICENSE.txt LICENCE README; do
+        if [ -f "$f" ]; then
+            install -Dm644 "$f" "$pkgdir/usr/share/licenses/$NAME/$(basename "$f")"
+        fi
+    done
+}
+_cleanup() {
+    if [ -d "$pkgdir/usr/lib" ]; then
+        find "$pkgdir/usr/lib" -type f \( -name '*.a' -o -name '*.la' \) -delete
+    fi
+    rm -f "$pkgdir/usr/share/info/dir"
+}
 
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  :
+    set -euxo pipefail
+    _source
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    install -m644 "$SRCROOT/wpa-build.config" wpa_supplicant/.config
 }
-
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make -j"$(nproc)" BINDIR=/usr/bin LIBDIR=/usr/lib
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    make -C wpa_supplicant -j"${LPM_BUILD_JOBS:-$(nproc)}" BINDIR=/usr/bin LIBDIR=/usr/lib
 }
-
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make DESTDIR="$pkgdir" install BINDIR=/usr/bin LIBDIR=/usr/lib
-
-  # Provide placeholder config
-  install -Dm600 /dev/stdin "$pkgdir/etc/wpa_supplicant/wpa_supplicant.conf" <<'EOF'
-  ctrl_interface=/run/wpa_supplicant
-  update_config=1
-
-  network={
-  ssid="YourSSID"
-  psk="YourPassphrase"
-  }
-  EOF
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    make -C wpa_supplicant DESTDIR="$pkgdir" BINDIR=/usr/bin LIBDIR=/usr/lib install
+    install -Dm644 "$SRCROOT/wpa_supplicant.service" "$pkgdir/usr/lib/systemd/system/wpa_supplicant.service"
+    install -Dm644 "$SRCROOT/fi.w1.wpa_supplicant1.service" "$pkgdir/usr/share/dbus-1/system-services/fi.w1.wpa_supplicant1.service"
+    install -Dm644 wpa_supplicant/dbus/dbus-wpa_supplicant.conf "$pkgdir/usr/share/dbus-1/system.d/wpa_supplicant.conf"
+    test -x "$pkgdir/usr/bin/wpa_supplicant"
+    test -x "$pkgdir/usr/bin/wpa_cli"
+    _licenses
 }
+
+
+
+
+
+# Final audited source digests
+SHA256SUMS=("08e23937e16d0155e55cab2b51f51fbe10d80a1aa91c4e15442645059b737ef6" "36d5635b35a6ea3ad3333e57988382f5560614a212bad1d9c51eb738be287630" "ed7975d35a01c54771d0fc2b5f9fb449a3edf1e9e85141013200f5377ff4ab9c" "e74084ccec5058c0a4c2fbb812ed6e09747f92326decda39236e93596bf92855")

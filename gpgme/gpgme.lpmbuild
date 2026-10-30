@@ -1,0 +1,62 @@
+#!/bin/bash
+# GPGME core C library (2.x release; C++ bindings ship in gpgmepp).
+NAME="gpgme"
+VERSION="2.2.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="GnuPG Made Easy C library for cryptographic operations"
+URL="https://www.gnupg.org/software/gpgme/"
+LICENSE=("LGPL-2.1-or-later" "GPL-2.0-or-later" "MIT")
+SOURCE=("https://www.gnupg.org/ftp/gcrypt/gpgme/gpgme-${VERSION}.tar.bz2")
+SHA256SUMS=("7160e80e84dafd00d956c84891c533bb7ab16a6a54fbe1574b2f3acf0496977b")
+PATCHES=()
+REQUIRES=("glibc" "libgpg-error" "libassuan" "gnupg")
+BUILD_REQUIRES=("gcc" "make" "pkgconf" "libgpg-error" "libassuan" "gnupg")
+PROVIDES=("gpgme" "libgpgme.so")
+CONFLICTS=()
+OBSOLETES=()
+BUILD_OPTIONS=("@--stripping" "@--optimize=2")
+
+_gpgme_srcdir() {
+    local d
+    for d in "$SRCROOT/${NAME}-${VERSION}" "$SRCROOT"; do
+        if [[ -f "$d/configure" && -f "$d/Makefile.am" ]]; then
+            printf '%s\n' "$d"
+            return 0
+        fi
+    done
+    echo "[ERROR] gpgme-${VERSION} source not found in SRCROOT=$SRCROOT" >&2
+    return 1
+}
+
+prepare() {
+    set -euxo pipefail
+    local src
+    src="$(_gpgme_srcdir)"
+    rm -rf "$src/build"
+}
+
+build() {
+    set -euxo pipefail
+    local src
+    src="$(_gpgme_srcdir)"
+    mkdir -p "$src/build"
+    ( cd "$src/build" && "$src/configure" \
+        --prefix=/usr \
+        --libdir=/usr/lib \
+        --disable-static \
+        --disable-gpg-test )
+    make -C "$src/build" -j "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+staging() {
+    set -euxo pipefail
+    local src
+    src="$(_gpgme_srcdir)"
+    make -C "$src/build" DESTDIR="$pkgdir" install
+    test -e "$pkgdir/usr/lib/libgpgme.so"
+    test -f "$pkgdir/usr/include/gpgme.h"
+    if [[ -f "$src/COPYING" ]]; then
+        install -Dm644 "$src/COPYING" "$pkgdir/usr/share/licenses/$NAME/COPYING"
+    fi
+}
