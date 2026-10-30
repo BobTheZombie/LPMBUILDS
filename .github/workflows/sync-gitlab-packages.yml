@@ -80,11 +80,16 @@ jobs:
             echo "Mirror already synchronized"
           fi
 
-      - name: Fail if Plasma dependencies remain unresolved
+      - name: Validate both upstream and declared dependency closure
         run: |
+          set -euo pipefail
           if [ "$(cat dependency-audit-status.txt)" -ne 0 ]; then
-            echo "GitLab mirror updated, but Plasma has unresolved dependencies or placeholder providers"
-            echo "See PLASMA-DEPENDENCY-AUDIT.md and dependency-audit-output.txt in the mirror"
+            echo "Plasma has missing or placeholder-only declared hard dependencies"
             exit 1
           fi
-          echo "All declared hard dependencies resolved to non-placeholder recipes"
+          if awk '/^## Missing or placeholder-only upstream build requirements/{f=1;next} f && /^- /{found=1} END{exit !found}' PLASMA-DEPENDENCY-AUDIT.md; then
+            echo "Plasma upstream CMake requirements are not fully represented by GitLab recipes"
+            echo "See PLASMA-DEPENDENCY-AUDIT.md for the missing requirements"
+            exit 1
+          fi
+          echo "Upstream and declared hard dependency names all resolve in GitLab"
