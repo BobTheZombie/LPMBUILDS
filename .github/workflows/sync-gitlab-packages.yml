@@ -2,8 +2,6 @@ name: Synchronize GitLab LPM package recipes
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '17 7 * * *'
   push:
     branches: [main]
     paths:
