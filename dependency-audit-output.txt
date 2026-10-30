@@ -1,6 +1,6 @@
 Indexed 1486 package/provider identifiers
-BUILD_REQUIRES: total=32 missing=0 placeholder-only=0
-REQUIRES: total=30 missing=0 placeholder-only=0
+BUILD_REQUIRES: total=73 missing=0 placeholder-only=0
+REQUIRES: total=71 missing=0 placeholder-only=0
 RECOMMENDS: total=3 missing=0 placeholder-only=0
 SUGGESTS: total=0 missing=0 placeholder-only=0
 PASS: all declared hard dependencies have non-placeholder recipe providers
