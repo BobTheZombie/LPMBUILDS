@@ -1,20 +1,7 @@
-Traceback (most recent call last):
-  File "/home/runner/work/LPMBUILDS/LPMBUILDS/tools/github-mirror/check_lpmbuild_deps.py", line 70, in <module>
-    sys.exit(main())
-             ~~~~^^
-  File "/home/runner/work/LPMBUILDS/LPMBUILDS/tools/github-mirror/check_lpmbuild_deps.py", line 39, in main
-    index, stubs = scan(a.repo)
-                   ~~~~^^^^^^^^
-  File "/home/runner/work/LPMBUILDS/LPMBUILDS/tools/github-mirror/check_lpmbuild_deps.py", line 26, in scan
-    names = [name] + parse_array(text, 'PROVIDES')
-                     ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
-  File "/home/runner/work/LPMBUILDS/LPMBUILDS/tools/github-mirror/check_lpmbuild_deps.py", line 17, in parse_array
-    return [x for x in lex if re.fullmatch(r'[A-Za-z0-9_.+:-]+', x)]
-                       ^^^
-  File "/usr/lib/python3.14/shlex.py", line 299, in __next__
-    token = self.get_token()
-  File "/usr/lib/python3.14/shlex.py", line 107, in get_token
-    raw = self.read_token()
-  File "/usr/lib/python3.14/shlex.py", line 189, in read_token
-    raise ValueError("No closing quotation")
-ValueError: No closing quotation
+Indexed 1486 package/provider identifiers
+BUILD_REQUIRES: total=32 missing=0 placeholder-only=0
+REQUIRES: total=30 missing=0 placeholder-only=0
+RECOMMENDS: total=3 missing=0 placeholder-only=0
+SUGGESTS: total=0 missing=0 placeholder-only=0
+PASS: all declared hard dependencies have non-placeholder recipe providers
+NOTE: static name audit only, not a successful source build or version check
