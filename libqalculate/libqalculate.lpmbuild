@@ -1,0 +1,35 @@
+#!/bin/bash
+NAME="libqalculate"
+VERSION="5.13.1"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Calculation library for Plasma's calculator runner"
+URL="https://qalculate.github.io/"
+LICENSE=("GPL-2.0-or-later")
+SOURCE=("https://github.com/Qalculate/libqalculate/releases/download/v${VERSION}/libqalculate-${VERSION}.tar.gz")
+SHA256SUMS=("cf8d3eaf3d85030115701e997b6585e69573e71add88e7758486c5d1b01d3cc3")
+PATCHES=()
+REQUIRES=("glibc" "gmp" "mpfr" "libxml2" "curl" "icu")
+BUILD_REQUIRES=("gcc" "pkgconf" "gmp" "mpfr" "libxml2" "curl" "icu")
+REQUIRES_PYTHON_DEPENDENCIES=()
+PROVIDES=()
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+prepare() {
+    set -euxo pipefail
+    test -x "$SRCROOT/${NAME}-${VERSION}/configure"
+}
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    ./configure --prefix=/usr --libdir=/usr/lib --disable-static
+    make -j "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    make DESTDIR="$pkgdir" install
+    test -f "$pkgdir/usr/lib/pkgconfig/libqalculate.pc"
+}
