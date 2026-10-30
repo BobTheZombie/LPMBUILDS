@@ -1,0 +1,81 @@
+name: Synchronize GitLab LPM package recipes
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 7 * * *'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/sync-gitlab-packages.yml'
+      - 'tools/github-mirror/**'
+
+permissions:
+  contents: write
+
+jobs:
+  gitlab-sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out GitHub LPMBUILDS
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+          fetch-depth: 1
+
+      - name: Clone canonical GitLab packages
+        run: |
+          set -euo pipefail
+          git clone --depth 1 https://gitlab.com/lpm-org/packages.git "$RUNNER_TEMP/lpm-gitlab"
+          git -C "$RUNNER_TEMP/lpm-gitlab" rev-parse HEAD > GITLAB-SYNC-REVISION.txt
+
+      - name: Mirror GitLab tracked files
+        run: |
+          set -euo pipefail
+          python3 tools/github-mirror/sync_gitlab_recipes.py \
+            --source "$RUNNER_TEMP/lpm-gitlab" --target .
+
+      - name: Align Plasma 6.8.1 and SDDM Wayland
+        run: |
+          set -euo pipefail
+          test -f plasma-workspace/plasma-workspace.lpmbuild
+          python3 tools/github-mirror/align_plasma_workspace.py \
+            --repo . \
+            --recipe plasma-workspace/plasma-workspace.lpmbuild \
+            --report PLASMA-DEPENDENCY-AUDIT.md
+          bash -n plasma-workspace/plasma-workspace.lpmbuild
+          python3 -m py_compile tools/github-mirror/*.py
+
+      - name: Audit hard requirements and placeholders
+        run: |
+          set +e
+          python3 tools/github-mirror/check_lpmbuild_deps.py \
+            --repo . --recipe plasma-workspace/plasma-workspace.lpmbuild \
+            > dependency-audit-output.txt 2>&1
+          result=$?
+          echo "$result" > dependency-audit-status.txt
+          cat dependency-audit-output.txt
+          exit 0
+
+      - name: Commit synchronized GitLab packages and audit
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if ! git diff --cached --quiet; then
+            git commit -m "Mirror canonical GitLab packages and audit Plasma dependencies"
+            git push origin HEAD:main
+          else
+            echo "Mirror already synchronized"
+          fi
+
+      - name: Fail if Plasma dependencies remain unresolved
+        run: |
+          if [ "$(cat dependency-audit-status.txt)" -ne 0 ]; then
+            echo "GitLab mirror updated, but Plasma has unresolved dependencies or placeholder providers"
+            echo "See PLASMA-DEPENDENCY-AUDIT.md and dependency-audit-output.txt in the mirror"
+            exit 1
+          fi
+          echo "All declared hard dependencies resolved to non-placeholder recipes"
