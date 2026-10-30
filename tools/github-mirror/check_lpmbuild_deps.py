@@ -14,7 +14,13 @@ def parse_array(content, field):
     lex = shlex.shlex(m.group(1), posix=True)
     lex.whitespace_split = True
     lex.commenters = '#'
-    return [x for x in lex if re.fullmatch(r'[A-Za-z0-9_.+:-]+', x)]
+    try:
+        return [x for x in lex if re.fullmatch(r'[A-Za-z0-9_.+:-]+', x)]
+    except ValueError:
+        # PROVIDES sometimes contains shell expansions; don't evaluate recipes.
+        if field == 'PROVIDES':
+            return []
+        raise
 
 def scan(root):
     index = defaultdict(list)
