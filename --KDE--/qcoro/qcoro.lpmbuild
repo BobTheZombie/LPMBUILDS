@@ -1,7 +1,7 @@
 #!/bin/bash
 NAME="qcoro"
 VERSION="0.13.0"
-RELEASE="1"
+RELEASE="2"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="C++20 coroutine support library for Qt6"
 URL="https://qcoro.dev/"
@@ -24,9 +24,44 @@ prepare() {
 build() {
     set -euxo pipefail
     local src="$SRCROOT/${NAME}-${VERSION}"
-    cmake -S "$src" -B "$src/build" -G Ninja         -DCMAKE_BUILD_TYPE=Release         -DCMAKE_INSTALL_PREFIX=/usr         -DCMAKE_INSTALL_LIBDIR=lib         -DUSE_QT_VERSION=6         -DBUILD_SHARED_LIBS=ON         -DBUILD_TESTING=OFF         -DQCORO_BUILD_EXAMPLES=OFF         -DQCORO_BUILD_TESTING=OFF         -DQCORO_WITH_QTWEBSOCKETS=OFF
-    cmake --build "$src/build" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+    local builddir="$src/build"
+    local jobs="${LPM_BUILD_JOBS:-$(nproc)}"
+    local link_jobs="${LPM_LINK_JOBS:-1}"
+
+    # LPM's accelerator may name lpm_compile/lpm_link without registering
+    # both pools. Explicitly define the pools before creating Ninja targets.
+    # This is a workaround for old standalone LPM builds and remains safe
+    # when the accelerator already defines these pools.
+    cmake -S "$src" -B "$builddir" -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        "-DCMAKE_JOB_POOLS=lpm_compile=${jobs};lpm_link=${link_jobs}" \
+        -DCMAKE_JOB_POOL_COMPILE=lpm_compile \
+        -DCMAKE_JOB_POOL_LINK=lpm_link \
+        -DUSE_QT_VERSION=6 \
+        -DBUILD_SHARED_LIBS=ON \
+        -DBUILD_TESTING=OFF \
+        -DQCORO_BUILD_EXAMPLES=OFF \
+        -DQCORO_BUILD_TESTING=OFF \
+        -DQCORO_WITH_QTWEBSOCKETS=OFF
+
+    # If an older LPM toolchain or a transitive Qt CMake module overwrote
+    # JOB_POOLS after configuration, restore missing definitions in the
+    # generated Ninja rules without changing the project's targets.
+    local rules="$builddir/CMakeFiles/rules.ninja"
+    if grep -RqE 'pool = lpm_(compile|link)' "$builddir/build.ninja" "$rules"; then
+        if ! grep -q '^pool lpm_compile$' "$rules"; then
+            printf '\npool lpm_compile\n  depth = %s\n' "$jobs" >> "$rules"
+        fi
+        if ! grep -q '^pool lpm_link$' "$rules"; then
+            printf '\npool lpm_link\n  depth = %s\n' "$link_jobs" >> "$rules"
+        fi
+    fi
+    ninja -C "$builddir" -t targets >/dev/null
+    cmake --build "$builddir" --parallel "$jobs"
 }
+
 staging() {
     set -euxo pipefail
     DESTDIR="$pkgdir" cmake --install "$SRCROOT/${NAME}-${VERSION}/build"
