@@ -1,0 +1,58 @@
+#!/bin/bash
+# LPM Linux - KDE Flatpak permissions KCM, Plasma 6.8.1.
+# Official KDE release checksum. Does not require Qt WebEngine.
+NAME="flatpak-kcm"
+VERSION="6.8.1"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="KDE System Settings module for Flatpak application permissions"
+URL="https://invent.kde.org/plasma/flatpak-kcm"
+LICENSE=("LGPL-2.0-or-later")
+SOURCE=("https://download.kde.org/stable/plasma/$VERSION/$NAME-$VERSION.tar.xz")
+SHA256SUMS=("085f545b47571b4d0bd6f6f15b78400aace92d4e87118646810b74cc04302d13")
+PATCHES=()
+REQUIRES=(
+    "flatpak" "glib2" "qt6-base" "qt6-declarative" "qt6-svg"
+    "kconfig6" "kcoreaddons6" "ki18n6" "kcmutils6"
+    "kitemmodels6" "kservice6" "kirigami6"
+)
+BUILD_REQUIRES=(
+    "gcc" "cmake" "ninja" "pkgconf" "extra-cmake-modules" "flatpak"
+    "qt6-base" "qt6-declarative" "qt6-svg"
+    "kconfig6" "kcoreaddons6" "ki18n6" "kcmutils6"
+    "kitemmodels6" "kservice6" "kirigami6"
+)
+REQUIRES_PYTHON_DEPENDENCIES=()
+PROVIDES=()
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+    set -euxo pipefail
+    test -f "$SRCROOT/$NAME-$VERSION/CMakeLists.txt"
+}
+
+build() {
+    set -euxo pipefail
+    local src="$SRCROOT/$NAME-$VERSION"
+    local builddir="$src/build"
+    pkg-config --exists 'flatpak >= 0.11.8'
+    cmake -S "$src" -B "$builddir" -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DKDE_INSTALL_USE_QT_SYS_PATHS=ON \
+        -DBUILD_TESTING=OFF
+    test -s "$builddir/build.ninja"
+    cmake --build "$builddir" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+staging() {
+    set -euxo pipefail
+    local src="$SRCROOT/$NAME-$VERSION"
+    [[ -n "${pkgdir:-}" && "$pkgdir" != / ]] || return 1
+    DESTDIR="$pkgdir" cmake --install "$src/build"
+    test -n "$(find "$pkgdir/usr" -type f -name '*app-permissions*' -print -quit)"
+}
