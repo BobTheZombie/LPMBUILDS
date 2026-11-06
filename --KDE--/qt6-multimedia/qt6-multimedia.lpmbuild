@@ -4,7 +4,7 @@
 
 NAME="qt6-multimedia"
 VERSION="6.12.0"
-RELEASE="1"
+RELEASE="2"
 ARCH="${ARCH:-x86_64}"
 
 SUMMARY="Qt 6 multimedia, audio/video APIs, and FFmpeg media backend"
@@ -114,7 +114,9 @@ staging() {
   test -f "$pkgdir/usr/lib/cmake/Qt6Multimedia/Qt6MultimediaConfig.cmake"
   test -f "$pkgdir/usr/lib/cmake/Qt6MultimediaWidgets/Qt6MultimediaWidgetsConfig.cmake"
   test -f "$pkgdir/usr/lib/libQt6Multimedia.so"
-  test -f "$pkgdir/usr/lib/qt6/plugins/multimedia/libffmpegmediaplugin.so"
+  # Qt 6.12 installs plugins to /usr/plugins with this build configuration.
+  # Keep this check strict so missing FFmpeg support cannot pass staging.
+  test -f "$pkgdir/usr/plugins/multimedia/libffmpegmediaplugin.so"
 
   echo "[OK] Qt Multimedia ${VERSION}, CMake modules and FFmpeg plugin staged"
 }
