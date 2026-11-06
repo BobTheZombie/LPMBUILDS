@@ -6,7 +6,7 @@
 
 NAME="plasma-desktop"
 VERSION="6.8.1"
-RELEASE="4"
+RELEASE="5"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="KDE Plasma 6 desktop, settings modules, and optional online accounts integration"
 URL="https://invent.kde.org/plasma/plasma-desktop"
@@ -50,6 +50,7 @@ REQUIRES=(
     "polkit-qt6"
     "libcanberra"
     "libwacom"
+    "sdl2"
     "wayland"
     "libxcb"
     "libxkbcommon"
@@ -94,6 +95,7 @@ BUILD_REQUIRES=(
     "libxkbcommon"
 
     "kpipewire"
+    "sdl2"
     "xdg-user-dirs"
     "noto-fonts-emoji"
 )
@@ -110,9 +112,7 @@ RECOMMENDS=(
     "xdg-desktop-portal-kde"
     "baloo6"
 )
-SUGGESTS=(
-    "sdl2"   # game controller KCM disabled below
-)
+SUGGESTS=()
 
 prepare() {
     set -euxo pipefail
@@ -145,8 +145,7 @@ build() {
         -DBUILD_TESTING=OFF \
         -DBUILD_DOC=OFF \
         -DBUILD_SHARED_LIBS=ON \
-        -DBUILD_KCM_TABLET=ON \
-        -DCMAKE_DISABLE_FIND_PACKAGE_SDL2=TRUE
+        -DBUILD_KCM_TABLET=ON
 
     [[ -f "$builddir/build.ninja" ]] || {
         echo '[ERROR] Plasma Desktop Ninja build graph missing' >&2

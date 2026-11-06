@@ -6,7 +6,7 @@
 
 NAME="plasma6-full"
 VERSION="6.8.1"
-RELEASE="3"
+RELEASE="4"
 ARCH="any"
 SUMMARY="Complete KDE Plasma 6 Wayland desktop, Qt 6, Frameworks 6, and KDE applications"
 URL="https://kde.org/plasma-desktop/"
@@ -130,6 +130,7 @@ REQUIRES=(
     "appmenu-gtk-module"
     "bluez"
     "networkmanager"
+    "sdl2"
     "plasma-wayland-protocols"
     "polkit"
     "power-profiles-daemon"
