@@ -3,7 +3,7 @@
 # Generated 2026-10-25; source digests MUST be locked before building.
 NAME="kwidgetsaddons6"
 VERSION="6.31.0"
-RELEASE="1"
+RELEASE="2"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="KDE Frameworks 6: kwidgetsaddons"
 URL="https://kde.org"
@@ -17,7 +17,6 @@ SHA256SUMS=(
 PATCHES=()
 REQUIRES=(
     "qt6-base"
-    "pyside6"
 )
 
 REQUIRES_PYTHON_DEPENDENCIES=(
@@ -32,7 +31,6 @@ BUILD_REQUIRES=(
     "pkgconf"
     "extra-cmake-modules"
     "qt6-base"
-    "pyside6"
 )
 
 PROVIDES=()
@@ -50,13 +48,22 @@ build() {
     set -euxo pipefail
     local src="$SRCROOT/$NAME-$VERSION"
     local builddir="$src/build"
+    local python_bindings="${LPM_KWIDGETSADDONS_PYTHON_BINDINGS:-OFF}"
+    case "$python_bindings" in
+        ON|OFF) ;;
+        *) echo "[ERROR] LPM_KWIDGETSADDONS_PYTHON_BINDINGS must be ON or OFF" >&2; return 1 ;;
+    esac
+
+    # Shiboken currently cannot resolve Qt types while generating the
+    # Python wrappers (KXYSelector::minimumSizeHint / QSize).
+    # Keep the C++ library and Qt Designer integration available by default.
     cmake -S "$src" -B "$builddir" -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_INSTALL_PREFIX=/usr \
         -DCMAKE_INSTALL_LIBDIR=lib \
         -DBUILD_TESTING=OFF \
         -DBUILD_SHARED_LIBS=ON \
-        -DBUILD_PYTHON_BINDINGS=ON \
+        -DBUILD_PYTHON_BINDINGS="$python_bindings" \
         -DKDE_INSTALL_USE_QT_SYS_PATHS=OFF
     cmake --build "$builddir" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
 }
@@ -65,6 +72,6 @@ staging() {
     set -euxo pipefail
     local builddir="$SRCROOT/$NAME-$VERSION/build"
     DESTDIR="$pkgdir" cmake --install "$builddir"
-    test -d "$pkgdir/usr"
-    test -n "$(find "$pkgdir/usr" -mindepth 1 -print -quit)"
+    test -f "$pkgdir/usr/lib/cmake/KF6WidgetsAddons/KF6WidgetsAddonsConfig.cmake"
+    find "$pkgdir/usr/lib" -maxdepth 1 -name "libKF6WidgetsAddons.so*" -print -quit | grep -q .
 }
