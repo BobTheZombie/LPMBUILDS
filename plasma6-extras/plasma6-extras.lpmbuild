@@ -1,0 +1,51 @@
+#!/bin/bash
+# LPM Linux - opt-in KDE Plasma 6.8.1 desktop extras.
+# Explicit REQUIRES guarantee LPM SAT builds these packages on request.
+# Does not require Qt WebEngine, signon-ui, or the KAccounts SSO stack.
+NAME="plasma6-extras"
+VERSION="6.8.1"
+RELEASE="1"
+ARCH="any"
+SUMMARY="Additional desktop utilities and Plasma development tools without Qt WebEngine"
+URL="https://kde.org/plasma-desktop/"
+LICENSE="NONE"
+SOURCE=()
+SHA256SUMS=()
+PATCHES=()
+
+REQUIRES=(
+    "plasma6-full"
+
+    # Developer / configuration utilities
+    "plasma-sdk"
+    "plasma-setup"
+
+    # File integration and desktop interoperability
+    "smbclient"
+    "udisks2"
+    "xdg-utils"
+    "xdg-desktop-portal-gtk"
+    "xdg-user-dirs-gtk"
+    "iso-codes"
+    "colord"
+
+    # Fonts, application metadata and command line usability
+    "ttf-dejavu"
+    "hicolor-icon-theme"
+    "shared-mime-info"
+    "bash-completion"
+)
+BUILD_REQUIRES=()
+REQUIRES_PYTHON_DEPENDENCIES=()
+PROVIDES=("kde-plasma-extras")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=(
+    # Only add these as hard dependencies once their full backends are packaged.
+    "krdp"
+    "kup"
+)
+prepare() { :; }
+build() { :; }
+staging() { :; }
