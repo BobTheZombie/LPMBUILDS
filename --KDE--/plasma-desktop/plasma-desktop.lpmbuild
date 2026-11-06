@@ -1,14 +1,14 @@
 #!/bin/bash
 # LPM Linux - KDE Plasma Desktop 6.8.1, Qt 6.12.0 stack.
-# AccountsQt6 / KAccounts6 OpenDesktop integration deliberately disabled.
-# Does NOT require signon-ui, signond, or qt6-webengine.
+# AccountsQt6/KAccounts6 and PackageKit are auto-detected when installed.
+# Qt WebEngine is not a hard dependency of this recipe.
 # LPM extracts into $SRCROOT/$NAME-$VERSION and stages into $pkgdir.
 
 NAME="plasma-desktop"
 VERSION="6.8.1"
-RELEASE="3"
+RELEASE="4"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="KDE Plasma 6 desktop, settings modules, and desktop integration (without KAccounts)"
+SUMMARY="KDE Plasma 6 desktop, settings modules, and optional online accounts integration"
 URL="https://invent.kde.org/plasma/plasma-desktop"
 LICENSE=("LGPL-2.0-or-later")
 
@@ -94,7 +94,6 @@ BUILD_REQUIRES=(
     "libxkbcommon"
 
     "kpipewire"
-    "packagekit-qt6"
     "xdg-user-dirs"
     "noto-fonts-emoji"
 )
@@ -104,8 +103,8 @@ PROVIDES=("plasma-desktop")
 CONFLICTS=()
 OBSOLETES=()
 RECOMMENDS=(
-    "kquickcharts"
-    "qqc2-desktop-style"
+    "kquickcharts6"
+    "qqc2-desktop-style6"
     "plasma-nm"
     "plasma-pa"
     "xdg-desktop-portal-kde"
@@ -122,8 +121,7 @@ prepare() {
         echo "[ERROR] Missing Plasma Desktop source: $src" >&2
         return 1
     }
-    # Drop stale CMake detection results from before the Qt 6.12 rebuild.
-    rm -rf "$src/build"
+    # Reconfiguring CMake preserves LPM --resume state.
 }
 
 build() {
@@ -137,9 +135,8 @@ build() {
         return 1
     }
 
-    # Disabling both optional find_package() calls prevents upstream from
-    # entering attica-kde/, the only OpenDesktop KAccounts integration subtree.
-    # No SignOn/Qt WebEngine is required for Plasma's normal desktop features.
+    # Detect KAccounts6, AccountsQt6 and PackageKitQt6 if already installed.
+    # Do not force Qt WebEngine into the desktop dependency chain.
     cmake -S "$src" -B "$builddir" -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_INSTALL_PREFIX=/usr \
@@ -149,24 +146,10 @@ build() {
         -DBUILD_DOC=OFF \
         -DBUILD_SHARED_LIBS=ON \
         -DBUILD_KCM_TABLET=ON \
-        -DCMAKE_DISABLE_FIND_PACKAGE_SDL2=TRUE \
-        -DCMAKE_DISABLE_FIND_PACKAGE_AccountsQt6=TRUE \
-        -DCMAKE_DISABLE_FIND_PACKAGE_KAccounts6=TRUE \
-        -DCMAKE_REQUIRE_FIND_PACKAGE_PackageKitQt6=ON
+        -DCMAKE_DISABLE_FIND_PACKAGE_SDL2=TRUE
 
     [[ -f "$builddir/build.ninja" ]] || {
         echo '[ERROR] Plasma Desktop Ninja build graph missing' >&2
-        return 1
-    }
-
-    # The attica_kde plugin is guarded upstream by both AccountsQt6 and
-    # KAccounts6 being found. These lines prevent unintended auto-detection.
-    grep -Eq '^CMAKE_DISABLE_FIND_PACKAGE_AccountsQt6:[^=]+=(TRUE|ON|1)$' "$builddir/CMakeCache.txt" || {
-        echo '[ERROR] AccountsQt6 was not disabled in the CMake cache' >&2
-        return 1
-    }
-    grep -Eq '^CMAKE_DISABLE_FIND_PACKAGE_KAccounts6:[^=]+=(TRUE|ON|1)$' "$builddir/CMakeCache.txt" || {
-        echo '[ERROR] KAccounts6 was not disabled in the CMake cache' >&2
         return 1
     }
 
@@ -192,5 +175,5 @@ staging() {
         return 1
     }
 
-    echo '[OK] Plasma Desktop staged (KAccounts/OpenDesktop integration disabled)'
+    echo '[OK] Plasma Desktop staged with optional integration discovery'
 }

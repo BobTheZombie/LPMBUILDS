@@ -2,7 +2,7 @@
 # LPM Linux - KAccounts6, online accounts integration for KDE
 NAME="kaccounts-integration"
 VERSION="26.08.2"
-RELEASE="2"
+RELEASE="3"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="KAccounts6 CMake library, QML integration and KDE online accounts"
 URL="https://invent.kde.org/network/kaccounts-integration"
@@ -12,7 +12,7 @@ SHA256SUMS=("1d8b11fb01151f4a44cae517bb21b10740c130856b99ab42cefd72d4945d62ca")
 PATCHES=()
 REQUIRES=("glibc" "qt6-base" "qt6-declarative" "libaccounts-qt" "signond" \
           "kconfig6" "kcoreaddons6" "kdbusaddons6" "ki18n6" "kio6" "kcmutils6" "kwallet6" "kirigami" "qcoro" \
-          "signon-plugin-oauth2" "signon-ui" "signon-kwallet-extension")
+          "signon-plugin-oauth2" "signon-kwallet-extension")
 BUILD_REQUIRES=("cmake" "ninja" "pkgconf" "extra-cmake-modules" "qt6-base" \
                 "qt6-declarative" "libaccounts-qt" "signond" "qcoro" \
                 "kconfig6" "kcoreaddons6" "kdbusaddons6" "ki18n6" "kio6" "kcmutils6" "kwallet6" "kirigami")
@@ -21,13 +21,12 @@ PROVIDES=("KAccounts6")
 CONFLICTS=()
 OBSOLETES=()
 RECOMMENDS=()
-SUGGESTS=("kaccounts-providers")
+SUGGESTS=("kaccounts-providers" "signon-ui")
 
 prepare() {
     set -euxo pipefail
     local src="$SRCROOT/$NAME-$VERSION"
     test -f "$src/CMakeLists.txt"
-    rm -rf "$src/build"
 }
 build() {
     set -euxo pipefail

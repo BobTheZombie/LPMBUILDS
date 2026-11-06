@@ -3,7 +3,7 @@
 # Source SHA-256: MacPorts qt6 6.12.0 Portfile (official Qt source tarball).
 NAME="qt6-positioning"
 VERSION="6.12.0"
-RELEASE="1"
+RELEASE="2"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="Qt 6 Positioning C++ library, QML module and location plugins"
 URL="https://doc.qt.io/qt-6/qtpositioning-index.html"
@@ -74,6 +74,12 @@ staging() {
     compgen -G "$pkgdir/usr/lib/libQt6Positioning.so*" >/dev/null
 
     # QML support is part of this package, not an optional split subpackage.
-    test -f "$pkgdir/usr/lib/qt6/qml/QtPositioning/qmldir"
+    local qmlroot
+    qmlroot="$(qtpaths6 --query QT_INSTALL_QML)"
+    [[ "$qmlroot" == /usr/* && "$qmlroot" != */../* ]] || {
+        echo "[ERROR] Invalid Qt QML import root: $qmlroot" >&2
+        return 1
+    }
+    test -f "$pkgdir$qmlroot/QtPositioning/qmldir"
     test -f "$pkgdir/usr/lib/cmake/Qt6PositioningQuick/Qt6PositioningQuickConfig.cmake"
 }

@@ -6,7 +6,7 @@
 
 NAME="plasma6-full"
 VERSION="6.8.1"
-RELEASE="2"
+RELEASE="3"
 ARCH="any"
 SUMMARY="Complete KDE Plasma 6 Wayland desktop, Qt 6, Frameworks 6, and KDE applications"
 URL="https://kde.org/plasma-desktop/"
@@ -28,6 +28,7 @@ REQUIRES=(
     "qt6-positioning"
     "qt6-quick3d"
     "qt6-quicktimeline"
+    "qt6-virtualkeyboard"
     "qt6-sensors"
     "qt6-shadertools"
     "qt6-speech"
@@ -123,6 +124,8 @@ REQUIRES=(
 
     # Qt / Plasma supporting infrastructure
     "AppStream"
+    "packagekit"
+    "packagekit-qt6"
     "accountsservice"
     "appmenu-gtk-module"
     "bluez"
@@ -174,7 +177,9 @@ REQUIRES=(
     "plasma-activities"
     "plasma-activities-stats"
     "plasma-browser-integration"
+    "plasma-keyboard"
     "plasma-desktop"
+    "flatpak-kcm"
     "plasma-disks"
     "plasma-firewall"
     "plasma-integration"
@@ -200,6 +205,7 @@ REQUIRES=(
     # KDE Gear 26.08.2 / installed KDE application integrations
     "ark"
     "dolphin"
+    "discover"
     "ffmpegthumbs"
     "gwenview"
     "kate"
@@ -232,9 +238,7 @@ CONFLICTS=()
 OBSOLETES=()
 RECOMMENDS=()
 SUGGESTS=(
-    "discover"        # only when the LPM PackageKit backend works
     "plasma-setup"    # optional first-run setup
-    "plasma-keyboard" # optional Wayland on-screen keyboard
     "kup"             # optional backup scheduler
     "krdp"            # optional remote desktop server
     "plasma-sdk"      # optional widget/theme development

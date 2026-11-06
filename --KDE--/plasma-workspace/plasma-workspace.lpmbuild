@@ -7,7 +7,7 @@
 
 NAME="plasma-workspace"
 VERSION="6.8.1"
-RELEASE="5"
+RELEASE="6"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="KDE Plasma workspace, Wayland session, and software integration"
 URL="https://invent.kde.org/plasma/plasma-workspace"
@@ -29,7 +29,7 @@ REQUIRES=(
     "plasma-activities-stats" "kactivitymanagerd" "libksysguard"
     "libkscreen" "layer-shell-qt" "knighttime" "kscreenlocker"
     "qcoro" "union" "libqalculate" "libcanberra" "accountsservice"
-    "karchive6" "kaccounts-integration" "kauth6" "kcoreaddons6" "kcrash6" "kdbusaddons6"
+    "karchive6" "kauth6" "kcoreaddons6" "kcrash6" "kdbusaddons6"
     "kdeclarative6" "kglobalaccel6" "kguiaddons6" "kholidays6" "kio-extras"
     "ki18n6" "kiconthemes6" "kidletime6" "kitemmodels6"
     "kcmutils6" "kded6" "kio6" "knewstuff6" "knotifications6"
@@ -74,7 +74,7 @@ BUILD_REQUIRES=(
     "kirigami-addons" "kio-extras" "kio-fuse" "iso-codes" "appmenu-gtk-module"
 
     # These provide the CMake packages listed below, plus the backend service.
-    "packagekit" "packagekit-qt6" "appstream" "libkexiv2"
+    "packagekit" "packagekit-qt6" "AppStream" "libkexiv2"
 
     "libICE" "libSM" "libX11" "libXau" "libXcursor"
     "libXfixes" "libXft" "libXrender" "libXtst" "libxcb"
