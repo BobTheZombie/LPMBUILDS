@@ -1,0 +1,71 @@
+#!/bin/bash
+# LPM Linux package recipe: KDE KQuickImageEditor (Qt 6)
+# Dependency package names should match the providers in the LPM repository.
+
+NAME="kquickimageeditor"
+VERSION="0.7.0.1"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+
+SUMMARY="QtQuick image editing components used by Spectacle"
+URL="https://invent.kde.org/libraries/kquickimageeditor"
+LICENSE=("LGPL-2.1-or-later")
+
+SOURCE=("https://download.kde.org/stable/kquickimageeditor/kquickimageeditor-${VERSION}.tar.xz")
+SHA256SUMS=("b65f32c44bd126cea5e1b5a6eb7cb0eb517277cb8de06675fa6be624b7da381a")
+PATCHES=()
+
+# Adjust KDE package identifiers if your LPM repository uses kf6-* names.
+REQUIRES=(
+    "glibc"
+    "highway"
+    "kconfig6"
+    "kirigami6"
+    "qt6-base"
+    "qt6-declarative"
+)
+BUILD_REQUIRES=(
+    "cmake"
+    "ninja"
+    "extra-cmake-modules"
+    "qt6-shadertools"
+)
+REQUIRES_PYTHON_DEPENDENCIES=()
+PROVIDES=()
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+    set -euxo pipefail
+    test -f "$SRCROOT/$NAME-$VERSION/CMakeLists.txt"
+}
+
+build() {
+    set -euxo pipefail
+    local src="$SRCROOT/$NAME-$VERSION"
+    local builddir="$src/build"
+
+    cmake -S "$src" -B "$builddir" -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DKDE_INSTALL_LIBDIR=lib \
+        -DKDE_INSTALL_USE_QT_SYS_PATHS=ON \
+        -DKDE_INSTALL_QMLDIR=/usr/lib/qt6/qml \
+        -DBUILD_TESTING=OFF \
+        -DBUILD_SHARED_LIBS=ON
+
+    cmake --build "$builddir" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+staging() {
+    set -euxo pipefail
+    local src="$SRCROOT/$NAME-$VERSION"
+
+    DESTDIR="$pkgdir" cmake --install "$src/build"
+
+    test -f "$pkgdir/usr/lib/cmake/KQuickImageEditor/KQuickImageEditorConfig.cmake"
+    test -f "$pkgdir/usr/lib/qt6/qml/org/kde/kquickimageeditor/qmldir"
+    find "$pkgdir/usr/lib" -maxdepth 1 -name 'libKQuickImageEditor.so*' | grep -q .
+}

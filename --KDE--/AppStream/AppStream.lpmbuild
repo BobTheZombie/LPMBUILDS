@@ -1,0 +1,80 @@
+#!/bin/bash
+# LPM Linux — AppStream 1.2.1 with Qt6 AppStreamQt integration.
+# LPM strips the tarball's top directory into "$SRCROOT/${NAME}-${VERSION}".
+
+NAME="AppStream"
+VERSION="1.2.1"
+RELEASE="3"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="AppStream metadata library, CLI and Qt6 bindings"
+URL="https://www.freedesktop.org/wiki/Distributions/AppStream/"
+LICENSE=("LGPL-2.1-or-later")
+
+SOURCE=("https://www.freedesktop.org/software/appstream/releases/AppStream-${VERSION}.tar.xz")
+SHA256SUMS=("7df664fd3ad3b1640c6a0ff77fa84f9fabe264111bf1fe8f5df3444d6d4caaca")
+PATCHES=()
+
+REQUIRES=(
+    "glibc" "glib2" "curl" "libxml2" "libfyaml" "libxmlb"
+    "zstd" "qt6-base"
+)
+BUILD_REQUIRES=(
+    "gcc" "meson" "ninja" "pkgconf" "python"
+    "glib2" "curl" "libxml2" "libxslt" "libfyaml" "libxmlb"
+    "zstd" "wayland" "qt6-base" "qt6-tools"
+    "gperf" "gettext" "itstool" "systemd"
+)
+REQUIRES_PYTHON_DEPENDENCIES=(
+     "gi-docgen"
+     "Pygments"
+)
+
+PROVIDES=("appstream" "AppStream" "appstream-qt" "AppStreamQt")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+    set -euxo pipefail
+}
+
+build() {
+    set -euxo pipefail
+    local src="$SRCROOT/${NAME}-${VERSION}/${NAME}-${VERSION}"
+    local builddir="$BUILDROOT/appstream-build"
+
+    # Explicit source AND build paths: $SRCROOT alone is not the project.
+    meson setup "$builddir" "$src" \
+        --prefix=/usr \
+        --libdir=lib \
+        --buildtype=release \
+        --wrap-mode=nodownload \
+        -Dqt=true \
+        -Ddisplay-detection=wayland \
+        -Dsystemd=true \
+        -Dstemming=false \
+        -Dgir=true \
+        -Dvapi=false \
+        -Dcompose=false \
+        -Ddocs=false \
+        -Dman=false \
+        -Dblake3-support=false \
+        -Dzstd-support=true \
+        -Dapt-support=false \
+        -Dtools=true \
+        -Dapidocs=false \
+        -Dinstall-docs=false
+
+    meson compile -C "$builddir" -j "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+staging() {
+    set -euxo pipefail
+    local builddir="$BUILDROOT/appstream-build"
+    DESTDIR="$pkgdir" meson install -C "$builddir" --no-rebuild
+    test -f "$pkgdir/usr/lib/cmake/AppStreamQt/AppStreamQtConfig.cmake"
+    test -n "$(find "$pkgdir/usr/lib" -maxdepth 1 -name 'libAppStreamQt.so*' -print -quit)"
+    test -x "$pkgdir/usr/bin/appstreamcli"
+    find "$pkgdir/usr/lib" -type f -name '*.la' -delete
+}

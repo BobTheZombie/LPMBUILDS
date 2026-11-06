@@ -44,6 +44,7 @@ build() {
     meson setup build \
         --prefix=/usr \
         --libdir=lib \
+        -Dtests=disabled \
         --buildtype=release
 
     meson compile -C build

@@ -1,13 +1,14 @@
 #!/bin/bash
-# LPM Linux full KDE Plasma 6.8.1 meta-package
-# Based on the generated 158-recipe Plasma 6.8.1 source chain (2026-10-25).
-# Every declared REQUIRES is resolved and built by LPM if not installed.
-# The program discover is optional until a working PackageKit backend exists.
+# LPM Linux full KDE Plasma 6.8.1 desktop meta-package
+# Qt 6.12.0 / KDE Frameworks 6.31.0 / Plasma 6.8.1 / Gear 26.08.2
+# Meta-package: all required packages are resolved by LPM.
+# No Qt WebEngine or KAccounts/SignOn stack is required.
+
 NAME="plasma6-full"
 VERSION="6.8.1"
-RELEASE="1"
+RELEASE="2"
 ARCH="any"
-SUMMARY="Complete KDE Plasma 6 desktop, Qt 6, Frameworks 6, and KDE applications"
+SUMMARY="Complete KDE Plasma 6 Wayland desktop, Qt 6, Frameworks 6, and KDE applications"
 URL="https://kde.org/plasma-desktop/"
 LICENSE="NONE"
 SOURCE=()
@@ -15,15 +16,21 @@ SHA256SUMS=()
 PATCHES=()
 
 REQUIRES=(
-    # Qt 6.11.2: full Qt module stack
+    # Qt 6.12.0 modules
     "qt6-5compat"
     "qt6-base"
+    "qt6-connectivity"
     "qt6-declarative"
+    "qt6-graphs"
     "qt6-imageformats"
+    "qt6-location"
     "qt6-multimedia"
+    "qt6-positioning"
     "qt6-quick3d"
+    "qt6-quicktimeline"
     "qt6-sensors"
     "qt6-shadertools"
+    "qt6-speech"
     "qt6-svg"
     "qt6-tools"
     "qt6-translations"
@@ -31,7 +38,16 @@ REQUIRES=(
     "qt6-webchannel"
     "qt6-websockets"
 
-    # KDE Frameworks 6.31.0: all available Frameworks
+    # Qt-dependent integration, crypto and Python bindings
+    "qt6-keychain"
+    "qca-qt6"
+    "qcoro"
+    "polkit-qt6"
+    "libqaccessibilityclient-qt6"
+    "shiboken6"
+    "pyside6"
+
+    # KDE Frameworks 6.31.0
     "attica6"
     "baloo6"
     "bluez-qt6"
@@ -105,11 +121,24 @@ REQUIRES=(
     "syntax-highlighting6"
     "threadweaver6"
 
-    # KDE supporting infrastructure
+    # Qt / Plasma supporting infrastructure
+    "AppStream"
+    "accountsservice"
+    "appmenu-gtk-module"
+    "bluez"
+    "networkmanager"
     "plasma-wayland-protocols"
-    "polkit-qt6"
+    "polkit"
+    "power-profiles-daemon"
+    "upower"
+    "pipewire"
+    "wireplumber"
+    "xcb-util-cursor"
+    "xdg-desktop-portal"
+    "xdg-user-dirs"
+    "xorg-xwayland"
 
-    # Plasma 6.8.1: compositor, desktop, settings, themes, services
+    # Plasma 6.8.1 desktop and Wayland compositor
     "aurorae"
     "bluedevil"
     "breeze"
@@ -151,7 +180,6 @@ REQUIRES=(
     "plasma-integration"
     "plasma-nm"
     "plasma-pa"
-    "plasma-setup"
     "plasma-systemmonitor"
     "plasma-thunderbolt"
     "plasma-vault"
@@ -166,9 +194,10 @@ REQUIRES=(
     "sddm-kcm"
     "spectacle"
     "systemsettings"
+    "union"
     "xdg-desktop-portal-kde"
 
-    # KDE Gear 26.08.2: desktop applications
+    # KDE Gear 26.08.2 / installed KDE application integrations
     "ark"
     "dolphin"
     "ffmpegthumbs"
@@ -177,16 +206,21 @@ REQUIRES=(
     "kdeconnect-kde"
     "kdegraphics-thumbnailers"
     "kio-extras"
+    "kio-fuse"
     "konsole"
+    "kcolorpicker-qt6"
+    "kimageannotator-qt6"
+    "kquickimageeditor"
+    "libkdcraw-qt6"
+    "libkexiv2"
+    "qmobipocket6"
+    "pulseaudio-qt"
 
-    # Display manager
+    # SDDM Wayland display manager
     "sddm"
-
-    # Core and desktop installation profiles
-    "plasma-core"
-    "plasma-meta"
-
+    "sddm-dbus-policy"
 )
+
 BUILD_REQUIRES=()
 REQUIRES_PYTHON_DEPENDENCIES=()
 
@@ -197,10 +231,16 @@ PROVIDES=(
 CONFLICTS=()
 OBSOLETES=()
 RECOMMENDS=()
-SUGGESTS=("discover")
+SUGGESTS=(
+    "discover"        # only when the LPM PackageKit backend works
+    "plasma-setup"    # optional first-run setup
+    "plasma-keyboard" # optional Wayland on-screen keyboard
+    "kup"             # optional backup scheduler
+    "krdp"            # optional remote desktop server
+    "plasma-sdk"      # optional widget/theme development
+)
 
-# This meta package intentionally stages no filesystem payload.
+# Pure meta-package: no files are staged.
 prepare() { :; }
 build() { :; }
 staging() { :; }
-

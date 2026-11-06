@@ -1,106 +1,107 @@
+
 #!/bin/bash
-# LPM build script for Flatpak
-# Application sandboxing and distribution framework
+# LPM Linux — Flatpak 1.18.4
 
 NAME="flatpak"
 VERSION="1.18.4"
-RELEASE="1"
+RELEASE="2"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Application sandboxing and distribution framework"
-URL="https://flatpak.org/"
-LICENSE="LGPL-2.1-or-later"
+SUMMARY="Flatpak sandbox and application distribution framework"
+URL="https://flatpak.org"
+LICENSE=("LGPL-2.1-or-later")
 
 SOURCE=(
-  "https://github.com/flatpak/flatpak/releases/download/${VERSION}/flatpak-${VERSION}.tar.xz"
-  "https://dl.flathub.org/repo/flathub.flatpakrepo"
+    "https://github.com/flatpak/flatpak/releases/download/${VERSION}/flatpak-${VERSION}.tar.xz"
 )
+SHA256SUMS=(
+    "b899a7a00c48d2c626cb8ec33fe556720b376c25805d7222430c0fdca4c6ac8d"
+)
+PATCHES=()
 
 REQUIRES=(
-  "glibc"
-  "glib2"
-  "libxml2"
-  "libarchive"
-  "libseccomp"
-  "libcap"
-  "libostree"
-  "dbus"
-  "systemd"
-
-
-  # Build deps
-  "meson"
-  "ninja"
-  "pkg-config"
-  "gcc"
-  "python"
+    "glibc" "libxml2" "glib2" "AppStream"
+    "ostree" "gpgme" "curl" "libarchive"
+    "libseccomp" "libcap" "fuse3" "json-glib"
+    "gdk-pixbuf" "bubblewrap" "xdg-dbus-proxy"
+    "polkit" "systemd"
 )
 
-PROVIDES=(
-  "flatpak"
-  "flatpak-session-helper"
+BUILD_REQUIRES=(
+    "meson" "ninja" "pkgconf" "python" "bison"
+    "glib2" "AppStream" "ostree" "gpgme" "curl"
+    "libarchive" "libseccomp" "libcap" "fuse3"
+    "json-glib" "gdk-pixbuf" "libxml2" "bubblewrap"
+    "xdg-dbus-proxy" "polkit" "systemd"
 )
 
+REQUIRES_PYTHON_DEPENDENCIES=(
+    "pyparsing"
+)
+
+PROVIDES=("flatpak")
 CONFLICTS=()
 OBSOLETES=()
-
-_srcdir="${NAME}-${VERSION}"
+RECOMMENDS=()
+SUGGESTS=()
 
 prepare() {
     set -euxo pipefail
-    cd "$SRCROOT/$_srcdir"
+    local src="$SRCROOT/${NAME}-${VERSION}"
+
+    test -f "$src/meson.build"
+    test -f "$src/meson_options.txt"
+    test -f "$src/subprojects/libglnx/meson.build"
+
+    python3 -c 'import pyparsing'
+    test -x /usr/bin/bwrap
+    test -x /usr/bin/xdg-dbus-proxy
+    test -x /usr/bin/fusermount3
 }
 
 build() {
     set -euxo pipefail
-    cd "$SRCROOT/$_srcdir"
+    local src="$SRCROOT/${NAME}-${VERSION}"
+    local builddir="$BUILDROOT/${NAME}-build"
 
-    meson setup build \
+    meson setup "$builddir" "$src" \
         --prefix=/usr \
         --libdir=lib \
         --buildtype=release \
-        -Ddbus_config_dir=/usr/share/dbus-1/system.d \
+        --wrap-mode=nodownload \
+        -Dsystem_bubblewrap=/usr/bin/bwrap \
+        -Dsystem_dbus_proxy=/usr/bin/xdg-dbus-proxy \
+        -Dsystem_fusermount=/usr/bin/fusermount3 \
+        -Dseccomp=enabled \
+        -Dsystem_helper=enabled \
+        -Dsystemd=enabled \
+        -Dsystemdsystemunitdir=lib/systemd/system \
+        -Dsystemduserunitdir=lib/systemd/user \
+        -Dprivileged_group=wheel \
         -Dselinux_module=disabled \
-        -Dsystem_dbus_proxy=xdg-dbus-proxy \
-        -Dtests=false 
+        -Ddocbook_docs=disabled \
+        -Dgtkdoc=disabled \
+        -Dgir=disabled \
+        -Dman=disabled \
+        -Dtests=false \
+        -Dinstalled_tests=false \
+        -Dwayland_security_context=auto \
+        -Dxauth=auto
 
-    meson compile -C build
-}
-
-check() {
-    # Flatpak has tests, but they’re heavy and not required for packaging
-    true
+    meson compile -C "$builddir" \
+        -j "${LPM_BUILD_JOBS:-$(nproc)}"
 }
 
 staging() {
     set -euxo pipefail
-    cd "$SRCROOT/$_srcdir"
+    local builddir="$BUILDROOT/${NAME}-build"
 
-    DESTDIR="$pkgdir" meson install -C build
-  
-    install -Dm644 "$SRCROOT/flathub.flatpakrepo" \
-  "$pkgdir/usr/share/flatpak/remotes.d/flathub.flatpakrepo"
+    DESTDIR="$pkgdir" meson install -C "$builddir" --no-rebuild
 
+    test -x "$pkgdir/usr/bin/flatpak"
+    test -f "$pkgdir/usr/lib/pkgconfig/flatpak.pc"
+    test -f "$pkgdir/usr/lib/systemd/system/flatpak-system-helper.service"
+    test -f "$pkgdir/usr/share/dbus-1/system-services/org.freedesktop.Flatpak.SystemHelper.service"
+    test -f "$pkgdir/usr/lib/sysusers.d/flatpak.conf"
 
-    # License
-    if [ -f COPYING ]; then
-        install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
-    fi
-
-    # Strip ELF binaries/libs
-    if command -v strip >/dev/null 2>&1; then
-        find "$pkgdir/usr" -type f -exec sh -c '
-            case "$(file -b "$1")" in
-              *ELF*executable*|*ELF*shared\ object*)
-                  strip --strip-unneeded "$1" 2>/dev/null || true
-              ;;
-            esac
-        ' _ {} \;
-    fi
+    find "$pkgdir/usr/lib" -type f -name '*.la' -delete
 }
-
-
-
-
-
-# Final audited source digests
-SHA256SUMS=("b899a7a00c48d2c626cb8ec33fe556720b376c25805d7222430c0fdca4c6ac8d" "3371dd250e61d9e1633630073fefda153cd4426f72f4afa0c3373ae2e8fea03a")

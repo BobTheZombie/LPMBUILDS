@@ -1,0 +1,9 @@
+--- a/src/helper/CMakeLists.txt
++++ b/src/helper/CMakeLists.txt
+@@ -1,3 +1,5 @@
+ add_executable(sddm-helper-start-wayland HelperStartWayland.cpp waylandsocketwatcher.cpp waylandhelper.cpp ${CMAKE_SOURCE_DIR}/src/common/SignalHandler.cpp)
+-target_link_libraries(sddm-helper-start-wayland Qt${QT_MAJOR_VERSION}::Core)
++target_link_libraries(sddm-helper-start-wayland
++                      Qt${QT_MAJOR_VERSION}::Core
++                      Qt${QT_MAJOR_VERSION}::Qml)
+ install(TARGETS sddm-helper-start-wayland RUNTIME DESTINATION "${CMAKE_INSTALL_LIBEXECDIR}")

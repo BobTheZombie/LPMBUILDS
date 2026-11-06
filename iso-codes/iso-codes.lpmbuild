@@ -1,72 +1,37 @@
 #!/bin/bash
-# LPM build script for iso-codes
-# ISO standards lists (languages, countries, currencies, scripts)
-# Required by gnome-desktop-3.0 and GNOME/Budgie components
-
+# ISO 3166/639/4217/15924 datasets used by Plasma clock translations
 NAME="iso-codes"
 VERSION="4.20.1"
-RELEASE="1"
+RELEASE="2"
 ARCH="noarch"
-SUMMARY="ISO standards lists (languages, countries, currencies, scripts)"
+SUMMARY="Data for countries, languages, scripts and currency ISO standards"
 URL="https://salsa.debian.org/iso-codes-team/iso-codes"
 LICENSE=("LGPL-2.1-or-later")
-
-SOURCE=(
-  "https://salsa.debian.org/iso-codes-team/iso-codes/-/archive/v${VERSION}/iso-codes-v${VERSION}.tar.gz"
-)
-
-REQUIRES=(
-  "glibc"
-  "python"        # Meson scripts use Python
-  "meson"
-  "ninja"
-  "pkgconf"
-)
-
-PROVIDES=(
-  "iso-codes"
-)
-
+SOURCE=("https://salsa.debian.org/iso-codes-team/iso-codes/-/archive/v${VERSION}/iso-codes-v${VERSION}.tar.gz")
+SHA256SUMS=("2d7d9f6084ab9ce6c534ce71a3dd5144b6e474f3c97616459a88f73f44a64bff")
+PATCHES=()
+REQUIRES=()
+BUILD_REQUIRES=("meson" "ninja" "pkgconf" "python" "gettext")
+REQUIRES_PYTHON_DEPENDENCIES=()
+PROVIDES=("iso-codes" "IsoCodes")
 CONFLICTS=()
 OBSOLETES=()
-
-_srcdir="iso-codes-${VERSION}"
-
+RECOMMENDS=()
+SUGGESTS=()
 prepare() {
-  set -euxo pipefail
-  cd "$SRCROOT/$_srcdir"
-  mkdir build
+    set -euxo pipefail
+    test -f "$SRCROOT/${NAME}-${VERSION}/meson.build"
 }
-
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT/$_srcdir/build"
-
-  meson setup --prefix=/usr .. &&
-  ninja
+    set -euxo pipefail
+    local src="$SRCROOT/${NAME}-${VERSION}"
+    local builddir="$BUILDROOT/${NAME}-build"
+    meson setup "$builddir" "$src" --prefix=/usr --buildtype=release --wrap-mode=nodownload
+    meson compile -C "$builddir" -j "${LPM_BUILD_JOBS:-$(nproc)}"
 }
-
-check() {
-  true
-}
-
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT/$_srcdir/build"
-
-  DESTDIR="$pkgdir" ninja install
-
-  # License
-  if [ -f COPYING ]; then
-    install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
-  elif [ -d LICENSES ]; then
-    install -dm755 "$pkgdir/usr/share/licenses/$NAME"
-    install -m644 LICENSES/* "$pkgdir/usr/share/licenses/$NAME/" 2>/dev/null || true
-  fi
+    set -euxo pipefail
+    DESTDIR="$pkgdir" meson install -C "$BUILDROOT/${NAME}-build" --no-rebuild
+    test -d "$pkgdir/usr/share/iso-codes"
+    test -n "$(find "$pkgdir/usr/share/iso-codes" -type f -print -quit)"
 }
-
-
-
-
-# Final audited source digests
-SHA256SUMS=("2d7d9f6084ab9ce6c534ce71a3dd5144b6e474f3c97616459a88f73f44a64bff")

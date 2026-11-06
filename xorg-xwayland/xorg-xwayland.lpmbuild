@@ -1,15 +1,19 @@
 #!/bin/bash
-# LPM source recipe - staged installation only; review build features before use.
+# LPM build script for Xwayland
+# LPM always extracts to: $SRCROOT/$NAME-$VERSION
 NAME="xorg-xwayland"
 VERSION="24.1.14"
-RELEASE="1"
+RELEASE="2"
 ARCH="${ARCH:-x86_64}"
+
 SUMMARY="Xwayland X server for Wayland-only desktops"
 URL="https://www.x.org/wiki/"
 LICENSE=("MIT")
+
 SOURCE=("https://www.x.org/pub/individual/xserver/xwayland-${VERSION}.tar.xz")
 SHA256SUMS=("SKIP")
 PATCHES=()
+
 REQUIRES=(
     "libei"
     "libxcvt"
@@ -22,6 +26,7 @@ REQUIRES=(
     "pixman"
     "libglvnd"
 )
+
 BUILD_REQUIRES=(
     "meson"
     "ninja"
@@ -31,6 +36,7 @@ BUILD_REQUIRES=(
     "xtrans"
     "libxkbfile"
 )
+
 PROVIDES=("xorg-xwayland")
 CONFLICTS=()
 OBSOLETES=()
@@ -38,29 +44,45 @@ RECOMMENDS=()
 SUGGESTS=()
 
 _srcdir() {
-    local d="$SRCROOT/xwayland-${VERSION}"
-    test -d "$d" || { printf 'Expected source directory not found: %s\n' "$d" >&2; return 1; }
-    printf '%s\n' "$d"
+    # LPM normalizes the extracted directory using NAME, not archive basename.
+    printf '%s\n' "${SRCROOT:?SRCROOT must be defined}/${NAME}-${VERSION}"
 }
 
 prepare() {
     set -euo pipefail
-    test -d "$(_srcdir)"
+    local src
+    src="$(_srcdir)"
+
+    if [[ ! -f "$src/meson.build" ]]; then
+        echo "[ERROR] Missing $src/meson.build" >&2
+        return 1
+    fi
 }
 
 build() {
-    set -euo pipefail
-    local src
+    set -euxo pipefail
+    local src builddir
     src="$(_srcdir)"
-    meson setup "$src/build-lpm" "$src" --prefix=/usr --libdir=lib --buildtype=release \
-        -D xkb_output_dir=/var/lib/xkb
-    ninja -C "$src/build-lpm"
+    builddir="$src/build-lpm"
+
+    meson setup "$builddir" "$src" \
+        --prefix=/usr \
+        --libdir=lib \
+        --buildtype=release \
+        -Dxkb_output_dir=/var/lib/xkb \
+        -Dsecure-rpc=false
+
+    meson compile -C "$builddir" \
+        -j "${LPM_BUILD_JOBS:-$(nproc)}"
 }
 
 staging() {
-    set -euo pipefail
-    local src
+    set -euxo pipefail
+    local src builddir
     src="$(_srcdir)"
-    DESTDIR="$pkgdir" ninja -C "$src/build-lpm" install
-    test -e "$pkgdir/usr/bin/Xwayland"
+    builddir="$src/build-lpm"
+
+    DESTDIR="${pkgdir:?pkgdir must be defined}" meson install -C "$builddir"
+
+    test -x "$pkgdir/usr/bin/Xwayland"
 }

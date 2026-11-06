@@ -1,0 +1,111 @@
+#!/bin/bash
+# LPM Linux — QtKeychain for Qt 6
+# Secure password storage via libsecret, GNOME Keyring, and KWallet (D-Bus).
+# Pinned to the upstream 0.17.0 release commit.
+
+NAME="qt6-keychain"
+VERSION="0.17.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+
+SUMMARY="Qt 6 library for secure password and secret storage"
+URL="https://github.com/frankosterfeld/qtkeychain"
+LICENSE=("BSD-3-Clause")
+
+SOURCE=(
+    "qtkeychain::git+https://github.com/frankosterfeld/qtkeychain.git#tag=${VERSION}"
+)
+SHA256SUMS=()
+PATCHES=()
+
+REQUIRES=(
+    "qt6-base>=6.12.0"
+    "libsecret"
+    "glib2"
+    "dbus"
+    "glibc"
+    "gcc-libs"
+)
+
+BUILD_REQUIRES=(
+    "cmake"
+    "ninja"
+    "pkgconf"
+    "git"
+    "qt6-tools"
+)
+
+PROVIDES=(
+    "qt6keychain"
+    "qtkeychain-qt6"
+    "Qt6Keychain"
+)
+CONFLICTS=()
+OBSOLETES=()
+
+BUILD_OPTIONS=("@--optimize=2" "@--stripping")
+
+_qtkeychain_srcdir() {
+    local root="${SRCROOT}/qtkeychain"
+    if [[ ! -f "$root/CMakeLists.txt" || ! -d "$root/.git" ]]; then
+        echo "[ERROR] QtKeychain source checkout missing: $root" >&2
+        return 1
+    fi
+    printf '%s\n' "$root"
+}
+
+prepare() {
+    set -euxo pipefail
+    local srcdir actual_sha expected_sha tag_sha
+    srcdir="$(_qtkeychain_srcdir)"
+
+    # Match the exact upstream release commit, not just a potentially moved tag.
+    expected_sha="875f77d9f61bd97fd84cca47ce3bc71186dfbd09"
+    actual_sha="$(git -C "$srcdir" rev-parse HEAD)"
+    tag_sha="$(git -C "$srcdir" rev-parse "refs/tags/${VERSION}^{commit}")"
+    if [[ "$actual_sha" != "$expected_sha" || "$tag_sha" != "$expected_sha" ]]; then
+        echo "[ERROR] QtKeychain source does not match upstream ${VERSION} release" >&2
+        echo "         Expected: $expected_sha" >&2
+        echo "         Git HEAD: $actual_sha; tag: $tag_sha" >&2
+        return 1
+    fi
+
+    rm -rf "$srcdir/build"
+}
+
+build() {
+    set -euxo pipefail
+    local srcdir
+    srcdir="$(_qtkeychain_srcdir)"
+
+    # The Linux libsecret backend must be available; never silently disable it.
+    pkg-config --exists libsecret-1
+
+    cmake -S "$srcdir" -B "$srcdir/build" -G Ninja \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DBUILD_WITH_QT5=OFF \
+        -DBUILD_SHARED_LIBS=ON \
+        -DLIBSECRET_SUPPORT=ON \
+        -DBUILD_TRANSLATIONS=ON \
+        -DBUILD_TESTING=OFF \
+        -DBUILD_TEST_APPLICATION=OFF \
+        -DBUILD_QTQUICK_DEMO=OFF \
+        -DECM_MKSPECS_INSTALL_DIR=lib/qt6/mkspecs/modules
+
+    cmake --build "$srcdir/build" --parallel "${LPM_JOBS:-2}"
+}
+
+staging() {
+    set -euxo pipefail
+    local srcdir
+    srcdir="$(_qtkeychain_srcdir)"
+
+    DESTDIR="$pkgdir" cmake --install "$srcdir/build"
+
+    # Verify that the library, public header, and CMake find_package files exist.
+    test -f "$pkgdir/usr/lib/cmake/Qt6Keychain/Qt6KeychainConfig.cmake"
+    test -f "$pkgdir/usr/include/qt6keychain/keychain.h"
+    find "$pkgdir/usr/lib" -maxdepth 1 -name 'libqt6keychain.so*' -print -quit | grep -q .
+}

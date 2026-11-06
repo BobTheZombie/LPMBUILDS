@@ -2,14 +2,14 @@
 # LPM Linux: KDE Plasma 6.8.1 package chain
 # Generated 2026-10-25; source digests MUST be locked before building.
 NAME="qt6-base"
-VERSION="6.11.2"
+VERSION="6.12.0"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="Qt 6 qtbase module"
 URL="https://www.qt.io/"
 LICENSE=("LGPL-3.0-only AND GPL-3.0-only WITH Qt-GPL-exception-1.0")
 SOURCE=(
-    "https://download.qt.io/archive/qt/6.11/6.11.2/submodules/qtbase-everywhere-src-6.11.2.tar.xz"
+    "https://download.qt.io/archive/qt/6.12/${VERSION}/submodules/qtbase-everywhere-src-${VERSION}.tar.xz"
 )
 SHA256SUMS=(
     "SKIP"
@@ -17,6 +17,7 @@ SHA256SUMS=(
 PATCHES=()
 REQUIRES=(
     "glibc"
+    "cups"
 )
 BUILD_REQUIRES=(
     "cmake"
@@ -26,7 +27,7 @@ BUILD_REQUIRES=(
 )
 REQUIRES_PYTHON_DEPENDENCIES=()
 PROVIDES=(
-    "qtbase"
+    "qt5-base"
 )
 CONFLICTS=()
 OBSOLETES=()
@@ -48,6 +49,8 @@ build() {
         -DCMAKE_INSTALL_LIBDIR=lib \
         -DBUILD_TESTING=OFF \
         -DBUILD_SHARED_LIBS=ON \
+        -DFEATURE_cups=ON \
+        -DFEATURE_cupsjobwidget=ON \
         -DFEATURE_xcb=ON
     cmake --build "$builddir" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
 }

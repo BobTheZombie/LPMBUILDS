@@ -19,6 +19,9 @@ REQUIRES=(
     "qt6-base"
     "kio6"
     "karchive6"
+    "libraw"
+    "libkdcraw-qt6"
+    "qmobipocket6"
 )
 BUILD_REQUIRES=(
     "cmake"

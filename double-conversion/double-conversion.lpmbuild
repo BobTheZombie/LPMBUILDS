@@ -1,0 +1,82 @@
+#!/bin/bash
+# LPM Linux — double-conversion: fast IEEE 754 binary/decimal conversions.
+# Source: https://github.com/google/double-conversion
+# Release v3.4.0 pinned to the immutable upstream Git commit.
+
+NAME="double-conversion"
+VERSION="3.4.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Fast binary-decimal and decimal-binary conversion routines for IEEE doubles"
+URL="https://github.com/google/double-conversion"
+LICENSE=("BSD-3-Clause")
+
+# Pinned v3.4.0 release commit; do not follow the moving default branch.
+SOURCE=(
+    "double-conversion::git+https://github.com/google/double-conversion.git#commit=9dd6227ee3e29807183e56877f0282aeb40b8b1e"
+)
+SHA256SUMS=()
+PATCHES=()
+
+REQUIRES=(
+    "glibc"
+    "gcc-libs"
+)
+BUILD_REQUIRES=(
+    "cmake>=3.29"
+    "ninja"
+    "git"
+    "gcc"
+)
+REQUIRES_PYTHON_DEPENDENCIES=()
+PROVIDES=("double-conversion")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+BUILD_OPTIONS=("@--optimize=2" "@--stripping")
+
+_dc_source_dir() {
+    local src="${SRCROOT:?SRCROOT must be set}/double-conversion"
+    [[ -f "$src/CMakeLists.txt" ]] || {
+        echo "[ERROR] double-conversion source not found at $src" >&2
+        return 1
+    }
+    printf '%s\n' "$src"
+}
+
+prepare() {
+    set -euxo pipefail
+    local src
+    src="$(_dc_source_dir)"
+    [[ "$(git -C "$src" rev-parse HEAD)" == "9dd6227ee3e29807183e56877f0282aeb40b8b1e" ]] || {
+        echo '[ERROR] double-conversion checkout differs from pinned upstream v3.4.0' >&2
+        return 1
+    }
+}
+
+build() {
+    set -euxo pipefail
+    local src
+    src="$(_dc_source_dir)"
+    cmake -S "$src" -B "$src/build" -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DBUILD_SHARED_LIBS=ON \
+        -DBUILD_TESTING=OFF
+    cmake --build "$src/build" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+staging() {
+    set -euxo pipefail
+    local src
+    src="$(_dc_source_dir)"
+    DESTDIR="${pkgdir:?pkgdir must be set}" cmake --install "$src/build"
+
+    test -f "$pkgdir/usr/include/double-conversion/double-conversion.h"
+    test -f "$pkgdir/usr/lib/pkgconfig/double-conversion.pc"
+    test -f "$pkgdir/usr/lib/cmake/double-conversion/double-conversionConfig.cmake"
+    find "$pkgdir/usr/lib" -maxdepth 1 -name 'libdouble-conversion.so*' -print -quit | grep -q .
+}

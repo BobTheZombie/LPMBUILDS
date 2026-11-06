@@ -1,0 +1,47 @@
+#!/bin/bash
+# LPM Linux - kImageAnnotator Qt6 build
+NAME="kimageannotator-qt6"
+VERSION="0.7.2"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Qt6 image annotation library"
+URL="https://github.com/ksnip/kImageAnnotator"
+LICENSE=("LGPL-3.0-or-later")
+SOURCE=("https://github.com/ksnip/kImageAnnotator/archive/refs/tags/v${VERSION}.tar.gz")
+SHA256SUMS=("SKIP") # Verify hash of upstream GitHub-generated archive in production
+PATCHES=()
+REQUIRES=("glibc" "gcc-libs" "qt6-base" "qt6-svg" "kcolorpicker-qt6" "libX11")
+BUILD_REQUIRES=("cmake" "ninja" "qt6-base" "qt6-svg" "qt6-tools" "kcolorpicker-qt6" "libX11")
+PROVIDES=("kImageAnnotator-Qt6")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+    set -euo pipefail
+}
+
+build() {
+    set -euxo pipefail
+    local src="${SRCROOT}/${NAME}-${VERSION}"
+    cmake -S "$src" -B "$src/build" -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DBUILD_WITH_QT6=ON \
+        -DBUILD_SHARED_LIBS=ON \
+        -DBUILD_TESTS=OFF \
+        -DBUILD_EXAMPLE=OFF
+    cmake --build "$src/build" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+staging() {
+    set -euxo pipefail
+    local src="${SRCROOT}/${NAME}-${VERSION}"
+    DESTDIR="${pkgdir:?}" cmake --install "$src/build"
+    test -f "$pkgdir/usr/lib/cmake/kImageAnnotator-Qt6/kImageAnnotator-Qt6Config.cmake"
+    test -f "$pkgdir/usr/include/kImageAnnotator-Qt6/kImageAnnotator/KImageAnnotator.h"
+    find "$pkgdir/usr/lib" -maxdepth 1 -name 'libkImageAnnotator.so*' -print -quit | grep -q .
+}

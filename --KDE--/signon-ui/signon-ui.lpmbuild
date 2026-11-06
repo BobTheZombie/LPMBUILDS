@@ -1,0 +1,65 @@
+#!/bin/bash
+# LPM Linux: Qt6 SSO authentication prompt and WebEngine login UI.
+NAME="signon-ui"
+VERSION="0.17+20231016"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Qt6 graphical authentication UI for the SignOn daemon"
+URL="https://gitlab.com/accounts-sso/signon-ui"
+LICENSE=("GPL-3.0-only")
+_SSO_COMMIT="eef943f0edf3beee8ecb85d4a9dae3656002fc24"
+SOURCE=("https://gitlab.com/accounts-sso/signon-ui/-/archive/${_SSO_COMMIT}/signon-ui-${_SSO_COMMIT}.tar.gz")
+SHA256SUMS=("0906a1adee88e331e9dcf1f2d5978c24f8564fb734f5c114c88bddb63196d3d4")
+PATCHES=()
+REQUIRES=("glibc" "glib2" "qt6-base" "qt6-declarative" "qt6-webengine" "libaccounts-qt" "signond" "libnotify" "libproxy" "dbus")
+BUILD_REQUIRES=("make" "pkgconf" "qt6-base" "qt6-tools" "qt6-declarative" "qt6-webengine" "libaccounts-qt" "signond" "libnotify" "libproxy" "glib2")
+REQUIRES_PYTHON_DEPENDENCIES=()
+PROVIDES=("signon-ui-qt")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+_qmake6() {
+    local exe
+    for exe in /usr/bin/qmake6 /usr/lib/qt6/bin/qmake6 /usr/lib/qt6/bin/qmake; do
+        if [[ -x "$exe" ]]; then printf '%s\n' "$exe"; return 0; fi
+    done
+    echo '[ERROR] Qt6 qmake missing; install qt6-base/qt6-tools' >&2
+    return 1
+}
+prepare() {
+    set -euxo pipefail
+    local src="$SRCROOT/$NAME-$VERSION"
+    [[ -f "$src/signon-ui.pro" ]] || { echo '[ERROR] signon-ui.pro missing' >&2; return 1; }
+    # Do not build upstream tests; keep the Qt6 WebEngine authorization UI.
+    sed -i -E '/^[[:space:]]*SUBDIRS[[:space:]]*\+=[[:space:]]*tests([[:space:]]|$)/d' "$src/signon-ui.pro"
+    rm -rf "$src/build"
+}
+build() {
+    set -euxo pipefail
+    local src="$SRCROOT/$NAME-$VERSION" qmake
+    qmake="$(_qmake6)" || return 1
+    pkg-config --exists libaccounts-qt6 || {
+        echo '[ERROR] Missing libaccounts-qt6: install libaccounts-qt first' >&2; return 1;
+    }
+    [[ -f /usr/lib/cmake/SignOnQt6/SignOnQt6Config.cmake ]] || {
+        echo '[ERROR] Missing SignOnQt6 from signond' >&2; return 1;
+    }
+    mkdir -p "$src/build"
+    cd "$src/build"
+    "$qmake" "$src/signon-ui.pro" PREFIX=/usr LIBDIR=/usr/lib 'CONFIG+=release'
+    make -j "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+staging() {
+    set -euxo pipefail
+    local src="$SRCROOT/$NAME-$VERSION"
+    [[ -n "${pkgdir:-}" && "$pkgdir" != / ]] || return 1
+    make -C "$src/build" INSTALL_ROOT="$pkgdir" install
+    [[ -x "$pkgdir/usr/bin/signon-ui" ]] || {
+        echo '[ERROR] SignOn UI executable not staged' >&2; return 1;
+    }
+    [[ -f "$pkgdir/usr/share/dbus-1/services/com.nokia.singlesignonui.service" ]] || {
+        echo '[ERROR] SignOn UI D-Bus activation file missing' >&2; return 1;
+    }
+}

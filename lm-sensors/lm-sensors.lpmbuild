@@ -1,0 +1,56 @@
+#!/bin/bash
+# LPM Linux: libsensors + sensors tools needed by KDE libksysguard.
+# Upstream 3.6.2 tarball is tagged V3-6-2 (hyphenated version).
+NAME="lm-sensors"
+VERSION="3.6.2"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Hardware monitoring library (libsensors) and sensor utilities"
+URL="https://github.com/hramrach/lm-sensors"
+LICENSE=("GPL-2.0-or-later" "LGPL-2.1-or-later")
+SOURCE=("https://github.com/hramrach/lm-sensors/archive/V3-6-2/lm-sensors-3-6-2.tar.gz")
+SHA256SUMS=("c6a0587e565778a40d88891928bf8943f27d353f382d5b745a997d635978a8f0")
+PATCHES=()
+REQUIRES=("glibc" "perl")
+BUILD_REQUIRES=("gcc" "make" "bison" "flex" "which")
+REQUIRES_PYTHON_DEPENDENCIES=()
+PROVIDES=("libsensors" "libsensors.so.5")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=("dmidecode")
+
+_lmsrc() {
+    local src="$SRCROOT/${NAME}-${VERSION}"
+    if [[ ! -f "$src/Makefile" && -f "$SRCROOT/lm-sensors-3-6-2/Makefile" ]]; then
+        mv "$SRCROOT/lm-sensors-3-6-2" "$src"
+    fi
+    printf '%s\n' "$src"
+}
+
+prepare() {
+    set -euxo pipefail
+    test -f "$(_lmsrc)/Makefile"
+}
+
+build() {
+    set -euxo pipefail
+    local src
+    src="$(_lmsrc)"
+    cd "$src"
+    make -j "${LPM_BUILD_JOBS:-$(nproc)}" \
+        PREFIX=/usr LIBDIR=/usr/lib MANDIR=/usr/share/man \
+        BUILD_STATIC_LIB=0 BUILD_SHARED_LIB=1
+}
+
+staging() {
+    set -euxo pipefail
+    local src
+    src="$(_lmsrc)"
+    cd "$src"
+    make DESTDIR="$pkgdir" PREFIX=/usr LIBDIR=/usr/lib \
+        MANDIR=/usr/share/man BUILD_STATIC_LIB=0 BUILD_SHARED_LIB=1 install
+    test -f "$pkgdir/usr/include/sensors/sensors.h"
+    test -e "$pkgdir/usr/lib/libsensors.so"
+    test -x "$pkgdir/usr/bin/sensors"
+}

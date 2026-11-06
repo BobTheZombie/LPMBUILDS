@@ -1,0 +1,44 @@
+#!/bin/bash
+NAME="libsass"
+VERSION="3.6.6"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Sass compiler library"
+URL="https://github.com/sass/libsass"
+LICENSE=("MIT")
+SOURCE=("libsass-${VERSION}.tar.gz::https://codeload.github.com/sass/libsass/tar.gz/refs/tags/${VERSION}")
+SHA256SUMS=("11f0bb3709a4f20285507419d7618f3877a425c0131ea8df40fe6196129df15d")
+PATCHES=()
+REQUIRES=("glibc" "gcc")
+BUILD_REQUIRES=("gcc" "binutils" "make" "autoconf" "automake" "libtool" "pkgconf" "python" "coreutils")
+PROVIDES=()
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+BUILD_OPTIONS=("@--stripping" "@--optimize=2")
+
+prepare() {
+    set -euo pipefail
+
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    autoreconf -fi
+}
+
+build() {
+    set -euo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    export LIBSASS_VERSION="$VERSION"
+    export CFLAGS="${CFLAGS:--O2 -pipe} -std=gnu11"
+    export CXXFLAGS="${CXXFLAGS:--O2 -pipe} -std=gnu++11"
+    ./configure --prefix=/usr --libdir=/usr/lib --enable-shared --disable-static
+    make -j"${LPM_BUILD_JOBS:-$(getconf _NPROCESSORS_ONLN)}"
+}
+
+staging() {
+    set -euo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    make DESTDIR="$pkgdir" install
+    find "$pkgdir/usr/lib" -name '*.la' -delete 2>/dev/null || true
+    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$NAME/LICENSE"
+}

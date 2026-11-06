@@ -1,10 +1,9 @@
 #!/bin/bash
-# LPM Linux: Arch-style OpenPrinting CUPS 2.4.20 split packaging.
-# This recipe is self-contained for remote LPM GitLab fetching.
-# Source SHA256 matches the Arch Linux CUPS 2:2.4.20-1 package.
+# LPM Linux - OpenPrinting CUPS 2.4.20 daemon package (libcups split).
+# LPM extracts to $SRCROOT/$NAME-$VERSION; libcups is packaged separately.
 NAME="cups"
 VERSION="2.4.20"
-RELEASE="3"
+RELEASE="4"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="OpenPrinting CUPS scheduler, spooler, filters, backends and printing tools"
 URL="https://openprinting.github.io/cups/"
@@ -12,6 +11,7 @@ LICENSE=("Apache-2.0 WITH LLVM-exception" "BSD-3-Clause" "BSD-2-Clause" "Zlib")
 SOURCE=("https://github.com/OpenPrinting/cups/releases/download/v${VERSION}/cups-${VERSION}-source.tar.gz")
 SHA256SUMS=("ab4d9cd7f3e58060091d2b24972223d6401675f11c49b65abf4f6ef31dea22ff")
 PATCHES=()
+
 REQUIRES=(
     "libcups>=2.4.20" "glibc" "gnutls" "zlib" "acl" "avahi"
     "dbus" "pam" "systemd" "systemd-libs" "libpaper"
@@ -29,24 +29,20 @@ RECOMMENDS=("xdg-utils" "logrotate")
 SUGGESTS=("cups-browsed" "colord" "ipp-usb")
 
 _srcdir() {
-    local d
-    for d in "$SRCROOT/${NAME}-${VERSION}" "$SRCROOT/cups-${VERSION}"; do
-        if [[ -f "$d/configure" && -d "$d/cups" ]]; then
-            printf '%s\n' "$d"
-            return 0
-        fi
-    done
-    printf '[ERROR] CUPS source not found in $SRCROOT=%s\n' "$SRCROOT" >&2
-    return 1
+    local src="$SRCROOT/$NAME-$VERSION"
+    if [[ ! -f "$src/configure" || ! -f "$src/Makefile" || ! -d "$src/scheduler" ]]; then
+        printf '[ERROR] CUPS source not found at %s\n' "$src" >&2
+        return 1
+    fi
+    printf '%s\n' "$src"
 }
 
 prepare() {
     set -euxo pipefail
     local src
     src="$(_srcdir)"
-    test -f "$src/configure"
-    test -f "$src/cups/Makefile"
     test -f "$src/LICENSE"
+    test -f "$src/cups/Makefile"
 }
 
 build() {
@@ -55,7 +51,7 @@ build() {
     src="$(_srcdir)"
     cd "$src"
 
-    # Full CUPS scheduler build. Numeric CUPS ID matches Arch's sysusers entry.
+    # Client library is split to the independent libcups package.
     ./configure \
         --prefix=/usr \
         --sbindir=/usr/bin \
@@ -84,6 +80,14 @@ build() {
     make -j"${LPM_BUILD_JOBS:-$(nproc)}"
 }
 
+check() {
+    set -euo pipefail
+    local src
+    src="$(_srcdir)"
+    # Full upstream test suite exercises a live print service; verify build outputs.
+    test -x "$src/scheduler/cupsd"
+}
+
 staging() {
     set -euxo pipefail
     local src
@@ -91,33 +95,31 @@ staging() {
     test -n "${pkgdir:-}"
     mkdir -p "$pkgdir"
 
+    # CRITICAL: install-data + install-exec must run from the top-level tree.
+    # The old cups/ install-headers/install-libs target staged only libcups,
+    # leaving cupsd, filter backends, units, and cups.pc missing.
     env -u DSTROOT -u DESTDIR \
-    make -C "$src/cups" \
-        BUILDROOT="$pkgdir" \
-        DSTROOT= DESTDIR= \
-        install-headers install-libs
+        make -C "$src" BUILDROOT="$pkgdir" install-data install-exec
 
-    # cups-config belongs to libcups. cups.pc belongs to cups in Arch.
-    rm -f "$pkgdir/usr/bin/cups-config"
-    rm -f "$pkgdir/usr/lib/libcups.so" "$pkgdir/usr/lib/libcups.so.2" \
+    # The client-development interface belongs to the separate libcups package.
+    rm -f "$pkgdir/usr/bin/cups-config" \
+          "$pkgdir/usr/lib/libcups.so" "$pkgdir/usr/lib/libcups.so.2" \
           "$pkgdir/usr/lib/libcupsimage.so" "$pkgdir/usr/lib/libcupsimage.so.2" \
           "$pkgdir/usr/lib/libcups.a" "$pkgdir/usr/lib/libcupsimage.a"
     rm -rf "$pkgdir/usr/include/cups"
 
-    # Declarative account definitions; do not modify host users at build time.
+    # Ensure the fixed UID/GID is provisioned by sysusers during installation.
+    # Verify numeric ID 209 is not allocated to an unrelated account in LPM.
     install -Dm644 /dev/stdin "$pkgdir/usr/lib/sysusers.d/cups.conf" <<'SYSUSERS'
-# Arch-style dedicated CUPS service account, ID 209.
-# Ensure UID/GID 209 is not allocated to a different service on LPM Linux.
+# Dedicated CUPS service account, UID/GID 209.
 g lp -
 g lpadmin -
-u cups 209 "cups helper user"
+u cups 209 "CUPS printing service"
 m cups lp
 SYSUSERS
 
-    # LPM-specific addition: Arch's published cups package does not include
-    # tmpfiles.d; systemd-tmpfiles or LILLY-compatible hooks can consume this.
     install -Dm644 /dev/stdin "$pkgdir/usr/lib/tmpfiles.d/cups.conf" <<'TMPFILES'
-# CUPS cache, logs and spool directories. Run sysusers before tmpfiles.
+# sysusers must run before tmpfiles.
 d /run/cups             0755 root root -
 d /var/cache/cups       0755 root cups -
 d /var/cache/cups/rss   0755 root cups -
@@ -126,7 +128,6 @@ d /var/spool/cups       0710 root cups -
 d /var/spool/cups/tmp   1770 root cups -
 TMPFILES
 
-    # Arch's cups.pam uses pam_unix.so (provided by the separate PAM package).
     install -Dm644 /dev/stdin "$pkgdir/etc/pam.d/cups" <<'PAMCONF'
 auth       required    pam_unix.so
 account    required    pam_unix.so
@@ -141,8 +142,7 @@ PAMCONF
 }
 LOGROTATE
 
-    # Disable upstream built-in log rotation so logrotate owns rotation.
-    # Modify only staged files, and preserve package defaults as well.
+    # Use a single log rotation policy and make sure CUPS uses numeric IDs.
     local config
     for config in "$pkgdir/etc/cups/cupsd.conf" "$pkgdir/etc/cups/cupsd.conf.default"; do
         if [[ -f "$config" ]]; then
@@ -153,14 +153,20 @@ LOGROTATE
             fi
         fi
     done
+    for config in "$pkgdir/etc/cups/cups-files.conf" "$pkgdir/etc/cups/cups-files.conf.default"; do
+        if [[ -f "$config" ]]; then
+            sed -i -E \
+                -e 's/^[[:space:]#]*User[[:space:]]+209[[:space:]]*$/User 209/' \
+                -e 's/^[[:space:]#]*Group[[:space:]]+209[[:space:]]*$/Group 209/' \
+                "$config"
+        fi
+    done
 
-    # No SysV init payload in LPM; upstream systemd units are preserved.
+    # No SysV payload; retain unit files for systemd (and Lilly compatibility).
     rm -rf "$pkgdir/etc/init.d"
     find "$pkgdir/etc" -maxdepth 1 -type d -name 'rc*.d' -exec rm -rf -- {} + 2>/dev/null || :
     rm -rf "$pkgdir/run"
 
-    # Keep CUPS server data, PAM and systemd units. Unlike the previous
-    # recipe, retain usr/lib/pkgconfig/cups.pc for Arch split parity.
     install -Dm644 "$src/LICENSE" "$pkgdir/usr/share/licenses/cups/LICENSE"
     if [[ -f "$src/NOTICE" ]]; then
         install -Dm644 "$src/NOTICE" "$pkgdir/usr/share/licenses/cups/NOTICE"
@@ -178,5 +184,5 @@ LOGROTATE
     test -f "$pkgdir/usr/lib/systemd/system/cups.path"
     test ! -e "$pkgdir/usr/bin/cups-config"
     test ! -e "$pkgdir/usr/lib/libcups.so.2"
-    echo '[OK] Arch-style CUPS daemon package staged with PAM/sysusers/tmpfiles'
+    echo '[OK] CUPS scheduler/daemon package staged (libcups kept separate)'
 }

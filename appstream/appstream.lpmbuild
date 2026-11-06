@@ -1,97 +1,38 @@
-#!/bin/bash
-# LPM Linux: AppStream + AppStreamQt for KDE Plasma 6.8.1
-# AppStream's tarball extracts as AppStream-VERSION (capital A/S),
-# while some LPM extractors normalize it as appstream-VERSION.
+# LPM Linux source build: appstream
 NAME="appstream"
 VERSION="1.2.1"
-RELEASE="2"
+RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="AppStream software metadata library, CLI and Qt6 bindings"
-URL="https://www.freedesktop.org/wiki/Distributions/AppStream/"
+SUMMARY="Application metadata, appstreamcli and library"
+URL="https://www.freedesktop.org/software/appstream"
 LICENSE=("LGPL-2.1-or-later")
-SOURCE=("https://www.freedesktop.org/software/appstream/releases/AppStream-${VERSION}.tar.xz")
-SHA256SUMS=("7df664fd3ad3b1640c6a0ff77fa84f9fabe264111bf1fe8f5df3444d6d4caaca")
+SOURCE=("https://www.freedesktop.org/software/appstream/releases/AppStream-1.2.1.tar.xz")
+SHA256SUMS=("SKIP")
 PATCHES=()
-
-REQUIRES=(
-    "glibc" "glib2" "curl" "libxml2" "libfyaml" "libxmlb"
-    "zstd" "qt6-base"
-)
-BUILD_REQUIRES=(
-    "gcc" "meson" "ninja" "pkgconf" "python"
-    "glib2" "curl" "libxml2" "libxslt" "libfyaml" "libxmlb"
-    "zstd" "wayland" "qt6-base" "qt6-tools"
-    "gperf" "gettext" "itstool"
-)
-REQUIRES_PYTHON_DEPENDENCIES=()
-PROVIDES=("appstream" "appstream-qt" "AppStreamQt")
+BUILD_REQUIRES=("meson" "ninja" "pkgconf" "glib2" "curl" "libfyaml" "libxmlb" "libxml2" "libxslt" "itstool")
+REQUIRES=("glib2" "curl" "libfyaml" "libxmlb" "libxml2")
+PROVIDES=("appstream")
 CONFLICTS=()
 OBSOLETES=()
 RECOMMENDS=()
 SUGGESTS=()
 
-# Determine the actual extracted source directory, not $SRCROOT itself.
-_appstream_srcdir() {
-    local candidate
-    for candidate in \
-        "$SRCROOT/AppStream-${VERSION}" \
-        "$SRCROOT/appstream-${VERSION}"; do
-        if [[ -f "$candidate/meson.build" ]]; then
-            printf '%s\n' "$candidate"
-            return 0
-        fi
-    done
-    printf '[ERROR] Cannot find AppStream %s meson.build below %s\n' \
-        "$VERSION" "$SRCROOT" >&2
-    find "$SRCROOT" -maxdepth 2 -name meson.build -print >&2 || true
-    return 1
-}
-
 prepare() {
-    set -euxo pipefail
-    local src
-    src="$(_appstream_srcdir)"
-    test -f "$src/meson_options.txt"
-    test -f "$src/qt/meson.build"
+  set -euo pipefail
+  cd "$SRCROOT"
+  :
 }
 
 build() {
-    set -euxo pipefail
-    local src builddir
-    src="$(_appstream_srcdir)"
-    builddir="$SRCROOT/build"
-
-    # Both paths are explicit: never run meson setup build in $SRCROOT.
-    # Build the Qt6 interface so Plasma finds AppStreamQtConfig.cmake.
-    meson setup "$builddir" "$src" \
-        --prefix=/usr \
-        --libdir=lib \
-        --buildtype=release \
-        --wrap-mode=nodownload \
-        -Dqt=true \
-        -Ddisplay-detection=wayland \
-        -Dsystemd=false \
-        -Dstemming=false \
-        -Dgir=false \
-        -Dvapi=false \
-        -Dcompose=false \
-        -Ddocs=false \
-        -Dman=false \
-        -Dblake3-support=false \
-        -Dzstd-support=true \
-        -Dapt-support=false \
-        -Dtools=true
-
-    meson compile -C "$builddir" -j "${LPM_BUILD_JOBS:-$(nproc)}"
+  set -euo pipefail
+  cd "$SRCROOT"
+  meson setup build --prefix=/usr --libdir=lib --buildtype=release --wrap-mode=nodownload \
+    -Ddocs=false -Dapidocs=false -Dstemming=false
+  ninja -C build -j "${LPM_BUILD_JOBS:-6}"
 }
 
 staging() {
-    set -euxo pipefail
-    local builddir="$SRCROOT/build"
-    DESTDIR="$pkgdir" meson install -C "$builddir" --no-rebuild
-
-    test -f "$pkgdir/usr/lib/cmake/AppStreamQt/AppStreamQtConfig.cmake"
-    test -n "$(find "$pkgdir/usr/lib" -maxdepth 1 -name 'libAppStreamQt.so*' -print -quit)"
-    test -x "$pkgdir/usr/bin/appstreamcli"
-    find "$pkgdir/usr/lib" -type f -name '*.la' -delete
+  set -euo pipefail
+  cd "$SRCROOT"
+  DESTDIR="$pkgdir" ninja -C build install
 }

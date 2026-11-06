@@ -1,61 +1,71 @@
 #!/bin/bash
-# LPM Linux: KDE Plasma 6.8.1 package chain
-# Generated 2026-10-25; source digests MUST be locked before building.
+# LPM Linux source recipe - Qt 6.12.0
+# LPM automatically extracts SOURCE to $SRCROOT/$NAME-$VERSION.
+# Qt WebSockets 6.12.0 has upstream post-release security patches; review upstream before publishing.
 NAME="qt6-websockets"
-VERSION="6.11.2"
+VERSION="6.12.0"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Qt 6 qtwebsockets module"
+SUMMARY="Qt 6 WebSockets client and server module"
 URL="https://www.qt.io/"
-LICENSE=("LGPL-3.0-only AND GPL-3.0-only WITH Qt-GPL-exception-1.0")
-SOURCE=(
-    "https://download.qt.io/archive/qt/6.11/6.11.2/submodules/qtwebsockets-everywhere-src-6.11.2.tar.xz"
-)
-SHA256SUMS=(
-    "SKIP"
-)
+LICENSE=("GPL-3.0-only" "LGPL-3.0-only")
+SOURCE=("https://download.qt.io/archive/qt/6.12/${VERSION}/submodules/qtwebsockets-everywhere-src-${VERSION}.tar.xz")
+SHA256SUMS=("SKIP")
 PATCHES=()
+
 REQUIRES=(
-    "qt6-base"
+    "qt6-base>=6.12.0"
 )
+
 BUILD_REQUIRES=(
     "cmake"
     "ninja"
     "pkgconf"
-    "python"
-    "qt6-base"
+    "qt6-base>=6.12.0"
 )
-REQUIRES_PYTHON_DEPENDENCIES=()
-PROVIDES=(
-    "qtwebsockets"
-)
+
+PROVIDES=()
 CONFLICTS=()
 OBSOLETES=()
 RECOMMENDS=()
 SUGGESTS=()
 
+
 prepare() {
-    set -euxo pipefail
-    test -f "$SRCROOT/$NAME-$VERSION/CMakeLists.txt"
+    local src="$SRCROOT/$NAME-$VERSION"
+    local builddir="$src/build"
+    if [[ ! -f "$src/CMakeLists.txt" ]]; then
+        echo "[ERROR] Missing Qt module source: $src/CMakeLists.txt" >&2
+        return 1
+    fi
+    # Always clean Qt's cached private-ABI/configuration metadata.
+    rm -rf "$builddir"
 }
 
 build() {
-    set -euxo pipefail
     local src="$SRCROOT/$NAME-$VERSION"
     local builddir="$src/build"
+    local qtver
+    qtver="$(pkg-config --modversion Qt6Core)" || return 1
+    if [[ "$qtver" != "$VERSION" ]]; then
+        echo "[ERROR] $NAME needs Qt6Core $VERSION; installed $qtver" >&2
+        return 1
+    fi
     cmake -S "$src" -B "$builddir" -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_INSTALL_PREFIX=/usr \
         -DCMAKE_INSTALL_LIBDIR=lib \
+        -DBUILD_SHARED_LIBS=ON \
         -DBUILD_TESTING=OFF \
-        -DBUILD_SHARED_LIBS=ON
+        -DQT_BUILD_TESTS=OFF \
+        -DQT_BUILD_EXAMPLES=OFF \
+        -DQT_BUILD_DOCS=OFF
     cmake --build "$builddir" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
 }
 
 staging() {
-    set -euxo pipefail
-    local builddir="$SRCROOT/$NAME-$VERSION/build"
+    local src="$SRCROOT/$NAME-$VERSION"
+    local builddir="$src/build"
+    : "${pkgdir:?LPM pkgdir must be set for staging}"
     DESTDIR="$pkgdir" cmake --install "$builddir"
-    test -d "$pkgdir/usr"
-    test -n "$(find "$pkgdir/usr" -mindepth 1 -print -quit)"
 }

@@ -1,0 +1,104 @@
+#!/bin/bash
+# LPM Linux package recipe: libssh (not libssh2)
+NAME="libssh"
+VERSION="0.12.2"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+
+SUMMARY="SSHv2 client/server C library, including Konsole's CMake development package"
+URL="https://www.libssh.org/"
+LICENSE=("LGPL-2.1-or-later")
+
+SOURCE=("https://www.libssh.org/files/0.12/libssh-${VERSION}.tar.xz")
+# Published FreeBSD ports distinfo checksum for the official tarball.
+SHA256SUMS=("49560f677d96e3706a904ac2de1116e25f3680937d51e5c92198fcba4a1c1e9f")
+PATCHES=()
+
+REQUIRES=("glibc" "openssl" "zlib")
+BUILD_REQUIRES=("cmake" "ninja" "openssl" "zlib" "pkgconf")
+REQUIRES_PYTHON_DEPENDENCIES=()
+PROVIDES=()
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+# LPM has sometimes unpacked source archives with unexpected root folder
+# names, so resolve the source tree by its identifying files instead.
+_libssh_source() {
+    local base="${SRCROOT:?SRCROOT not set}" path
+    for path in \
+        "$base/libssh-${VERSION}" \
+        "$base/libssh" \
+        "$base"; do
+        if [[ -f "$path/CMakeLists.txt" &&
+              -f "$path/DefineOptions.cmake" &&
+              -f "$path/include/libssh/libssh.h" ]]; then
+            printf '%s\n' "$path"
+            return 0
+        fi
+    done
+
+    while IFS= read -r path; do
+        path="${path%/CMakeLists.txt}"
+        if [[ -f "$path/DefineOptions.cmake" &&
+              -f "$path/include/libssh/libssh.h" ]]; then
+            printf '%s\n' "$path"
+            return 0
+        fi
+    done < <(find "$base" -mindepth 1 -maxdepth 4 -type f -name CMakeLists.txt -print)
+
+    echo "[ERROR] libssh source not extracted under $base" >&2
+    return 1
+}
+
+prepare() {
+    set -euo pipefail
+    _libssh_source >/dev/null
+}
+
+build() {
+    set -euxo pipefail
+    local src
+    src="$(_libssh_source)"
+    local builddir="$src/build"
+
+    cmake -S "$src" -B "$builddir" -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DCMAKE_INSTALL_INCLUDEDIR=include \
+        -DBUILD_SHARED_LIBS=ON \
+        -DWITH_ZLIB=ON \
+        -DWITH_SFTP=ON \
+        -DWITH_SERVER=ON \
+        -DWITH_GSSAPI=OFF \
+        -DWITH_GCRYPT=OFF \
+        -DWITH_MBEDTLS=OFF \
+        -DWITH_NACL=OFF \
+        -DWITH_PCAP=OFF \
+        -DWITH_FIDO2=OFF \
+        -DWITH_EXAMPLES=OFF \
+        -DUNIT_TESTING=OFF \
+        -DCLIENT_TESTING=OFF \
+        -DSERVER_TESTING=OFF \
+        -DWITH_SYMBOL_VERSIONING=ON \
+        -DCMAKE_DISABLE_FIND_PACKAGE_Doxygen=ON
+
+    cmake --build "$builddir" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+staging() {
+    set -euxo pipefail
+    local src
+    src="$(_libssh_source)"
+
+    DESTDIR="${pkgdir:?pkgdir not set}" cmake --install "$src/build"
+
+    # Konsole uses find_package(libssh 0.9.8 REQUIRED CONFIG)
+    test -f "$pkgdir/usr/lib/cmake/libssh/libssh-config.cmake"
+    test -f "$pkgdir/usr/lib/cmake/libssh/libssh-config-version.cmake"
+    test -f "$pkgdir/usr/lib/pkgconfig/libssh.pc"
+    test -f "$pkgdir/usr/include/libssh/libssh.h"
+    find "$pkgdir/usr/lib" -maxdepth 1 -name 'libssh.so*' -print -quit | grep -q .
+}

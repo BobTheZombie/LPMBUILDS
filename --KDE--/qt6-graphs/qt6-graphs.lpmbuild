@@ -1,0 +1,114 @@
+#!/bin/bash
+# LPM Linux - Qt Graphs (Qt 6.12 series)
+# 2D/3D graphs and Qt Graphs QML integration.
+
+NAME="qt6-graphs"
+VERSION="6.12.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+
+SUMMARY="Qt 6 Graphs module for 2D and accelerated 3D visualization"
+URL="https://doc.qt.io/qt-6/qtgraphs-index.html"
+LICENSE=("GPL-3.0-only" "BSD-3-Clause")
+
+# Qt-maintained upstream Git repository; use the release tag, not a branch.
+SOURCE=(
+    "qtgraphs::git+https://github.com/qt/qtgraphs.git#tag=v${VERSION}"
+)
+SHA256SUMS=()
+PATCHES=()
+
+REQUIRES=(
+    "qt6-base>=6.12.0"
+    "qt6-declarative>=6.12.0"
+    "qt6-quick3d>=6.12.0"
+    "qt6-shadertools>=6.12.0"
+    "glibc"
+    "gcc-libs"
+)
+BUILD_REQUIRES=(
+    "cmake"
+    "ninja"
+    "pkgconf"
+    "git"
+)
+
+PROVIDES=(
+    "qt6-graphs"
+    "Qt6Graphs"
+)
+CONFLICTS=()
+OBSOLETES=()
+BUILD_OPTIONS=("@--optimize=2" "@--stripping")
+
+_qtgraphs_srcdir() {
+    local root="${SRCROOT:?SRCROOT is unset}/qtgraphs"
+    if [[ ! -f "$root/CMakeLists.txt" || ! -e "$root/.git" ]]; then
+        echo "[ERROR] Qt Graphs Git checkout missing: $root" >&2
+        return 1
+    fi
+    printf '%s\n' "$root"
+}
+
+prepare() {
+    set -euxo pipefail
+    local srcdir head tag_revision
+    srcdir="$(_qtgraphs_srcdir)"
+
+    # LPM's git source handler should have checked out the pinned release.
+    tag_revision="$(git -C "$srcdir" rev-parse "refs/tags/v${VERSION}^{commit}")"
+    head="$(git -C "$srcdir" rev-parse HEAD)"
+    if [[ "$head" != "$tag_revision" ]]; then
+        echo "[ERROR] Qt Graphs checkout is not at v${VERSION}" >&2
+        return 1
+    fi
+
+    # Fail early if LPM's Qt 6 development components are incomplete.
+    if [[ ! -f /usr/lib/cmake/Qt6BuildInternals/Qt6BuildInternalsConfig.cmake ]]; then
+        echo '[ERROR] Qt6BuildInternalsConfig.cmake not found; check qt6-base development files' >&2
+        return 1
+    fi
+    if [[ ! -f /usr/lib/cmake/Qt6Quick3D/Qt6Quick3DConfig.cmake ]]; then
+        echo '[ERROR] Qt6Quick3DConfig.cmake not found; install qt6-quick3d first' >&2
+        return 1
+    fi
+
+    rm -rf "$srcdir/build"
+}
+
+build() {
+    set -euxo pipefail
+    local srcdir
+    srcdir="$(_qtgraphs_srcdir)"
+
+    # Configure directly with CMake; don't depend on qt-configure-module's
+    # qt-cmake-private helper being installed at a particular path.
+    cmake -S "$srcdir" -B "$srcdir/build" -G Ninja \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DQT_BUILD_TESTS=OFF \
+        -DQT_BUILD_EXAMPLES=OFF \
+        -DFEATURE_graphs_2d=ON \
+        -DFEATURE_graphs_3d=ON \
+        -DFEATURE_graphs_2d_high_performance_backend=OFF
+
+    # Do not silently ship only 2D graphs if 3D prerequisites are unavailable.
+    if grep -Eq '^QT_FEATURE_graphs_(2d|3d):[^=]*=OFF$' "$srcdir/build/CMakeCache.txt"; then
+        echo '[ERROR] Qt Graphs 2D or 3D was disabled during configuration' >&2
+        return 1
+    fi
+
+    cmake --build "$srcdir/build" --parallel "${LPM_BUILD_JOBS:-2}"
+}
+
+staging() {
+    set -euxo pipefail
+    local srcdir
+    srcdir="$(_qtgraphs_srcdir)"
+
+    DESTDIR="${pkgdir:?pkgdir is unset}" cmake --install "$srcdir/build"
+
+    test -f "$pkgdir/usr/lib/cmake/Qt6Graphs/Qt6GraphsConfig.cmake"
+    find "$pkgdir/usr/lib" -maxdepth 1 -name 'libQt6Graphs.so*' -print -quit | grep -q .
+}

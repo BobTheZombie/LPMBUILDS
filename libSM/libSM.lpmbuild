@@ -1,49 +1,47 @@
 #!/bin/bash
+# X.Org libSM — corrected LPM source directory and explicit ICE/UUID dependencies.
 NAME="libSM"
 VERSION="1.2.6"
-RELEASE="1"
+RELEASE="2"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="libSM from X.Org"
+SUMMARY="X11 Session Management library"
 URL="https://www.x.org/"
-LICENSE="MIT"
-
-SOURCE=(
-   "https://www.x.org/releases/individual/lib/${NAME}-${VERSION}.tar.xz"
-)
-
-REQUIRES=(
-  "glibc"
-  "libICE"
-)
-
-PROVIDES=("libSM")
+LICENSE=("MIT")
+SOURCE=("https://xorg.freedesktop.org/archive/individual/lib/libSM-${VERSION}.tar.xz")
+SHA256SUMS=("be7c0abdb15cbfd29ac62573c1c82e877f9d4047ad15321e7ea97d1e43d835be")
+PATCHES=()
+REQUIRES=("glibc" "libice" "util-linux-libs")
+BUILD_REQUIRES=("gcc" "make" "pkgconf" "libice" "xorgproto" "xtrans" "xorg-util-macros" "util-linux-libs")
+PROVIDES=("libsm")
 CONFLICTS=()
 OBSOLETES=()
-
-_srcdir="${NAME}-${VERSION}"
+RECOMMENDS=()
+SUGGESTS=()
 
 prepare() {
-  set -euxo pipefail
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    test -x ./configure
+    test -f ./Makefile.in
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT/$_srcdir"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    ./configure \
+        --prefix=/usr \
+        --libdir=/usr/lib \
+        --sysconfdir=/etc \
+        --disable-static
+    make -j "${LPM_BUILD_JOBS:-$(nproc)}"
 }
-
-check() { true; }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT/$_srcdir"
-  DESTDIR="$pkgdir" make install
-  [ -f COPYING ] && install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    make DESTDIR="$pkgdir" install
+    test -f "$pkgdir/usr/include/X11/SM/SMlib.h"
+    test -f "$pkgdir/usr/lib/pkgconfig/sm.pc"
+    test -L "$pkgdir/usr/lib/libSM.so" -o -f "$pkgdir/usr/lib/libSM.so"
+    find "$pkgdir/usr/lib" -type f -name '*.la' -delete
 }
-
-
-
-
-# Final audited source digests
-SHA256SUMS=("be7c0abdb15cbfd29ac62573c1c82e877f9d4047ad15321e7ea97d1e43d835be")

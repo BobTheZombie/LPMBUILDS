@@ -1,44 +1,27 @@
-
 #!/bin/bash
 # LPM Linux - Qt Quick Timeline 6.12.0
-# Qt Quick Timeline and BlendTrees for Qt Quick 3D.
+# QtQuick.Timeline and QtQuick.Timeline.BlendTrees; standalone Qt 6 build.
 
 NAME="qt6-quicktimeline"
 VERSION="6.12.0"
 BASE="${VERSION%.*}"
-RELEASE="2"
+RELEASE="4"
 ARCH="${ARCH:-x86_64}"
-
-SUMMARY="Qt 6 keyframe-based animation and timeline framework"
+SUMMARY="Qt 6 keyframe-based timeline animations and BlendTrees"
 URL="https://www.qt.io/"
-LICENSE=("LGPL-3.0-only" "GPL-3.0-only WITH Qt-GPL-exception-1.0")
+LICENSE=("GPL-3.0-only" "BSD-3-Clause")
 
 SOURCE=(
     "https://download.qt.io/archive/qt/${BASE}/${VERSION}/submodules/qtquicktimeline-everywhere-src-${VERSION}.tar.xz"
 )
-
 SHA256SUMS=(
     "6919153c841478c113f0ad20526f40e606590968334762ec6ccbc96002f8da19"
 )
-
 PATCHES=()
 
-REQUIRES=(
-    "qt6-base"
-    "qt6-declarative"
-)
-
-BUILD_REQUIRES=(
-    "cmake"
-    "ninja"
-    "pkgconf"
-    "python"
-    "qt6-base"
-    "qt6-declarative"
-)
-
+REQUIRES=("qt6-base" "qt6-declarative")
+BUILD_REQUIRES=("cmake" "ninja" "pkgconf" "python" "git" "qt6-base" "qt6-declarative")
 REQUIRES_PYTHON_DEPENDENCIES=()
-
 PROVIDES=("qtquicktimeline")
 CONFLICTS=()
 OBSOLETES=()
@@ -47,49 +30,41 @@ SUGGESTS=()
 
 prepare() {
     set -euxo pipefail
-
     local src="$SRCROOT/$NAME-$VERSION"
-    local upstream="$SRCROOT/qtquicktimeline-everywhere-src-$VERSION"
 
-    if [[ ! -f "$src/CMakeLists.txt" &&
-          -f "$upstream/CMakeLists.txt" ]]; then
-        mv "$upstream" "$src"
-    fi
+    # LPM already extracts sources to $SRCROOT/$NAME-$VERSION.
+    test -f "$src/CMakeLists.txt"
+    test -f "$src/src/timeline/CMakeLists.txt"
+    test -f "$src/src/timeline/blendtrees/CMakeLists.txt"
 
-    if [[ ! -f "$src/CMakeLists.txt" ]]; then
-        echo "[ERROR] Qt Quick Timeline source tree missing" >&2
-        return 1
-    fi
-
-    # Avoid reusing a silently skipped CMake configuration.
-    rm -rf "$src/build" "$src/.lpm-prereq"
+    # Do not erase build/ here: LPM's --resume needs its CMake/Ninja state.
 }
 
 build() {
     set -euxo pipefail
-
     local src="$SRCROOT/$NAME-$VERSION"
     local builddir="$src/build"
     local prereq="$src/.lpm-prereq"
 
+    # Upstream can return successfully without building anything if Qt Quick
+    # or Qt Core CBOR support is missing. Detect both conditions up front.
     mkdir -p "$prereq"
-
-    # Unquoted heredoc expands VERSION before CMake runs.
     cat > "$prereq/CMakeLists.txt" <<CMAKE
 cmake_minimum_required(VERSION 3.22)
 project(LPMQtQuickTimelinePrerequisites LANGUAGES CXX)
-
 find_package(Qt6 ${VERSION} EXACT CONFIG REQUIRED
-    COMPONENTS Core Quick)
-
+    COMPONENTS BuildInternals Core Quick)
 if(NOT TARGET Qt6::Quick)
     message(FATAL_ERROR "Qt6::Quick unavailable; rebuild qt6-declarative")
+endif()
+if(NOT QT_FEATURE_cborstreamreader OR NOT QT_FEATURE_cborstreamwriter)
+    message(FATAL_ERROR
+        "Qt Core must enable cborstreamreader and cborstreamwriter; rebuild qt6-base")
 endif()
 CMAKE
 
     cmake -S "$prereq" -B "$prereq/build" -G Ninja \
         -DCMAKE_PREFIX_PATH=/usr
-
     rm -rf "$prereq"
 
     cmake -S "$src" -B "$builddir" -G Ninja \
@@ -102,10 +77,13 @@ CMAKE
         -DBUILD_TESTING=OFF \
         -DBUILD_SHARED_LIBS=ON
 
-    if [[ ! -f "$builddir/build.ninja" ]] || \
-       ! grep -q 'libQt6QuickTimeline\.so' "$builddir/build.ninja"; then
-        echo "[ERROR] Qt Quick Timeline targets not generated" >&2
-        echo "[ERROR] Check Qt Quick and CBOR support" >&2
+    # A valid build.ninja alone does not prove Qt Quick Timeline was enabled.
+    # Both shared-library build rules must be present, or abort before staging.
+    test -f "$builddir/build.ninja"
+    if ! grep -q 'libQt6QuickTimeline\.so' "$builddir/build.ninja" || \
+       ! grep -q 'libQt6QuickTimelineBlendTrees\.so' "$builddir/build.ninja"; then
+        echo '[ERROR] Qt Quick Timeline or BlendTrees targets were skipped.' >&2
+        echo '[ERROR] Verify Qt 6.12.0 Quick, private headers, and CBOR support.' >&2
         return 1
     fi
 
@@ -115,41 +93,60 @@ CMAKE
 
 staging() {
     set -euxo pipefail
-
-    local builddir="$SRCROOT/$NAME-$VERSION/build"
-
-    DESTDIR="$pkgdir" cmake --install "$builddir"
-
-    if [[ ! -d "$pkgdir/usr/lib" ]]; then
-        echo "[ERROR] Qt Quick Timeline staged no libraries" >&2
-        return 1
-    fi
-
+    local src="$SRCROOT/$NAME-$VERSION"
+    local builddir="$src/build"
     local component
 
+    test -n "${pkgdir:-}"
+    DESTDIR="$pkgdir" cmake --install "$builddir"
+
     for component in QuickTimeline QuickTimelineBlendTrees; do
-        if ! find "$pkgdir/usr/lib" -maxdepth 1 -type f \
-            -name "libQt6${component}.so.*" \
-            -print -quit | grep -q .; then
-            echo "[ERROR] Missing libQt6${component}" >&2
+        # Includes the real versioned DSO, not merely a dangling linker symlink.
+        if [[ ! -f "$pkgdir/usr/lib/libQt6${component}.so.${VERSION}" ]]; then
+            echo "[ERROR] Missing libQt6${component}.so.${VERSION}" >&2
             return 1
         fi
-
         if [[ ! -f "$pkgdir/usr/lib/cmake/Qt6${component}/Qt6${component}Config.cmake" ]]; then
-            echo "[ERROR] Missing Qt6${component} CMake config" >&2
+            echo "[ERROR] Missing Qt6${component} CMake package" >&2
             return 1
         fi
     done
 
-    if [[ ! -f "$pkgdir/usr/lib/qt6/qml/QtQuick/Timeline/qmldir" ]]; then
-        echo "[ERROR] Missing QtQuick.Timeline QML module" >&2
+    # Qt determines QML_INSTALL_DIR when qt6-declarative is built. On LPM
+    # it is currently /usr/qml (as confirmed by cmake --install), while
+    # other Qt builds may use /usr/lib/qt6/qml. Validate the staged layout
+    # rather than assuming a distribution-specific QML install prefix.
+    local qmlroot="" qmlbase
+    for qmlbase in \
+        "$pkgdir/usr/qml" \
+        "$pkgdir/usr/lib/qt6/qml" \
+        "$pkgdir/usr/lib/qml"; do
+        if [[ -f "$qmlbase/QtQuick/Timeline/qmldir" ]]; then
+            qmlroot="$qmlbase/QtQuick/Timeline"
+            break
+        fi
+    done
+
+    if [[ -z "$qmlroot" ]]; then
+        echo '[ERROR] QtQuick.Timeline QML module was not staged in a known Qt QML directory' >&2
+        find "$pkgdir/usr" -name qmldir -print >&2 || true
         return 1
     fi
 
-    if [[ ! -f "$pkgdir/usr/lib/qt6/qml/QtQuick/Timeline/BlendTrees/qmldir" ]]; then
-        echo "[ERROR] Missing Timeline.BlendTrees QML module" >&2
-        return 1
+    test -f "$qmlroot/qmldir"
+    test -f "$qmlroot/libqtquicktimelineplugin.so"
+    test -f "$qmlroot/BlendTrees/qmldir"
+    test -f "$qmlroot/BlendTrees/libqtquicktimelineblendtreesplugin.so"
+
+    # Keep upstream GPL/BSD notices in the package where the source ships them.
+    if [[ -f "$src/LICENSES/GPL-3.0-only.txt" ]]; then
+        install -Dm644 "$src/LICENSES/GPL-3.0-only.txt" \
+            "$pkgdir/usr/share/licenses/$NAME/GPL-3.0-only.txt"
+    fi
+    if [[ -f "$src/LICENSES/BSD-3-Clause.txt" ]]; then
+        install -Dm644 "$src/LICENSES/BSD-3-Clause.txt" \
+            "$pkgdir/usr/share/licenses/$NAME/BSD-3-Clause.txt"
     fi
 
-    echo "[OK] Qt Quick Timeline $VERSION staged successfully"
+    echo "[OK] Qt Quick Timeline ${VERSION}, BlendTrees and QML plugins staged"
 }

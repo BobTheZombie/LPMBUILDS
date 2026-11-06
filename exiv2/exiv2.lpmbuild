@@ -1,0 +1,47 @@
+#!/bin/bash
+NAME="exiv2"
+VERSION="0.28.9"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Exif/IPTC/XMP image metadata library required by KDE libkexiv2"
+URL="https://exiv2.org/"
+LICENSE=("GPL-2.0-or-later")
+SOURCE=("https://github.com/Exiv2/exiv2/archive/v${VERSION}/exiv2-${VERSION}.tar.gz")
+SHA256SUMS=("700b76b97695b2fab4ef8c79619c68ae57d09e0c130724791cafbd39e0eb4aef")
+PATCHES=()
+REQUIRES=("glibc" "zlib" "expat")
+BUILD_REQUIRES=("cmake" "ninja" "pkgconf" "gcc" "zlib" "expat")
+REQUIRES_PYTHON_DEPENDENCIES=()
+PROVIDES=("libexiv2")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+prepare() {
+    set -euxo pipefail
+    test -f "$SRCROOT/${NAME}-${VERSION}/CMakeLists.txt"
+}
+build() {
+    set -euxo pipefail
+    local src="$SRCROOT/${NAME}-${VERSION}"
+    cmake -S "$src" -B "$src/build" -G Ninja \
+        "-DCMAKE_JOB_POOLS=lpm_compile=${LPM_BUILD_JOBS:-6};lpm_link=${LPM_LINK_JOBS:-1}" \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DBUILD_SHARED_LIBS=ON \
+        -DEXIV2_ENABLE_INIH=OFF \
+        -DEXIV2_ENABLE_BROTLI=OFF \
+        -DEXIV2_ENABLE_WEBREADY=OFF \
+        -DEXIV2_ENABLE_CURL=OFF \
+        -DEXIV2_BUILD_SAMPLES=OFF \
+        -DEXIV2_BUILD_UNIT_TESTS=OFF \
+        -DCMAKE_SKIP_INSTALL_RPATH=ON
+    cmake --build "$src/build" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+staging() {
+    set -euxo pipefail
+    DESTDIR="$pkgdir" cmake --install "$SRCROOT/${NAME}-${VERSION}/build"
+    test -f "$pkgdir/usr/lib/pkgconfig/exiv2.pc"
+    test -n "$(find "$pkgdir/usr/lib" -name 'libexiv2.so*' -print -quit)"
+}

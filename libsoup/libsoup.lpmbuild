@@ -1,99 +1,90 @@
-#!/bin/bash
-# LPM build script for libsoup (Soup 3)
-# HTTP client/server library for GNOME
 
-NAME="libsoup"
-VERSION="3.8.0"
+#!/bin/bash
+# LPM Linux — libsoup3 3.8.1
+
+NAME="libsoup3"
+VERSION="3.8.1"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="HTTP client/server library for GNOME (Soup 3)"
-URL="https://gitlab.gnome.org/GNOME/libsoup"
-LICENSE=("LGPL-2.1-or-later")
+SUMMARY="HTTP/2 client and server library for GLib (libsoup 3)"
+URL="https://libsoup.gnome.org/"
+LICENSE=("LGPL-2.0-or-later")
 
 SOURCE=(
-  "https://download.gnome.org/sources/libsoup/${VERSION%.*}/libsoup-${VERSION}.tar.xz"
+    "https://download.gnome.org/sources/libsoup/${VERSION%.*}/libsoup-${VERSION}.tar.xz"
 )
+SHA256SUMS=(
+    "5013dcef9136f6f861e6529fca578af50c1f52a39219027fb5aff652d1371a04"
+)
+PATCHES=()
 
 REQUIRES=(
-  "glibc"
-  "glib2"
-  "libxml2"
-  "sqlite"
-  "openssl"
-  "zlib"
-  "brotli"
-  "nghttp2"
-  "vala"
-
-  # Build deps
-  "meson"
-  "ninja"
-  "pkg-config"
-  "gcc"
+    "glibc" "glib2" "nghttp2" "libpsl" "sqlite"
+    "zlib" "brotli" "zstd"
 )
 
-PROVIDES=(
-  "libsoup"
-  "libsoup-3.0"
-  "libsoup-3.0.so"
+BUILD_REQUIRES=(
+    "gcc" "meson" "ninja" "pkgconf" "python"
+    "glib2" "nghttp2" "libpsl" "sqlite"
+    "zlib" "brotli" "zstd" "gobject-introspection"
 )
 
-CONFLICTS=()
+REQUIRES_PYTHON_DEPENDENCIES=()
+PROVIDES=("libsoup3" "libsoup-3.0" "libsoup-3.0.so")
+CONFLICTS=("libsoup")
 OBSOLETES=()
-
-_srcdir="libsoup-${VERSION}"
+RECOMMENDS=("glib-networking")
+SUGGESTS=()
 
 prepare() {
     set -euxo pipefail
-    cd "$SRCROOT/$_srcdir"
+    local src="$SRCROOT/${NAME}-${VERSION}"
+    test -f "$src/meson.build"
+    test -f "$src/meson_options.txt"
 }
 
 build() {
     set -euxo pipefail
-    cd "$SRCROOT/$_srcdir"
 
-    meson setup build \
+    local src="$SRCROOT/${NAME}-${VERSION}"
+    local builddir="$BUILDROOT/${NAME}-build"
+
+    meson setup "$builddir" "$src" \
         --prefix=/usr \
         --libdir=lib \
         --buildtype=release \
+        --wrap-mode=nodownload \
         -Dintrospection=enabled \
-        -Dsysprof=disabled \
         -Dvapi=disabled \
-        -Dtests=false 
+        -Ddocs=disabled \
+        -Dtests=false \
+        -Dinstalled_tests=false \
+        -Ddoc_tests=false \
+        -Dgssapi=disabled \
+        -Dntlm=disabled \
+        -Dbrotli=enabled \
+        -Dzstd=enabled \
+        -Dsysprof=disabled \
+        -Dpkcs11_tests=disabled \
+        -Dautobahn=disabled \
+        -Dtls_check=false
 
-    meson compile -C build
-}
-
-check() {
-    true
+    meson compile -C "$builddir" \
+        -j "${LPM_BUILD_JOBS:-$(nproc)}"
 }
 
 staging() {
     set -euxo pipefail
-    cd "$SRCROOT/$_srcdir"
 
-    DESTDIR="$pkgdir" meson install -C build
+    local builddir="$BUILDROOT/${NAME}-build"
 
-    # License
-    if [ -f COPYING ]; then
-        install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
-    fi
+    DESTDIR="$pkgdir" meson install -C "$builddir" --no-rebuild
 
-    # Strip ELF binaries/libs
-    if command -v strip >/dev/null 2>&1; then
-        find "$pkgdir/usr" -type f -exec sh -c '
-            case "$(file -b "$1")" in
-              *ELF*shared\ object*|*ELF*executable*)
-                  strip --strip-unneeded "$1" 2>/dev/null || true
-              ;;
-            esac
-        ' _ {} \;
-    fi
+    test -f "$pkgdir/usr/lib/pkgconfig/libsoup-3.0.pc"
+
+    test -n "$(find "$pkgdir/usr/lib" \
+        -maxdepth 1 -name 'libsoup-3.0.so*' -print -quit)"
+
+    test -f "$pkgdir/usr/lib/girepository-1.0/Soup-3.0.typelib"
+    test -f "$pkgdir/usr/share/gir-1.0/Soup-3.0.gir"
 }
-
-
-
-
-
-# Final audited source digests
-SHA256SUMS=("bbf08fa3e03a88c31a3d27a0d87cb422e9490f2d08e149211103df6d638a2238")

@@ -1,0 +1,44 @@
+# Installs official upstream .flatpakrepo, including its GPG verification key; no post-install network actions.
+# LPM Linux source build: flatpak-flathub
+NAME="flatpak-flathub"
+VERSION="1.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Static preconfigured flathub system remote"
+URL="https://flathub.org"
+LICENSE=("CC0-1.0")
+SOURCE=("https://dl.flathub.org/repo/flathub.flatpakrepo")
+SHA256SUMS=("SKIP")
+PATCHES=()
+BUILD_REQUIRES=("coreutils" "grep")
+REQUIRES=("flatpak")
+PROVIDES=("flatpak-flathub")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+  set -euo pipefail
+  cd "$SRCROOT"
+  :
+}
+
+build() {
+  set -euo pipefail
+  cd "$SRCROOT"
+  # LPM fetches the upstream .flatpakrepo as a source artifact.
+  # The upstream file carries the repository GPGKey= line.
+  repo_file="$(find "$SRCROOT" -type f -name '*.flatpakrepo' -print -quit)"
+  test -n "$repo_file"
+  grep -q '^\[Flatpak Repo\]$' "$repo_file"
+  grep -q '^GPGKey=' "$repo_file"
+}
+
+staging() {
+  set -euo pipefail
+  cd "$SRCROOT"
+  repo_file="$(find "$SRCROOT" -type f -name '*.flatpakrepo' -print -quit)"
+  test -n "$repo_file"
+  install -Dm644 "$repo_file" "$pkgdir/usr/share/flatpak/remotes.d/flathub.flatpakrepo"
+}

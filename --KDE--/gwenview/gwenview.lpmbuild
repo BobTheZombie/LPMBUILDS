@@ -20,6 +20,7 @@ REQUIRES=(
     "kio6"
     "kimageformats6"
     "kitemmodels6"
+    "kimageannotator-qt6"
 )
 BUILD_REQUIRES=(
     "cmake"
@@ -30,6 +31,7 @@ BUILD_REQUIRES=(
     "kio6"
     "kimageformats6"
     "kitemmodels6"
+    "kimageannotator-qt6"
 )
 REQUIRES_PYTHON_DEPENDENCIES=()
 PROVIDES=()

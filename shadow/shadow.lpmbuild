@@ -1,36 +1,58 @@
+#!/bin/bash
+# Shadow account-management suite for LPM Linux (systemd + PAM)
+# LPM extracts to $SRCROOT/$NAME-$VERSION.
+
 NAME="shadow"
 VERSION="4.20.3"
-RELEASE="1"
-ARCH="x86_64"
-SUMMARY="Password and account management tool suite (full PAM version)"
+RELEASE="2"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Password and account management tool suite (PAM-enabled)"
 URL="https://github.com/shadow-maint/shadow"
-SOURCE=(
-  "https://github.com/shadow-maint/shadow/releases/download/${VERSION}/shadow-${VERSION}.tar.xz"
-  "0002-Adapt-login.defs-for-PAM-and-util-linux.patch"
-  "0003-Add-Arch-Linux-defaults-for-login.defs.patch"
-  "shadow.timer"
-  "shadow.service"
-  "shadow.sysusers"
-  "shadow.tmpfiles"
-  "useradd.defaults"
-)
 LICENSE="BSD-3-Clause"
 
-REQUIRES=("glibc" "pam" "libxcrypt" "systemd")
+SOURCE=(
+    "https://github.com/shadow-maint/shadow/releases/download/${VERSION}/shadow-${VERSION}.tar.xz"
+    "shadow.timer"
+    "shadow.service"
+    "shadow.sysusers"
+    "shadow.tmpfiles"
+    "useradd.defaults"
+    "shadow-4.20.3-lpm-policy.patch"
+)
+
+# Digests supplied in the existing LPM recipe, in the same SOURCE order.
+SHA256SUMS=(
+    "623be9429f64fa2165bfc5957c6a642ec309c5cf23c0d53855c99f7591922297"
+    "736eb7b16fc2fff9c902d4823641114338f290a6825e66831f41c5474e994207"
+    "31d12e406d0cfda69f50c8b4477ba97eb98c5e9d51ac"
+    "29448220f2ecfeab0a1a7aae296f07ca522d0a75a5b20df30f83950f9d54531f"
+    "c2faa81b894de452e6cd23660ad7e30a4e03d6a4eacb94ff209c6e578df05e61"
+    "b3056f0a7768f08b135f02bfbc6a88659f0c54cfbf3803f33a23d542b6b97f88"
+    "a3e09274beb4bba9f34fcec556de2d37746002043cfb21d4c22fde953e8b2a6a"
+)
+PATCHES=("shadow-4.20.3-lpm-policy.patch")
+
+REQUIRES=("glibc" "pam" "libxcrypt" "systemd" "libbsd" "audit" "libcap")
+BUILD_REQUIRES=(
+    "gcc" "make" "pkgconf" "libbsd" "libmd" "pam" "libxcrypt"
+    "audit" "libcap" "xmlto" "docbook-xsl-nons"
+)
 PROVIDES=("shadow")
 OBSOLETES=("shadow-bootstrap")
 
 prepare() {
-    set -euxo pipefail
-    cd "$SRCROOT/${NAME}-${VERSION}"
-    test -x configure
+    set -euo pipefail
+    cd "$SRCROOT/$NAME-$VERSION"
+    test -x ./configure || { echo "ERROR: shadow configure script missing" >&2; return 1; }
+    # LPM's patch application stage handles PATCHES; do not apply twice here.
 }
 
 build() {
-    set -euxo pipefail
-    cd "$SRCROOT/shadow-$VERSION"
+    set -euo pipefail
+    cd "$SRCROOT/$NAME-$VERSION"
 
-    ./configure --prefix=/usr \
+    ./configure \
+        --prefix=/usr \
         --sysconfdir=/etc \
         --bindir=/usr/bin \
         --sbindir=/usr/bin \
@@ -42,7 +64,7 @@ build() {
         --with-yescrypt \
         --without-bcrypt \
         --with-libpam \
-        --with-libbsd \
+        --without-libbsd \
         --with-audit \
         --with-fcaps \
         --with-group-name-max-length=32
@@ -50,51 +72,63 @@ build() {
     make -j"$(nproc)"
 }
 
-_staging_shadow_upstream() {
-    set -euxo pipefail
-    cd "$SRCROOT/shadow-$VERSION"
-    make DESTDIR="$pkgdir" install
-
-    # Default useradd config
-    install -vDm600 ../useradd.defaults "$pkgdir/etc/default/useradd"
-
-    # Systemd integration
-    install -vDm644 ../shadow.service -t "$pkgdir/usr/lib/systemd/system/"
-    install -vDm644 ../shadow.timer -t "$pkgdir/usr/lib/systemd/system/"
-    install -vdm755 "$pkgdir/usr/lib/systemd/system/timers.target.wants"
-    ln -s ../shadow.timer "$pkgdir/usr/lib/systemd/system/timers.target.wants/shadow.timer"
-
-    # Sysusers + tmpfiles config
-    install -vDm644 ../shadow.sysusers "$pkgdir/usr/lib/sysusers.d/shadow.conf"
-    install -vDm644 ../shadow.tmpfiles "$pkgdir/usr/lib/tmpfiles.d/shadow.conf"
-}
-
-
-
-SOURCE=("https://github.com/shadow-maint/shadow/releases/download/4.20.3/shadow-4.20.3.tar.xz" "shadow.timer" "shadow.service" "shadow.sysusers" "shadow.tmpfiles" "useradd.defaults" "shadow-4.20.3-lpm-policy.patch")
-
-PATCHES=("shadow-4.20.3-lpm-policy.patch")
-REQUIRES+=("libbsd" "audit" "libcap")
-BUILD_REQUIRES=("gcc" "make" "pkgconf" "libbsd" "libmd" "pam" "libxcrypt" "audit" "libcap" "xmlto" "docbook-xsl-nons")
-# util-linux/coreutils own replacement programs; preserve shadow's account tools.
 staging() {
-    set -euxo pipefail
-    install -dm755 "$pkgdir/usr/lib/systemd/system"
-    _staging_shadow_upstream
+    set -euo pipefail
+    cd "$SRCROOT/$NAME-$VERSION"
+
+    # Preserve the system's established PAM policy. The package's own
+    # PAM templates must not silently replace LPM's working PAM files.
+    make DESTDIR="$pkgdir" pamddir= install
+
+    # Keep every administrative command under /usr/bin, as intended for LPM.
+    # Fail the package build rather than shipping a package missing groupadd.
     local tool
-    if [ -f "$pkgdir/usr/bin/newgrp" ]; then
-        cp --remove-destination -p "$pkgdir/usr/bin/newgrp" "$pkgdir/usr/bin/sg"
+    for tool in groupadd groupdel groupmod useradd userdel usermod passwd \
+                chage chpasswd gpasswd pwck grpck; do
+        if [[ -x "$pkgdir/usr/sbin/$tool" && ! -e "$pkgdir/usr/bin/$tool" ]]; then
+            install -dm755 "$pkgdir/usr/bin"
+            mv "$pkgdir/usr/sbin/$tool" "$pkgdir/usr/bin/$tool"
+        fi
+        if [[ ! -x "$pkgdir/usr/bin/$tool" ]]; then
+            echo "ERROR: missing required Shadow command: /usr/bin/$tool" >&2
+            return 1
+        fi
+    done
+
+    # Defaults and systemd integration supplied by the LPM recipe.
+    install -Dm600 "$SRCROOT/useradd.defaults" "$pkgdir/etc/default/useradd"
+    install -Dm644 "$SRCROOT/shadow.service" \
+        "$pkgdir/usr/lib/systemd/system/shadow.service"
+    install -Dm644 "$SRCROOT/shadow.timer" \
+        "$pkgdir/usr/lib/systemd/system/shadow.timer"
+    install -dm755 "$pkgdir/usr/lib/systemd/system/timers.target.wants"
+    ln -sfn ../shadow.timer \
+        "$pkgdir/usr/lib/systemd/system/timers.target.wants/shadow.timer"
+    install -Dm644 "$SRCROOT/shadow.sysusers" \
+        "$pkgdir/usr/lib/sysusers.d/shadow.conf"
+    install -Dm644 "$SRCROOT/shadow.tmpfiles" \
+        "$pkgdir/usr/lib/tmpfiles.d/shadow.conf"
+
+    # If sg was built as a separate program, keep it. Otherwise this recipe
+    # retains the previous LPM behavior of making sg from the newgrp binary.
+    if [[ ! -e "$pkgdir/usr/bin/sg" && -f "$pkgdir/usr/bin/newgrp" ]]; then
+        cp -p "$pkgdir/usr/bin/newgrp" "$pkgdir/usr/bin/sg"
     fi
+
+    # These are owned by util-linux / coreutils (or other LPM packages).
     for tool in chfn chsh login newgrp nologin su vipw vigr groups logoutd; do
         rm -f "$pkgdir/usr/bin/$tool" "$pkgdir/usr/sbin/$tool"
-        find "$pkgdir/usr/share/man" -type f -name "$tool.[1-8]*" -delete
+        if [[ -d "$pkgdir/usr/share/man" ]]; then
+            find "$pkgdir/usr/share/man" -type f -name "$tool.[1-8]*" -delete
+        fi
     done
-    rm -f "$pkgdir/etc/pam.d/chfn" "$pkgdir/etc/pam.d/chsh" "$pkgdir/etc/pam.d/login"
-    test -x "$pkgdir/usr/bin/passwd"
-    test -x "$pkgdir/usr/bin/useradd"
+    rm -f "$pkgdir/etc/pam.d/chfn" "$pkgdir/etc/pam.d/chsh" \
+          "$pkgdir/etc/pam.d/login"
+
+    # Never package account databases from a staged build.
+    rm -f "$pkgdir/etc/passwd" "$pkgdir/etc/shadow" \
+          "$pkgdir/etc/group" "$pkgdir/etc/gshadow"
+
+    echo "Shadow account tools staged successfully:"
+    ls -l "$pkgdir/usr/bin/"{groupadd,groupdel,groupmod,useradd,userdel,usermod,passwd}
 }
-
-
-
-# Final audited source digests
-SHA256SUMS=("623be9429f64fa2165bfc5957c6a642ec309c5cf23c0d53855c99f7591922297" "736eb7b16fc2fff9c902d4823641114338f290a6825e66831f41c5474e994207" "31d12e406d0cfda69f50c8b4477ba97eb98c5c636eac64048542fb8c5e9d51ac" "29448220f2ecfeab0a1a7aae296f07ca522d0a75a5b20df30f83950f9d54531f" "c2faa81b894de452e6cd23660ad7e30a4e03d6a4eacb94ff209c6e578df05e61" "b3056f0a7768f08b135f02bfbc6a88659f0c54cfbf3803f33a23d542b6b97f88" "a3e09274beb4bba9f34fcec556de2d37746002043cfb21d4c22fde953e8b2a6a")

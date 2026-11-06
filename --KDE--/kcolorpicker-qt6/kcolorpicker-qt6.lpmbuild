@@ -1,0 +1,47 @@
+#!/bin/bash
+# LPM Linux - kColorPicker Qt6 build
+NAME="kcolorpicker-qt6"
+VERSION="0.3.1"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Qt6 color picker widget library needed by kImageAnnotator"
+URL="https://github.com/ksnip/kColorPicker"
+LICENSE=("LGPL-3.0-or-later")
+SOURCE=("https://github.com/ksnip/kColorPicker/archive/refs/tags/v${VERSION}.tar.gz")
+SHA256SUMS=("SKIP") # Verify hash of upstream GitHub-generated archive in production
+PATCHES=()
+REQUIRES=("glibc" "gcc-libs" "qt6-base")
+BUILD_REQUIRES=("cmake" "ninja" "qt6-base")
+PROVIDES=("kColorPicker-Qt6")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+    set -euo pipefail
+}
+
+build() {
+    set -euxo pipefail
+    local src="${SRCROOT}/${NAME}-${VERSION}"
+    cmake -S "$src" -B "$src/build" -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DBUILD_WITH_QT6=ON \
+        -DBUILD_SHARED_LIBS=ON \
+        -DBUILD_TESTS=OFF \
+        -DBUILD_EXAMPLE=OFF
+    cmake --build "$src/build" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+staging() {
+    set -euxo pipefail
+    local src="${SRCROOT}/${NAME}-${VERSION}"
+    DESTDIR="${pkgdir:?}" cmake --install "$src/build"
+    test -f "$pkgdir/usr/lib/cmake/kColorPicker-Qt6/kColorPicker-Qt6Config.cmake"
+    test -f "$pkgdir/usr/include/kColorPicker-Qt6/kColorPicker/KColorPicker.h"
+    find "$pkgdir/usr/lib" -maxdepth 1 -name 'libkColorPicker.so*' -print -quit | grep -q .
+}

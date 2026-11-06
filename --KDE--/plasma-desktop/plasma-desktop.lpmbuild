@@ -1,76 +1,196 @@
 #!/bin/bash
-# LPM Linux: KDE Plasma 6.8.1 package chain
-# Generated 2026-10-25; source digests MUST be locked before building.
+# LPM Linux - KDE Plasma Desktop 6.8.1, Qt 6.12.0 stack.
+# AccountsQt6 / KAccounts6 OpenDesktop integration deliberately disabled.
+# Does NOT require signon-ui, signond, or qt6-webengine.
+# LPM extracts into $SRCROOT/$NAME-$VERSION and stages into $pkgdir.
+
 NAME="plasma-desktop"
 VERSION="6.8.1"
-RELEASE="1"
+RELEASE="3"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="KDE Plasma 6: plasma-desktop"
-URL="https://kde.org"
-LICENSE=("SEE-UPSTREAM")
+SUMMARY="KDE Plasma 6 desktop, settings modules, and desktop integration (without KAccounts)"
+URL="https://invent.kde.org/plasma/plasma-desktop"
+LICENSE=("LGPL-2.0-or-later")
+
 SOURCE=(
-    "https://download.kde.org/stable/plasma/6.8.1/plasma-desktop-6.8.1.tar.xz"
+    "https://download.kde.org/stable/plasma/${VERSION}/${NAME}-${VERSION}.tar.xz"
 )
 SHA256SUMS=(
-    "SKIP"
+    "12d2b8e44626f59b9602ee15b2bd847033866e4a414b9f4d8819994b35d8f66f"
 )
 PATCHES=()
+
 REQUIRES=(
+    # Qt 6.12 runtime and compatibility APIs
     "qt6-base"
     "qt6-declarative"
+    "qt6-5compat"
+    "qt6-svg"
+    "qt6-shadertools"
+    "qt6-wayland"
+
+    # Plasma core and KDE Frameworks: LPM package IDs
     "plasma-workspace"
+    "plasma5support"
+    "plasma-activities"
+    "plasma-activities-stats"
     "libplasma"
+    "libksysguard"
+    "kwin"
     "ksvg6"
     "kcmutils6"
     "kio6"
+    "kio-extras"
     "knewstuff6"
     "kglobalaccel6"
+    "kirigami"
+    "kirigami-addons"
+    "prison6"
+    "kpipewire"
+    "polkit-qt6"
+    "libcanberra"
+    "libwacom"
+    "wayland"
+    "libxcb"
+    "libxkbcommon"
+
+    # Desktop utilities and font; no online-account/SignOn stack
+    "xdg-user-dirs"
+    "noto-fonts-emoji"
 )
+
 BUILD_REQUIRES=(
     "cmake"
     "ninja"
     "pkgconf"
+    "python"
     "extra-cmake-modules"
+
     "qt6-base"
     "qt6-declarative"
+    "qt6-5compat"
+    "qt6-svg"
+    "qt6-shadertools"
+    "qt6-wayland"
+
     "plasma-workspace"
+    "plasma5support"
+    "plasma-activities"
+    "plasma-activities-stats"
     "libplasma"
+    "libksysguard"
+    "kwin"
     "ksvg6"
     "kcmutils6"
     "kio6"
     "knewstuff6"
     "kglobalaccel6"
+    "polkit-qt6"
+    "libcanberra"
+    "libwacom"
+    "wayland"
+    "wayland-protocols"
+    "libxcb"
+    "libxkbcommon"
+
+    "kpipewire"
+    "packagekit-qt6"
+    "xdg-user-dirs"
+    "noto-fonts-emoji"
 )
+
 REQUIRES_PYTHON_DEPENDENCIES=()
-PROVIDES=()
+PROVIDES=("plasma-desktop")
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
+RECOMMENDS=(
+    "kquickcharts"
+    "qqc2-desktop-style"
+    "plasma-nm"
+    "plasma-pa"
+    "xdg-desktop-portal-kde"
+    "baloo6"
+)
+SUGGESTS=(
+    "sdl2"   # game controller KCM disabled below
+)
 
 prepare() {
     set -euxo pipefail
-    test -f "$SRCROOT/$NAME-$VERSION/CMakeLists.txt"
+    local src="$SRCROOT/$NAME-$VERSION"
+    [[ -f "$src/CMakeLists.txt" ]] || {
+        echo "[ERROR] Missing Plasma Desktop source: $src" >&2
+        return 1
+    }
+    # Drop stale CMake detection results from before the Qt 6.12 rebuild.
+    rm -rf "$src/build"
 }
 
 build() {
     set -euxo pipefail
     local src="$SRCROOT/$NAME-$VERSION"
     local builddir="$src/build"
+    local jobs="${LPM_BUILD_JOBS:-$(nproc)}"
+
+    [[ "$jobs" =~ ^[1-9][0-9]*$ ]] || {
+        echo '[ERROR] LPM_BUILD_JOBS must be a positive integer' >&2
+        return 1
+    }
+
+    # Disabling both optional find_package() calls prevents upstream from
+    # entering attica-kde/, the only OpenDesktop KAccounts integration subtree.
+    # No SignOn/Qt WebEngine is required for Plasma's normal desktop features.
     cmake -S "$src" -B "$builddir" -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_INSTALL_PREFIX=/usr \
         -DCMAKE_INSTALL_LIBDIR=lib \
+        -DKDE_INSTALL_USE_QT_SYS_PATHS=ON \
         -DBUILD_TESTING=OFF \
+        -DBUILD_DOC=OFF \
         -DBUILD_SHARED_LIBS=ON \
-        -DKDE_INSTALL_USE_QT_SYS_PATHS=ON
-    cmake --build "$builddir" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+        -DBUILD_KCM_TABLET=ON \
+        -DCMAKE_DISABLE_FIND_PACKAGE_SDL2=TRUE \
+        -DCMAKE_DISABLE_FIND_PACKAGE_AccountsQt6=TRUE \
+        -DCMAKE_DISABLE_FIND_PACKAGE_KAccounts6=TRUE \
+        -DCMAKE_REQUIRE_FIND_PACKAGE_PackageKitQt6=ON
+
+    [[ -f "$builddir/build.ninja" ]] || {
+        echo '[ERROR] Plasma Desktop Ninja build graph missing' >&2
+        return 1
+    }
+
+    # The attica_kde plugin is guarded upstream by both AccountsQt6 and
+    # KAccounts6 being found. These lines prevent unintended auto-detection.
+    grep -Eq '^CMAKE_DISABLE_FIND_PACKAGE_AccountsQt6:[^=]+=(TRUE|ON|1)$' "$builddir/CMakeCache.txt" || {
+        echo '[ERROR] AccountsQt6 was not disabled in the CMake cache' >&2
+        return 1
+    }
+    grep -Eq '^CMAKE_DISABLE_FIND_PACKAGE_KAccounts6:[^=]+=(TRUE|ON|1)$' "$builddir/CMakeCache.txt" || {
+        echo '[ERROR] KAccounts6 was not disabled in the CMake cache' >&2
+        return 1
+    }
+
+    cmake --build "$builddir" --parallel "$jobs"
 }
 
 staging() {
     set -euxo pipefail
     local builddir="$SRCROOT/$NAME-$VERSION/build"
+
+    [[ -n "${pkgdir:-}" && "$pkgdir" != / ]] || {
+        echo '[ERROR] Invalid LPM pkgdir' >&2
+        return 1
+    }
     DESTDIR="$pkgdir" cmake --install "$builddir"
-    test -d "$pkgdir/usr"
-    test -n "$(find "$pkgdir/usr" -mindepth 1 -print -quit)"
+
+    [[ -d "$pkgdir/usr" ]] || {
+        echo '[ERROR] No /usr tree staged' >&2
+        return 1
+    }
+    [[ -n "$(find "$pkgdir/usr" -mindepth 1 -print -quit)" ]] || {
+        echo '[ERROR] Plasma Desktop staging is empty' >&2
+        return 1
+    }
+
+    echo '[OK] Plasma Desktop staged (KAccounts/OpenDesktop integration disabled)'
 }

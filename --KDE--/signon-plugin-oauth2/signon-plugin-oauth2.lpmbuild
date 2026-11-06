@@ -1,0 +1,59 @@
+#!/bin/bash
+# LPM Linux: OAuth 1/2 SignOn plugin; pinned Qt6 fork.
+NAME="signon-plugin-oauth2"
+VERSION="0.25"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="OAuth authentication plugin for the SignOn daemon"
+URL="https://gitlab.com/nicolasfella/signon-plugin-oauth2"
+LICENSE=("LGPL-2.1-only")
+_SSO_COMMIT="fab698862466994a8fdc9aa335c87b4f05430ce6"
+SOURCE=("https://gitlab.com/nicolasfella/signon-plugin-oauth2/-/archive/${_SSO_COMMIT}/signon-plugin-oauth2-${_SSO_COMMIT}.tar.gz")
+SHA256SUMS=("SKIP") # Pin archive digest before publishing
+PATCHES=()
+REQUIRES=("glibc" "qt6-base" "signond")
+BUILD_REQUIRES=("make" "pkgconf" "qt6-base" "qt6-tools" "signond")
+REQUIRES_PYTHON_DEPENDENCIES=()
+PROVIDES=("signon-oauth2plugin")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+_qmake6() {
+    local exe
+    for exe in /usr/bin/qmake6 /usr/lib/qt6/bin/qmake6 /usr/lib/qt6/bin/qmake; do
+        if [[ -x "$exe" ]]; then printf '%s\n' "$exe"; return 0; fi
+    done
+    echo '[ERROR] Qt6 qmake missing; install qt6-base/qt6-tools' >&2
+    return 1
+}
+prepare() {
+    set -euxo pipefail
+    local src="$SRCROOT/$NAME-$VERSION"
+    [[ -f "$src/signon-oauth2.pro" ]] || { echo '[ERROR] signon-oauth2.pro missing' >&2; return 1; }
+    rm -rf "$src/build"
+}
+build() {
+    set -euxo pipefail
+    local src="$SRCROOT/$NAME-$VERSION" qmake
+    [[ -f /usr/lib/pkgconfig/libsignon-qt6.pc || -f /usr/lib/cmake/SignOnQt6/SignOnQt6Config.cmake ]] || {
+        echo '[ERROR] Build Qt6 signond first' >&2; return 1;
+    }
+    qmake="$(_qmake6)" || return 1
+    mkdir -p "$src/build"
+    cd "$src/build"
+    "$qmake" "$src/signon-oauth2.pro" \
+        INSTALL_PREFIX=/usr SIGNON_PLUGINS_DIR=/usr/lib/signon LIBDIR=/usr/lib \
+        'CONFIG+=release'
+    make -j "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+staging() {
+    set -euxo pipefail
+    local src="$SRCROOT/$NAME-$VERSION"
+    [[ -n "${pkgdir:-}" && "$pkgdir" != / ]] || return 1
+    make -C "$src/build" INSTALL_ROOT="$pkgdir" install
+    [[ -f "$pkgdir/usr/lib/signon/liboauth2plugin.so" ]] || {
+        echo '[ERROR] OAuth2 plugin absent from /usr/lib/signon' >&2; return 1;
+    }
+}

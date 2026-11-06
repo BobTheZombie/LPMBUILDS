@@ -1,0 +1,69 @@
+#!/bin/bash
+# LPM Linux - Accounts-SSO GLib database library
+NAME="libaccounts-glib"
+VERSION="1.27"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="GLib library for the Accounts-SSO accounts database"
+URL="https://gitlab.com/accounts-sso/libaccounts-glib"
+LICENSE=("LGPL-2.1-or-later")
+SOURCE=("https://gitlab.com/accounts-sso/libaccounts-glib/-/archive/VERSION_${VERSION}/libaccounts-glib-VERSION_${VERSION}.tar.gz")
+SHA256SUMS=("SKIP") # Pin a verified archive checksum for release
+PATCHES=()
+REQUIRES=("glibc" "glib2" "libxml2" "sqlite")
+BUILD_REQUIRES=("meson" "ninja" "pkgconf" "glib2" "libxml2" "sqlite")
+REQUIRES_PYTHON_DEPENDENCIES=()
+PROVIDES=("accounts-glib")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+    set -euxo pipefail
+    local src="$SRCROOT/$NAME-$VERSION"
+    test -f "$src/meson.build" || { echo "[ERROR] Missing $src/meson.build" >&2; return 1; }
+    # The 1.27 release tag predates upstream's -Dtests/-Ddocs/-Dintrospection
+    # switches. Omit only optional docs/tests and GIR/Vala targets here; the
+    # Accounts-SSO shared library, tools, and pkg-config metadata remain.
+    python3 - "$src" <<'PYMESON'
+from pathlib import Path
+import sys
+src = Path(sys.argv[1])
+root = src / 'meson.build'
+s = root.read_text()
+for line in ("subdir('docs')", "subdir('tests')"):
+    if line not in s:
+        raise SystemExit(f'Unexpected libaccounts-glib 1.27 Meson structure: {line}')
+    s = s.replace(line, f'# LPM disabled: {line}', 1)
+root.write_text(s)
+lib = src / 'libaccounts-glib' / 'meson.build'
+s = lib.read_text()
+start = s.find('# GObject introspection\n')
+end = s.find("install_data('libaccounts-glib.deps'", start)
+if start < 0 or end < 0:
+    raise SystemExit('Unexpected libaccounts-glib GIR/Vala Meson block')
+s = s[:start] + '# LPM minimal build: GIR/Vala generation disabled\n' + s[end:]
+lib.write_text(s)
+PYMESON
+    rm -rf "$src/build"
+}
+build() {
+    set -euxo pipefail
+    local src="$SRCROOT/$NAME-$VERSION"
+    meson setup "$src/build" "$src" \
+        --prefix=/usr --libdir=lib --buildtype=release
+    meson compile -C "$src/build" -j "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+staging() {
+    set -euxo pipefail
+    local src="$SRCROOT/$NAME-$VERSION"
+    [[ -n "${pkgdir:-}" && "$pkgdir" != / ]] || return 1
+    DESTDIR="$pkgdir" meson install -C "$src/build" --no-rebuild
+    compgen -G "$pkgdir/usr/lib/libaccounts-glib.so*" >/dev/null || {
+        echo '[ERROR] libaccounts-glib shared library missing' >&2; return 1;
+    }
+    test -f "$pkgdir/usr/lib/pkgconfig/libaccounts-glib.pc" || {
+        echo '[ERROR] libaccounts-glib pkg-config file missing' >&2; return 1;
+    }
+}

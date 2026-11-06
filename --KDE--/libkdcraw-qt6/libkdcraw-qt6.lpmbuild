@@ -1,0 +1,72 @@
+#!/bin/bash
+# LPM Linux: KDcrawQt6 / KDE LibRaw interface (RAW thumbnailer support)
+NAME="libkdcraw-qt6"
+VERSION="26.08.2"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Qt6 LibRaw wrapper for decoding camera RAW thumbnails"
+URL="https://invent.kde.org/graphics/libkdcraw"
+LICENSE=("GPL-2.0-or-later")
+SOURCE=("https://download.kde.org/stable/release-service/${VERSION}/src/libkdcraw-${VERSION}.tar.xz")
+SHA256SUMS=("1e4efcc416d8c2a3f5c1e3c1d458938ca243975fcda094b9101999175f505959")
+PATCHES=()
+REQUIRES=("glibc" "gcc-libs" "qt6-base" "libraw")
+BUILD_REQUIRES=("cmake" "ninja" "pkgconf" "extra-cmake-modules" "qt6-base" "libraw")
+PROVIDES=("KDcrawQt6" "libkdcraw")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+REQUIRES_PYTHON_DEPENDENCIES=()
+
+_libkdcraw_source() {
+    local root="${SRCROOT:?SRCROOT not set}" candidate
+    for candidate in \
+        "$root/libkdcraw-${VERSION}" \
+        "$root/libkdcraw-qt6-${VERSION}" \
+        "$root"; do
+        if [[ -f "$candidate/CMakeLists.txt" && -f "$candidate/src/kdcraw.cpp" ]]; then
+            printf '%s\n' "$candidate"; return 0
+        fi
+    done
+    while IFS= read -r candidate; do
+        candidate="${candidate%/src/kdcraw.cpp}"
+        if [[ -f "$candidate/CMakeLists.txt" ]]; then
+            printf '%s\n' "$candidate"; return 0
+        fi
+    done < <(find "$root" -mindepth 2 -maxdepth 5 -type f -path '*/src/kdcraw.cpp' -print)
+    echo "[ERROR] Could not find libkdcraw ${VERSION} sources in $root" >&2
+    return 1
+}
+
+prepare() {
+    set -euo pipefail
+    _libkdcraw_source >/dev/null
+    # The upstream FindLibRaw.cmake needs the headers and shared library.
+    if ! test -f /usr/include/libraw/libraw.h; then
+        echo "[ERROR] Missing LibRaw development headers (libraw package)" >&2
+        return 1
+    fi
+}
+
+build() {
+    set -euxo pipefail
+    local src; src="$(_libkdcraw_source)"
+    cmake -S "$src" -B "$src/build" -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DKDE_INSTALL_LIBDIR=lib \
+        -DKDE_INSTALL_USE_QT_SYS_PATHS=ON \
+        -DBUILD_SHARED_LIBS=ON \
+        -DBUILD_TESTING=OFF
+    cmake --build "$src/build" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+staging() {
+    set -euxo pipefail
+    local src; src="$(_libkdcraw_source)"
+    DESTDIR="${pkgdir:?pkgdir not set}" cmake --install "$src/build"
+    test -f "$pkgdir/usr/lib/cmake/KDcrawQt6/KDcrawQt6Config.cmake"
+    test -f "$pkgdir/usr/include/KDcrawQt6/kdcraw/kdcraw.h"
+    find "$pkgdir/usr/lib" -maxdepth 1 -name 'libKDcrawQt6.so*' -print -quit | grep -q .
+}

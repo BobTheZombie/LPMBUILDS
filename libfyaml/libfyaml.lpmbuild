@@ -1,0 +1,36 @@
+#!/bin/bash
+NAME="libfyaml"
+VERSION="0.9.6"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Fast YAML parser used by AppStream"
+URL="https://github.com/pantoniou/libfyaml"
+LICENSE=("MIT")
+SOURCE=("https://github.com/pantoniou/libfyaml/releases/download/v${VERSION}/libfyaml-${VERSION}.tar.gz")
+SHA256SUMS=("a59cc3331e2eb903ec36933ad52a45888041cac31e44f553a00511131242c483")
+PATCHES=()
+REQUIRES=("glibc")
+BUILD_REQUIRES=("gcc" "make" "pkgconf" "libtool")
+REQUIRES_PYTHON_DEPENDENCIES=()
+PROVIDES=()
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=("libyaml")
+SUGGESTS=()
+prepare() {
+    set -euxo pipefail
+    test -x "$SRCROOT/${NAME}-${VERSION}/configure"
+}
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    ./configure --prefix=/usr --libdir=/usr/lib --disable-static --disable-network
+    make -j "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    make DESTDIR="$pkgdir" install
+    test -f "$pkgdir/usr/lib/pkgconfig/libfyaml.pc"
+    find "$pkgdir/usr/lib" -type f -name '*.la' -delete
+}

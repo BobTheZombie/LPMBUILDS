@@ -19,6 +19,7 @@ REQUIRES=(
     "qt6-base"
     "kio6"
     "knotifications6"
+    "qt6-connectivity"
     "qt6-multimedia"
     "qt6-wayland"
 )
@@ -28,8 +29,10 @@ BUILD_REQUIRES=(
     "pkgconf"
     "extra-cmake-modules"
     "qt6-base"
+    "libfakekey"
     "kio6"
     "knotifications6"
+    "qt6-connectivity"
     "qt6-multimedia"
     "qt6-wayland"
 )

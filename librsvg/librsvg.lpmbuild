@@ -1,43 +1,139 @@
+
 #!/bin/bash
+
 NAME="librsvg"
 VERSION="2.62.3"
-RELEASE="1"
+RELEASE="2"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="librsvg upstream package"
-URL="https://download.gnome.org/sources/librsvg/2.62/"
+
+SUMMARY="SVG rendering library with GDK-Pixbuf, GIR and Vala support"
+URL="https://gitlab.gnome.org/GNOME/librsvg"
 LICENSE=("LGPL-2.1-or-later")
-SOURCE=("https://download.gnome.org/sources/librsvg/2.62/librsvg-2.62.3.tar.xz")
-SHA256SUMS=("7eb449b2722a768021356f66dfee3202c229b54ed4e6a70ce40c090e97ff16f2")
+
+SOURCE=(
+    "https://download.gnome.org/sources/librsvg/2.62/librsvg-${VERSION}.tar.xz"
+)
+
+SHA256SUMS=(
+    "7eb449b2722a768021356f66dfee3202c229b54ed4e6a70ce40c090e97ff16f2"
+)
+
 PATCHES=()
-REQUIRES=("cairo" "gcc-libs" "gdk-pixbuf2" "glib2" "libxml2" "pango")
-BUILD_REQUIRES=("cargo-c" "gobject-introspection" "meson" "ninja" "pkgconf" "rust" "vala")
-PROVIDES=("librsvg")
+
+REQUIRES=(
+    "cairo>=1.18.0"
+    "gcc-libs"
+    "glib2"
+    "glibc"
+    "gdk-pixbuf2"
+    "freetype"
+    "fontconfig"
+    "harfbuzz"
+    "libxml2"
+    "pango>=1.58.2"
+)
+
+BUILD_REQUIRES=(
+    "cargo-c"
+    "gobject-introspection"
+    "meson"
+    "ninja"
+    "pkgconf"
+    "python"
+    "rust"
+    "vala"
+)
+
+PROVIDES=(
+    "librsvg"
+    "librsvg-2.0"
+    "librsvg-2.so"
+)
+
 CONFLICTS=()
 OBSOLETES=()
-BUILD_OPTIONS=("@--stripping" "@--optimize=2")
-prepare() { set -euxo pipefail; cd "$SRCROOT/${NAME}-${VERSION}"; }
+
+BUILD_OPTIONS=(
+    "@--stripping"
+    "@--optimize=2"
+)
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    rm -rf build
+}
+
 build() {
     set -euxo pipefail
     cd "$SRCROOT/${NAME}-${VERSION}"
-    meson setup build --prefix=/usr --libdir=lib --buildtype=release --wrap-mode=nodownload -Ddocumentation=false -Dtests=false -Dpixbuf-loader=enabled
-    meson compile -C build -j "${LPM_BUILD_JOBS:-$(nproc)}"
+
+    # Verify the exact pkg-config interfaces required.
+    for dep in \
+        cairo \
+        cairo-gobject \
+        cairo-png \
+        freetype2 \
+        fontconfig \
+        harfbuzz \
+        gdk-pixbuf-2.0 \
+        gio-2.0 \
+        glib-2.0 \
+        libxml-2.0 \
+        pango \
+        pangocairo \
+        pangoft2; do
+
+        if ! pkg-config --exists "$dep"; then
+            echo "[ERROR] Missing dependency: $dep" >&2
+            exit 1
+        fi
+    done
+
+    meson setup build \
+        --prefix=/usr \
+        --libdir=lib \
+        --buildtype=release \
+        --wrap-mode=nofallback \
+        -Ddocs=disabled \
+        -Dtests=false \
+        -Dintrospection=enabled \
+        -Dvala=enabled \
+        -Dpixbuf=enabled \
+        -Dpixbuf-loader=enabled \
+        -Drsvg-convert=enabled \
+        -Davif=disabled
+
+    meson compile -C build \
+        -j "${LPM_BUILD_JOBS:-$(nproc)}"
 }
+
 staging() {
     set -euxo pipefail
     cd "$SRCROOT/${NAME}-${VERSION}"
-    meson install -C build --no-rebuild --destdir "$pkgdir"
+
+    DESTDIR="$pkgdir" meson install -C build --no-rebuild
+
+    # Ensure the shared library and pkg-config metadata exist.
+    test -f "$pkgdir/usr/lib/pkgconfig/librsvg-2.0.pc"
+    test -e "$pkgdir/usr/lib/librsvg-2.so"
+
+    # Ensure the SVG loader was staged.
+    find "$pkgdir/usr/lib/gdk-pixbuf-2.0" \
+        -name '*pixbufloader*svg*.so' -type f \
+        | grep -q .
+
     local f
     for f in COPYING COPYING.LIB LICENSE LICENSE.md LICENSE.txt; do
-        if [ -f "$f" ]; then install -Dm644 "$f" "$pkgdir/usr/share/licenses/$NAME/$f"; fi
+        if [ -f "$f" ]; then
+            install -Dm644 "$f" \
+                "$pkgdir/usr/share/licenses/$NAME/$f"
+        fi
     done
+
     if [ -d LICENSES ]; then
         install -dm755 "$pkgdir/usr/share/licenses/$NAME"
-        cp -a LICENSES/. "$pkgdir/usr/share/licenses/$NAME/"
+        cp -a LICENSES/. \
+            "$pkgdir/usr/share/licenses/$NAME/"
     fi
 }
-
-
-
-
-# Final audited source digests
-SHA256SUMS=("7eb449b2722a768021356f66dfee3202c229b54ed4e6a70ce40c090e97ff16f2")

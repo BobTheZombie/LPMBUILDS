@@ -1,36 +1,64 @@
-# LPM build script for giflib
+#!/bin/bash
+# LPM Linux - giflib 6.1.3
+
 NAME="giflib"
-VERSION="5.2.1"
+VERSION="6.1.3"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="GIF image library"
-URL="http://giflib.sourceforge.net/"
-LICENSE="MIT"
-SOURCE=("https://downloads.sourceforge.net/project/giflib/giflib-${VERSION}.tar.gz")
-CHECKSUMS=("31da5562f44c5f15d63340a09a4fd62b48c45620cd302f77a6d9acf0077879bd")
+SUMMARY="GIF image library and utilities"
+URL="https://giflib.sourceforge.net/"
+LICENSE=("MIT")
+
+SOURCE=(
+    "https://downloads.sourceforge.net/project/giflib/giflib-6.x/giflib-${VERSION}.tar.gz"
+)
+
+SHA256SUMS=(
+    "b65b66b99f0424b93525f987386f22fc5efb9da2bfc92ad4a532249aaffbab0e"
+)
+
+PATCHES=()
+
 REQUIRES=("glibc")
+BUILD_REQUIRES=("gcc" "make")
+REQUIRES_PYTHON_DEPENDENCIES=()
+
 PROVIDES=("giflib")
 CONFLICTS=()
 OBSOLETES=()
 RECOMMENDS=()
 SUGGESTS=()
 
-prepare() { set -euxo pipefail; cd "$SRCROOT"; }
+prepare() {
+    set -euxo pipefail
+    test -f "$SRCROOT/$NAME-$VERSION/Makefile"
+}
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make -j"$(nproc)"
+    set -euxo pipefail
+    local src="$SRCROOT/$NAME-$VERSION"
+
+    make -C "$src" -j"${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+check() {
+    set -euxo pipefail
+    make -C "$SRCROOT/$NAME-$VERSION" check
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  make PREFIX=/usr DESTDIR="$pkgdir" install
+    set -euxo pipefail
+    local src="$SRCROOT/$NAME-$VERSION"
+
+    make -C "$src" \
+        PREFIX=/usr \
+        LIBDIR=/usr/lib \
+        DOCDIR="/usr/share/doc/giflib-$VERSION" \
+        DESTDIR="$pkgdir" \
+        install
+
+    rm -f "$pkgdir/usr/lib/libgif.a"
+
+    test -e "$pkgdir/usr/lib/libgif.so"
+    test -f "$pkgdir/usr/include/gif_lib.h"
 }
-
-
-
-
-# Final audited source digests
-SHA256SUMS=("31da5562f44c5f15d63340a09a4fd62b48c45620cd302f77a6d9acf0077879bd")

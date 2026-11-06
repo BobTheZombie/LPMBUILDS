@@ -1,0 +1,49 @@
+#!/bin/bash
+# LPM Linux - Noto Color Emoji font (no compilation)
+NAME="noto-fonts-emoji"
+VERSION="2.051"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Google Noto Color Emoji TrueType font"
+URL="https://github.com/googlefonts/noto-emoji"
+LICENSE=("OFL-1.1")
+# Upstream v2.051 font, not the mutable main branch.
+SOURCE=("https://github.com/googlefonts/noto-emoji/raw/v${VERSION}/fonts/NotoColorEmoji.ttf")
+SHA256SUMS=("72a635cb3d2f3524c51620cdde406b217204e8a6a06c6a096ff8ed4b5fd6e27b")
+PATCHES=()
+REQUIRES=("fontconfig")
+BUILD_REQUIRES=()
+REQUIRES_PYTHON_DEPENDENCIES=()
+PROVIDES=("emoji-font" "FontNotoColorEmoji")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+_emoji_src() {
+    # LPM ordinarily places fetched files under $SRCROOT/$NAME-$VERSION.
+    local p
+    for p in "$SRCROOT/$NAME-$VERSION/NotoColorEmoji.ttf" \
+             "$SRCROOT/NotoColorEmoji.ttf"; do
+        if [[ -s "$p" ]]; then printf '%s\n' "$p"; return 0; fi
+    done
+    echo '[ERROR] NotoColorEmoji.ttf not found in LPM source root' >&2
+    return 1
+}
+prepare() {
+    set -euxo pipefail
+    _emoji_src >/dev/null
+}
+build() {
+    set -euxo pipefail
+    : # Font package, no compilation.
+}
+staging() {
+    set -euxo pipefail
+    [[ -n "${pkgdir:-}" && "$pkgdir" != / ]] || return 1
+    local font
+    font="$(_emoji_src)" || return 1
+    install -Dm644 "$font" "$pkgdir/usr/share/fonts/noto/NotoColorEmoji.ttf"
+    test -s "$pkgdir/usr/share/fonts/noto/NotoColorEmoji.ttf"
+    # Fontconfig cache generation belongs in a post-install hook, NOT in staging.
+}

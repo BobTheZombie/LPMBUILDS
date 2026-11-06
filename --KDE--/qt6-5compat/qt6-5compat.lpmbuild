@@ -1,10 +1,10 @@
 #!/bin/bash
-# LPM Linux: Qt 6.12.0 compatibility module and GraphicalEffects QML plugins.
-# qt5compat-everywhere-src-6.12.0.tar.xz SHA-256: MacPorts Qt 6.12.0 manifest.
+# LPM Linux - Qt 6.12.0 compatibility APIs and GraphicalEffects QML plugins.
+# The QML install directory follows the installed Qt Base configuration.
 
 NAME="qt6-5compat"
 VERSION="6.12.0"
-RELEASE="2"
+RELEASE="3"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="Qt 6 compatibility APIs and Qt5Compat.GraphicalEffects QML plugins"
 URL="https://www.qt.io/"
@@ -42,24 +42,26 @@ BUILD_OPTIONS=("@--stripping" "@--optimize=2")
 
 prepare() {
     set -euxo pipefail
-    local src="$SRCROOT/${NAME}-${VERSION}"
+    local src="$SRCROOT/$NAME-$VERSION"
+
+    # LPM extracts into $SRCROOT/$NAME-$VERSION.
     test -f "$src/CMakeLists.txt"
 
-    # Qt's qt5compat CMakeLists.txt only descends into src/imports if
-    # both Qt Gui and Qt Quick targets are available at configure time.
+    # QML GraphicalEffects is only built when Qt Quick is available.
     test -f /usr/lib/cmake/Qt6Quick/Qt6QuickConfig.cmake
     test -f /usr/lib/cmake/Qt6ShaderTools/Qt6ShaderToolsConfig.cmake
 }
 
 build() {
     set -euxo pipefail
-    local src="$SRCROOT/${NAME}-${VERSION}"
+    local src="$SRCROOT/$NAME-$VERSION"
     local builddir="$src/build"
 
     cmake -S "$src" -B "$builddir" -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_INSTALL_PREFIX=/usr \
         -DCMAKE_INSTALL_LIBDIR=lib \
+        -DCMAKE_PREFIX_PATH=/usr \
         -DBUILD_SHARED_LIBS=ON \
         -DBUILD_TESTING=OFF \
         -DQT_BUILD_TESTS=OFF \
@@ -70,23 +72,51 @@ build() {
 
 staging() {
     set -euxo pipefail
-    local src="$SRCROOT/${NAME}-${VERSION}"
+    local src="$SRCROOT/$NAME-$VERSION"
     local builddir="$src/build"
-    local qml_dir="$pkgdir/usr/lib/qt6/qml/Qt5Compat/GraphicalEffects"
+    local qt_qml_root qml_dir file
 
+    # Never install outside the package staging tree.
     test -n "${pkgdir:-}" && test "$pkgdir" != /
     DESTDIR="$pkgdir" cmake --install "$builddir"
 
-    # Catch a successful Core5Compat build that silently omitted Qt Quick
-    # GraphicalEffects because Qt Quick / ShaderTools was unavailable.
-    test -f "$qml_dir/qmldir"
-    test -f "$qml_dir/private/qmldir"
-    test -f "$qml_dir/libqtgraphicaleffectsplugin.so"
-    test -f "$pkgdir/usr/lib/cmake/Qt6Core5Compat/Qt6Core5CompatConfig.cmake"
-    compgen -G "$pkgdir/usr/lib/libQt6Core5Compat.so*" >/dev/null
+    # Respect the QML location configured by Qt Base. On this LPM build:
+    # qtpaths6 --query QT_INSTALL_QML -> /usr/qml
+    qt_qml_root="$(qtpaths6 --query QT_INSTALL_QML)"
+    if [[ "$qt_qml_root" != /* || "$qt_qml_root" == / ]]; then
+        echo "[ERROR] Invalid QT_INSTALL_QML: $qt_qml_root" >&2
+        return 1
+    fi
+    qml_dir="$pkgdir$qt_qml_root/Qt5Compat/GraphicalEffects"
+
+    # Confirm the actual GraphicalEffects QML modules and both plugin DSOs.
+    for file in \
+        qmldir \
+        libqtgraphicaleffectsplugin.so \
+        private/qmldir \
+        private/libqtgraphicaleffectsprivateplugin.so; do
+        if [[ ! -f "$qml_dir/$file" ]]; then
+            echo "[ERROR] Qt5Compat.GraphicalEffects file missing: $qml_dir/$file" >&2
+            echo "[INFO] Staged GraphicalEffects candidates:" >&2
+            find "$pkgdir/usr" -path '*/Qt5Compat/GraphicalEffects/*' -print >&2 || true
+            return 1
+        fi
+    done
+
+    # Check the native Core5Compat library and CMake export as well.
+    if [[ ! -f "$pkgdir/usr/lib/cmake/Qt6Core5Compat/Qt6Core5CompatConfig.cmake" ]]; then
+        echo "[ERROR] Qt6Core5Compat CMake package missing" >&2
+        return 1
+    fi
+    if ! compgen -G "$pkgdir/usr/lib/libQt6Core5Compat.so*" >/dev/null; then
+        echo "[ERROR] Qt6Core5Compat library missing" >&2
+        return 1
+    fi
 
     if [[ -d "$src/LICENSES" ]]; then
         install -dm755 "$pkgdir/usr/share/licenses/$NAME"
         cp -a "$src/LICENSES/." "$pkgdir/usr/share/licenses/$NAME/"
     fi
+
+    echo "[OK] Qt5Compat $VERSION staged; QML root: $qt_qml_root"
 }

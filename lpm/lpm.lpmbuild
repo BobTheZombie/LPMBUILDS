@@ -2,7 +2,7 @@
 # LPM standalone CLI package
 
 NAME="lpm"
-VERSION="1.2.1030"
+VERSION="1.3.1"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
 
@@ -10,7 +10,7 @@ SUMMARY="Linux Package Manager with dependency solving and staged builds"
 URL="https://github.com/BobTheZombie/LPM.Org"
 LICENSE=("MIT")
 
-_COMMIT="e22bfa01f878cd833351536550119126a95eb003"
+_COMMIT="be39531f2ccf85089d36fc1a9cca934a8838ed24"
 
 SOURCE=(
     "https://github.com/BobTheZombie/LPM.Org/archive/${_COMMIT}.tar.gz"

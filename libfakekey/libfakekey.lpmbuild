@@ -1,0 +1,108 @@
+#!/bin/bash
+# LPM Linux - libfakekey X11/XTest virtual keyboard library
+NAME="libfakekey"
+VERSION="0.3+git20170516"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+
+SUMMARY="X11 library for converting UTF-8 text into synthesized key events"
+URL="https://git.yoctoproject.org/libfakekey/"
+LICENSE=("LGPL-2.0-or-later")
+
+# Debian's unmodified upstream source snapshot; no Debian binary packages.
+SOURCE=(
+    "https://deb.debian.org/debian/pool/main/libf/libfakekey/libfakekey_${VERSION}.orig.tar.xz"
+)
+SHA256SUMS=("ddbd308dc7f20390b2a6cb88bd077a62061a40533e209a14a94bdb36b32a0446")
+PATCHES=()
+
+REQUIRES=(
+    "glibc"
+    "libX11"
+    "libXtst"
+)
+BUILD_REQUIRES=(
+    "gcc"
+    "make"
+    "pkgconf"
+    "autoconf"
+    "automake"
+    "libtool"
+    "gettext"
+    "libX11"
+    "libXtst"
+)
+PROVIDES=("libfakekey0")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+REQUIRES_PYTHON_DEPENDENCIES=()
+
+# Avoid hardcoding the archive's top-level directory: LPM may rename it.
+_libfakekey_src() {
+    local root="${SRCROOT:?SRCROOT is unset}" dir
+    for dir in \
+        "$root/libfakekey-${VERSION}" \
+        "$root/libfakekey-0.3" \
+        "$root/libfakekey" \
+        "$root"; do
+        if [[ -f "$dir/configure.ac" || -f "$dir/configure.in" ]]; then
+            printf '%s\n' "$dir"
+            return 0
+        fi
+    done
+    while IFS= read -r dir; do
+        dir="${dir%/*}"
+        if [[ -f "$dir/Makefile.am" ]]; then
+            printf '%s\n' "$dir"
+            return 0
+        fi
+    done < <(find "$root" -mindepth 1 -maxdepth 4 -type f \
+        \( -name configure.ac -o -name configure.in \) -print)
+    echo "[ERROR] libfakekey Autotools source not found below: $root" >&2
+    return 1
+}
+
+prepare() {
+    set -euo pipefail
+    local src
+    src="$(_libfakekey_src)"
+    cd "$src"
+    # This small upstream git snapshot may omit generated configure files.
+    if [[ ! -x ./configure ]]; then
+        autoreconf --force --install
+    fi
+    test -x ./configure
+}
+
+build() {
+    set -euxo pipefail
+    local src
+    src="$(_libfakekey_src)"
+    cd "$src"
+    if [[ ! -x ./configure ]]; then
+        autoreconf --force --install
+    fi
+
+    ./configure \
+        --prefix=/usr \
+        --libdir=/usr/lib \
+        --enable-shared \
+        --disable-static
+
+    make -j "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+staging() {
+    set -euxo pipefail
+    local src
+    src="$(_libfakekey_src)"
+    make -C "$src" DESTDIR="${pkgdir:?}" install
+    rm -f "$pkgdir/usr/lib/libfakekey.la"
+
+    test -f "$pkgdir/usr/include/fakekey/fakekey.h"
+    test -f "$pkgdir/usr/lib/pkgconfig/libfakekey.pc"
+    find "$pkgdir/usr/lib" -maxdepth 1 \
+        -name 'libfakekey.so*' -print -quit | grep -q .
+}

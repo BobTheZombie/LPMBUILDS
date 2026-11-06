@@ -1,0 +1,69 @@
+#!/bin/bash
+# LPM Linux source recipe — KDE Frameworks 6 Kirigami
+# LPM extracts the archive to $SRCROOT/$NAME-$VERSION.
+
+NAME="kirigami"
+VERSION="6.31.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+
+SUMMARY="KDE Frameworks 6 Qt Quick UI components (Kirigami)"
+URL="https://invent.kde.org/frameworks/kirigami"
+LICENSE=("LGPL-2.0-only" "LGPL-3.0-only")
+
+SOURCE=(
+    "https://download.kde.org/stable/frameworks/${VERSION%.*}/kirigami-${VERSION}.tar.xz"
+)
+SHA256SUMS=(
+    "811a8a150e636216269c0346e62470997fa282113a39e32b2d332bd5969926f0"
+)
+PATCHES=()
+
+REQUIRES=(
+    "glibc"
+    "qt6-base"
+    "qt6-declarative"
+    "qt6-svg"
+)
+
+BUILD_REQUIRES=(
+    "cmake"
+    "ninja"
+    "extra-cmake-modules"
+    "qt6-tools"
+    "qt6-shadertools"
+)
+
+prepare() {
+    cd "${SRCROOT}/${NAME}-${VERSION}" || return 1
+    rm -rf build
+}
+
+build() {
+    cd "${SRCROOT}/${NAME}-${VERSION}" || return 1
+
+    cmake -S . -B build -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DKDE_INSTALL_USE_QT_SYS_PATHS=ON \
+        -DBUILD_TESTING=OFF \
+        -DBUILD_EXAMPLES=OFF \
+        -DBUILD_QCH=OFF || return 1
+
+    cmake --build build --parallel "${JOBS:-$(nproc)}"
+}
+
+staging() {
+    cd "${SRCROOT}/${NAME}-${VERSION}" || return 1
+    DESTDIR="${pkgdir}" cmake --install build || return 1
+
+    # Guard against the missing-QML-import failure seen on LPM Linux.
+    # The Kirigami QML module must land in Qt's configured QML tree.
+    local qml_dir
+    qml_dir="$(qtpaths6 --query QT_INSTALL_QML)" || return 1
+    if [[ ! -f "${pkgdir}${qml_dir}/org/kde/kirigami/qmldir" ]]; then
+        echo "[ERROR] Kirigami QML module not staged under Qt QML path: ${qml_dir}" >&2
+        return 1
+    fi
+}

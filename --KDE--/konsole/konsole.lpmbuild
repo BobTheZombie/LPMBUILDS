@@ -22,6 +22,7 @@ REQUIRES=(
     "kpty6"
     "kio6"
     "ki18n6"
+    "libssh"
 )
 BUILD_REQUIRES=(
     "cmake"

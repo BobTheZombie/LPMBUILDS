@@ -1,0 +1,117 @@
+#!/bin/bash
+# LPM Linux — GN (Qt WebEngine-compatible Generate Ninja)
+# Uses Qt's exact Chromium-pinned GN source, WITHOUT cloning all Chromium.
+# The output reports version 6.140.0.qtwebengine.qt.io, as required by FindGn.cmake.
+
+NAME="gn"
+VERSION="6.140.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+
+SUMMARY="GN meta-build system (Qt WebEngine 6.140.0-compatible)"
+URL="https://github.com/qt/qtwebengine-chromium"
+LICENSE=("BSD-3-Clause")
+
+# Checkout is handled by prepare() to use a filtered sparse Git fetch.
+# A standard LPM git+ source would download the entire Chromium repository.
+SOURCE=()
+SHA256SUMS=()
+PATCHES=()
+
+REQUIRES=(
+    "glibc"
+    "gcc-libs"
+)
+
+BUILD_REQUIRES=(
+    "git"
+    "python"
+    "ninja"
+    "gcc"
+)
+
+PROVIDES=("gn")
+CONFLICTS=()
+OBSOLETES=()
+BUILD_OPTIONS=("@--optimize=2" "@--stripping")
+
+# Pinned gitlink from Qt WebEngine v6.140.0-rc.
+_GN_CHROMIUM_COMMIT="39352427a3245a19fb395547b3aa38be9d091ec4"
+_GN_REPO="https://github.com/qt/qtwebengine-chromium.git"
+
+prepare() {
+    set -euxo pipefail
+
+    local srcroot="${SRCROOT:?SRCROOT is not set}"
+    local checkout="$srcroot/qtwebengine-chromium"
+    local vendored="${LPM_GN_CHROMIUM_SRC:-/tmp/src-qt6-webengine/qtwebengine/src/3rdparty}"
+    local head=""
+
+    mkdir -p "$srcroot"
+
+    # Reuse the exact Qt-pinned GN sources if Chromium is already checked out.
+    if [[ -f "$vendored/gn/build/gen.py" ]]; then
+        head="$(git -C "$vendored" rev-parse HEAD 2>/dev/null || true)"
+        if [[ "$head" == "$_GN_CHROMIUM_COMMIT" ]]; then
+            rm -rf "$srcroot/gn"
+            cp -a "$vendored/gn" "$srcroot/gn"
+            echo "[OK] Reusing Qt WebEngine's pinned GN sources"
+            return 0
+        fi
+    fi
+
+    # Fallback: fetch the pinned revision and check out ONLY the gn/ directory.
+    rm -rf "$checkout" "$srcroot/gn"
+    git init -q "$checkout"
+    git -C "$checkout" remote add origin "$_GN_REPO"
+    git -C "$checkout" sparse-checkout init --cone
+    git -C "$checkout" sparse-checkout set gn
+    git -C "$checkout" -c protocol.version=2 fetch \
+        --depth=1 --filter=blob:none origin "$_GN_CHROMIUM_COMMIT"
+    git -C "$checkout" -c advice.detachedHead=false checkout --detach FETCH_HEAD
+
+    [[ "$(git -C "$checkout" rev-parse HEAD)" == "$_GN_CHROMIUM_COMMIT" ]]
+    test -f "$checkout/gn/build/gen.py"
+    cp -a "$checkout/gn" "$srcroot/gn"
+}
+
+build() {
+    set -euxo pipefail
+
+    local gn_source="${SRCROOT:?SRCROOT is not set}/gn"
+    local gn_build="${BUILDROOT:?BUILDROOT is not set}/gn"
+    local jobs="${LPM_GN_JOBS:-4}"
+
+    [[ "$jobs" =~ ^[1-9][0-9]*$ ]] || {
+        echo "[ERROR] LPM_GN_JOBS must be a positive integer" >&2
+        return 1
+    }
+
+    mkdir -p "$gn_build"
+
+    # Qt's patched gen.py embeds the version required by Qt FindGn.cmake.
+    env -u DESTDIR python3 "$gn_source/build/gen.py" \
+        --no-last-commit-position \
+        --no-static-libstdc++ \
+        --allow-warnings \
+        --out-path "$gn_build" \
+        --cc "${CC:-gcc}" \
+        --cxx "${CXX:-g++}" \
+        --ld "${CXX:-g++}" \
+        --ar "${AR:-ar}" \
+        --qt-version "${VERSION}.qtwebengine.qt.io"
+
+    env -u DESTDIR ninja -C "$gn_build" -j "$jobs" gn
+
+    test -x "$gn_build/gn"
+    test "$("$gn_build/gn" --version)" = "${VERSION}.qtwebengine.qt.io"
+}
+
+staging() {
+    set -euxo pipefail
+
+    install -Dm755 "${BUILDROOT:?BUILDROOT is not set}/gn/gn" \
+        "${pkgdir:?pkgdir is not set}/usr/bin/gn"
+
+    test "$("$pkgdir/usr/bin/gn" --version)" = "${VERSION}.qtwebengine.qt.io"
+}

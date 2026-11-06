@@ -18,6 +18,7 @@ PATCHES=()
 REQUIRES=(
     "qt6-base"
     "qt6-declarative"
+    "qt6-graphs"
     "ksystemstats"
     "libksysguard"
     "kio6"
@@ -30,6 +31,7 @@ BUILD_REQUIRES=(
     "extra-cmake-modules"
     "qt6-base"
     "qt6-declarative"
+    "qt6-graphs"
     "ksystemstats"
     "libksysguard"
     "kio6"

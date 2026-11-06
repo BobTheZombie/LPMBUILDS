@@ -32,8 +32,8 @@ build() {
         -Dfontconfig=enabled \
         -Dzlib=enabled \
         -Dglib=enabled \
-        -Dxlib=disabled\
-        -Dxcb=disabled
+        -Dxlib=enabled \
+        -Dxcb=enabled 
 
     ninja -C build -j"$(nproc)"
 }

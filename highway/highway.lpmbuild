@@ -1,0 +1,100 @@
+#!/bin/bash
+# LPM Linux: Highway SIMD library for KQuickImageEditor / Spectacle.
+# Official upstream 1.4.0 release, pinned to its immutable Git commit.
+# Keep Highway's dynamic CPU dispatch; LPM sets host optimization flags.
+
+NAME="highway"
+VERSION="1.4.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+
+SUMMARY="Google Highway portable SIMD library with runtime CPU dispatch"
+URL="https://github.com/google/highway"
+LICENSE=("Apache-2.0" "BSD-3-Clause")
+
+SOURCE=(
+    "highway::git+https://github.com/google/highway.git#commit=2607d3b5b0113992fe84d3848859eae13b3b52c1"
+)
+SHA256SUMS=()
+PATCHES=()
+
+REQUIRES=(
+    "glibc"
+    "gcc-libs"
+)
+BUILD_REQUIRES=(
+    "cmake"
+    "ninja"
+    "git"
+    "gcc"
+)
+REQUIRES_PYTHON_DEPENDENCIES=()
+PROVIDES=("highway" "hwy")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+# CPU tuning is applied by LPM. Highway itself also provides SIMD dispatch.
+BUILD_OPTIONS=("@--optimize=2" "@--stripping")
+
+_highway_source_dir() {
+    local src="${SRCROOT:?SRCROOT must be set}/highway"
+    if [[ ! -f "$src/CMakeLists.txt" ]]; then
+        printf '[ERROR] Highway source not found: %s\n' "$src" >&2
+        return 1
+    fi
+    printf '%s\n' "$src"
+}
+
+prepare() {
+    set -euxo pipefail
+    local src expected actual
+    src="$(_highway_source_dir)"
+    expected="2607d3b5b0113992fe84d3848859eae13b3b52c1"
+    actual="$(git -C "$src" rev-parse HEAD)"
+    if [[ "$actual" != "$expected" ]]; then
+        printf '[ERROR] Highway source commit mismatch: %s != %s\n' "$actual" "$expected" >&2
+        return 1
+    fi
+    rm -rf "$src/build"
+}
+
+build() {
+    set -euxo pipefail
+    local src builddir
+    src="$(_highway_source_dir)"
+    builddir="$src/build"
+
+    cmake -S "$src" -B "$builddir" -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+        -DBUILD_SHARED_LIBS=ON \
+        -DHWY_FORCE_STATIC_LIBS=OFF \
+        -DHWY_ENABLE_INSTALL=ON \
+        -DHWY_ENABLE_CONTRIB=ON \
+        -DHWY_ENABLE_TESTS=OFF \
+        -DHWY_ENABLE_EXAMPLES=OFF \
+        -DHWY_ENABLE_LIST_TARGETS=OFF \
+        -DHWY_WARNINGS_ARE_ERRORS=OFF
+
+    cmake --build "$builddir" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+staging() {
+    set -euxo pipefail
+    local src
+    src="$(_highway_source_dir)"
+    DESTDIR="${pkgdir:?pkgdir must be set}" cmake --install "$src/build"
+
+    # Required by KQuickImageEditor: find_package(HWY ...), hwy::hwy.
+    test -f "$pkgdir/usr/lib/cmake/hwy/hwy-config.cmake"
+    test -f "$pkgdir/usr/lib/cmake/hwy/hwy-config-version.cmake"
+    test -f "$pkgdir/usr/include/hwy/highway.h"
+    test -f "$pkgdir/usr/lib/pkgconfig/libhwy.pc"
+    find "$pkgdir/usr/lib" -maxdepth 1 -name 'libhwy.so*' -print -quit | grep -q .
+    find "$pkgdir/usr/lib" -maxdepth 1 -name 'libhwy_contrib.so*' -print -quit | grep -q .
+    grep -q 'hwy::hwy\|hwy_targets' "$pkgdir/usr/lib/cmake/hwy/hwy-config.cmake"
+}

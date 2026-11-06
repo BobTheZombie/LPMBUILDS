@@ -1,37 +1,105 @@
-# LPM build script for wireplumber
+#!/bin/bash
+# LPM build script for WirePlumber
+
 NAME="wireplumber"
 VERSION="0.5.5"
-RELEASE="1"
+RELEASE="2"
 ARCH="${ARCH:-x86_64}"
+
 SUMMARY="Session and policy manager for PipeWire"
 URL="https://pipewire.pages.freedesktop.org/wireplumber/"
-LICENSE="MIT"
-SOURCE=("https://gitlab.freedesktop.org/pipewire/wireplumber/-/archive/${VERSION}/wireplumber-${VERSION}.tar.gz")
-CHECKSUMS=("49075cd5c2f4820839a9e69d4a22386bc280c62b92c153af9be39ca439d45a09")
-REQUIRES=("glibc" "pipewire" "lua" "json-glib" "glib2" "systemd")
+LICENSE=("MIT")
+
+SOURCE=(
+    "https://gitlab.freedesktop.org/pipewire/wireplumber/-/archive/${VERSION}/wireplumber-${VERSION}.tar.gz"
+)
+SHA256SUMS=("49075cd5c2f4820839a9e69d4a22386bc280c62b92c153af9be39ca439d45a09")
+PATCHES=()
+
+REQUIRES=(
+    "glibc"
+    "pipewire"
+    "lua"
+    "json-glib"
+    "glib2"
+    "systemd"
+)
 PROVIDES=("wireplumber")
 CONFLICTS=()
 OBSOLETES=()
 RECOMMENDS=()
 SUGGESTS=()
 
-prepare() { set -euxo pipefail; cd "$SRCROOT"; }
+# SRCROOT may refer either to the unpacked project or to its parent.
+# Recognize WirePlumber's root meson.build, not a subproject's build file.
+_wireplumber_source() {
+    local base="${SRCROOT:?SRCROOT is not set}"
+    local candidate
+
+    for candidate in \
+        "$base" \
+        "$base/wireplumber-${VERSION}" \
+        "$base/${NAME}-${VERSION}"; do
+        if [[ -f "$candidate/meson.build" && \
+              -f "$candidate/meson_options.txt" && \
+              -f "$candidate/src/meson.build" ]]; then
+            printf '%s\n' "$candidate"
+            return 0
+        fi
+    done
+
+    while IFS= read -r candidate; do
+        candidate="${candidate%/meson.build}"
+        if [[ -f "$candidate/meson_options.txt" && \
+              -f "$candidate/src/meson.build" ]]; then
+            printf '%s\n' "$candidate"
+            return 0
+        fi
+    done < <(find "$base" -mindepth 1 -maxdepth 4 -type f -name meson.build -print)
+
+    echo "[ERROR] WirePlumber ${VERSION} source tree not found under: $base" >&2
+    return 1
+}
+
+_wireplumber_builddir() {
+    printf '%s/lpm-build\n' "${SRCROOT:?SRCROOT is not set}"
+}
+
+prepare() {
+    set -euxo pipefail
+    _wireplumber_source >/dev/null
+}
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  meson setup build --prefix=/usr --buildtype=release -Dsystemd=enabled -Dsession-managers=default
-  ninja -C build
+    set -euxo pipefail
+    local src builddir
+    src="$(_wireplumber_source)"
+    builddir="$(_wireplumber_builddir)"
+
+    meson setup "$builddir" "$src" \
+        --prefix=/usr \
+        --libdir=lib \
+        --buildtype=release \
+        -Dsystemd=enabled \
+        -Delogind=disabled \
+        -Dsystem-lua=true \
+        -Dsystemd-system-service=true \
+        -Dsystemd-user-service=true \
+        -Dtests=false \
+        -Ddoc=disabled
+
+    meson compile -C "$builddir" -j "${LPM_BUILD_JOBS:-$(nproc)}"
 }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT"
-  DESTDIR="$pkgdir" ninja -C build install
+    set -euxo pipefail
+    local builddir
+    builddir="$(_wireplumber_builddir)"
+
+    # Install the *existing* Meson build into LPM's package staging tree.
+    DESTDIR="${pkgdir:?pkgdir is not set}" meson install -C "$builddir"
+
+    test -x "$pkgdir/usr/bin/wireplumber"
+    test -x "$pkgdir/usr/bin/wpctl"
+    test -f "$pkgdir/usr/lib/pkgconfig/wireplumber-0.5.pc"
 }
-
-
-
-
-# Final audited source digests
-SHA256SUMS=("49075cd5c2f4820839a9e69d4a22386bc280c62b92c153af9be39ca439d45a09")

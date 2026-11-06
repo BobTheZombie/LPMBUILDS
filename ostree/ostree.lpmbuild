@@ -1,0 +1,39 @@
+# Upstream v2026.4 still has open GHSA-7cgc-gp99-6jmm decompression cap issue; track advisory.
+# LPM Linux source build: ostree
+NAME="ostree"
+VERSION="2026.4"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="OSTree content-addressed object store and libostree"
+URL="https://github.com/ostreedev/ostree"
+LICENSE=("LGPL-2.1-or-later")
+SOURCE=("https://github.com/ostreedev/ostree/releases/download/v2026.4/libostree-2026.4.tar.xz")
+SHA256SUMS=("b26c9016eb03bb4ee52cc00c642d56e00fc79ae7faac6bf4aa317d7451339ef7")
+PATCHES=()
+BUILD_REQUIRES=("gcc" "make" "pkgconf" "glib2" "curl" "gpgme" "libarchive" "libcap" "systemd" "xz" "zlib")
+REQUIRES=("glib2" "curl" "gpgme" "libarchive" "libcap" "libsoup3" "fuse3" "systemd")
+PROVIDES=("ostree" "libostree")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+  set -euo pipefail
+  cd "$SRCROOT/${NAME}-${VERSION}"
+  :
+}
+
+build() {
+  set -euo pipefail
+  cd "$SRCROOT/${NAME}-${VERSION}"
+  ./configure --prefix=/usr --libdir=/usr/lib --disable-static \
+    --with-curl --with-gpgme --without-selinux --with-mkinitcpio --disable-man
+  make -j "${LPM_BUILD_JOBS:-6}"
+}
+
+staging() {
+  set -euo pipefail
+  cd "$SRCROOT/${NAME}-${VERSION}"
+  make DESTDIR="$pkgdir" install
+}

@@ -1,0 +1,57 @@
+#!/bin/bash
+# LPM Linux - AccountsQt6 (libaccounts-qt built with Qt6 qmake)
+NAME="libaccounts-qt"
+VERSION="1.17"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Qt6 client library for Accounts-SSO (provides AccountsQt6)"
+URL="https://gitlab.com/accounts-sso/libaccounts-qt"
+LICENSE=("LGPL-2.1-only")
+SOURCE=("https://gitlab.com/accounts-sso/libaccounts-qt/-/archive/VERSION_${VERSION}/libaccounts-qt-VERSION_${VERSION}.tar.gz")
+SHA256SUMS=("SKIP") # Pin a verified source checksum for release
+PATCHES=()
+REQUIRES=("glibc" "glib2" "libaccounts-glib" "qt6-base")
+BUILD_REQUIRES=("make" "pkgconf" "qt6-base" "qt6-tools" "libaccounts-glib")
+REQUIRES_PYTHON_DEPENDENCIES=()
+PROVIDES=("AccountsQt6" "libaccounts-qt6")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+_qmake6() {
+    local cmd
+    for cmd in /usr/bin/qmake6 /usr/lib/qt6/bin/qmake6 /usr/lib/qt6/bin/qmake; do
+        if [[ -x "$cmd" ]]; then printf '%s\n' "$cmd"; return 0; fi
+    done
+    echo '[ERROR] Qt6 qmake not found; check qt6-base/qt6-tools' >&2
+    return 1
+}
+prepare() {
+    set -euxo pipefail
+    local src="$SRCROOT/$NAME-$VERSION"
+    test -f "$src/accounts-qt.pro"
+    rm -rf "$src/build"
+}
+build() {
+    set -euxo pipefail
+    local src="$SRCROOT/$NAME-$VERSION" qmake
+    qmake="$(_qmake6)"
+    mkdir -p "$src/build"
+    cd "$src/build"
+    "$qmake" "$src/accounts-qt.pro" \
+        PREFIX=/usr LIBDIR=/usr/lib 'CONFIG+=release' 'CONFIG+=qt6'
+    make -j "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+staging() {
+    set -euxo pipefail
+    local src="$SRCROOT/$NAME-$VERSION"
+    [[ -n "${pkgdir:-}" && "$pkgdir" != / ]] || return 1
+    make -C "$src/build" INSTALL_ROOT="$pkgdir" install
+    test -f "$pkgdir/usr/lib/cmake/AccountsQt6/AccountsQt6Config.cmake" || {
+        echo '[ERROR] AccountsQt6Config.cmake missing; verify qmake6 was used' >&2; return 1;
+    }
+    compgen -G "$pkgdir/usr/lib/libaccounts-qt6.so*" >/dev/null || {
+        echo '[ERROR] libaccounts-qt6 library missing' >&2; return 1;
+    }
+}

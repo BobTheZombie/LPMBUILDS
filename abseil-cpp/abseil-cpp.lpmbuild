@@ -1,0 +1,76 @@
+#!/bin/bash
+
+NAME="abseil-cpp"
+VERSION="20260817.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+
+SUMMARY="Abseil C++ common libraries (shared, with CMake and pkg-config metadata)"
+URL="https://github.com/abseil/abseil-cpp"
+LICENSE=("Apache-2.0")
+
+# LPM natively supports git+https URLs and pinned tags.
+# The alias matches the expected $SRCROOT/$NAME-$VERSION path.
+SOURCE=(
+    "${NAME}-${VERSION}::git+https://github.com/abseil/abseil-cpp.git#tag=${VERSION}"
+)
+SHA256SUMS=()
+PATCHES=()
+
+REQUIRES=(
+    "glibc"
+)
+BUILD_REQUIRES=(
+    "cmake"
+    "gcc"
+    "ninja"
+    "pkgconf"
+)
+PROVIDES=(
+    "abseil-cpp"
+    "abseil"
+)
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    test -f CMakeLists.txt
+    test -d absl
+    rm -rf build
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    cmake -S . -B build -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DCMAKE_CXX_STANDARD=17 \
+        -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+        -DBUILD_SHARED_LIBS=ON \
+        -DABSL_ENABLE_INSTALL=ON \
+        -DABSL_PROPAGATE_CXX_STD=ON \
+        -DABSL_BUILD_TESTING=OFF \
+        -DABSL_BUILD_TEST_HELPERS=OFF
+
+    cmake --build build --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+
+    DESTDIR="$pkgdir" cmake --install build
+
+    test -f "$pkgdir/usr/include/absl/base/config.h"
+    test -f "$pkgdir/usr/lib/cmake/absl/abslConfig.cmake"
+    compgen -G "$pkgdir/usr/lib/libabsl_base.so*" > /dev/null
+
+    if [ -f LICENSE ]; then
+        install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$NAME/LICENSE"
+    fi
+}

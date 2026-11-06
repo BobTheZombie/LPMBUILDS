@@ -20,6 +20,7 @@ REQUIRES=(
     "qt6-declarative"
     "breeze"
     "kconfig6"
+    "sassc"
 )
 BUILD_REQUIRES=(
     "cmake"
@@ -30,8 +31,9 @@ BUILD_REQUIRES=(
     "qt6-declarative"
     "breeze"
     "kconfig6"
+    "sassc"
 )
-REQUIRES_PYTHON_DEPENDENCIES=()
+REQUIRES_PYTHON_DEPENDENCIES=("pycairo")
 PROVIDES=()
 CONFLICTS=()
 OBSOLETES=()

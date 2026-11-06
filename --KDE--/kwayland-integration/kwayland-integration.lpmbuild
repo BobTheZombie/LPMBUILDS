@@ -1,35 +1,50 @@
 #!/bin/bash
-# LPM Linux: KDE Plasma 6.8.1 package chain
-# Generated 2026-10-25; source digests MUST be locked before building.
+# LPM Linux - kwayland-integration 6.8.1
+# Qt 5 / KF5 compatibility plugin for Plasma 6 Wayland sessions.
+# This package is deliberately NOT Qt6-based: upstream retains the Qt5 plugin
+# for legacy applications, while KF6 KWindowSystem provides the Qt6 equivalent.
+
 NAME="kwayland-integration"
 VERSION="6.8.1"
-RELEASE="1"
+RELEASE="2"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="KDE Plasma 6: kwayland-integration"
-URL="https://kde.org"
-LICENSE=("SEE-UPSTREAM")
+SUMMARY="Plasma Wayland integration for legacy Qt5/KF5 applications"
+URL="https://invent.kde.org/plasma/kwayland-integration"
+LICENSE=("LGPL-2.0-or-later" "LGPL-3.0-only" "CC0-1.0")
+
 SOURCE=(
-    "https://download.kde.org/stable/plasma/6.8.1/kwayland-integration-6.8.1.tar.xz"
+    "https://download.kde.org/stable/plasma/${VERSION}/${NAME}-${VERSION}.tar.xz"
 )
 SHA256SUMS=(
-    "SKIP"
+    "f050d80efcddbc03acf61dff04e71f1a068bddfaadf6d828962fc5a3dcc5ceaa"
 )
 PATCHES=()
+
+# Adjust the KF5 recipe names only if your LPM repository calls them
+# something else. These must provide KF5WindowSystem and KF5Wayland, NOT KF6.
 REQUIRES=(
-    "qt6-base"
-    "qt6-declarative"
-    "kwayland"
-    "qt6-wayland"
+    "qt5-base"
+    "qt5-wayland"
+    "kf5-kwindowsystem"
+    "kf5-kwayland"
+    "wayland"
+    "libxkbcommon"
+    "glibc"
+    "gcc-libs"
 )
 BUILD_REQUIRES=(
     "cmake"
     "ninja"
     "pkgconf"
     "extra-cmake-modules"
-    "qt6-base"
-    "qt6-declarative"
-    "kwayland"
-    "qt6-wayland"
+    "qt5-base"
+    "qt5-wayland"
+    "kf5-kwindowsystem"
+    "kf5-kwayland"
+    "wayland"
+    "wayland-protocols"
+    "plasma-wayland-protocols"
+    "libxkbcommon"
 )
 REQUIRES_PYTHON_DEPENDENCIES=()
 PROVIDES=()
@@ -47,13 +62,19 @@ build() {
     set -euxo pipefail
     local src="$SRCROOT/$NAME-$VERSION"
     local builddir="$src/build"
+
+    # Verify development libraries before CMake's error becomes misleading.
+    pkg-config --exists wayland-client xkbcommon
+    test -f "$src/CMakeLists.txt"
+
     cmake -S "$src" -B "$builddir" -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_INSTALL_PREFIX=/usr \
-        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DKDE_INSTALL_LIBDIR=lib \
+        -DKDE_INSTALL_USE_QT_SYS_PATHS=ON \
         -DBUILD_TESTING=OFF \
-        -DBUILD_SHARED_LIBS=ON \
-        -DKDE_INSTALL_USE_QT_SYS_PATHS=ON
+        -DBUILD_SHARED_LIBS=ON
+
     cmake --build "$builddir" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
 }
 
@@ -61,6 +82,8 @@ staging() {
     set -euxo pipefail
     local builddir="$SRCROOT/$NAME-$VERSION/build"
     DESTDIR="$pkgdir" cmake --install "$builddir"
-    test -d "$pkgdir/usr"
-    test -n "$(find "$pkgdir/usr" -mindepth 1 -print -quit)"
+
+    # A nonempty package isn't enough: this plugin is the reason to build it.
+    find "$pkgdir/usr/lib" -type f \
+        -name 'KF5WindowSystemKWaylandPlugin.so' -print -quit | grep -q .
 }

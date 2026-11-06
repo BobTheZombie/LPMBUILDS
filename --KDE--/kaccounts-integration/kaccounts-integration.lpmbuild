@@ -1,0 +1,59 @@
+#!/bin/bash
+# LPM Linux - KAccounts6, online accounts integration for KDE
+NAME="kaccounts-integration"
+VERSION="26.08.2"
+RELEASE="2"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="KAccounts6 CMake library, QML integration and KDE online accounts"
+URL="https://invent.kde.org/network/kaccounts-integration"
+LICENSE=("GPL-2.0-or-later")
+SOURCE=("https://download.kde.org/stable/release-service/${VERSION}/src/${NAME}-${VERSION}.tar.xz")
+SHA256SUMS=("1d8b11fb01151f4a44cae517bb21b10740c130856b99ab42cefd72d4945d62ca")
+PATCHES=()
+REQUIRES=("glibc" "qt6-base" "qt6-declarative" "libaccounts-qt" "signond" \
+          "kconfig6" "kcoreaddons6" "kdbusaddons6" "ki18n6" "kio6" "kcmutils6" "kwallet6" "kirigami" "qcoro" \
+          "signon-plugin-oauth2" "signon-ui" "signon-kwallet-extension")
+BUILD_REQUIRES=("cmake" "ninja" "pkgconf" "extra-cmake-modules" "qt6-base" \
+                "qt6-declarative" "libaccounts-qt" "signond" "qcoro" \
+                "kconfig6" "kcoreaddons6" "kdbusaddons6" "ki18n6" "kio6" "kcmutils6" "kwallet6" "kirigami")
+REQUIRES_PYTHON_DEPENDENCIES=()
+PROVIDES=("KAccounts6")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=("kaccounts-providers")
+
+prepare() {
+    set -euxo pipefail
+    local src="$SRCROOT/$NAME-$VERSION"
+    test -f "$src/CMakeLists.txt"
+    rm -rf "$src/build"
+}
+build() {
+    set -euxo pipefail
+    local src="$SRCROOT/$NAME-$VERSION"
+    test -f /usr/lib/cmake/AccountsQt6/AccountsQt6Config.cmake || {
+        echo '[ERROR] Install Qt6-flavored libaccounts-qt first' >&2; return 1;
+    }
+    if ! pkg-config --exists libsignon-qt6 && ! compgen -G '/usr/lib/libsignon-qt6.so*' >/dev/null; then
+        echo '[ERROR] SignOnQt6 is missing: build/install signond Qt6 before KAccounts6' >&2
+        return 1
+    fi
+    cmake -S "$src" -B "$src/build" -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DCMAKE_PREFIX_PATH=/usr \
+        -DKDE_INSTALL_USE_QT_SYS_PATHS=ON \
+        -DBUILD_TESTING=OFF
+    cmake --build "$src/build" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+staging() {
+    set -euxo pipefail
+    local src="$SRCROOT/$NAME-$VERSION"
+    [[ -n "${pkgdir:-}" && "$pkgdir" != / ]] || return 1
+    DESTDIR="$pkgdir" cmake --install "$src/build"
+    test -f "$pkgdir/usr/lib/cmake/KAccounts6/KAccounts6Config.cmake" || {
+        echo '[ERROR] KAccounts6 CMake export missing' >&2; return 1;
+    }
+}

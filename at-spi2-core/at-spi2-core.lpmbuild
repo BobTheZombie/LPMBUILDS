@@ -11,7 +11,11 @@ SOURCE=("git+https://gitlab.gnome.org/GNOME/at-spi2-core.git?signed#tag=${VERSIO
 
 REQUIRES=("glibc" "glib2" "meson" "ninja" "pkg-config" "gcc")
 
-PROVIDES=("at-spi2-core")
+PROVIDES=("at-spi2-core"
+          "atk"
+          "libatk-1.0.so"
+          "libatk-1.0.so.0"
+)
 CONFLICTS=()
 OBSOLETES=()
 

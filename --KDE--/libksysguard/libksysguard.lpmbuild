@@ -1,66 +1,69 @@
 #!/bin/bash
-# LPM Linux: KDE Plasma 6.8.1 package chain
-# Generated 2026-10-25; source digests MUST be locked before building.
+# LPM Linux: KDE libksysguard 6.8.1, full sensor and network monitoring.
+# Uses KDE_INSTALL_LIBDIR (not CMAKE_INSTALL_LIBDIR) to avoid ECM warnings.
 NAME="libksysguard"
 VERSION="6.8.1"
-RELEASE="1"
+RELEASE="2"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="KDE Plasma 6: libksysguard"
-URL="https://kde.org"
+SUMMARY="KDE system monitoring libraries, hwmon sensors and network usage"
+URL="https://invent.kde.org/plasma/libksysguard"
 LICENSE=("SEE-UPSTREAM")
-SOURCE=(
-    "https://download.kde.org/stable/plasma/6.8.1/libksysguard-6.8.1.tar.xz"
-)
-SHA256SUMS=(
-    "SKIP"
-)
+SOURCE=("https://download.kde.org/stable/plasma/${VERSION}/${NAME}-${VERSION}.tar.xz")
+SHA256SUMS=("ddd1443086971e2898efa8a5f1cdfb06c67b43f954ec5d41ae17c9a72fea71b3")
 PATCHES=()
 REQUIRES=(
-    "qt6-base"
-    "qt6-declarative"
-    "kcoreaddons6"
-    "ki18n6"
+    "glibc" "qt6-base" "qt6-declarative"
+    "kcoreaddons6" "kconfig6" "ki18n6" "kauth6"
+    "kservice6" "kpackage6" "knewstuff6" "solid6"
+    "zlib" "libnl" "libdrm" "libudev"
+    "lm-sensors" "libpcap"
 )
 BUILD_REQUIRES=(
-    "cmake"
-    "ninja"
-    "pkgconf"
-    "extra-cmake-modules"
-    "qt6-base"
-    "qt6-declarative"
-    "kcoreaddons6"
-    "ki18n6"
+    "cmake" "ninja" "pkgconf" "python" "extra-cmake-modules"
+    "qt6-base" "qt6-declarative"
+    "kcoreaddons6" "kconfig6" "ki18n6" "kauth6"
+    "kservice6" "kpackage6" "knewstuff6" "solid6"
+    "zlib" "libnl" "libdrm" "libudev"
+    "lm-sensors" "libpcap"
 )
 REQUIRES_PYTHON_DEPENDENCIES=()
-PROVIDES=()
+PROVIDES=("libksysguard")
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
+RECOMMENDS=("libcap")
 SUGGESTS=()
 
 prepare() {
     set -euxo pipefail
-    test -f "$SRCROOT/$NAME-$VERSION/CMakeLists.txt"
+    test -f "$SRCROOT/${NAME}-${VERSION}/CMakeLists.txt"
 }
 
 build() {
     set -euxo pipefail
-    local src="$SRCROOT/$NAME-$VERSION"
+    local src="$SRCROOT/${NAME}-${VERSION}"
     local builddir="$src/build"
+
+    # Fail with useful diagnostics before invoking CMake.
+    test -f /usr/include/sensors/sensors.h
+    test -e /usr/lib/libsensors.so
+    test -f /usr/include/pcap.h
+    test -e /usr/lib/libpcap.so
+
     cmake -S "$src" -B "$builddir" -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_INSTALL_PREFIX=/usr \
-        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DKDE_INSTALL_LIBDIR=lib \
         -DBUILD_TESTING=OFF \
         -DBUILD_SHARED_LIBS=ON \
-        -DKDE_INSTALL_USE_QT_SYS_PATHS=ON
+        -DKDE_INSTALL_USE_QT_SYS_PATHS=ON \
+        -DENABLE_KAUTH_HELPER=ON
     cmake --build "$builddir" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
 }
 
 staging() {
     set -euxo pipefail
-    local builddir="$SRCROOT/$NAME-$VERSION/build"
+    local builddir="$SRCROOT/${NAME}-${VERSION}/build"
     DESTDIR="$pkgdir" cmake --install "$builddir"
-    test -d "$pkgdir/usr"
+    test -f "$pkgdir/usr/lib/cmake/KSysGuard/KSysGuardConfig.cmake"
     test -n "$(find "$pkgdir/usr" -mindepth 1 -print -quit)"
 }

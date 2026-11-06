@@ -1,0 +1,52 @@
+#!/bin/bash
+# LPM Linux: service/provider definitions for KDE Online Accounts.
+NAME="kaccounts-providers"
+VERSION="26.08.2"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Online account providers for KAccounts integration"
+URL="https://invent.kde.org/network/kaccounts-providers"
+LICENSE=("GPL-2.0-or-later")
+SOURCE=("https://download.kde.org/stable/release-service/${VERSION}/src/${NAME}-${VERSION}.tar.xz")
+SHA256SUMS=("356e8ebbd6793a2f6231f526277d5d390b897a788cbe09e2e4e5cf352bf0d0ce")
+PATCHES=()
+REQUIRES=("kaccounts-integration" "libaccounts-qt" "signond")
+BUILD_REQUIRES=("cmake" "ninja" "pkgconf" "extra-cmake-modules" "qt6-base" "kaccounts-integration" "libaccounts-qt")
+REQUIRES_PYTHON_DEPENDENCIES=()
+PROVIDES=()
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+    set -euxo pipefail
+    local src="$SRCROOT/$NAME-$VERSION"
+    [[ -f "$src/CMakeLists.txt" ]] || return 1
+    rm -rf "$src/build"
+}
+build() {
+    set -euxo pipefail
+    local src="$SRCROOT/$NAME-$VERSION"
+    cmake -S "$src" -B "$src/build" -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DCMAKE_PREFIX_PATH=/usr \
+        -DKDE_INSTALL_USE_QT_SYS_PATHS=ON \
+        -DBUILD_TESTING=OFF
+    cmake --build "$src/build" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+staging() {
+    set -euxo pipefail
+    local src="$SRCROOT/$NAME-$VERSION"
+    [[ -n "${pkgdir:-}" && "$pkgdir" != / ]] || return 1
+    DESTDIR="$pkgdir" cmake --install "$src/build"
+    [[ -d "$pkgdir/usr/share/accounts" ]] || {
+        echo '[ERROR] Accounts provider data missing at /usr/share/accounts' >&2
+        return 1
+    }
+    find "$pkgdir/usr/share/accounts" -type f -print -quit | grep -q . || {
+        echo '[ERROR] No Accounts provider files installed' >&2; return 1;
+    }
+}

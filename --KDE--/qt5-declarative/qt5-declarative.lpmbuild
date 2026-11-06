@@ -1,0 +1,68 @@
+#!/bin/bash
+# LPM Linux — qt5-declarative
+# Builds Qt5 QML and Quick using the Qt5 qmake tool.
+NAME="qt5-declarative"
+VERSION="5.15.19"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Qt5 QML, Qt Quick and declarative UI runtime"
+URL="https://www.qt.io/"
+LICENSE=(
+    "LGPL-3.0-only"
+    "GPL-3.0-only"
+)
+SOURCE=("qtdeclarative::git+https://github.com/qt/qtdeclarative.git#tag=v5.15.19-lts-lgpl")
+# Git sources are selected by the named release tag, not a tarball digest.
+SHA256SUMS=()
+PATCHES=()
+REQUIRES=(
+    "qt5-base"
+    "glibc"
+    "gcc-libs"
+    "libglvnd"
+    "mesa"
+)
+BUILD_REQUIRES=(
+    "make"
+    "perl"
+    "python"
+    "pkgconf"
+    "qt5-base"
+    "libglvnd"
+    "mesa"
+    "git"
+)
+REQUIRES_PYTHON_DEPENDENCIES=()
+PROVIDES=()
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+BUILD_OPTIONS=("@--optimize=2" "@--stripping")
+
+prepare() {
+    set -euxo pipefail
+    local src="$SRCROOT/qtdeclarative"
+    test -f "$src/qtdeclarative.pro"
+    rm -rf "$SRCROOT/qt5-declarative-build"
+}
+build() {
+    set -euxo pipefail
+    local src="$SRCROOT/qtdeclarative"
+    local builddir="$SRCROOT/qt5-declarative-build"
+    local jobs="${LPM_BUILD_JOBS:-$(nproc)}"
+    test -x /usr/lib/qt5/bin/qmake
+    test -f "$src/qtdeclarative.pro"
+    mkdir -p "$builddir"
+    cd "$builddir"
+    PATH="/usr/lib/qt5/bin:$PATH" /usr/lib/qt5/bin/qmake "$src/qtdeclarative.pro" CONFIG+=release
+    make -j"$jobs"
+}
+staging() {
+    set -euxo pipefail
+    local builddir="$SRCROOT/qt5-declarative-build"
+    make -C "$builddir" INSTALL_ROOT="$pkgdir" install
+    test -e "$pkgdir/usr/lib/libQt5Qml.so.5"
+    test -e "$pkgdir/usr/lib/libQt5Quick.so.5"
+    test -f "$pkgdir/usr/lib/cmake/Qt5Qml/Qt5QmlConfig.cmake"
+}

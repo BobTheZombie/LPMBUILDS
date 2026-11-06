@@ -1,0 +1,101 @@
+#!/bin/bash
+
+# GI-DocGen for LPM Linux
+# The package name matches the existing installed python-gi-docgen package.
+NAME="gi-docgen"
+VERSION="2026.1"
+RELEASE="2"
+ARCH="noarch"
+
+SUMMARY="GObject Introspection API documentation generator"
+URL="https://gitlab.gnome.org/GNOME/gi-docgen"
+LICENSE=("Apache-2.0" "GPL-3.0-or-later" "CC0-1.0")
+
+SOURCE=(
+    "https://download.gnome.org/sources/gi-docgen/2026/gi-docgen-${VERSION}.tar.xz"
+)
+SHA256SUMS=(
+    "c316d6c04699976b6823912aae1fb2a6a3ffa2553b422be88fb56eb881acf479"
+)
+PATCHES=()
+
+REQUIRES=(
+    "python"
+)
+BUILD_REQUIRES=(
+    "meson"
+    "ninja"
+    "python"
+)
+
+# Python package requirements, resolved by LPM's Python dependency handler.
+# smartypants is a runtime dependency of typogrify.
+# tomli is not needed on LPM's Python 3.14 (the stdlib has tomllib).
+REQUIRES_PYTHON_DEPENDENCIES=(
+    "Markdown>=3.2"
+    "MarkupSafe"
+    "Pygments"
+    "Jinja2"
+    "packaging"
+    "typogrify==2.1.0"
+    "smartypants==2.0.2"
+)
+
+PROVIDES=("gi-docgen")
+CONFLICTS=()
+OBSOLETES=()
+
+prepare() {
+    set -euxo pipefail
+    cd "$SRCROOT/gi-docgen-${VERSION}"
+    rm -rf build
+}
+
+build() {
+    set -euxo pipefail
+    cd "$SRCROOT/gi-docgen-${VERSION}"
+
+    # GI-DocGen's upstream Meson configuration imports these modules.
+    # Fail clearly if LPM has not made Python requirements available yet.
+    python3 - <<'PY'
+import importlib
+required = ('markdown', 'markupsafe', 'pygments', 'jinja2',
+            'packaging', 'typogrify', 'smartypants')
+missing = []
+for module in required:
+    try:
+        importlib.import_module(module)
+    except ImportError as exc:
+        missing.append(f'{module}: {exc}')
+if missing:
+    raise SystemExit('Missing GI-DocGen Python dependencies:\n' + '\n'.join(missing))
+from typogrify.filters import typogrify
+PY
+
+    meson setup build \
+        --prefix=/usr \
+        --libdir=lib \
+        --buildtype=release \
+        --wrap-mode=nofallback \
+        -Ddevelopment_tests=false
+
+    meson compile -C build -j "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+staging() {
+    set -euxo pipefail
+    cd "$SRCROOT/gi-docgen-${VERSION}"
+
+    DESTDIR="$pkgdir" meson install -C build --no-rebuild
+
+    # The entry point, pkg-config metadata, and Python module must be tracked
+    # in LPM's package manifest, not installed directly into the live root.
+    test -f "$pkgdir/usr/bin/gi-docgen"
+    test -f "$pkgdir/usr/share/pkgconfig/gi-docgen.pc"
+    find "$pkgdir/usr" -path '*/gidocgen/gidocmain.py' -type f | grep -q .
+
+    if [ -d LICENSES ]; then
+        install -dm755 "$pkgdir/usr/share/licenses/$NAME"
+        cp -a LICENSES/. "$pkgdir/usr/share/licenses/$NAME/"
+    fi
+}

@@ -1,119 +1,99 @@
 #!/bin/bash
-# LPM Linux: KDE Plasma 6.8.1 KWin (Wayland compositor)
-# Includes Night Light, screen locking, color management and accessibility.
-# SHA-256: KDE official Plasma 6.8.1 release manifest.
+# LPM Linux - KDE Plasma 6.8.1 KWin, debug-symbol-enabled recovery build.
+# Intended to diagnose recurrent kwin_wayland SIGSEGV on LPM / Qt 6.12.
+# LPM extracts into $SRCROOT/$NAME-$VERSION, stages via $pkgdir.
+# This recipe does NOT claim to fix the crash without a backtrace.
+
 NAME="kwin"
 VERSION="6.8.1"
-RELEASE="2"
+RELEASE="3"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="KDE Plasma 6: KWin compositing window manager and Wayland compositor"
+SUMMARY="KDE Plasma 6 KWin Wayland compositor (debuggable build)"
 URL="https://invent.kde.org/plasma/kwin"
 LICENSE=("SEE-UPSTREAM")
 SOURCE=(
     "https://download.kde.org/stable/plasma/${VERSION}/kwin-${VERSION}.tar.xz"
 )
-SHA256SUMS=(
-    "f3d725f81061c1ba97fdef8aeb2101a5c5e03c77f11e9a2abaa1dfed4489d3b6"
-)
+# Retained from the supplied LPMBuild. Verify upstream before publication.
+SHA256SUMS=("f3d725f81061c1ba97fdef8aeb2101a5c5e03c77f11e9a2abaa1dfed4489d3b6")
 PATCHES=()
 
 REQUIRES=(
-    "qt6-base"
-    "qt6-declarative"
-    "qt6-5compat"
-    "qt6-positioning"
-    "kdecoration"
-    "aurorae"
-    "breeze"
-    "milou"
-    "libplasma"
-    "kwayland"
-    "kglobalaccel6"
-    "kglobalacceld"
-    "kconfig6"
-    "kcoreaddons6"
-    "ki18n6"
-    "kwindowsystem6"
-    "kcmutils6"
+    "qt6-base" "qt6-declarative" "qt6-5compat" "qt6-svg"
+    "qt6-positioning" "qt6-wayland" "qt6-tools"
+    "kdecoration" "kwayland" "kglobalaccel6" "kglobalacceld"
+    "kconfig6" "kcolorscheme6" "kauth6" "kcoreaddons6"
+    "kcrash6" "kdbusaddons6" "kguiaddons6" "ki18n6"
+    "kidletime6" "kpackage6" "kservice6" "kwidgetsaddons6"
+    "kwindowsystem6" "knotifications6" "kcmutils6"
     "plasma-wayland-protocols>=1.23.0"
-    "libdisplay-info>=0.2.0"
-    "libei"
-    "libinput>=1.28"
-    "libxcvt>=0.1.1"
-    "wayland>=1.26.0"
-    "wayland-protocols>=1.49"
-    "mesa"
-    "libdrm>=2.4.127"
-    "knighttime>=6.8.0"
-    "kscreenlocker>=6.8.0"
-    "lcms2"
-    "libqaccessibilityclient-qt6"
-    "libcap"
-    "libepoxy"
-    "libcanberra"
+    "libdisplay-info>=0.2.0" "libinput>=1.28"
+    "libxcvt>=0.1.1" "wayland>=1.26.0"
+    "wayland-protocols>=1.49" "libdrm>=2.4.127"
+    "mesa" "libxkbcommon" "libxcb" "libudev"
+    "knighttime>=6.8.0" "kscreenlocker>=6.8.0"
+    "lcms2" "libepoxy" "libcanberra" "libcap"
 )
-
 BUILD_REQUIRES=(
-    "cmake"
-    "ninja"
-    "pkgconf"
-    "extra-cmake-modules"
-    "qt6-base"
-    "qt6-declarative"
-    "qt6-5compat"
-    "qt6-positioning"
-    "kdecoration"
-    "aurorae"
-    "breeze"
-    "milou"
-    "libplasma"
-    "kwayland"
-    "kglobalaccel6"
-    "kglobalacceld"
-    "kconfig6"
-    "kcoreaddons6"
-    "ki18n6"
-    "kwindowsystem6"
-    "kcmutils6"
+    "cmake" "ninja" "pkgconf" "extra-cmake-modules"
+    "gcc" "qt6-base" "qt6-declarative" "qt6-5compat"
+    "qt6-svg" "qt6-positioning" "qt6-wayland" "qt6-tools"
+    "kdecoration" "kwayland" "kglobalaccel6" "kglobalacceld"
+    "kconfig6" "kcolorscheme6" "kauth6" "kcoreaddons6"
+    "kcrash6" "kdbusaddons6" "kguiaddons6" "ki18n6"
+    "kidletime6" "kpackage6" "kservice6" "kwidgetsaddons6"
+    "kwindowsystem6" "knotifications6" "kcmutils6"
+    "knewstuff6" "kdeclarative6" "krunner6" "kxmlgui6"
     "plasma-wayland-protocols>=1.23.0"
-    "libdisplay-info>=0.2.0"
-    "libei"
-    "libinput>=1.28"
-    "libxcvt>=0.1.1"
-    "wayland>=1.26.0"
-    "wayland-protocols>=1.49"
-    "mesa"
-    "libdrm>=2.4.127"
-    "knighttime>=6.8.0"
-    "kscreenlocker>=6.8.0"
-    "lcms2"
-    "libqaccessibilityclient-qt6"
-    "libcap"
-    "libepoxy"
-    "libcanberra"
+    "libdisplay-info>=0.2.0" "libinput>=1.28"
+    "libxcvt>=0.1.1" "wayland>=1.26.0"
+    "wayland-protocols>=1.49" "libdrm>=2.4.127"
+    "mesa" "libxkbcommon" "libxcb" "libudev"
+    "knighttime>=6.8.0" "kscreenlocker>=6.8.0"
+    "lcms2" "libepoxy" "libcanberra" "libcap"
 )
-
 REQUIRES_PYTHON_DEPENDENCIES=()
-PROVIDES=()
+PROVIDES=("kwin")
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
+RECOMMENDS=(
+    "breeze" "aurorae" "milou" "libplasma" "kirigami6"
+    "plasma-activities" "libqaccessibilityclient-qt6"
+    "libei" "pipewire" "hwdata" "xorg-xwayland"
+)
 SUGGESTS=()
 
 prepare() {
     set -euxo pipefail
-    test -f "$SRCROOT/${NAME}-${VERSION}/CMakeLists.txt"
+    local src="$SRCROOT/$NAME-$VERSION"
+    [[ -f "$src/CMakeLists.txt" ]] || {
+        echo "[ERROR] Missing KWin source tree: $src" >&2
+        return 1
+    }
+    # Qt6 ABI and previous build options changed; don't reuse CMakeCache.
+    rm -rf "$src/build"
 }
 
 build() {
     set -euxo pipefail
-    local src="$SRCROOT/${NAME}-${VERSION}"
+    local src="$SRCROOT/$NAME-$VERSION"
     local builddir="$src/build"
+    local jobs="${LPM_BUILD_JOBS:-$(nproc)}"
+    [[ "$jobs" =~ ^[1-9][0-9]*$ ]] || {
+        echo "[ERROR] Invalid LPM_BUILD_JOBS: $jobs" >&2
+        return 1
+    }
 
+    # QT_INSTALL_QML on LPM Qt6 6.12.0 is /usr/qml.
+    # ECM respects Qt install paths with KDE_INSTALL_USE_QT_SYS_PATHS=ON.
+    # RelWithDebInfo preserves useful symbols and O2 performance.
+    # IMPORTANT: LPM must NOT strip debugging sections afterward.
     cmake -S "$src" -B "$builddir" -G Ninja \
-        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+        -DCMAKE_C_FLAGS_RELWITHDEBINFO='-O2 -g -DNDEBUG -fno-omit-frame-pointer' \
+        -DCMAKE_CXX_FLAGS_RELWITHDEBINFO='-O2 -g -DNDEBUG -fno-omit-frame-pointer' \
         -DCMAKE_INSTALL_PREFIX=/usr \
-        -DKDE_INSTALL_LIBDIR=lib \
+        -DCMAKE_INSTALL_LIBDIR=lib \
         -DKDE_INSTALL_USE_QT_SYS_PATHS=ON \
         -DBUILD_TESTING=OFF \
         -DBUILD_SHARED_LIBS=ON \
@@ -122,21 +102,41 @@ build() {
         -DKWIN_BUILD_SCREENLOCKER=ON \
         -DKWIN_BUILD_GLOBALSHORTCUTS=ON \
         -DKWIN_BUILD_NOTIFICATIONS=ON \
-        -DKWIN_BUILD_X11=ON \
-        -DKWIN_BUILD_QACCESSIBILITYCLIENT=ON
+        -DKWIN_BUILD_X11=ON
 
-    cmake --build "$builddir" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+    [[ -f "$builddir/build.ninja" ]] || {
+        echo '[ERROR] KWin Ninja graph missing' >&2
+        return 1
+    }
+    grep -q '^CMAKE_BUILD_TYPE:STRING=RelWithDebInfo$' "$builddir/CMakeCache.txt" || {
+        echo '[ERROR] Debuggable build type was not applied' >&2
+        return 1
+    }
+    cmake --build "$builddir" --parallel "$jobs"
 }
 
 staging() {
     set -euxo pipefail
-    local builddir="$SRCROOT/${NAME}-${VERSION}/build"
-    test -n "${pkgdir:-}" && test "$pkgdir" != "/"
-
+    local builddir="$SRCROOT/$NAME-$VERSION/build"
+    [[ -n "${pkgdir:-}" && "$pkgdir" != / ]] || {
+        echo '[ERROR] Invalid LPM staging destination' >&2
+        return 1
+    }
     DESTDIR="$pkgdir" cmake --install "$builddir"
 
-    # Prove the Wayland compositor and exported CMake target were staged.
-    test -f "$pkgdir/usr/lib/cmake/KWin/KWinConfig.cmake"
-    test -n "$(find "$pkgdir/usr" -type f -name 'kwin_wayland' -print -quit)"
-    test -n "$(find "$pkgdir/usr" -mindepth 1 -print -quit)"
+    [[ -f "$pkgdir/usr/lib/cmake/KWin/KWinConfig.cmake" ]] || {
+        echo '[ERROR] Missing KWin CMake export' >&2
+        return 1
+    }
+    [[ -x "$pkgdir/usr/bin/kwin_wayland" ]] || {
+        echo '[ERROR] Missing staged kwin_wayland' >&2
+        return 1
+    }
+    # readelf checks source debug info BEFORE LPM's archive/stripping phase.
+    if command -v readelf >/dev/null 2>&1; then
+        if ! readelf -S "$pkgdir/usr/bin/kwin_wayland" | grep -q '\.debug_info'; then
+            echo '[WARN] No .debug_info in staged kwin_wayland; inspect debug flags/stripping' >&2
+        fi
+    fi
+    echo '[OK] KWin staged; ensure LPM preserves .debug_* sections in final package'
 }

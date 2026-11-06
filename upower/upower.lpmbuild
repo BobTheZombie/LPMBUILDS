@@ -49,6 +49,8 @@ build() {
   --prefix=/usr \
   --libdir=lib  \
   --buildtype=release \
+  -Dman=false \
+  -Dgtk-doc=false \
   -Ddefault_library=shared
 
   meson compile -C build

@@ -1,0 +1,100 @@
+#!/bin/bash
+# LPM Linux - SDDM system D-Bus policy, packaged separately from SDDM.
+# LPM extracts/fetches into $SRCROOT/$NAME-$VERSION.
+# Source is the raw file from the LPM-org GitLab package repository.
+
+NAME="sddm-dbus-policy"
+VERSION="0.21.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="D-Bus system policy for the SDDM display manager"
+URL="https://gitlab.com/lpm-org/packages"
+LICENSE=("GPL-2.0-or-later")
+
+SOURCE=(
+    "https://gitlab.com/lpm-org/packages/-/raw/main/--KDE--/sddm/org.freedesktop.DisplayManager.conf"
+)
+# Source is currently a mutable 'main' branch URL. Pin its revision and checksum
+# once the policy is finalized for reproducible, integrity-checked releases.
+SHA256SUMS=("SKIP")
+PATCHES=()
+
+REQUIRES=("dbus")
+BUILD_REQUIRES=("python")
+REQUIRES_PYTHON_DEPENDENCIES=()
+PROVIDES=("sddm-dbus-policy")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+_policy_source() {
+    local path
+    for path in \
+        "$SRCROOT/$NAME-$VERSION/org.freedesktop.DisplayManager.conf" \
+        "$SRCROOT/org.freedesktop.DisplayManager.conf"; do
+        if [[ -f "$path" ]]; then
+            printf '%s\n' "$path"
+            return 0
+        fi
+    done
+    echo "[ERROR] Source policy not found under $SRCROOT" >&2
+    return 1
+}
+
+prepare() {
+    set -euxo pipefail
+    local source_file
+    source_file="$(_policy_source)"
+    [[ -s "$source_file" ]] || {
+        echo "[ERROR] Downloaded D-Bus policy is empty" >&2
+        return 1
+    }
+    # Catch HTML/404 responses and reject an unsafe or invalid policy.
+    python3 - "$source_file" <<'PY'
+import sys
+import xml.etree.ElementTree as ET
+
+root = ET.parse(sys.argv[1]).getroot()
+if root.tag != 'busconfig':
+    raise SystemExit('[ERROR] Not a D-Bus <busconfig> document')
+
+name = 'org.freedesktop.DisplayManager'
+root_can_own = any(
+    policy.get('user') == 'root' and
+    any(rule.tag == 'allow' and rule.get('own') == name for rule in policy)
+    for policy in root.findall('policy')
+)
+default_denies_addseat = any(
+    policy.get('context') == 'default' and
+    any(rule.tag == 'deny' and rule.get('send_destination') == name and
+        rule.get('send_member') == 'AddSeat' for rule in policy)
+    for policy in root.findall('policy')
+)
+if not (root_can_own and default_denies_addseat):
+    raise SystemExit('[ERROR] Unexpected SDDM D-Bus security policy')
+print('[OK] Valid SDDM D-Bus policy')
+PY
+}
+
+build() {
+    # Configuration-only package: no compilation required.
+    :
+}
+
+staging() {
+    set -euxo pipefail
+    local source_file target
+    [[ -n "${pkgdir:-}" && "$pkgdir" != "/" ]] || {
+        echo "[ERROR] Unsafe LPM staging directory" >&2
+        return 1
+    }
+    source_file="$(_policy_source)"
+    target="$pkgdir/usr/share/dbus-1/system.d/org.freedesktop.DisplayManager.conf"
+    install -Dm644 "$source_file" "$target"
+    [[ -s "$target" ]] && cmp -s "$source_file" "$target" || {
+        echo "[ERROR] D-Bus policy staging failed" >&2
+        return 1
+    }
+    echo "[OK] Staged SDDM D-Bus policy at /usr/share/dbus-1/system.d/"
+}

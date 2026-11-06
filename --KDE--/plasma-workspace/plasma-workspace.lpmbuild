@@ -1,203 +1,160 @@
 #!/bin/bash
-# LPM Linux: KDE Plasma 6.8.1 package chain
-# Generated 2026-10-25; source digest locked to KDE 6.8.1 release manifest.
+# LPM Linux - KDE Plasma Workspace 6.8.1
+# Qt6 PackageKit, AppStreamQt, and KExiv2Qt6 integration enabled.
+# Publish the corresponding recipes and their dependencies to GitLab first.
+# PackageKit 1.4.0-3 uses the native LPM backend (buildpkg/installpkg/removepkg).
+# Offline transactions are not supported until LPM has an offline executor.
+
 NAME="plasma-workspace"
 VERSION="6.8.1"
-RELEASE="1"
+RELEASE="5"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="KDE Plasma 6: plasma-workspace"
-URL="https://kde.org"
+SUMMARY="KDE Plasma workspace, Wayland session, and software integration"
+URL="https://invent.kde.org/plasma/plasma-workspace"
 LICENSE=("SEE-UPSTREAM")
+
 SOURCE=(
-    "https://download.kde.org/stable/plasma/6.8.1/plasma-workspace-6.8.1.tar.xz"
+    "https://download.kde.org/stable/plasma/${VERSION}/${NAME}-${VERSION}.tar.xz"
 )
-SHA256SUMS=("e2abb7e5b5fc8d59fe369d3ab4ea776e10684af0fb1a8a3275e9df64eff97d20")
+SHA256SUMS=(
+    "e2abb7e5b5fc8d59fe369d3ab4ea776e10684af0fb1a8a3275e9df64eff97d20"
+)
 PATCHES=()
+
 REQUIRES=(
-    "qt6-base"
-    "qt6-declarative"
-    "kwin"
-    "libplasma"
-    "plasma5support"
-    "plasma-activities"
-    "kactivitymanagerd"
-    "kglobalaccel6"
-    "kio6"
-    "kservice6"
-    "krunner6"
-    "milou"
-    "wayland"
-    "wayland-protocols"
-    "mesa"
-    "libdrm"
-    "qt6-positioning"
-    "qt6-svg"
-    "qt6-shadertools"
-    "qt6-wayland"
-    "kwayland"
-    "plasma-activities-stats"
-    "libksysguard"
-    "libkscreen"
-    "layer-shell-qt"
-    "knighttime"
-    "kscreenlocker"
-    "dbus"
-    "libudev"
-    "libcanberra"
-    "zlib"
-    "karchive6"
-    "kauth6"
-    "kcoreaddons6"
-    "kcrash6"
-    "kdbusaddons6"
-    "kdeclarative6"
-    "kguiaddons6"
-    "kholidays6"
-    "ki18n6"
-    "kiconthemes6"
-    "kidletime6"
-    "kitemmodels6"
-    "kcmutils6"
-    "kded6"
-    "knewstuff6"
-    "knotifications6"
-    "kpackage6"
-    "kparts6"
-    "prison6"
-    "kstatusnotifieritem6"
-    "ksvg6"
-    "ktexteditor6"
-    "ktextwidgets6"
-    "kwallet6"
-    "kcolorscheme6"
-    "libice"
-    "libsm"
-    "libX11"
-    "libXau"
-    "libXcursor"
-    "libXfixes"
-    "libXft"
-    "libXrender"
-    "libxtst"
-    "libxcb"
-    "xcb-util"
-    "xcb-util-cursor"
-    "xcb-util-image"
-    "polkit-qt6"
-    "pipewire"
+    "glibc" "dbus" "libudev" "wayland" "zlib" "icu"
+    "qt6-base" "qt6-declarative" "qt6-location" "qt6-positioning"
+    "qt6-svg" "qt6-shadertools" "qt6-wayland"
+    "kwin" "libplasma" "kwayland" "plasma-activities"
+    "plasma-activities-stats" "kactivitymanagerd" "libksysguard"
+    "libkscreen" "layer-shell-qt" "knighttime" "kscreenlocker"
+    "qcoro" "union" "libqalculate" "libcanberra" "accountsservice"
+    "karchive6" "kaccounts-integration" "kauth6" "kcoreaddons6" "kcrash6" "kdbusaddons6"
+    "kdeclarative6" "kglobalaccel6" "kguiaddons6" "kholidays6" "kio-extras"
+    "ki18n6" "kiconthemes6" "kidletime6" "kitemmodels6"
+    "kcmutils6" "kded6" "kio6" "knewstuff6" "knotifications6"
+    "kpackage6" "kparts6" "kpipewire" "prison6" "krunner6"
+    "kstatusnotifieritem6" "ksvg6" "ktexteditor6" "ktextwidgets6"
+    "kwallet6" "kcolorscheme6" "kservice6"
+    "networkmanager-qt6" "noto-fonts-emoji" "polkit-qt6" "pipewire" "xdg-user-dirs"
+
+    # PackageKit 1.4.0-3 supplies a real LPM backend; Qt binds to its D-Bus API.
+    # AppStreamQt / KExiv2Qt6 provide Plasma feature integrations.
+    "packagekit" "packagekit-qt6" "AppStream" "libkexiv2"
+
+    # Keep X11 libraries for app/tool compatibility; not the Plasma X11 session.
+    "libICE" "libSM" "libX11" "libXau" "libXcursor"
+    "libXfixes" "libXft" "libXrender" "libXtst" "libxcb"
+    "xcb-util" "xcb-util-cursor" "xcb-util-image"
 )
+
 BUILD_REQUIRES=(
-    "cmake"
-    "ninja"
-    "pkgconf"
-    "extra-cmake-modules"
-    "qt6-base"
-    "qt6-declarative"
-    "kwin"
-    "libplasma"
-    "plasma5support"
-    "plasma-activities"
-    "kactivitymanagerd"
-    "kglobalaccel6"
-    "kio6"
-    "kservice6"
-    "krunner6"
-    "milou"
-    "qt6-positioning"
-    "qt6-svg"
-    "qt6-shadertools"
-    "qt6-wayland"
-    "kwayland"
-    "plasma-activities-stats"
-    "libksysguard"
-    "libkscreen"
-    "layer-shell-qt"
-    "knighttime"
-    "kscreenlocker"
-    "plasma-wayland-protocols"
-    "dbus"
-    "libudev"
-    "wayland"
-    "libcanberra"
-    "zlib"
-    "karchive6"
-    "kauth6"
-    "kcoreaddons6"
-    "kcrash6"
-    "kdbusaddons6"
-    "kdeclarative6"
-    "kguiaddons6"
-    "kholidays6"
-    "ki18n6"
-    "kiconthemes6"
-    "kidletime6"
-    "kitemmodels6"
-    "kcmutils6"
-    "kded6"
-    "knewstuff6"
-    "knotifications6"
-    "kpackage6"
-    "kparts6"
-    "prison6"
-    "kstatusnotifieritem6"
-    "ksvg6"
-    "ktexteditor6"
-    "ktextwidgets6"
-    "kwallet6"
-    "kcolorscheme6"
-    "libice"
-    "libsm"
-    "libX11"
-    "libXau"
-    "libXcursor"
-    "libXfixes"
-    "libXft"
-    "libXrender"
-    "libxtst"
-    "libxcb"
-    "xcb-util"
-    "xcb-util-cursor"
-    "xcb-util-image"
-    "polkit-qt6"
-    "pipewire"
+    "cmake" "ninja" "pkgconf" "python" "extra-cmake-modules"
+    "qt6-base" "qt6-declarative" "qt6-location" "qt6-positioning"
+    "qt6-svg" "qt6-shadertools" "qt6-wayland"
+    "kwin" "libplasma" "kwayland" "plasma-activities"
+    "plasma-activities-stats" "libksysguard" "libkscreen"
+    "layer-shell-qt" "knighttime" "kscreenlocker"
+    "qcoro" "union" "libqalculate" "libcanberra"
+    "karchive6" "kauth6" "kcoreaddons6" "kcrash6" "kdbusaddons6"
+    "kdeclarative6" "kglobalaccel6" "kguiaddons6" "kholidays6"
+    "ki18n6" "kiconthemes6" "kidletime6" "kitemmodels6"
+    "kcmutils6" "kded6" "kio6" "knewstuff6" "knotifications6"
+    "kpackage6" "kparts6" "prison6" "krunner6"
+    "kstatusnotifieritem6" "ksvg6" "ktexteditor6" "ktextwidgets6"
+    "kwallet6" "kcolorscheme6" "kservice6"
+    "plasma-wayland-protocols" "wayland-protocols" "wayland"
+    "dbus" "libudev" "zlib" "icu" "networkmanager-qt6"
+    "polkit-qt6" "pipewire"
+    "flatpak" "accountsservice" "plasma5support" "milou"
+    "fontconfig" "freetype"
+    "xdg-desktop-portal"
+
+    # Plasma User KCM, wallpaper/URL helpers, ISO names, and GTK global menus.
+    "kirigami-addons" "kio-extras" "kio-fuse" "iso-codes" "appmenu-gtk-module"
+
+    # These provide the CMake packages listed below, plus the backend service.
+    "packagekit" "packagekit-qt6" "appstream" "libkexiv2"
+
+    "libICE" "libSM" "libX11" "libXau" "libXcursor"
+    "libXfixes" "libXft" "libXrender" "libXtst" "libxcb"
+    "xcb-util" "xcb-util-cursor" "xcb-util-image"
 )
+
 REQUIRES_PYTHON_DEPENDENCIES=()
-PROVIDES=()
+PROVIDES=("plasma-workspace")
 CONFLICTS=()
 OBSOLETES=()
 RECOMMENDS=(
-    "flatpak"
-    "accountsservice"
-    "pipewire"
+    "flatpak" "accountsservice" "plasma5support" "milou"
+    "fontconfig" "freetype"
+    "xdg-desktop-portal" "xdg-desktop-portal-kde"
+    "kirigami-addons" "kio-extras" "iso-codes" "plasma-nm" "plasma-pa"
 )
 SUGGESTS=()
 
 prepare() {
     set -euxo pipefail
     test -f "$SRCROOT/$NAME-$VERSION/CMakeLists.txt"
+    # Validate the native PackageKit LPM backend; the dummy backend alone
+    # would satisfy the Qt binding but would not install LPM packages.
+    test -f /usr/lib/cmake/packagekitqt6/packagekitqt6-config.cmake
+    test -f /usr/lib/cmake/AppStreamQt/AppStreamQtConfig.cmake
+    test -f /usr/lib/cmake/KExiv2Qt6/KExiv2Qt6Config.cmake
+
+    # Plasma 6.8.1 forces offline integration on whenever PackageKitQt6
+    # exists, even when -DPACKAGEKIT_OFFLINE_UPDATES=OFF. Honor the packager
+    # option until the LPM backend has a proper offline-transaction executor.
+    python3 - "$SRCROOT/$NAME-$VERSION/CMakeLists.txt" <<'PY_PATCH'
+from pathlib import Path
+import sys
+p = Path(sys.argv[1])
+s = p.read_text()
+needle = 'set(PACKAGEKIT_OFFLINE_UPDATES ${PackageKitQt6_FOUND})'
+if s.count(needle) != 1:
+    raise SystemExit('Plasma PackageKit CMake option changed; update recipe')
+s = s.replace(needle, '''if(PACKAGEKIT_OFFLINE_UPDATES AND NOT PackageKitQt6_FOUND)
+    message(FATAL_ERROR "PackageKit offline integration requires PackageKitQt6")
+endif()''', 1)
+p.write_text(s)
+PY_PATCH
 }
 
 build() {
     set -euxo pipefail
     local src="$SRCROOT/$NAME-$VERSION"
     local builddir="$src/build"
+
+    # Require optional upstream feature dependencies rather than silently omit.
     cmake -S "$src" -B "$builddir" -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_INSTALL_PREFIX=/usr \
         -DKDE_INSTALL_LIBDIR=lib \
-        -DINSTALL_SDDM_WAYLAND_SESSION=ON \
-        -DWITH_X11=ON \
-        -DWITH_X11_SESSION=OFF \
+        -DKDE_INSTALL_USE_QT_SYS_PATHS=ON \
         -DBUILD_TESTING=OFF \
         -DBUILD_SHARED_LIBS=ON \
-        -DKDE_INSTALL_USE_QT_SYS_PATHS=ON
+        -DWITH_X11=ON \
+        -DWITH_X11_SESSION=OFF \
+        -DINSTALL_SDDM_WAYLAND_SESSION=ON \
+        -DBUILD_GEOTIMEZONED=ON \
+        -DBUILD_CAMERAINDICATOR=ON \
+        -DGLIBC_LOCALE_GEN=ON \
+        -DGLIBC_LOCALE_PREGENERATED=OFF \
+        -DUBUNTU_PACKAGEKIT=OFF \
+        -DPACKAGEKIT_OFFLINE_UPDATES=OFF \
+        -DCMAKE_REQUIRE_FIND_PACKAGE_PackageKitQt6=ON \
+        -DCMAKE_REQUIRE_FIND_PACKAGE_AppStreamQt=ON \
+        -DCMAKE_REQUIRE_FIND_PACKAGE_KExiv2Qt6=ON
+
     cmake --build "$builddir" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
 }
 
 staging() {
     set -euxo pipefail
     local builddir="$SRCROOT/$NAME-$VERSION/build"
+
     DESTDIR="$pkgdir" cmake --install "$builddir"
     test -d "$pkgdir/usr"
     test -n "$(find "$pkgdir/usr" -mindepth 1 -print -quit)"
+    test -f "$pkgdir/usr/lib/sddm/sddm.conf.d/plasma-wayland.conf"
 }

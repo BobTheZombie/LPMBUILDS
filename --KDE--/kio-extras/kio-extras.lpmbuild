@@ -1,68 +1,43 @@
 #!/bin/bash
-# LPM Linux: KDE Plasma 6.8.1 package chain
-# Generated 2026-10-25; source digests MUST be locked before building.
+# KDE Gear 26.08.2: KIO workers and thumbnail support
 NAME="kio-extras"
 VERSION="26.08.2"
-RELEASE="1"
+RELEASE="2"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="KDE Gear application: kio-extras"
-URL="https://kde.org"
+SUMMARY="Additional KDE KIO workers, services and thumbnail plugins"
+URL="https://invent.kde.org/network/kio-extras"
 LICENSE=("SEE-UPSTREAM")
-SOURCE=(
-    "https://download.kde.org/stable/release-service/26.08.2/src/kio-extras-26.08.2.tar.xz"
-)
-SHA256SUMS=(
-    "SKIP"
-)
+SOURCE=("https://download.kde.org/stable/release-service/${VERSION}/src/${NAME}-${VERSION}.tar.xz")
+SHA256SUMS=("b5fc98552eea1f9279fb1f03c7e3ffb36a46ffddd0bf0bba9868331d8c461e6e")
 PATCHES=()
-REQUIRES=(
-    "qt6-base"
-    "kio6"
-    "solid6"
-    "karchive6"
-    "kconfig6"
-)
-BUILD_REQUIRES=(
-    "cmake"
-    "ninja"
-    "pkgconf"
-    "extra-cmake-modules"
-    "qt6-base"
-    "kio6"
-    "solid6"
-    "karchive6"
-    "kconfig6"
-)
+REQUIRES=("glibc" "qt6-base" "qt6-svg" "kio6" "solid6" "karchive6" "kconfig6" "kcoreaddons6" "ki18n6" "syntax-highlighting6" "kcmutils6" "kdbusaddons6" "plasma-activities" "plasma-activities-stats")
+BUILD_REQUIRES=("gcc" "cmake" "ninja" "pkgconf" "extra-cmake-modules" "gettext" "qt6-base" "qt6-svg" "kio6" "solid6" "karchive6" "kconfig6" "kcoreaddons6" "ki18n6" "syntax-highlighting6" "kcmutils6" "kdbusaddons6" "plasma-activities" "plasma-activities-stats")
 REQUIRES_PYTHON_DEPENDENCIES=()
-PROVIDES=()
+PROVIDES=("kio-extras" "KIOExtras")
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
+RECOMMENDS=("libkexiv2" "gperf")
 SUGGESTS=()
-
 prepare() {
     set -euxo pipefail
-    test -f "$SRCROOT/$NAME-$VERSION/CMakeLists.txt"
+    test -f "$SRCROOT/${NAME}-${VERSION}/CMakeLists.txt"
 }
-
 build() {
     set -euxo pipefail
-    local src="$SRCROOT/$NAME-$VERSION"
-    local builddir="$src/build"
+    local src="$SRCROOT/${NAME}-${VERSION}"
+    local builddir="$BUILDROOT/${NAME}-build"
+    # Don't require optional libproxy or KDE documentation generators.
     cmake -S "$src" -B "$builddir" -G Ninja \
-        -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_INSTALL_PREFIX=/usr \
-        -DCMAKE_INSTALL_LIBDIR=lib \
-        -DBUILD_TESTING=OFF \
-        -DBUILD_SHARED_LIBS=ON \
-        -DKDE_INSTALL_USE_QT_SYS_PATHS=ON
+      -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr \
+      -DKDE_INSTALL_LIBDIR=lib -DKDE_INSTALL_USE_QT_SYS_PATHS=ON \
+      -DBUILD_TESTING=OFF -DBUILD_SHARED_LIBS=ON \
+      -DBUILD_DOC=OFF -DBUILD_KCMS=ON -DBUILD_ACTIVITIES=ON \
+      -DWITH_LIBPROXY=OFF
     cmake --build "$builddir" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
 }
-
 staging() {
     set -euxo pipefail
-    local builddir="$SRCROOT/$NAME-$VERSION/build"
-    DESTDIR="$pkgdir" cmake --install "$builddir"
-    test -d "$pkgdir/usr"
+    DESTDIR="$pkgdir" cmake --install "$BUILDROOT/${NAME}-build"
+    test -f "$pkgdir/usr/lib/qt6/plugins/kf6/kio/thumbnail.so"
     test -n "$(find "$pkgdir/usr" -mindepth 1 -print -quit)"
 }

@@ -18,6 +18,7 @@ PATCHES=()
 REQUIRES=(
     "qt6-base"
     "qt6-declarative"
+    "qt6-keychain"
     "kwallet6"
     "kio6"
 )

@@ -1,0 +1,235 @@
+#!/bin/bash
+# LPM Linux — Qt WebEngine (including Qt6WebEngineQuick)
+# Git checkout of the official Qt WebEngine release tag, including Chromium.
+# Qt WebEngine has independent release numbering from Qt 6.12 onward.
+
+NAME="qt6-webengine"
+VERSION="6.140.0-rc"
+RELEASE="4"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Chromium-based Qt 6 WebEngine Core and Quick modules"
+URL="https://www.qt.io/"
+LICENSE=("LGPL-3.0-only" "GPL-3.0-only" "BSD-3-Clause")
+
+# Qt-maintained GitHub mirror of the official repository.
+# The pinned release tag prevents tracking a moving branch.
+# src/3rdparty is redirected to Qt's matching Chromium mirror in prepare().
+SOURCE=(
+    "qtwebengine::git+https://github.com/qt/qtwebengine.git#tag=v${VERSION}"
+)
+# Git sources are identified by their pinned Git tag/commit, not an archive SHA.
+SHA256SUMS=()
+PATCHES=()
+
+REQUIRES=(
+    "qt6-base>=6.12.0"
+    "qt6-declarative>=6.12.0"
+    "qt6-webchannel"
+    "qt6-positioning"
+    "glibc"
+    "gcc-libs"
+    "dbus"
+    "fontconfig"
+    "freetype"
+    "glib2"
+    "harfbuzz"
+    "nss"
+    "nspr"
+    "mesa"
+    "libdrm"
+    "libX11"
+    "libXcomposite"
+    "libXcursor"
+    "libXi"
+    "libXrandr"
+    "libXtst"
+    "libxcb"
+    "libxkbcommon"
+    "libxkbfile"
+    "libxshmfence"
+    "libxml2"
+    "libxslt"
+    "zlib"
+)
+
+BUILD_REQUIRES=(
+    "cmake"
+    "ninja"
+    "pkgconf"
+    "python"
+    "nodejs>=20.0.0"
+    "bison"
+    "flex"
+    "gperf"
+    "perl"
+    "git"
+    "gn"
+)
+
+# LPM's Python dependency handler must make these available to the
+# build environment, not only the target package's staging directory.
+REQUIRES_PYTHON_DEPENDENCIES=(
+    "html5lib"
+    "six"
+    "webencodings"
+)
+
+PROVIDES=(
+    "qt6-webengine"
+    "qt6-webenginequick"
+    "Qt6WebEngineQuick"
+    "Qt6WebEngineCore"
+    "qt6-webenginecore"
+)
+CONFLICTS=()
+OBSOLETES=()
+
+BUILD_OPTIONS=("@--optimize=2" "@--stripping")
+
+_webengine_srcdir() {
+    local root="${SRCROOT}/qtwebengine"
+    [[ -d "$root/.git" && -f "$root/CMakeLists.txt" ]] || {
+        echo "[ERROR] Qt WebEngine Git checkout missing: $root" >&2
+        return 1
+    }
+    printf '%s\n' "$root"
+}
+
+prepare() {
+    set -euxo pipefail
+    local srcdir head tagged jobs
+    srcdir="$(_webengine_srcdir)"
+
+    # LPM checks out v${VERSION} before this phase. Reject moving branches
+    # or an unintended revision: submodules must match the release tag.
+    tagged="$(git -C "$srcdir" rev-parse "refs/tags/v${VERSION}^{commit}")"
+    head="$(git -C "$srcdir" rev-parse HEAD)"
+    [[ "$head" == "$tagged" ]] || {
+        echo "[ERROR] Git HEAD ($head) is not tag v${VERSION} ($tagged)" >&2
+        return 1
+    }
+
+    # Source tarballs include Chromium; Git checkouts do NOT.
+    # Qt WebEngine uses its pinned Chromium Git submodule at src/3rdparty.
+    # This checkout can require several GB of disk space/network traffic.
+    jobs="${LPM_WEBENGINE_GIT_JOBS:-6}"
+    [[ "$jobs" =~ ^[1-9][0-9]*$ ]] || {
+        echo '[ERROR] LPM_WEBENGINE_GIT_JOBS must be a positive integer' >&2
+        return 1
+    }
+    # Qt's .gitmodules has ../qtwebengine-chromium.git, resolved relative
+    # to the parent repository host. Explicitly redirect the pinned submodule
+    # to Qt's official GitHub mirror, which carries the SAME gitlink commit.
+    # Sync first: invoking sync afterward overwrites the mirror override.
+    git -C "$srcdir" submodule sync --recursive
+    git -C "$srcdir" config submodule.src/3rdparty.url \
+        https://github.com/qt/qtwebengine-chromium.git
+    git -C "$srcdir" submodule update --init --recursive --progress --jobs "$jobs"
+
+    # Abort on uninitialized, diverged, or conflicted submodule revisions.
+    if git -C "$srcdir" submodule status --recursive | grep -Eq '^[-+U]'; then
+        echo '[ERROR] Qt WebEngine Git submodules are incomplete or mismatched' >&2
+        return 1
+    fi
+
+    # Confirm the checkout matches Qt's committed Chromium revision.
+    local expected_gitlink actual_submodule
+    expected_gitlink="$(git -C "$srcdir" rev-parse HEAD:src/3rdparty)"
+    actual_submodule="$(git -C "$srcdir/src/3rdparty" rev-parse HEAD)"
+    [[ "$actual_submodule" == "$expected_gitlink" ]] || {
+        echo "[ERROR] Chromium submodule commit mismatch" >&2
+        return 1
+    }
+
+    # The Qt-pinned third-party subtree contains Chromium, GN and Ninja.
+    test -d "$srcdir/src/3rdparty" || {
+        echo '[ERROR] Qt WebEngine third-party sources are missing' >&2
+        return 1
+    }
+
+    printf '[OK] Qt WebEngine Git revision: %s\n' "$head"
+    rm -rf "$srcdir/build"
+}
+
+build() {
+    set -euxo pipefail
+    local srcdir
+    srcdir="$(_webengine_srcdir)"
+
+    # Chromium has its own nested Ninja invocation. Restrict both.
+    export NINJAFLAGS="-j${LPM_WEBENGINE_JOBS:-2}"
+
+    # qt-configure-module in some LPM Qt6 layouts resolves its private
+    # qt-cmake-private executable relative to /usr/lib/qt6/bin incorrectly.
+    # Build with CMake directly, as supported by Qt's module build system.
+    # This avoids relying on an incorrectly installed wrapper script.
+    python3 -c 'import html5lib, six, webencodings'
+    node --version
+    pkg-config --exists nss dbus-1 fontconfig
+    cmake --version
+    ninja --version
+
+    # The exported BuildInternals component is supplied by qt6-base and is
+    # required by Qt WebEngine's top-level CMakeLists.txt. Its absence is
+    # a qt6-base packaging problem, NOT a missing qt-configure-module script.
+    local qtbuildinternals
+    qtbuildinternals="$(find /usr/lib /usr/lib64 /usr/share \
+        -path '*/cmake/Qt6BuildInternals/Qt6BuildInternalsConfig.cmake' \
+        -type f -print -quit 2>/dev/null || true)"
+    if [[ -z "$qtbuildinternals" ]]; then
+        echo '[ERROR] Qt6BuildInternalsConfig.cmake is missing; rebuild qt6-base with development CMake files' >&2
+        return 1
+    fi
+
+    local qtconfig
+    qtconfig="$(find /usr/lib /usr/lib64 /usr/share \
+        -path '*/cmake/Qt6/Qt6Config.cmake' \
+        -type f -print -quit 2>/dev/null || true)"
+    if [[ -z "$qtconfig" ]]; then
+        echo '[ERROR] Qt6Config.cmake missing; qt6-base development files are incomplete' >&2
+        return 1
+    fi
+
+    # Discover Qt's prefix from its CMake package location, for both /usr
+    # and nonstandard /usr/lib/qt6 layouts used by some LPM Qt recipes.
+    local qtcmakeprefix
+    qtcmakeprefix="$(dirname "$(dirname "$(dirname "$(dirname "$qtconfig")")")")"
+
+    # Use a clean build tree, with Qt's installed CMake package metadata.
+    # Do not pass qt-configure-module's "--" command separator to CMake.
+    cmake -S "$srcdir" -B "$srcdir/build" -G Ninja \
+        -DCMAKE_PREFIX_PATH="$qtcmakeprefix;/usr" \
+        -DQt6_DIR="$(dirname "$qtconfig")" \
+        -DQt6BuildInternals_DIR="$(dirname "$qtbuildinternals")" \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DQT_BUILD_TESTS=OFF \
+        -DQT_BUILD_EXAMPLES=OFF \
+        -DFEATURE_qtwebengine_build=ON \
+        -DFEATURE_qtwebengine_core_build=ON \
+        -DFEATURE_qtwebengine_quick_build=ON \
+        -DFEATURE_qtwebengine_widgets_build=OFF \
+        -DFEATURE_qtpdf_build=OFF
+
+    # Fail early if configuration silently skipped the desired feature.
+    if grep -Eq '^QT_FEATURE_qtwebengine_quick_build:(BOOL|INTERNAL)=OFF$' "$srcdir/build/CMakeCache.txt"; then
+        echo '[ERROR] QtWebEngineQuick was disabled by configure' >&2
+        return 1
+    fi
+
+    cmake --build "$srcdir/build" --parallel "${LPM_WEBENGINE_JOBS:-6}"
+}
+
+staging() {
+    set -euxo pipefail
+    local srcdir
+    srcdir="$(_webengine_srcdir)"
+
+    DESTDIR="$pkgdir" cmake --install "$srcdir/build"
+
+    test -d "$pkgdir/usr/lib/cmake/Qt6WebEngineQuick"
+    test -f "$pkgdir/usr/lib/cmake/Qt6WebEngineQuick/Qt6WebEngineQuickConfig.cmake"
+    find "$pkgdir/usr/lib" -name 'libQt6WebEngineQuick.so*' -print -quit | grep -q .
+    find "$pkgdir/usr/lib" -name 'libQt6WebEngineCore.so*' -print -quit | grep -q .
+}

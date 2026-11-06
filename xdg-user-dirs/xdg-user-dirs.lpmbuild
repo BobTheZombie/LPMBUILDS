@@ -1,42 +1,43 @@
 #!/bin/bash
+# LPM Linux - XDG user directory lookup and creation utilities
 NAME="xdg-user-dirs"
 VERSION="0.20"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="xdg-user-dirs upstream package"
-URL="https://gitlab.freedesktop.org/xdg/xdg-user-dirs/-/archive/v0.20/"
+SUMMARY="XDG user directories helper, provides xdg-user-dir executable"
+URL="https://gitlab.freedesktop.org/xdg/xdg-user-dirs"
 LICENSE=("GPL-2.0-or-later")
-SOURCE=("https://gitlab.freedesktop.org/xdg/xdg-user-dirs/-/archive/v0.20/xdg-user-dirs-v0.20.tar.gz")
-SHA256SUMS=("988d3f3274cb2b69796ace22ddbb0abfc2c0157fff65258045f055cfba024d6e")
+SOURCE=("https://user-dirs.freedesktop.org/releases/${NAME}-${VERSION}.tar.xz")
+SHA256SUMS=("b8e34286278f4fef3e1bfe9685c395ccc0eb50c14d3a2fb4953dd00fbfd3af39")
 PATCHES=()
-REQUIRES=("glibc")
-BUILD_REQUIRES=("docbook-xsl-nons" "gettext" "meson" "ninja" "pkgconf" "systemd")
-PROVIDES=("xdg-user-dirs")
+REQUIRES=("glibc" "glib2")
+BUILD_REQUIRES=("meson" "ninja" "pkgconf" "glib2" "gettext")
+REQUIRES_PYTHON_DEPENDENCIES=()
+PROVIDES=("xdg-user-dir")
 CONFLICTS=()
 OBSOLETES=()
-BUILD_OPTIONS=("@--stripping" "@--optimize=2")
-prepare() { set -euxo pipefail; cd "$SRCROOT/${NAME}-${VERSION}"; }
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+    set -euxo pipefail
+    local src="$SRCROOT/$NAME-$VERSION"
+    test -f "$src/meson.build"
+    rm -rf "$src/build"
+}
 build() {
     set -euxo pipefail
-    cd "$SRCROOT/${NAME}-${VERSION}"
-    meson setup build --prefix=/usr --libdir=lib --buildtype=release --wrap-mode=nodownload 
-    meson compile -C build -j "${LPM_BUILD_JOBS:-$(nproc)}"
+    local src="$SRCROOT/$NAME-$VERSION"
+    meson setup "$src/build" "$src" \
+        --prefix=/usr --libdir=lib --buildtype=release -Ddocs=false
+    meson compile -C "$src/build" -j "${LPM_BUILD_JOBS:-$(nproc)}"
 }
 staging() {
     set -euxo pipefail
-    cd "$SRCROOT/${NAME}-${VERSION}"
-    meson install -C build --no-rebuild --destdir "$pkgdir"
-    local f
-    for f in COPYING COPYING.LIB LICENSE LICENSE.md LICENSE.txt; do
-        if [ -f "$f" ]; then install -Dm644 "$f" "$pkgdir/usr/share/licenses/$NAME/$f"; fi
-    done
-    if [ -d LICENSES ]; then
-        install -dm755 "$pkgdir/usr/share/licenses/$NAME"
-        cp -a LICENSES/. "$pkgdir/usr/share/licenses/$NAME/"
-    fi
+    local src="$SRCROOT/$NAME-$VERSION"
+    [[ -n "${pkgdir:-}" && "$pkgdir" != / ]] || return 1
+    DESTDIR="$pkgdir" meson install -C "$src/build" --no-rebuild
+    test -x "$pkgdir/usr/bin/xdg-user-dir"
+    test -x "$pkgdir/usr/bin/xdg-user-dirs-update"
+    # Do not execute xdg-user-dirs-update as root during staging.
 }
-
-
-
-# Final audited source digests
-SHA256SUMS=("988d3f3274cb2b69796ace22ddbb0abfc2c0157fff65258045f055cfba024d6e")

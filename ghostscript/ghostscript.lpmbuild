@@ -1,0 +1,87 @@
+#!/bin/bash
+# LPM Linux - Ghostscript 10.08.0 (PDF/PostScript; gs + libgs)
+# Ghostscript is AGPL licensed: package redistribution must honor AGPL terms.
+NAME="ghostscript"
+VERSION="10.08.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+
+SUMMARY="Ghostscript PDF and PostScript interpreter, tools, and shared library"
+URL="https://www.ghostscript.com/"
+LICENSE=("AGPL-3.0-or-later")
+SOURCE=("https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/download/gs10080/ghostscript-${VERSION}.tar.xz")
+SHA256SUMS=("c20492bc8ebb96c87fa2e52a0926e1cda8cde95d66145e018ac713fed5da38cf")
+PATCHES=()
+
+REQUIRES=(
+    "glibc"
+    "zlib"
+    "freetype"
+    "fontconfig"
+    "libjpeg"
+    "libpng"
+    "libtiff"
+    "lcms2"
+    "openjpeg"
+)
+BUILD_REQUIRES=(
+    "gcc"
+    "make"
+    "pkgconf"
+    "zlib"
+    "freetype"
+    "fontconfig"
+    "libjpeg"
+    "libpng"
+    "libtiff"
+    "lcms2"
+    "openjpeg"
+)
+
+prepare() {
+    set -euxo pipefail
+    local src="${SRCROOT:?}/ghostscript-${VERSION}"
+    test -f "$src/configure"
+    # Use LPM-supplied, patched image libraries instead of bundled copies.
+    # GS's build system detects system libs if these source directories are absent.
+    rm -rf "$src/zlib" "$src/freetype" "$src/lcms2mt" \
+           "$src/jpeg" "$src/libpng" "$src/openjpeg"
+}
+
+build() {
+    set -euxo pipefail
+    local src="${SRCROOT:?}/ghostscript-${VERSION}"
+    cd "$src"
+    # Shared libgs must use PIC. Preserve LPM CPU flags otherwise.
+    export CFLAGS="${CFLAGS:--O2 -pipe} -fPIC"
+    local -a cups_flag=()
+    # The cups device is enabled when CUPS headers are present. Building
+    # Ghostscript before CUPS remains possible for LPM bootstrap.
+    if ! pkg-config --exists cups; then
+        cups_flag=(--disable-cups)
+        echo "[LPM] cups.pc absent: building Ghostscript without CUPS device"
+    fi
+    ./configure \
+        --prefix=/usr \
+        --libdir=/usr/lib \
+        --disable-compile-inits \
+        --with-system-libtiff \
+        "${cups_flag[@]}"
+    make --jobs="${LPM_BUILD_JOBS:-$(nproc)}"
+    make --jobs="${LPM_BUILD_JOBS:-$(nproc)}" so
+}
+
+staging() {
+    set -euxo pipefail
+    local src="${SRCROOT:?}/ghostscript-${VERSION}"
+    make -C "$src" DESTDIR="${pkgdir:?}" install
+    make -C "$src" DESTDIR="${pkgdir:?}" soinstall
+    install -d -m755 "$pkgdir/usr/include/ghostscript"
+    install -m644 "$src"/base/*.h "$pkgdir/usr/include/ghostscript/"
+    install -m644 "$src/psi/iapi.h" "$pkgdir/usr/include/ghostscript/iapi.h"
+    # Some consumers include headers under /usr/include/ps.
+    ln -sfn ghostscript "$pkgdir/usr/include/ps"
+    test -x "$pkgdir/usr/bin/gs"
+    find "$pkgdir/usr/lib" -maxdepth 1 -name 'libgs.so*' -print -quit | grep -q .
+    test -f "$pkgdir/usr/include/ghostscript/iapi.h"
+}

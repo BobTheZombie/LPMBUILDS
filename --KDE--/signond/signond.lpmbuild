@@ -1,0 +1,68 @@
+#!/bin/bash
+# LPM Linux: SignOn D-Bus daemon and SignOnQt6 library.
+# Pinned Qt6 port, not upstream VERSION_8.61 (which predates Qt6).
+NAME="signond"
+VERSION="8.61"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="SignOn authentication daemon, plugins and Qt6 client library"
+URL="https://gitlab.com/nicolasfella/signond"
+LICENSE=("LGPL-2.1-only")
+_SSO_COMMIT="c8ad98249af541514ff7a81634d3295e712f1a39"
+SOURCE=("https://gitlab.com/nicolasfella/signond/-/archive/${_SSO_COMMIT}/signond-${_SSO_COMMIT}.tar.gz")
+SHA256SUMS=("SKIP") # Git commit pinned; replace with verified archive SHA256
+PATCHES=()
+REQUIRES=("glibc" "qt6-base" "dbus")
+BUILD_REQUIRES=("make" "pkgconf" "qt6-base" "qt6-tools")
+REQUIRES_PYTHON_DEPENDENCIES=()
+PROVIDES=("SignOnQt6" "libsignon-qt6" "signon-plugin-password")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=("signon-plugin-oauth2" "signon-kwallet-extension" "signon-ui")
+SUGGESTS=()
+
+_qmake6() {
+    local exe
+    for exe in /usr/bin/qmake6 /usr/lib/qt6/bin/qmake6 /usr/lib/qt6/bin/qmake; do
+        if [[ -x "$exe" ]]; then printf '%s\n' "$exe"; return 0; fi
+    done
+    echo '[ERROR] Qt6 qmake missing; install qt6-base/qt6-tools' >&2
+    return 1
+}
+prepare() {
+    set -euxo pipefail
+    local src="$SRCROOT/$NAME-$VERSION"
+    [[ -f "$src/signon.pro" ]] || { echo "[ERROR] Source missing: $src/signon.pro" >&2; return 1; }
+    # Upstream qmake SUBDIRS unconditionally includes tests. Skip compiling tests
+    # without modifying installed production components.
+    sed -i -E 's/^(SUBDIRS[[:space:]]*=[[:space:]]*lib src server) tests$/\1/' "$src/signon.pro"
+    rm -rf "$src/build"
+}
+build() {
+    set -euxo pipefail
+    local src="$SRCROOT/$NAME-$VERSION" qmake
+    qmake="$(_qmake6)" || return 1
+    mkdir -p "$src/build"
+    cd "$src/build"
+    "$qmake" "$src/signon.pro" \
+        INSTALL_PREFIX=/usr INSTALL_LIBDIR=/usr/lib LIBDIR=/usr/lib \
+        'CONFIG+=release' 'CONFIG+=enable-p2p'
+    make -j "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+staging() {
+    set -euxo pipefail
+    local src="$SRCROOT/$NAME-$VERSION"
+    [[ -n "${pkgdir:-}" && "$pkgdir" != / ]] || return 1
+    make -C "$src/build" INSTALL_ROOT="$pkgdir" install
+    [[ -f "$pkgdir/usr/lib/cmake/SignOnQt6/SignOnQt6Config.cmake" ]] || {
+        echo '[ERROR] SignOnQt6 CMake export not staged; verify Qt6 port and install paths' >&2
+        return 1
+    }
+    compgen -G "$pkgdir/usr/lib/libsignon-qt6.so*" >/dev/null || {
+        echo '[ERROR] libsignon-qt6.so missing' >&2; return 1;
+    }
+    [[ -x "$pkgdir/usr/bin/signond" ]] || {
+        echo '[ERROR] signond executable missing' >&2; return 1;
+    }
+    # Do not launch D-Bus or the authentication daemon during staging.
+}

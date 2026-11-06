@@ -1,0 +1,38 @@
+# LPM Linux source build: bubblewrap
+NAME="bubblewrap"
+VERSION="0.13.1"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Linux unprivileged sandbox namespaces tool"
+URL="https://github.com/containers/bubblewrap"
+LICENSE=("LGPL-2.1-or-later")
+SOURCE=("https://github.com/containers/bubblewrap/archive/refs/tags/v0.13.1.tar.gz")
+SHA256SUMS=("SKIP")
+PATCHES=()
+BUILD_REQUIRES=("meson" "ninja" "pkgconf" "libcap" "libseccomp")
+REQUIRES=("glibc" "libcap" "libseccomp")
+PROVIDES=("bubblewrap")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+  set -euo pipefail
+  cd "$SRCROOT/${NAME}-${VERSION}"
+  :
+}
+
+build() {
+  set -euo pipefail
+  cd "$SRCROOT/${NAME}-${VERSION}"
+  meson setup build --prefix=/usr --libdir=lib --buildtype=release -Dtests=false
+  ninja -C build -j "${LPM_BUILD_JOBS:-6}"
+}
+
+staging() {
+  set -euo pipefail
+  cd "$SRCROOT/${NAME}-${VERSION}"
+
+  DESTDIR="$pkgdir" ninja -C build install
+}

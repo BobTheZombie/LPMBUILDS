@@ -1,0 +1,40 @@
+# LPM Linux source build: xdg-dbus-proxy
+NAME="xdg-dbus-proxy"
+VERSION="0.1.9"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Filtered D-Bus proxy for application sandboxes"
+URL="https://github.com/flatpak/xdg-dbus-proxy"
+LICENSE=("LGPL-2.1-or-later")
+SOURCE=("https://github.com/flatpak/xdg-dbus-proxy/archive/refs/tags/0.1.9.tar.gz")
+SHA256SUMS=("SKIP")
+PATCHES=()
+BUILD_REQUIRES=("meson" "ninja" "pkgconf" "glib2")
+REQUIRES=("glib2")
+PROVIDES=("xdg-dbus-proxy")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+  set -euo pipefail
+  cd "$SRCROOT/${NAME}-${VERSION}"
+
+  :
+}
+
+build() {
+  set -euo pipefail
+  cd "$SRCROOT/${NAME}-${VERSION}"
+
+  meson setup build --prefix=/usr --libdir=lib --buildtype=release -Dman=disabled
+  ninja -C build -j "${LPM_BUILD_JOBS:-6}"
+}
+
+staging() {
+  set -euo pipefail
+  cd "$SRCROOT/${NAME}-${VERSION}"
+
+  DESTDIR="$pkgdir" ninja -C build install
+}

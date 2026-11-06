@@ -21,6 +21,7 @@ REQUIRES=(
     "kconfig6"
     "kcmutils6"
     "kdeclarative6"
+    "gsettings-desktop-schemas"
 )
 BUILD_REQUIRES=(
     "cmake"
@@ -32,6 +33,7 @@ BUILD_REQUIRES=(
     "kconfig6"
     "kcmutils6"
     "kdeclarative6"
+    "gsettings-desktop-schemas"
 )
 REQUIRES_PYTHON_DEPENDENCIES=()
 PROVIDES=()

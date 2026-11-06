@@ -1,0 +1,77 @@
+#!/bin/bash
+# LPM Linux recipe - Tesseract OCR engine, for Spectacle 6.8.1
+NAME="tesseract"
+VERSION="5.5.4"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+
+SUMMARY="OCR engine and shared library for KDE Spectacle text recognition"
+URL="https://github.com/tesseract-ocr/tesseract"
+LICENSE=("Apache-2.0")
+
+SOURCE=("https://github.com/tesseract-ocr/tesseract/archive/refs/tags/${VERSION}.tar.gz")
+# Replace SKIP with the SHA-256 of the exact upstream tarball when available.
+SHA256SUMS=("SKIP")
+PATCHES=()
+
+REQUIRES=(
+    "glibc"
+    "leptonica"
+)
+BUILD_REQUIRES=(
+    "cmake"
+    "ninja"
+    "pkgconf"
+    "leptonica"
+)
+REQUIRES_PYTHON_DEPENDENCIES=()
+PROVIDES=()
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=("tessdata-eng")
+SUGGESTS=()
+
+prepare() {
+    set -euxo pipefail
+    test -f "${SRCROOT:?}/tesseract-${VERSION}/CMakeLists.txt"
+
+    # Spectacle requires the development pkg-config files of Leptonica.
+    pkg-config --atleast-version=1.80 lept
+}
+
+build() {
+    set -euxo pipefail
+    local src="${SRCROOT:?}/tesseract-${VERSION}"
+    local builddir="$src/build"
+
+    cmake -S "$src" -B "$builddir" -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DCMAKE_INSTALL_DATADIR=share \
+        -DBUILD_SHARED_LIBS=ON \
+        -DBUILD_TESTS=OFF \
+        -DBUILD_TRAINING_TOOLS=OFF \
+        -DOPENMP_BUILD=OFF \
+        -DENABLE_NATIVE=OFF \
+        -DENABLE_LTO=OFF \
+        -DENABLE_CCACHE=OFF \
+        -DENABLE_NINJA_POOL=OFF \
+        -DGRAPHICS_DISABLED=ON \
+        -DDISABLE_ARCHIVE=ON \
+        -DDISABLE_CURL=ON \
+        -DINSTALL_CONFIGS=ON
+
+    cmake --build "$builddir" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+staging() {
+    set -euxo pipefail
+    local src="${SRCROOT:?}/tesseract-${VERSION}"
+    DESTDIR="${pkgdir:?}" cmake --install "$src/build"
+
+    test -x "$pkgdir/usr/bin/tesseract"
+    test -f "$pkgdir/usr/lib/pkgconfig/tesseract.pc"
+    test -f "$pkgdir/usr/include/tesseract/baseapi.h"
+    find "$pkgdir/usr/lib" -maxdepth 1 -name 'libtesseract.so*' -print -quit | grep -q .
+}

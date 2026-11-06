@@ -1,68 +1,224 @@
 #!/bin/bash
-# LPM Linux: KDE Plasma 6.8.1 package chain
-# Generated 2026-10-25; source digests MUST be locked before building.
+# LPM Linux - SDDM 0.21.0, Qt6/Wayland/systemd/PAM
+# Use the upstream release tarball so LPM extracts to $SRCROOT/$NAME-$VERSION.
+# Install all files into DESTDIR; DO NOT create accounts or enable services in staging.
+
 NAME="sddm"
 VERSION="0.21.0"
-RELEASE="1"
+RELEASE="4"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Simple Desktop Display Manager with Qt 6 greeter"
+SUMMARY="Qt6 display manager with PAM, logind, Wayland sessions and greeter"
 URL="https://github.com/sddm/sddm"
-LICENSE=("SEE-UPSTREAM")
+LICENSE=("GPL-2.0-or-later" "MIT" "CC-BY-3.0")
+
 SOURCE=(
-    "https://github.com/sddm/sddm/archive/refs/tags/v0.21.0.tar.gz"
+    "https://github.com/sddm/sddm/archive/v${VERSION}/sddm-${VERSION}.tar.gz"
+    "0001-link-wayland-helper-with-QtQml.patch"
 )
 SHA256SUMS=(
-    "SKIP"
+    "SKIP"  # Upstream release archive; pin SHA256 before publishing stable repository
+    "2f37ebfd17b07c6752461f37704e0d91eefdaae3c834cffdc7c1eca2e087b2ff"
 )
-PATCHES=()
+PATCHES=("0001-link-wayland-helper-with-QtQml.patch")
+
 REQUIRES=(
-    "qt6-base"
-    "qt6-declarative"
-    "qt6-svg"
-    "pam"
-    "systemd"
+    "glibc" "gcc-libs" "qt6-base" "qt6-declarative"
+    "pam" "systemd" "libxcb" "libxkbcommon" "libXau" "dbus" "sddm-dbus-policy"
 )
 BUILD_REQUIRES=(
-    "cmake"
-    "ninja"
-    "pkgconf"
-    "qt6-base"
-    "qt6-declarative"
-    "qt6-svg"
+    "cmake" "ninja" "pkgconf" "python" "patch" "extra-cmake-modules"
+    "qt6-base" "qt6-declarative" "qt6-tools"
+    "pam" "systemd" "libxcb" "libxkbcommon" "libXau"
 )
 REQUIRES_PYTHON_DEPENDENCIES=()
-PROVIDES=()
+PROVIDES=("sddm" "display-manager")
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
-SUGGESTS=()
+RECOMMENDS=("qt6-svg" "qt6-5compat" "breeze" "upower" "layer-shell-qt")
+SUGGESTS=("kwin")
+
+_sddm_srcdir()   { printf '%s\n' "$SRCROOT/$NAME-$VERSION"; }
+_sddm_builddir() { printf '%s\n' "$SRCROOT/$NAME-$VERSION/build"; }
+
+_sddm_qml_dir() {
+    local qtpaths path
+    for qtpaths in /usr/bin/qtpaths6 /usr/lib/qt6/bin/qtpaths6 /usr/lib/qt6/bin/qtpaths; do
+        if [[ -x "$qtpaths" ]]; then
+            path="$("$qtpaths" --query QT_INSTALL_QML)" || return 1
+            case "$path" in
+                /usr/*) printf '%s\n' "$path"; return 0 ;;
+                *) echo "[ERROR] Invalid QT_INSTALL_QML: $path" >&2; return 1 ;;
+            esac
+        fi
+    done
+    echo '[ERROR] qtpaths6 is missing; install matching qt6-base/qt6-tools' >&2
+    return 1
+}
 
 prepare() {
     set -euxo pipefail
-    test -f "$SRCROOT/$NAME-$VERSION/CMakeLists.txt"
+    local src
+    src="$(_sddm_srcdir)"
+
+    # LPM's archive extraction is normalized to $SRCROOT/$NAME-$VERSION.
+    # Git snapshots sometimes have a different layout; avoid that ambiguity
+    # by using the official tagged release tarball in SOURCE.
+    [[ -f "$src/CMakeLists.txt" ]] || {
+        echo "[ERROR] Missing SDDM root CMakeLists.txt at $src" >&2
+        echo '[INFO] Source files found beneath SRCROOT:' >&2
+        find "$SRCROOT" -maxdepth 4 -name CMakeLists.txt -type f -print >&2 || :
+        return 1
+    }
+    [[ -f "$src/src/helper/CMakeLists.txt" ]] || {
+        echo '[ERROR] Incomplete SDDM archive: src/helper/CMakeLists.txt missing' >&2
+        return 1
+    }
+    grep -Eq '^[[:space:]]*project\(SDDM\)' "$src/CMakeLists.txt" || {
+        echo '[ERROR] Unexpected source tree: not SDDM' >&2
+        return 1
+    }
+
+    # SDDM 0.21.0 expects a Qt6::qmake target, which may not be exported.
+    # QT_IMPORTS_DIR is explicitly passed from qtpaths6 at configure time.
+    python3 - "$src/CMakeLists.txt" <<'PY'
+from pathlib import Path
+import sys
+p = Path(sys.argv[1])
+s = p.read_text()
+old = 'get_target_property(QMAKE_EXECUTABLE Qt${QT_MAJOR_VERSION}::qmake LOCATION)'
+new = ('if(TARGET Qt${QT_MAJOR_VERSION}::qmake)\n'
+       '    get_target_property(QMAKE_EXECUTABLE Qt${QT_MAJOR_VERSION}::qmake LOCATION)\n'
+       'endif()')
+if old in s and new not in s:
+    s = s.replace(old, new, 1)
+elif new not in s:
+    raise SystemExit('Unexpected upstream SDDM CMakeLists.txt qmake section')
+
+# Upstream adds tests unconditionally; honor BUILD_TESTING=OFF.
+old_tests = 'enable_testing()\nadd_subdirectory(test)'
+new_tests = 'if(BUILD_TESTING)\n    enable_testing()\n    add_subdirectory(test)\nendif()'
+if old_tests in s and new_tests not in s:
+    s = s.replace(old_tests, new_tests, 1)
+elif new_tests not in s:
+    raise SystemExit('Unexpected upstream SDDM CMakeLists.txt test section')
+p.write_text(s)
+PY
+    rm -rf "$(_sddm_builddir)"
 }
 
 build() {
     set -euxo pipefail
-    local src="$SRCROOT/$NAME-$VERSION"
-    local builddir="$src/build"
+    local src builddir jobs qml_dir path
+    src="$(_sddm_srcdir)"
+    builddir="$(_sddm_builddir)"
+    jobs="${LPM_BUILD_JOBS:-$(nproc)}"
+    [[ "$jobs" =~ ^[1-9][0-9]*$ ]] || { echo '[ERROR] Invalid LPM_BUILD_JOBS' >&2; return 1; }
+
+    # Upstream's Arch-style PAM templates include these files.
+    for path in /etc/pam.d/system-login /etc/pam.d/system-local-login; do
+        [[ -f "$path" ]] || {
+            echo "[ERROR] Missing PAM base stack: $path (install/configure pambase before SDDM)" >&2
+            return 1
+        }
+    done
+    if [[ ! -f /usr/lib/security/pam_faillock.so && ! -f /lib/security/pam_faillock.so ]]; then
+        echo '[ERROR] pam_faillock.so missing; upstream sddm-autologin.pam needs Linux-PAM faillock' >&2
+        return 1
+    fi
+
+    qml_dir="$(_sddm_qml_dir)"
+    [[ -f "$qml_dir/QtQuick/qmldir" ]] || {
+        echo "[ERROR] QtQuick missing at Qt QML path: $qml_dir" >&2
+        return 1
+    }
+    echo "[SDDM] Using Qt6 QML directory: $qml_dir"
+
     cmake -S "$src" -B "$builddir" -G Ninja \
+        -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_INSTALL_PREFIX=/usr \
         -DCMAKE_INSTALL_LIBDIR=lib \
-        -DBUILD_TESTING=OFF \
-        -DBUILD_SHARED_LIBS=ON \
+        -DCMAKE_INSTALL_LIBEXECDIR=lib/sddm \
         -DCMAKE_INSTALL_SYSCONFDIR=/etc \
+        -DCMAKE_INSTALL_LOCALSTATEDIR=/var \
         -DSYSTEMD_SYSTEM_UNIT_DIR=/usr/lib/systemd/system \
+        -DSYSTEMD_SYSUSERS_DIR=/usr/lib/sysusers.d \
+        -DSYSTEMD_TMPFILES_DIR=/usr/lib/tmpfiles.d \
+        -DSTATE_DIR=/var/lib/sddm \
+        -DRUNTIME_DIR=/run/sddm \
+        -DQT_IMPORTS_DIR="$qml_dir" \
+        -DQML_INSTALL_DIR="$qml_dir" \
+        -DNO_SYSTEMD=OFF \
+        -DUSE_ELOGIND=OFF \
+        -DENABLE_JOURNALD=ON \
         -DBUILD_WITH_QT6=ON \
-        -DENABLE_WAYLAND=ON
-    cmake --build "$builddir" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+        -DDBUS_CONFIG_DIR=/usr/share/dbus-1/system.d \
+        -DDBUS_CONFIG_FILENAME=sddm_org.freedesktop.DisplayManager.conf \
+        -DUID_MIN=1000 \
+        -DUID_MAX=60513 \
+        -DINSTALL_PAM_CONFIGURATION=ON \
+        -DHAVE_PAM_FAILLOCK:BOOL=ON \
+        -DBUILD_TESTING=OFF \
+        -DBUILD_MAN_PAGES=OFF
+
+    if [[ ! -f "$builddir/services/sddm.service" || ! -f "$builddir/build.ninja" ]]; then
+        echo '[ERROR] SDDM did not configure systemd service or Ninja targets' >&2
+        return 1
+    fi
+    cmake --build "$builddir" --parallel "$jobs"
 }
 
 staging() {
     set -euxo pipefail
-    local builddir="$SRCROOT/$NAME-$VERSION/build"
+    local builddir qml_dir path
+    builddir="$(_sddm_builddir)"
+    qml_dir="$(_sddm_qml_dir)"
+
+    [[ -n "${pkgdir:-}" && "$pkgdir" != / ]] || {
+        echo '[ERROR] Missing or invalid LPM staging directory' >&2
+        return 1
+    }
     DESTDIR="$pkgdir" cmake --install "$builddir"
-    test -d "$pkgdir/usr"
-    test -n "$(find "$pkgdir/usr" -mindepth 1 -print -quit)"
+
+    # sddm-dbus-policy owns the DisplayManager D-Bus policy in LPM.
+    # Do not ship a second policy for the same bus name under another filename.
+    rm -f "$pkgdir/usr/share/dbus-1/system.d/sddm_org.freedesktop.DisplayManager.conf"
+    rm -f "$pkgdir/usr/share/dbus-1/system.d/org.freedesktop.DisplayManager.conf"
+
+    for path in \
+        /usr/bin/sddm \
+        /usr/bin/sddm-greeter-qt6 \
+        /usr/lib/sddm/sddm-helper \
+        /usr/lib/sddm/sddm-helper-start-wayland \
+        /usr/lib/sddm/sddm-helper-start-x11user; do
+        [[ -x "$pkgdir$path" ]] || { echo "[ERROR] Missing staged executable: $path" >&2; return 1; }
+    done
+
+    for path in \
+        /etc/pam.d/sddm \
+        /etc/pam.d/sddm-autologin \
+        /etc/pam.d/sddm-greeter \
+        /usr/lib/systemd/system/sddm.service \
+        /usr/lib/sysusers.d/sddm.conf \
+        /usr/lib/tmpfiles.d/sddm.conf \
+        /usr/share/sddm/scripts/wayland-session \
+        /usr/share/sddm/scripts/Xsession \
+        "$qml_dir/SddmComponents/qmldir" \
+        /usr/share/sddm/themes/maldives/Main.qml; do
+        [[ -f "$pkgdir$path" ]] || { echo "[ERROR] Missing staged file: $path" >&2; return 1; }
+    done
+
+    grep -q 'system-login' "$pkgdir/etc/pam.d/sddm"
+    grep -q 'system-local-login' "$pkgdir/etc/pam.d/sddm-autologin"
+    ! grep -q 'pam_tally2' "$pkgdir/etc/pam.d/sddm-autologin" || {
+        echo '[ERROR] Deprecated pam_tally2 configuration installed' >&2
+        return 1
+    }
+    grep -q 'pam_faillock.so' "$pkgdir/etc/pam.d/sddm-autologin"
+    grep -q 'pam_systemd.so' "$pkgdir/etc/pam.d/sddm-greeter"
+    grep -Eq '^u[[:space:]]+sddm([[:space:]]|$)' "$pkgdir/usr/lib/sysusers.d/sddm.conf"
+    grep -Eq '^d[[:space:]]+/var/lib/sddm([[:space:]]|$)' "$pkgdir/usr/lib/tmpfiles.d/sddm.conf"
+    grep -q '^ExecStart=/usr/bin/sddm' "$pkgdir/usr/lib/systemd/system/sddm.service"
+
+    echo "[OK] SDDM $VERSION staged with Qt6 QML in $qml_dir and systemd/PAM integration"
 }

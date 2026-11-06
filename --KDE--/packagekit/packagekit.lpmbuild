@@ -1,0 +1,79 @@
+#!/bin/bash
+# PackageKit 1.4.0 with a real native LPM backend, not the dummy backend.
+NAME="packagekit"
+VERSION="1.4.0"
+RELEASE="3"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="PackageKit with LPM buildpkg, installpkg, removepkg and binary package transactions"
+URL="https://github.com/PackageKit/PackageKit"
+LICENSE=("LGPL-2.1-or-later" "GPL-2.0-or-later")
+SOURCE=(
+    "https://www.freedesktop.org/software/PackageKit/releases/PackageKit-${VERSION}.tar.xz"
+    "pk-backend-lpm.c"
+    "lpmBackend.py"
+    "lpm-backend-meson.build"
+)
+# Keep hashes synced when editing companion sources.
+SHA256SUMS=(
+    "09164faec92ad38dcec248339f7fc83c7a74e484e0a4105ebce3a3a41b172364"
+    "ad513dac8b8e0b230fec863712428f334169591a3e7cc30e1b0f3eae5e93bfd1"
+    "b8ca0e62efef88f395f44848d2558c4764bea66c3792c5d9f0242a975cf0e157"
+    "73da54be7310271e859c9f4e5f058491ecdd7a93ad16bf41e750acbb30b366d5"
+)
+PATCHES=()
+REQUIRES=("glibc" "glib2" "sqlite" "polkit" "jansson" "systemd" "python" "lpm")
+BUILD_REQUIRES=("meson" "ninja" "pkgconf" "gcc" "glib2" "sqlite" "polkit"
+                "jansson" "gettext" "systemd" "python")
+REQUIRES_PYTHON_DEPENDENCIES=()
+PROVIDES=("packagekit-backend-lpm")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+    set -euxo pipefail
+    local src="$SRCROOT/${NAME}-${VERSION}"
+    test -f "$src/meson.build"
+    test -f "$SRCROOT/pk-backend-lpm.c"
+    test -f "$SRCROOT/lpmBackend.py"
+    mkdir -p "$src/backends/lpm"
+    cp "$SRCROOT/pk-backend-lpm.c" "$src/backends/lpm/"
+    cp "$SRCROOT/lpmBackend.py" "$src/backends/lpm/"
+    cp "$SRCROOT/lpm-backend-meson.build" "$src/backends/lpm/meson.build"
+    # Register the first-class backend in PackageKit's Meson backend enum.
+    python3 - "$src/meson_options.txt" <<'PY'
+from pathlib import Path
+import sys
+p = Path(sys.argv[1]); txt = p.read_text()
+needle = "choices : ['alpm',"
+if needle not in txt:
+    raise RuntimeError('PackageKit 1.4.0 backend choices layout changed')
+p.write_text(txt.replace(needle, "choices : ['lpm', 'alpm',", 1))
+PY
+}
+
+build() {
+    set -euxo pipefail
+    local src="$SRCROOT/${NAME}-${VERSION}"
+    meson setup "$src/build" "$src" \
+        --prefix=/usr --libdir=lib --buildtype=release --wrap-mode=nodownload \
+        -Dpackaging_backend=lpm \
+        -Dsystemd=true -Doffline_update=false -Delogind=false \
+        -Ddaemon_tests=false -Dgobject_introspection=false \
+        -Dgstreamer_plugin=false -Dgtk_module=false \
+        -Dpython_backend=true -Dcron=false \
+        -Dbash_command_not_found=false -Dman_pages=false
+    meson compile -C "$src/build" -j "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+staging() {
+    set -euxo pipefail
+    local src="$SRCROOT/${NAME}-${VERSION}"
+    DESTDIR="$pkgdir" meson install -C "$src/build" --no-rebuild
+    test -f "$pkgdir/usr/share/dbus-1/interfaces/org.freedesktop.PackageKit.xml"
+    test -f "$pkgdir/usr/share/dbus-1/interfaces/org.freedesktop.PackageKit.Transaction.xml"
+    test -f "$pkgdir/usr/share/PackageKit/helpers/lpm/lpmBackend.py"
+    grep -q "PK_ROLE_ENUM_INSTALL_FILES" "$src/backends/lpm/pk-backend-lpm.c"
+    test -n "$(find "$pkgdir/usr/lib" -name 'libpk_backend_lpm.so' -print -quit)"
+}

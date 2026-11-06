@@ -22,6 +22,7 @@ REQUIRES=(
     "kpipewire"
     "kglobalaccel6"
     "kio6"
+    "kquickimageeditor"
 )
 BUILD_REQUIRES=(
     "cmake"
@@ -34,6 +35,8 @@ BUILD_REQUIRES=(
     "kpipewire"
     "kglobalaccel6"
     "kio6"
+    "kquickimageeditor"
+    "tesseract"
 )
 REQUIRES_PYTHON_DEPENDENCIES=()
 PROVIDES=()

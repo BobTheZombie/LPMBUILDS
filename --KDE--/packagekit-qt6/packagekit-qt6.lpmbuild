@@ -1,0 +1,44 @@
+#!/bin/bash
+# PackageKit Qt 6 C++/D-Bus bindings. Requires real PackageKit DBus XML specs.
+NAME="packagekit-qt6"
+VERSION="1.1.4"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="PackageKit Qt6 bindings for Plasma software manager and offline update UI"
+URL="https://github.com/PackageKit/PackageKit-Qt"
+LICENSE=("LGPL-2.1-only")
+SOURCE=("https://www.freedesktop.org/software/PackageKit/releases/PackageKit-Qt-${VERSION}.tar.xz")
+SHA256SUMS=("5eae53721baec5ae2d52d97eee114d804cb769c922f9b5204d10ba70e82a17f3")
+PATCHES=()
+REQUIRES=("glibc" "qt6-base" "packagekit")
+BUILD_REQUIRES=("cmake" "ninja" "pkgconf" "qt6-base" "packagekit")
+REQUIRES_PYTHON_DEPENDENCIES=()
+PROVIDES=("PackageKitQt6" "packagekitqt6")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+prepare() {
+    set -euxo pipefail
+    test -f "$SRCROOT/${NAME}-${VERSION}/CMakeLists.txt"
+    test -f /usr/share/dbus-1/interfaces/org.freedesktop.PackageKit.xml
+    test -f /usr/share/dbus-1/interfaces/org.freedesktop.PackageKit.Transaction.xml
+}
+build() {
+    set -euxo pipefail
+    local src="$SRCROOT/${NAME}-${VERSION}"
+    cmake -S "$src" -B "$src/build" -G Ninja \
+        "-DCMAKE_JOB_POOLS=lpm_compile=${LPM_BUILD_JOBS:-6};lpm_link=${LPM_LINK_JOBS:-1}" \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DBUILD_SHARED_LIBS=ON \
+        -DBUILD_TESTING=OFF
+    cmake --build "$src/build" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+staging() {
+    set -euxo pipefail
+    DESTDIR="$pkgdir" cmake --install "$SRCROOT/${NAME}-${VERSION}/build"
+    test -f "$pkgdir/usr/lib/cmake/packagekitqt6/packagekitqt6-config.cmake"
+    test -f "$pkgdir/usr/lib/pkgconfig/packagekitqt6.pc"
+}

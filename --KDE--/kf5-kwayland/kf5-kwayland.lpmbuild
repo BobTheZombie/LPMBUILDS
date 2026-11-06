@@ -1,0 +1,74 @@
+#!/bin/bash
+# LPM Linux — kf5-kwayland
+# Installs KF5::WaylandClient for Plasma 6 Qt5 compatibility plugin.
+NAME="kf5-kwayland"
+VERSION="5.116.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="KDE Frameworks 5 Wayland client integration library"
+URL="https://invent.kde.org/frameworks/kwayland"
+LICENSE=(
+    "LGPL-2.1-or-later"
+)
+SOURCE=("kwayland::git+https://github.com/KDE/kwayland.git#tag=v5.116.0")
+# Git sources are selected by the named release tag, not a tarball digest.
+SHA256SUMS=()
+PATCHES=()
+REQUIRES=(
+    "qt5-base"
+    "qt5-wayland"
+    "wayland"
+    "libxkbcommon"
+    "glibc"
+    "gcc-libs"
+)
+BUILD_REQUIRES=(
+    "qt5-base"
+    "qt5-wayland"
+    "qt5-tools"
+    "plasma-wayland-protocols"
+    "wayland"
+    "wayland-protocols"
+    "libxkbcommon"
+    "libglvnd"
+    "extra-cmake-modules"
+    "cmake"
+    "ninja"
+    "pkgconf"
+    "git"
+)
+REQUIRES_PYTHON_DEPENDENCIES=()
+PROVIDES=()
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+BUILD_OPTIONS=("@--optimize=2" "@--stripping")
+
+prepare() {
+    set -euxo pipefail
+    test -f "$SRCROOT/kwayland/CMakeLists.txt"
+    rm -rf "$SRCROOT/kf5-kwayland-build"
+}
+build() {
+    set -euxo pipefail
+    local src="$SRCROOT/kwayland"
+    local builddir="$SRCROOT/kf5-kwayland-build"
+    cmake -S "$src" -B "$builddir" -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DKDE_INSTALL_LIBDIR=lib \
+        -DQT_MAJOR_VERSION=5 \
+        -DEXCLUDE_DEPRECATED_BEFORE_AND_AT=5.74.0 \
+        -DKDE_INSTALL_USE_QT_SYS_PATHS=ON \
+        -DBUILD_TESTING=OFF \
+        -DBUILD_QCH=OFF \
+        -DBUILD_SHARED_LIBS=ON
+    cmake --build "$builddir" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+staging() {
+    set -euxo pipefail
+    DESTDIR="$pkgdir" cmake --install "$SRCROOT/kf5-kwayland-build"
+    test -e "$pkgdir/usr/lib/libKF5WaylandClient.so.5"
+    test -f "$pkgdir/usr/lib/cmake/KF5Wayland/KF5WaylandConfig.cmake"
+}

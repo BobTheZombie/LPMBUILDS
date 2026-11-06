@@ -1,0 +1,132 @@
+#!/bin/bash
+# LPM GNU tar fork, built directly from the pinned Git repository.
+# Install pigz >= 2.8 first (the gzip-pigz recipe supplies it).
+NAME="lpm-tar"
+VERSION="1.35"
+RELEASE="4"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="LPL tar: LPM GNU tar fork with parallel extraction, AVX2 and pigz integration"
+URL="https://github.com/BobTheZombie/lpm-tar"
+LICENSE=("GPL-3.0-or-later")
+SOURCE=("lpl-tar-1.35::git+https://github.com/BobTheZombie/lpm-tar.git#commit=dcdf0e47e8d19afba399d6d4161fa236c009d7ec")
+# Git source integrity is checked by full commit and tree IDs in prepare().
+SHA256SUMS=("SKIP")
+PATCHES=()
+REQUIRES=("glibc" "acl" "pigz>=2.8")
+BUILD_REQUIRES=("git" "gcc" "binutils" "meson" "ninja" "python" "coreutils" "findutils" "sed" "grep" "gawk")
+PROVIDES=("lpl-tar=1.35-lpm2" "lpm-tar=1.35-lpm2")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=("bzip2" "xz" "zstd")
+SUGGESTS=()
+BUILD_OPTIONS=("@--stripping" "@--optimize=3")
+
+# NAME=lpm-tar is a separate package; resolve existing tar file ownership before installing.
+# The payload installs /usr/bin/lpl-tar and /usr/bin/tar -> lpl-tar.
+# Source content matches GitHub commit dcdf0e47e8d19afba399d6d4161fa236c009d7ec
+# and Git tree 8506026a480b063d6a40396a2eb8c940c4edde7b.
+LPL_TAR_CPU_PROFILE="${LPL_TAR_CPU_PROFILE:-znver2}"
+LPL_TAR_ACL="${LPL_TAR_ACL:-enabled}"
+
+prepare() {
+    set -euo pipefail
+    case "$LPL_TAR_CPU_PROFILE" in
+        generic|native|znver2|znver3|znver4|znver5) ;;
+        *) echo "[ERROR] Invalid LPL_TAR_CPU_PROFILE: $LPL_TAR_CPU_PROFILE" >&2; return 1 ;;
+    esac
+    case "$LPL_TAR_ACL" in
+        enabled|disabled|auto) ;;
+        *) echo "[ERROR] Invalid LPL_TAR_ACL: $LPL_TAR_ACL" >&2; return 1 ;;
+    esac
+    local source="$SRCROOT/lpl-tar-$VERSION"
+    # LPM clones the SOURCE alias and checks out its #commit= revision.
+    # No bundled archive or local source directory is required.
+    test -d "$source/.git" || {
+        echo "[ERROR] Git source missing; use an LPM version supporting git+ SOURCE entries." >&2
+        return 1
+    }
+    test "$(git -C "$source" rev-parse HEAD)" = dcdf0e47e8d19afba399d6d4161fa236c009d7ec
+    test "$(git -C "$source" rev-parse 'HEAD^{tree}')" = 8506026a480b063d6a40396a2eb8c940c4edde7b
+    # Reject modified tracked input while allowing an idempotent prepare retry
+    # after the ACL compatibility rename below.
+    git -C "$source" diff --quiet HEAD -- . ':!src/xattrs.c'
+    python3 - "$source" <<'PY_CHECK'
+import pathlib, subprocess, sys
+root = pathlib.Path(sys.argv[1])
+original = subprocess.check_output(['git', '-C', str(root), 'show', 'HEAD:src/xattrs.c'])
+prepared = original
+for name in (b'acl_get_file_at', b'acl_set_file_at', b'acl_delete_def_file_at'):
+    import re
+    prepared = re.sub(rb'\b' + name + rb'\b', b'lpl_tar_' + name, prepared)
+if (root / 'src/xattrs.c').read_bytes() not in (original, prepared):
+    raise SystemExit('ERROR: src/xattrs.c has unexpected local modifications')
+PY_CHECK
+    cd "$source"
+    test -f meson.build
+    test -f meson_options.txt
+    # Match your current GNU tar recipe's fix for newer libacl public APIs.
+    sed -i \
+        -e 's/\bacl_get_file_at\b/lpl_tar_acl_get_file_at/g' \
+        -e 's/\bacl_set_file_at\b/lpl_tar_acl_set_file_at/g' \
+        -e 's/\bacl_delete_def_file_at\b/lpl_tar_acl_delete_def_file_at/g' \
+        src/xattrs.c
+}
+
+build() {
+    set -euo pipefail
+    local source="$SRCROOT/lpl-tar-$VERSION"
+    local builddir="$SRCROOT/lpl-tar-build-$LPL_TAR_CPU_PROFILE"
+    # Both the binary and package advertise the tar interface. Gzip archives
+    # require the companion package's /usr/bin/pigz; no shell wrapper is needed.
+    LPM_BUILD_DIR="$builddir" JOBS="${LPM_BUILD_JOBS:-$(getconf _NPROCESSORS_ONLN)}" \
+        sh "$source/lpm/build.sh" "$LPL_TAR_CPU_PROFILE" \
+        --prefix=/usr --bindir=bin --libdir=lib --libexecdir=libexec \
+        -Db_lto=true -Dassembly=true -Dgzip_backend=pigz -Dgzip_program=gzip \
+        -Dacl="$LPL_TAR_ACL" -Dselinux=disabled -Dxattrs=true -Dnls=true \
+        -Drmt=true -Ddocs=true -Dtests=true -Dupstream_tests=true
+    meson test -C "$builddir" --suite core --print-errorlogs
+}
+
+check() {
+    set -euo pipefail
+    meson test -C "$SRCROOT/lpl-tar-build-$LPL_TAR_CPU_PROFILE" \
+        --suite core --print-errorlogs
+    # Full GNU suite is optional: known read-only-dir tests fail in some
+    # root/bwrap build environments. CI runs it on GCC and Clang.
+    if test "${LPL_TAR_FULL_CHECK:-0}" = 1; then
+        meson test -C "$SRCROOT/lpl-tar-build-$LPL_TAR_CPU_PROFILE" \
+            --suite upstream --print-errorlogs
+    fi
+}
+
+staging() {
+    set -euo pipefail
+    : "${pkgdir:?LPM staging root is required}"
+    test "$pkgdir" != /
+    local source="$SRCROOT/lpl-tar-$VERSION"
+    local builddir="$SRCROOT/lpl-tar-build-$LPL_TAR_CPU_PROFILE"
+    meson install -C "$builddir" --destdir "$pkgdir" --no-rebuild
+    mv -f "$pkgdir/usr/bin/tar" "$pkgdir/usr/bin/lpl-tar"
+    ln -sfn lpl-tar "$pkgdir/usr/bin/tar"
+    ln -sfn lpl-tar "$pkgdir/usr/bin/lpm-tar"
+    ln -sfn tar.1 "$pkgdir/usr/share/man/man1/lpl-tar.1"
+    ln -sfn tar.1 "$pkgdir/usr/share/man/man1/lpm-tar.1"
+    install -Dm644 "$source/COPYING" "$pkgdir/usr/share/licenses/tar/COPYING"
+    test -x "$pkgdir/usr/bin/tar"
+    test -x "$pkgdir/usr/libexec/rmt"
+    "$pkgdir/usr/bin/tar" --help | grep -- --compression-threads >/dev/null
+    # This tests gzip magic detection and the actual tar symlink after renaming.
+    PATH="$pkgdir/usr/bin:$PATH" python3 - "$pkgdir" <<'PY'
+import os, pathlib, subprocess, sys, tempfile
+root=pathlib.Path(sys.argv[1]); tar=root/'usr/bin/tar'
+assert os.readlink(tar)=='lpl-tar'
+with tempfile.TemporaryDirectory() as td:
+    p=pathlib.Path(td);(p/'in').mkdir();(p/'out').mkdir()
+    payload=b'LPL tar + pigz staged integration\n'*4096
+    (p/'in/example').write_bytes(payload)
+    subprocess.run([str(tar),'--threads=2','-czf',str(p/'archive.tar.gz'),'-C',str(p/'in'),'example'],check=True)
+    subprocess.run([str(tar),'--threads=2','-xf',str(p/'archive.tar.gz'),'-C',str(p/'out')],check=True)
+    assert (p/'out/example').read_bytes()==payload
+print('PASS: staged lpl-tar, tar alias, gzip creation and auto-detected extraction')
+PY
+}

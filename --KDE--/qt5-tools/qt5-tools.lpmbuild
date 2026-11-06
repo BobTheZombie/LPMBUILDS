@@ -1,0 +1,72 @@
+#!/bin/bash
+# LPM Linux — qt5-tools
+# Needed for ECM translation generation: Qt5LinguistTools, lrelease, lconvert.
+NAME="qt5-tools"
+VERSION="5.15.19"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Qt5 developer utilities, Qt Linguist and translation tools"
+URL="https://www.qt.io/"
+LICENSE=(
+    "LGPL-3.0-only"
+    "GPL-3.0-only"
+)
+SOURCE=("qttools::git+https://github.com/qt/qttools.git#tag=v5.15.19-lts-lgpl")
+# Git sources are selected by the named release tag, not a tarball digest.
+SHA256SUMS=()
+PATCHES=()
+REQUIRES=(
+    "qt5-base"
+    "qt5-declarative"
+    "glibc"
+    "gcc-libs"
+)
+BUILD_REQUIRES=(
+    "qt5-base"
+    "qt5-declarative"
+    "make"
+    "perl"
+    "pkgconf"
+    "git"
+)
+REQUIRES_PYTHON_DEPENDENCIES=()
+PROVIDES=()
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+BUILD_OPTIONS=("@--optimize=2" "@--stripping")
+
+prepare() {
+    set -euxo pipefail
+    local src="$SRCROOT/qttools"
+    test -f "$src/qttools.pro"
+    rm -rf "$SRCROOT/qt5-tools-build"
+}
+build() {
+    set -euxo pipefail
+    local src="$SRCROOT/qttools"
+    local builddir="$SRCROOT/qt5-tools-build"
+    local jobs="${LPM_BUILD_JOBS:-$(nproc)}"
+    test -x /usr/lib/qt5/bin/qmake
+    test -f "$src/qttools.pro"
+    mkdir -p "$builddir"
+    cd "$builddir"
+    PATH="/usr/lib/qt5/bin:$PATH" /usr/lib/qt5/bin/qmake "$src/qttools.pro" CONFIG+=release
+    make -j"$jobs"
+}
+staging() {
+    set -euxo pipefail
+    local builddir="$SRCROOT/qt5-tools-build"
+    make -C "$builddir" INSTALL_ROOT="$pkgdir" install
+    test -x "$pkgdir/usr/lib/qt5/bin/lrelease"
+    test -x "$pkgdir/usr/lib/qt5/bin/lconvert"
+    test -f "$pkgdir/usr/lib/cmake/Qt5LinguistTools/Qt5LinguistToolsConfig.cmake"
+    # Provide versioned tools without overwriting Qt 6 tools.
+    mkdir -p "$pkgdir/usr/bin"
+    for tool in lrelease lupdate lconvert linguist; do
+        if [[ -x "$pkgdir/usr/lib/qt5/bin/$tool" ]]; then
+            ln -sfn "../lib/qt5/bin/$tool" "$pkgdir/usr/bin/$tool-qt5"
+        fi
+    done
+}

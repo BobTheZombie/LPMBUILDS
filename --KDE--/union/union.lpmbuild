@@ -1,23 +1,18 @@
 #!/bin/bash
-# KDE Union 6.8.1; CSS input enabled through the Rust-backed cxx-rust-cssparser.
-# Produces actual Union libraries and UnionConfig.cmake.
+# KDE Union 6.8.1. CSS plugin intentionally disabled until
+# cxx-rust-cssparser+corrosion are in LPM. Core UnionConfig remains installed.
 NAME="union"
 VERSION="6.8.1"
 RELEASE="2"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="KDE Union shared Qt Quick and Qt Widgets style engine"
+SUMMARY="KDE Union Qt Quick and Qt Widgets style engine"
 URL="https://invent.kde.org/plasma/union"
 LICENSE=("SEE-UPSTREAM")
 SOURCE=("https://download.kde.org/stable/plasma/${VERSION}/union-${VERSION}.tar.xz")
 SHA256SUMS=("abea413c79fe9a52337a9b8a50ee8fb29be7ed38bd764eb7555d724e99b39f00")
 PATCHES=()
-REQUIRES=("qt6-base" "qt6-declarative" "qt6-shadertools"
-          "kcoreaddons6" "kguiaddons6" "kconfig6" "kiconthemes6"
-          "kcolorscheme6" "kirigami6" "cxx-rust-cssparser")
-BUILD_REQUIRES=("cmake" "ninja" "pkgconf" "extra-cmake-modules"
-                "qt6-base" "qt6-declarative" "qt6-shadertools"
-                "kcoreaddons6" "kguiaddons6" "kconfig6" "kiconthemes6"
-                "kcolorscheme6" "kirigami6" "cxx-rust-cssparser")
+REQUIRES=("qt6-base" "qt6-declarative" "qt6-shadertools" "kcoreaddons6" "kguiaddons6" "kconfig6" "kiconthemes6" "kcolorscheme6" "kirigami6" "cxx-rust-cssparser")
+BUILD_REQUIRES=("cmake" "ninja" "pkgconf" "extra-cmake-modules" "qt6-base" "qt6-declarative" "qt6-shadertools" "kcoreaddons6" "kguiaddons6" "kconfig6" "kiconthemes6" "kcolorscheme6" "kirigami6" "cxx-rust-cssparser")
 REQUIRES_PYTHON_DEPENDENCIES=()
 PROVIDES=()
 CONFLICTS=()
@@ -49,6 +44,7 @@ build() {
 }
 staging() {
     set -euxo pipefail
-    DESTDIR="$pkgdir" cmake --install "$SRCROOT/${NAME}-${VERSION}/build"
+    local builddir="$SRCROOT/${NAME}-${VERSION}/build"
+    DESTDIR="$pkgdir" cmake --install "$builddir"
     test -f "$pkgdir/usr/lib/cmake/Union/UnionConfig.cmake"
 }

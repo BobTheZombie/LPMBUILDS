@@ -1,11 +1,12 @@
 #!/bin/bash
 # LPM Linux - Qt Declarative / QML / Qt Quick 6.12.0
 # Qt submodules must match the installed Qt Base and ShaderTools versions.
+# Qt Base defines the QML import root (currently /usr/qml on this LPM build).
 
 NAME="qt6-declarative"
 VERSION="6.12.0"
 BASE="${VERSION%.*}"
-RELEASE="2"
+RELEASE="3"
 ARCH="${ARCH:-x86_64}"
 
 SUMMARY="Qt 6 Declarative, QML, Qt Quick, and Qt Quick Controls"
@@ -47,7 +48,8 @@ prepare() {
     local src="$SRCROOT/$NAME-$VERSION"
     local upstream="$SRCROOT/qtdeclarative-everywhere-src-$VERSION"
 
-    # Support both normalized LPM extraction and upstream Qt archive layout.
+    # LPM normally extracts archives to $SRCROOT/$NAME-$VERSION.
+    # Retain compatibility with Qt's upstream source directory name.
     if [[ ! -f "$src/CMakeLists.txt" && -f "$upstream/CMakeLists.txt" ]]; then
         mv "$upstream" "$src"
     fi
@@ -56,7 +58,7 @@ prepare() {
         return 1
     fi
 
-    # Discard older configurations that may have disabled Qt Quick silently.
+    # Discard stale CMake configurations from earlier Qt builds.
     rm -rf "$src/build" "$src/.lpm-prereq"
 }
 
@@ -67,8 +69,7 @@ build() {
     local builddir="$src/build"
     local prereq="$src/.lpm-prereq"
 
-    # Stop early if the installed Qt components are missing or mismatched.
-    # The unquoted heredoc expands VERSION; it must not be hard-coded.
+    # Confirm that Qt Base and ShaderTools agree on the exact Qt version.
     mkdir -p "$prereq"
     cat > "$prereq/CMakeLists.txt" <<CMAKE
 cmake_minimum_required(VERSION 3.22)
@@ -83,6 +84,7 @@ CMAKE
         -DCMAKE_PREFIX_PATH=/usr
     rm -rf "$prereq"
 
+    # Qt Declarative inherits QML's installation directory from Qt Base.
     cmake -S "$src" -B "$builddir" -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_INSTALL_PREFIX=/usr \
@@ -93,7 +95,6 @@ CMAKE
         -DBUILD_TESTING=OFF \
         -DBUILD_SHARED_LIBS=ON
 
-    # Ensure a successful CMake exit did not silently omit QML / Qt Quick.
     if [[ ! -f "$builddir/build.ninja" ]]; then
         echo "[ERROR] No Ninja build graph generated" >&2
         return 1
@@ -112,11 +113,11 @@ staging() {
     set -euxo pipefail
 
     local builddir="$SRCROOT/$NAME-$VERSION/build"
-    local component
+    local component qml_dir staged_qml module
 
     DESTDIR="$pkgdir" cmake --install "$builddir"
 
-    # CMake exports are required by QtQuickTimeline, QtQuick3D and Plasma.
+    # Needed by Qt Quick 3D, Qt Quick Timeline, and downstream KDE builds.
     for component in Qml Quick QuickControls2; do
         if [[ ! -f "$pkgdir/usr/lib/cmake/Qt6${component}/Qt6${component}Config.cmake" ]]; then
             echo "[ERROR] Qt6${component} CMake package missing in staging" >&2
@@ -124,7 +125,7 @@ staging() {
         fi
     done
 
-    # A nonempty /usr tree is not evidence that the Qt Quick library exists.
+    # Ensure actual shared libraries, not merely a populated /usr tree.
     for component in Qml Quick; do
         if ! find "$pkgdir/usr/lib" -maxdepth 1 -type f \
             -name "libQt6${component}.so.*" -print -quit | grep -q .; then
@@ -133,10 +134,33 @@ staging() {
         fi
     done
 
-    if [[ ! -f "$pkgdir/usr/lib/qt6/qml/QtQuick/qmldir" ]]; then
-        echo "[ERROR] QtQuick QML module missing in staging" >&2
+    # LPM's Qt Base currently reports QT_INSTALL_QML=/usr/qml.
+    # Never assume Arch's /usr/lib/qt6/qml layout: use the installed Qt Base.
+    qml_dir="$(qtpaths6 --query QT_INSTALL_QML)" || {
+        echo "[ERROR] Unable to query Qt Base's QML import path" >&2
+        return 1
+    }
+    if [[ "$qml_dir" != /usr/* ]]; then
+        echo "[ERROR] Unexpected Qt QML import path: $qml_dir" >&2
+        echo "[ERROR] Check the installed qt6-base configuration" >&2
         return 1
     fi
+    staged_qml="$pkgdir$qml_dir"
+    echo "[INFO] Qt QML import path: $qml_dir"
+
+    # Validate the QML imports Plasma and other QtQuick consumers need.
+    for module in \
+        QtQml \
+        QtQuick \
+        QtQuick/Layouts \
+        QtQuick/Controls; do
+        if [[ ! -f "$staged_qml/$module/qmldir" ]]; then
+            echo "[ERROR] QML module missing in staging: $module" >&2
+            echo "[ERROR] Expected: $staged_qml/$module/qmldir" >&2
+            return 1
+        fi
+        echo "[OK] QML module: $module"
+    done
 
     echo "[OK] Qt Declarative $VERSION staged with Qt Quick and Quick Controls 2"
 }

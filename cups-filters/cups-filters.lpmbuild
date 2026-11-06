@@ -1,9 +1,10 @@
 #!/bin/bash
-# LPM Linux: CUPS Filters 2.0.1 (CUPS 2.x compatibility layer).
-# Self-contained CVE-2025-64524 source fix; upstream 2.0.1 tarball is vulnerable.
+# LPM Linux - CUPS Filters 2.0.1
+# Backport of OpenPrinting's rastertopclx CVE-2025-64524 fix (956283c).
+# Supports CUPS 2.x, Ghostscript PDF processing, and no Poppler dependency.
 NAME="cups-filters"
 VERSION="2.0.1"
-RELEASE="4"
+RELEASE="5"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="OpenPrinting filters and backends for CUPS 2.x"
 URL="https://github.com/OpenPrinting/cups-filters"
@@ -11,76 +12,117 @@ LICENSE=("Apache-2.0 WITH LLVM-exception")
 SOURCE=("https://github.com/OpenPrinting/cups-filters/releases/download/${VERSION}/cups-filters-${VERSION}.tar.xz")
 SHA256SUMS=("39e71de3ce06762b342749f1dc7cba6817738f7bf4d322c1bb9ab10b8569ab80")
 PATCHES=()
-REQUIRES=("glibc" "libcups" "libcupsfilters" "libppd" "bash")
-BUILD_REQUIRES=("gcc" "make" "pkgconf" "glib2" "libcups" "libcupsfilters" "libppd" "poppler" "gettext" "python")
+
+REQUIRES=("glibc" "libcups" "libcupsfilters" "libppd" "bash" "ghostscript")
+BUILD_REQUIRES=("gcc" "make" "pkgconf" "glib2" "libcups" "libcupsfilters" "libppd" "ghostscript" "gettext" "python")
+REQUIRES_PYTHON_DEPENDENCIES=()
 PROVIDES=("cups-filters")
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=("ghostscript")
-SUGGESTS=("cups-browsed" "mupdf-tools")
+RECOMMENDS=()
+SUGGESTS=("cups-browsed" "mutool" "mupdf-tools" "poppler")
 
 prepare() {
     set -euxo pipefail
-    local src="$SRCROOT/cups-filters-$VERSION"
+    local src="$SRCROOT/$NAME-$VERSION"
     test -f "$src/configure"
     test -f "$src/filter/rastertopclx.c"
     test -f "$src/filter/foomatic-rip/process.h"
 
-    # GCC 15+/C23: replace unprototyped callback declaration (BLFS fix).
+    # GCC 15+ / C23: avoid an old-style unprototyped callback declaration.
     sed -i '/proc_func)()/s/()/(FILE*, FILE*, void*)/' \
         "$src/filter/foomatic-rip/process.h"
 
-    # Backport the relevant upstream safety changes for CVE-2025-64524.
-    # This stays embedded in the lpmbuild so LPM's remote recipe resolver
-    # doesn't need an additional companion patch file in GitLab.
-    python3 - "$src/filter/rastertopclx.c" <<'PY'
+    # Apply upstream CVE-2025-64524 fix inline, as the remote recipe transport
+    # may fetch only the .lpmbuild and no sibling patch. Fail closed if upstream
+    # code changes, rather than silently ship a vulnerable filter.
+    python3 - "$src/filter/rastertopclx.c" <<'PY_PATCH'
 from pathlib import Path
 import sys
-p = Path(sys.argv[1])
-s = p.read_text()
+
+path = Path(sys.argv[1])
+text = path.read_text()
 replacements = [
-    ('CompBuffer = malloc(DotBufferSize * 4);',
-     'CompBuffer = calloc(DotBufferSize * 4, sizeof(unsigned char));'),
-    ('SeedBuffer = malloc(DotBufferSize);',
-     'SeedBuffer = calloc(DotBufferSize, sizeof(unsigned char));'),
-    ('          // Place mode 3 compression data in the buffer; see HP manuals',
-     '          if (count == 0)\n            break;\n\n'
-     '          // Place mode 3 compression data in the buffer; see HP manuals'),
-    ('            count = line_ptr - start;\n#if 0',
-     '            count = line_ptr - start;\n'
-     '            if (count == 0)\n              break;\n#if 0'),
-    ('            count = (line_ptr - start) / 3;\n',
-     '            count = (line_ptr - start) / 3;\n'
-     '            if (count == 0)\n              break;\n'),
+    (
+        'CompBuffer = malloc(DotBufferSize * 4);',
+        'CompBuffer = calloc(DotBufferSize * 4, sizeof(unsigned char));',
+    ),
+    (
+        'SeedBuffer = malloc(DotBufferSize);',
+        'SeedBuffer = calloc(DotBufferSize, sizeof(unsigned char));',
+    ),
+    (
+        '              seed ++;\n'
+        '              count ++;\n'
+        '            }\n'
+        '\t  }\n\n\t  //\n'
+        '          // Place mode 3 compression data in the buffer; see HP manuals',
+        '              seed ++;\n'
+        '              count ++;\n'
+        '            }\n\n'
+        '            if (count == 0)\n'
+        '              break;\n'
+        '\t  }\n\n\t  //\n'
+        '          // Place mode 3 compression data in the buffer; see HP manuals',
+    ),
+    (
+        '            count = line_ptr - start;\n\n#if 0',
+        '            count = line_ptr - start;\n\n'
+        '            if (count == 0)\n'
+        '              break;\n\n#if 0',
+    ),
+    (
+        '            count = (line_ptr - start) / 3;\n\n\t    //',
+        '            count = (line_ptr - start) / 3;\n\n'
+        '            if (count == 0)\n'
+        '              break;\n\n\t    //',
+    ),
 ]
+
 for old, new in replacements:
-    count = s.count(old)
-    if count != 1:
-        raise SystemExit(f"[ERROR] Security patch anchor {old!r} has {count} matches (expected 1)")
-    s = s.replace(old, new, 1)
-p.write_text(s)
-print('[OK] Applied CVE-2025-64524 safety guards and zeroed buffers')
-PY
+    matches = text.count(old)
+    if matches == 1:
+        text = text.replace(old, new, 1)
+    elif matches == 0 and text.count(new) == 1:
+        # Safe for resumed or repeated prepare() executions.
+        continue
+    else:
+        raise SystemExit(
+            f'[ERROR] CVE-2025-64524 patch anchor has {matches} matches: {old!r}'
+        )
+
+path.write_text(text)
+print('[OK] Upstream CVE-2025-64524 patch applied/verified (3 guards, 2 zeroed buffers)')
+PY_PATCH
 }
 
 build() {
     set -euxo pipefail
-    local src="$SRCROOT/cups-filters-$VERSION"
+    local src="$SRCROOT/$NAME-$VERSION"
     cd "$src"
-    ./configure --prefix=/usr --libdir=/usr/lib --disable-static \
+    command -v gs >/dev/null
+
+    ./configure \
+        --prefix=/usr \
+        --libdir=/usr/lib \
+        --disable-static \
+        --disable-poppler \
+        --enable-ghostscript \
+        --disable-mutool \
         --docdir="/usr/share/doc/cups-filters-$VERSION"
+
     make -j"${LPM_BUILD_JOBS:-$(nproc)}"
 }
 
 check() {
     set -euo pipefail
-    # CUPS Filters 2.0.1 ships no functional test suite.
-    test -f "$SRCROOT/cups-filters-$VERSION/Makefile"
+    test -f "$SRCROOT/$NAME-$VERSION/Makefile"
+    # The rastertopclx security guards are checked during prepare().
 }
 
 staging() {
     set -euxo pipefail
-    local src="$SRCROOT/cups-filters-$VERSION"
+    local src="$SRCROOT/$NAME-$VERSION"
     make -C "$src" DESTDIR="$pkgdir" install
     find "$pkgdir/usr/lib" -type f -name '*.a' -delete 2>/dev/null || true
     test -d "$pkgdir/usr/lib/cups/filter"

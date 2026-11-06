@@ -1,0 +1,117 @@
+#!/bin/bash
+# LPM Linux - libproxy 0.5.12
+# KDE-aware system proxy discovery with environment, XDG portal and PAC support.
+# LPM extracts sources into $SRCROOT/$NAME-$VERSION.
+# No writes outside $pkgdir during staging.
+
+NAME="libproxy"
+VERSION="0.5.12"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Library for automatic proxy configuration (KDE, XDG portal, PAC)"
+URL="https://github.com/libproxy/libproxy"
+LICENSE=("LGPL-2.1-or-later")
+
+SOURCE=(
+    "https://github.com/libproxy/libproxy/archive/refs/tags/${VERSION}.tar.gz"
+)
+# The archive hash has not been independently verified. Pin it before release.
+SHA256SUMS=("SKIP")
+PATCHES=()
+
+REQUIRES=(
+    "glibc"
+    "glib2"
+    "curl"
+    "duktape"
+)
+BUILD_REQUIRES=(
+    "meson"
+    "ninja"
+    "pkgconf"
+    "gcc"
+    "glib2"
+    "curl"
+    "duktape"
+)
+REQUIRES_PYTHON_DEPENDENCIES=()
+PROVIDES=("libproxy-1.0")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=("xdg-desktop-portal")
+SUGGESTS=("gsettings-desktop-schemas")
+
+prepare() {
+    set -euxo pipefail
+    local src="$SRCROOT/$NAME-$VERSION"
+    [[ -f "$src/meson.build" ]] || {
+        echo "[ERROR] Missing libproxy sources: $src" >&2
+        return 1
+    }
+    # Don't reuse stale Meson configurations from a previous package build.
+    rm -rf "$src/build"
+}
+
+build() {
+    set -euxo pipefail
+    local src="$SRCROOT/$NAME-$VERSION"
+    local builddir="$src/build"
+    local jobs="${LPM_BUILD_JOBS:-$(nproc)}"
+    [[ "$jobs" =~ ^[1-9][0-9]*$ ]] || {
+        echo '[ERROR] Invalid LPM_BUILD_JOBS' >&2
+        return 1
+    }
+
+    meson setup "$builddir" "$src" \
+        --prefix=/usr \
+        --libdir=lib \
+        --buildtype=release \
+        -Drelease=true \
+        -Dtests=false \
+        -Ddocs=false \
+        -Dintrospection=false \
+        -Dvapi=false \
+        -Dconfig-env=true \
+        -Dconfig-kde=true \
+        -Dconfig-xdp=true \
+        -Dconfig-sysconfig=true \
+        -Dconfig-gnome=false \
+        -Dpacrunner-duktape=true \
+        -Dcurl=true
+
+    ninja -C "$builddir" -j "$jobs"
+}
+
+staging() {
+    set -euxo pipefail
+    local builddir="$SRCROOT/$NAME-$VERSION/build"
+
+    [[ -n "${pkgdir:-}" && "$pkgdir" = /* && "$pkgdir" != / ]] || {
+        echo '[ERROR] Invalid LPM staging directory' >&2
+        return 1
+    }
+
+    DESTDIR="$pkgdir" meson install -C "$builddir" --no-rebuild
+
+    # Upstream additionally installs libproxy.a; ship the shared ABI only.
+    rm -f "$pkgdir/usr/lib/libproxy.a"
+
+    # Catch missing library/API, backend, pkg-config metadata, or CLI utility.
+    [[ -e "$pkgdir/usr/lib/libproxy.so.1" ]] || {
+        echo '[ERROR] libproxy.so.1 missing from staging' >&2
+        return 1
+    }
+    [[ -f "$pkgdir/usr/lib/libproxy/libpxbackend-1.0.so" ]] || {
+        echo '[ERROR] libpxbackend-1.0.so missing from staging' >&2
+        return 1
+    }
+    [[ -f "$pkgdir/usr/lib/pkgconfig/libproxy-1.0.pc" ]] || {
+        echo '[ERROR] libproxy-1.0.pc missing from staging' >&2
+        return 1
+    }
+    [[ -x "$pkgdir/usr/bin/proxy" ]] || {
+        echo '[ERROR] proxy utility missing from staging' >&2
+        return 1
+    }
+    echo "[OK] libproxy $VERSION staged with KDE/XDP and PAC support"
+}

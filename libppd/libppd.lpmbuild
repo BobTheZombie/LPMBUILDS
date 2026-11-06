@@ -27,9 +27,17 @@ build() {
     set -euxo pipefail
     local src="$SRCROOT/libppd-$VERSION"
     cd "$src"
-    ./configure --prefix=/usr --libdir=/usr/lib --disable-static \
+    ./configure \
+        --prefix=/usr \
+        --libdir=/usr/lib \
+        --disable-static \
         --with-cups-rundir=/run/cups \
         --enable-ppdc-utils \
+        --enable-ghostscript \
+        --with-pdftops=gs \
+        --disable-pdftops \
+        --disable-pdftocairo \
+        --disable-mutool \
         --docdir="/usr/share/doc/libppd-$VERSION"
     make -j"${LPM_BUILD_JOBS:-$(nproc)}"
 }

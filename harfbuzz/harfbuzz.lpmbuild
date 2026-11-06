@@ -1,5 +1,5 @@
 NAME="harfbuzz"
-VERSION="9.0.0"
+VERSION="15.0.0"
 RELEASE="1"
 ARCH="x86_64"
 SUMMARY="OpenType text shaping engine"

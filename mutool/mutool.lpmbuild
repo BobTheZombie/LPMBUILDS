@@ -1,0 +1,77 @@
+#!/bin/bash
+# LPM Linux - MuPDF's mutool CLI (no X11/OpenGL viewers)
+# LPM normalizes extracted sources to $SRCROOT/$NAME-$VERSION.
+
+NAME="mutool"
+VERSION="1.28.6"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="MuPDF command-line tools for rendering, converting, and inspecting PDFs"
+URL="https://mupdf.com/"
+LICENSE=("AGPL-3.0-or-later")
+
+SOURCE=(
+    "https://github.com/ArtifexSoftware/mupdf-downloads/releases/download/${VERSION}/mupdf-${VERSION}-source.tar.gz"
+)
+SHA256SUMS=(
+    "dc85000640a45d90ca9b77b061f6ca67cce0c4d4fbecf8819647baf573eef101"
+)
+PATCHES=()
+
+# Third-party codecs are built from the complete official source tarball.
+# No Poppler, X11, OpenGL, or full MuPDF viewer dependencies are required.
+REQUIRES=("glibc")
+BUILD_REQUIRES=("gcc" "make" "pkgconf" "python")
+REQUIRES_PYTHON_DEPENDENCIES=()
+PROVIDES=("mutool" "mupdf-tools")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+# Use precisely the same flags for build, check and install-tools.
+_mupdf_make() {
+    make -C "$SRCROOT/$NAME-$VERSION" \
+        build=release \
+        USE_SYSTEM_LIBS=no \
+        HAVE_X11=no \
+        HAVE_GLUT=no \
+        HAVE_CURL=no \
+        HAVE_LIBCRYPTO=no \
+        "$@"
+}
+
+prepare() {
+    set -euxo pipefail
+    local src="$SRCROOT/$NAME-$VERSION"
+    test -f "$src/Makefile"
+    test -f "$src/Makerules"
+    test -f "$src/Makethird"
+    test -f "$src/source/tools/mutool.c"
+}
+
+build() {
+    set -euxo pipefail
+    _mupdf_make -j"${LPM_BUILD_JOBS:-$(nproc)}" tools
+}
+
+check() {
+    set -euxo pipefail
+    "$SRCROOT/$NAME-$VERSION/build/release/mutool" -v
+}
+
+staging() {
+    set -euxo pipefail
+    local src="$SRCROOT/$NAME-$VERSION"
+
+    _mupdf_make prefix=/usr DESTDIR="$pkgdir" install-tools
+
+    test -x "$pkgdir/usr/bin/mutool"
+    install -Dm644 "$src/COPYING" \
+        "$pkgdir/usr/share/licenses/$NAME/COPYING"
+
+    if [[ -f "$src/docs/man/mutool.1" ]]; then
+        install -Dm644 "$src/docs/man/mutool.1" \
+            "$pkgdir/usr/share/man/man1/mutool.1"
+    fi
+}

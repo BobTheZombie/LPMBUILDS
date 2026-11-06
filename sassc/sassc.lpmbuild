@@ -1,0 +1,45 @@
+#!/bin/bash
+NAME="sassc"
+VERSION="3.6.2"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Command-line Sass and SCSS compiler"
+URL="https://github.com/sass/sassc"
+LICENSE=("MIT")
+SOURCE=("sassc-${VERSION}.tar.gz::https://codeload.github.com/sass/sassc/tar.gz/refs/tags/${VERSION}")
+SHA256SUMS=("608dc9002b45a91d11ed59e352469ecc05e4f58fc1259fc9a9f5b8f0f8348a03")
+PATCHES=()
+REQUIRES=("glibc" "gcc" "libsass>=3.6.6")
+BUILD_REQUIRES=("gcc" "binutils" "make" "autoconf" "automake" "libtool" "pkgconf" "python" "coreutils")
+PROVIDES=()
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+BUILD_OPTIONS=("@--stripping" "@--optimize=2")
+
+prepare() {
+    set -euo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    autoreconf -fi
+}
+
+build() {
+    set -euo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    export SASSC_VERSION="$VERSION"
+    export CFLAGS="${CFLAGS:--O2 -pipe} -std=gnu11"
+    export CXXFLAGS="${CXXFLAGS:--O2 -pipe} -std=gnu++11"
+    ./configure --prefix=/usr --libdir=/usr/lib --with-libsass=/usr
+    make -j"${LPM_BUILD_JOBS:-$(getconf _NPROCESSORS_ONLN)}"
+}
+
+staging() {
+    set -euo pipefail
+    : "${pkgdir:?LPM staging root is required}"
+    test "$pkgdir" != /
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    make DESTDIR="$pkgdir" install
+    find "$pkgdir/usr/lib" -name '*.la' -delete 2>/dev/null || true
+    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$NAME/LICENSE"
+}

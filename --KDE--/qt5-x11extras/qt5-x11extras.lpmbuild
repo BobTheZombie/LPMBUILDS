@@ -1,0 +1,65 @@
+#!/bin/bash
+# LPM Linux — qt5-x11extras
+# Required when KDE Frameworks 5 KWindowSystem builds with X11 support.
+NAME="qt5-x11extras"
+VERSION="5.15.19"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Qt5 X11 extension bindings required by KF5 KWindowSystem"
+URL="https://www.qt.io/"
+LICENSE=(
+    "LGPL-3.0-only"
+    "GPL-3.0-only"
+)
+SOURCE=("qtx11extras::git+https://github.com/qt/qtx11extras.git#tag=v5.15.19-lts-lgpl")
+# Git sources are selected by the named release tag, not a tarball digest.
+SHA256SUMS=()
+PATCHES=()
+REQUIRES=(
+    "qt5-base"
+    "libX11"
+    "libxcb"
+    "glibc"
+    "gcc-libs"
+)
+BUILD_REQUIRES=(
+    "qt5-base"
+    "make"
+    "pkgconf"
+    "libX11"
+    "libxcb"
+    "git"
+)
+REQUIRES_PYTHON_DEPENDENCIES=()
+PROVIDES=()
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+BUILD_OPTIONS=("@--optimize=2" "@--stripping")
+
+prepare() {
+    set -euxo pipefail
+    local src="$SRCROOT/qtx11extras"
+    test -f "$src/qtx11extras.pro"
+    rm -rf "$SRCROOT/qt5-x11extras-build"
+}
+build() {
+    set -euxo pipefail
+    local src="$SRCROOT/qtx11extras"
+    local builddir="$SRCROOT/qt5-x11extras-build"
+    local jobs="${LPM_BUILD_JOBS:-$(nproc)}"
+    test -x /usr/lib/qt5/bin/qmake
+    test -f "$src/qtx11extras.pro"
+    mkdir -p "$builddir"
+    cd "$builddir"
+    PATH="/usr/lib/qt5/bin:$PATH" /usr/lib/qt5/bin/qmake "$src/qtx11extras.pro" CONFIG+=release
+    make -j"$jobs"
+}
+staging() {
+    set -euxo pipefail
+    local builddir="$SRCROOT/qt5-x11extras-build"
+    make -C "$builddir" INSTALL_ROOT="$pkgdir" install
+    test -e "$pkgdir/usr/lib/libQt5X11Extras.so.5"
+    test -f "$pkgdir/usr/lib/cmake/Qt5X11Extras/Qt5X11ExtrasConfig.cmake"
+}

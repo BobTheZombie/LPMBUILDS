@@ -1,0 +1,41 @@
+#!/bin/bash
+# KIO Fuse 5.1.1 built with Qt6/KF6 for Plasma 6.
+NAME="kio-fuse"
+VERSION="5.1.1"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Bridge KDE KIO virtual files to local paths through FUSE3"
+URL="https://invent.kde.org/system/kio-fuse"
+LICENSE=("GPL-3.0-or-later")
+SOURCE=("https://github.com/KDE/kio-fuse/archive/refs/tags/v${VERSION}.tar.gz")
+# Pin SHA-256 from the downloaded source archive before repository publication.
+SHA256SUMS=("SKIP")
+PATCHES=()
+REQUIRES=("glibc" "qt6-base" "kio6" "kcoreaddons6" "fuse3" "dbus")
+BUILD_REQUIRES=("gcc" "cmake" "ninja" "pkgconf" "extra-cmake-modules" "qt6-base" "kio6" "kcoreaddons6" "fuse3" "dbus")
+REQUIRES_PYTHON_DEPENDENCIES=()
+PROVIDES=("kio-fuse" "KIOFuse")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+prepare() {
+    set -euxo pipefail
+    test -f "$SRCROOT/${NAME}-${VERSION}/CMakeLists.txt"
+}
+build() {
+    set -euxo pipefail
+    local src="$SRCROOT/${NAME}-${VERSION}"
+    local builddir="$BUILDROOT/${NAME}-build"
+    cmake -S "$src" -B "$builddir" -G Ninja \
+      -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr \
+      -DKDE_INSTALL_LIBDIR=lib -DKDE_INSTALL_USE_QT_SYS_PATHS=ON \
+      -DQT_MAJOR_VERSION=6 -DBUILD_TESTING=OFF
+    cmake --build "$builddir" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+staging() {
+    set -euxo pipefail
+    DESTDIR="$pkgdir" cmake --install "$BUILDROOT/${NAME}-build"
+    test -n "$(find "$pkgdir/usr" -type f -name kio-fuse -print -quit)"
+    test -n "$(find "$pkgdir/usr/share/dbus-1" -type f -name '*KIOFuse*' -print -quit)"
+}

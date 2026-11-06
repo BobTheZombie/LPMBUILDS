@@ -1,0 +1,124 @@
+#!/bin/bash
+# LPM Linux - QtConnectivity 6.12.0 (Qt6Bluetooth and Qt6Nfc)
+NAME="qt6-connectivity"
+VERSION="6.12.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+
+SUMMARY="Qt6 Bluetooth (BlueZ) and NFC connectivity modules"
+URL="https://doc.qt.io/qt-6/qtbluetooth-index.html"
+LICENSE=("LGPL-3.0-only" "GPL-3.0-only" "LicenseRef-Qt-Commercial")
+
+SOURCE=(
+    "https://download.qt.io/archive/qt/6.12/${VERSION}/submodules/qtconnectivity-everywhere-src-${VERSION}.tar.xz"
+)
+# Replace SKIP with the verified SHA256 of the exact official archive before publishing.
+SHA256SUMS=("SKIP")
+PATCHES=()
+
+# The "bluez" dependency must provide libbluetooth and bluez.pc.
+# If your LPM repository calls that package "bluez-libs", use that provider here.
+REQUIRES=(
+    "glibc"
+    "gcc-libs"
+    "qt6-base"
+    "bluez"
+)
+BUILD_REQUIRES=(
+    "cmake"
+    "ninja"
+    "pkgconf"
+    "qt6-base"
+    "bluez"
+)
+PROVIDES=("Qt6Bluetooth" "qt6-bluetooth" "Qt6Nfc" "qt6-nfc")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=("bluez")
+SUGGESTS=("pcsc-lite")
+REQUIRES_PYTHON_DEPENDENCIES=()
+
+# Do not assume LPM always preserves upstream tarball directory capitalization.
+_qtconnectivity_src() {
+    local base="${SRCROOT:?SRCROOT is unset}" candidate
+    for candidate in \
+        "$base/qtconnectivity-everywhere-src-${VERSION}" \
+        "$base/qtconnectivity-${VERSION}" \
+        "$base/qt6-connectivity-${VERSION}" \
+        "$base"; do
+        if [[ -f "$candidate/CMakeLists.txt" &&
+              -f "$candidate/src/bluetooth/CMakeLists.txt" &&
+              -f "$candidate/.cmake.conf" ]]; then
+            printf '%s\n' "$candidate"
+            return 0
+        fi
+    done
+
+    while IFS= read -r candidate; do
+        candidate="${candidate%/CMakeLists.txt}"
+        if [[ -f "$candidate/src/bluetooth/CMakeLists.txt" &&
+              -f "$candidate/.cmake.conf" ]]; then
+            printf '%s\n' "$candidate"
+            return 0
+        fi
+    done < <(find "$base" -mindepth 1 -maxdepth 4 -type f -name CMakeLists.txt -print)
+
+    echo "[ERROR] QtConnectivity sources missing beneath: $base" >&2
+    return 1
+}
+
+prepare() {
+    set -euo pipefail
+    _qtconnectivity_src >/dev/null
+
+    # Enforce the actual BlueZ backend, not the no-hardware dummy backend.
+    pkg-config --exists bluez || {
+        echo "[ERROR] Missing bluez.pc; install BlueZ library + development headers." >&2
+        return 1
+    }
+    pkg-config --exists Qt6Core || {
+        echo "[ERROR] Missing Qt6Core.pc; install qt6-base development files." >&2
+        return 1
+    }
+
+    local base_version
+    base_version="$(pkg-config --modversion Qt6Core)"
+    [[ "$base_version" == "$VERSION" ]] || {
+        echo "[ERROR] QtBase is $base_version; QtConnectivity must match $VERSION." >&2
+        return 1
+    }
+}
+
+build() {
+    set -euxo pipefail
+    local src
+    src="$(_qtconnectivity_src)"
+    local builddir="$src/build"
+
+    cmake -S "$src" -B "$builddir" -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DBUILD_SHARED_LIBS=ON \
+        -DQT_BUILD_TESTS=OFF \
+        -DQT_BUILD_EXAMPLES=OFF \
+        -DFEATURE_bluetooth=ON \
+        -DFEATURE_bluez=ON \
+        -DFEATURE_nfc=ON
+
+    cmake --build "$builddir" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+staging() {
+    set -euxo pipefail
+    local src
+    src="$(_qtconnectivity_src)"
+    DESTDIR="${pkgdir:?}" cmake --install "$src/build"
+
+    # Mandatory development package: downstream find_package(Qt6 COMPONENTS Bluetooth).
+    test -f "$pkgdir/usr/lib/cmake/Qt6Bluetooth/Qt6BluetoothConfig.cmake"
+    test -f "$pkgdir/usr/lib/cmake/Qt6Nfc/Qt6NfcConfig.cmake"
+    find "$pkgdir/usr/lib" -maxdepth 1 -name 'libQt6Bluetooth.so*' -print -quit | grep -q .
+    find "$pkgdir/usr/lib" -maxdepth 1 -name 'libQt6Nfc.so*' -print -quit | grep -q .
+    find "$pkgdir/usr/include" -type f -name qbluetoothlocaldevice.h -print -quit | grep -q .
+}

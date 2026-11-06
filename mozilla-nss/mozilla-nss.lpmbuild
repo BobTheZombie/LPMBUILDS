@@ -2,31 +2,28 @@
 
 NAME="mozilla-nss"
 VERSION="3.130"
-RELEASE="2"
+RELEASE="4"
 ARCH="${ARCH:-x86_64}"
-
-SUMMARY="Network Security Services"
+SUMMARY="Mozilla Network Security Services (NSS)"
 URL="https://firefox-source-docs.mozilla.org/security/nss/"
 LICENSE=("MPL-2.0")
 
 SOURCE=(
     "https://archive.mozilla.org/pub/security/nss/releases/NSS_${VERSION//./_}_RTM/src/nss-${VERSION}.tar.gz"
 )
-
-SHA256SUMS=("SKIP")
+SHA256SUMS=("afab9f82c78bfa3e7e8b4a61ac31922675c58203f67ff385a2714df7fe9bd5c5")
 PATCHES=()
 
 REQUIRES=(
     "glibc"
-    "mozilla-nspr"
+    "mozilla-nspr>=4.39"
     "p11-kit"
     "sqlite"
     "zlib"
 )
-
 BUILD_REQUIRES=(
     "gcc"
-    "mozilla-nspr"
+    "mozilla-nspr>=4.39"
     "ninja"
     "perl"
     "pkgconf"
@@ -34,6 +31,9 @@ BUILD_REQUIRES=(
     "sqlite"
     "zlib"
 )
+
+# LPM resolves this using its Python dependency handler.
+REQUIRES_PYTHON_DEPENDENCIES=("gyp-next")
 
 PROVIDES=(
     "mozilla-nss"
@@ -47,330 +47,203 @@ PROVIDES=(
     "libsoftokn3.so"
     "libssl3.so"
 )
-
 CONFLICTS=()
 OBSOLETES=()
 
+# IMPORTANT: LPM must NOT strip/alter *.so after NSS generates their *.chk
+# integrity files. Configure a no-strip policy for this package in LPM.
+
+nss_srcdir() {
+    local path
+    for path in "$SRCROOT/${NAME}-${VERSION}" "$SRCROOT/nss-${VERSION}"; do
+        if [ -f "$path/nss/build.sh" ]; then
+            printf '%s\n' "$path"
+            return 0
+        fi
+    done
+    echo "[ERROR] Cannot find NSS sources under $SRCROOT" >&2
+    return 1
+}
+
 prepare() {
     set -euxo pipefail
+    local src
+    src="$(nss_srcdir)"
 
-    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
-    NSSDIR="$SRCDIR/nss"
+    test -f "$src/nss/lib/nss/nss.h"
+    test -f "$src/nss/pkg/pkg-config/nss.pc.in"
+    test -f "$src/nss/pkg/pkg-config/nss-config.in"
+    command -v gyp
+    command -v ninja
+    pkg-config --atleast-version=4.39 nspr
+    pkg-config --exists sqlite3 zlib
 
-    test -f "$NSSDIR/build.sh"
-    test -f "$NSSDIR/lib/nss/nss.h"
-    test -f "$NSSDIR/pkg/pkg-config/nss.pc.in"
-    test -f "$NSSDIR/pkg/pkg-config/nss-config.in"
+    # Backport Mozilla Bug 2070738 (fixed upstream in NSS 3.131).
+    # NSS 3.130's build.sh tries to read a local nspr.pc even when
+    # --system-nspr was selected. sed exits 2 when that file is absent;
+    # build.sh uses set -e, so it fails AFTER a successful Ninja build.
+    # Read NSPR's version from the installed pkg-config metadata instead.
+    python3 - "$src/nss/build.sh" <<'PY'
+from pathlib import Path
+import sys
 
-    rm -rf "$SRCDIR/dist"
-    rm -rf "$NSSDIR/out"
+path = Path(sys.argv[1])
+source = path.read_text()
+old = '''    nspr_version=$(sed -n 's/^Version: *//p' \\
+        "$obj_dir/lib/pkgconfig/nspr.pc" 2>/dev/null)
+    : "${nspr_version:=4.32}"'''
+new = '''    if [ "$no_local_nspr" = 1 ]; then
+        nspr_version=$(pkg-config --modversion nspr) || return 1
+    else
+        nspr_version=$(sed -n 's/^Version: *//p' \\
+            "$obj_dir/lib/pkgconfig/nspr.pc") || return 1
+    fi
+    [ -n "$nspr_version" ] || return 1'''
+
+if old in source:
+    path.write_text(source.replace(old, new, 1))
+    print('[OK] Applied NSS 3.130 system-NSPR fix (Bug 2070738)')
+elif new in source:
+    print('[OK] NSS system-NSPR fix already applied')
+else:
+    raise SystemExit('[ERROR] Unexpected NSS build.sh layout; refusing unsafe patch')
+PY
+
+    # Prevent old output from satisfying artifact validation.
+    rm -rf "$src/dist" "$src/nss/out"
 }
 
 build() {
     set -euxo pipefail
+    local src dist lib bin
+    src="$(nss_srcdir)"
+    dist="$src/dist/Release"
+    cd "$src/nss"
 
-    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
-    NSSDIR="$SRCDIR/nss"
-    DISTDIR="$SRCDIR/dist/Release"
-
-    cd "$NSSDIR"
-
-    CFLAGS="${CFLAGS:-}"
-    CXXFLAGS="${CXXFLAGS:-}"
-    LDFLAGS="${LDFLAGS:-}"
-
+    export CFLAGS="${CFLAGS:-}"
+    export CXXFLAGS="${CXXFLAGS:-}"
+    export LDFLAGS="${LDFLAGS:-}"
     CFLAGS="${CFLAGS//-m32/}"
     CXXFLAGS="${CXXFLAGS//-m32/}"
     LDFLAGS="${LDFLAGS//-m32/}"
 
-    export CFLAGS
-    export CXXFLAGS
-    export LDFLAGS
-
-    #
-    # NSS 3.130's build.sh may return 2 after Ninja has completed.
-    # Accept that status only if the required output is complete.
-    #
-
-    set +e
-
+    # Do NOT ignore exit 2. With the upstream bug fixed, nonzero is an error.
     ./build.sh \
         --disable-tests \
         --enable-libpkix \
         --opt \
         --system-nspr \
-        --system-sqlite
+        --system-sqlite \
+        -j "${LPM_BUILD_JOBS:-6}"
 
-    BUILD_STATUS=$?
-
-    set -e
-
-    case "$BUILD_STATUS" in
-        0)
-            ;;
-        2)
-            echo "[WARN] NSS build.sh returned 2; validating artifacts"
-            ;;
-        *)
-            echo "[ERROR] NSS build.sh failed with status $BUILD_STATUS"
-            return "$BUILD_STATUS"
-            ;;
-    esac
-
-    test -d "$DISTDIR/lib" || {
-        echo "[ERROR] Missing NSS library directory: $DISTDIR/lib"
-        return 1
-    }
-
-    test -d "$DISTDIR/bin" || {
-        echo "[ERROR] Missing NSS binary directory: $DISTDIR/bin"
-        return 1
-    }
-
-    test -d "$SRCDIR/dist/public/nss" || {
-        echo "[ERROR] Missing NSS public headers"
-        return 1
-    }
-
-    #
-    # libnssdbm3.so is intentionally absent. Modern NSS uses SQLite.
-    #
-
-    for library in \
-        libfreebl3.so \
-        libfreeblpriv3.so \
-        libnss3.so \
-        libnsssysinit.so \
-        libnssutil3.so \
-        libsmime3.so \
-        libsoftokn3.so \
-        libssl3.so
-    do
-        if [ ! -f "$DISTDIR/lib/$library" ]; then
-            echo "[ERROR] Missing NSS library: $library"
+    for lib in \
+        libfreebl3.so libfreeblpriv3.so libnss3.so \
+        libnsssysinit.so libnssutil3.so libsmime3.so \
+        libsoftokn3.so libssl3.so; do
+        test -f "$dist/lib/$lib" || {
+            echo "[ERROR] Missing NSS library: $lib" >&2
             return 1
-        fi
+        }
     done
-
-    for binary in \
-        certutil \
-        modutil \
-        pk12util
-    do
-        if [ ! -x "$DISTDIR/bin/$binary" ]; then
-            echo "[ERROR] Missing NSS utility: $binary"
+    for bin in certutil modutil pk12util; do
+        test -x "$dist/bin/$bin" || {
+            echo "[ERROR] Missing NSS utility: $bin" >&2
             return 1
-        fi
+        }
     done
-
-    test -f "$SRCDIR/dist/public/nss/nss.h" || {
-        echo "[ERROR] Missing NSS public header: nss.h"
-        return 1
-    }
-
-    echo "[OK] NSS build payload validated"
-}
-
-check() {
-    true
+    test -f "$src/dist/public/nss/nss.h"
+    test -f "$dist/lib/pkgconfig/nss.pc"
 }
 
 staging() {
     set -euxo pipefail
-
-    SRCDIR="$SRCROOT/${NAME}-${VERSION}"
-    NSSDIR="$SRCDIR/nss"
-    DISTDIR="$SRCDIR/dist/Release"
-
-    libdir="/usr/lib"
-    includedir="/usr/include/nss"
-
+    local src nssdir dist nsprver vmajor vminor vpatch f
+    src="$(nss_srcdir)"
+    nssdir="$src/nss"
+    dist="$src/dist/Release"
     nsprver="$(pkg-config --modversion nspr)"
 
-    #
-    # NSS 3.130 requires NSPR 4.39 or newer.
-    #
-
-    if [ "$(printf '%s\n' "4.39" "$nsprver" | sort -V | head -n1)" != "4.39" ]; then
-        echo "[ERROR] NSS $VERSION requires NSPR 4.39 or newer"
-        echo "[ERROR] Installed NSPR version: $nsprver"
+    pkg-config --atleast-version=4.39 nspr
+    test -e /usr/lib/pkcs11/p11-kit-trust.so || {
+        echo '[ERROR] Missing p11-kit trust module: /usr/lib/pkcs11/p11-kit-trust.so' >&2
         return 1
-    fi
+    }
 
     install -dm755 \
-        "$pkgdir$libdir" \
-        "$pkgdir$includedir" \
-        "$pkgdir/usr/bin" \
-        "$pkgdir/usr/lib/pkgconfig"
+        "$pkgdir/usr/lib" \
+        "$pkgdir/usr/lib/pkgconfig" \
+        "$pkgdir/usr/include/nss" \
+        "$pkgdir/usr/bin"
 
-    #
-    # Install every generated shared library, including NSS loader modules.
-    #
+    # Keep the NSS integrity checksum files alongside the corresponding libs.
+    while IFS= read -r -d '' f; do
+        case "$f" in
+            *.so)  install -m755 "$f" "$pkgdir/usr/lib/" ;;
+            *.chk) install -m644 "$f" "$pkgdir/usr/lib/" ;;
+        esac
+    done < <(find "$dist/lib" -maxdepth 1 -type f \
+        \( -name '*.so' -o -name '*.chk' \) -print0)
 
-    mapfile -t nsslibs < <(
-        find "$DISTDIR/lib" \
-            -maxdepth 1 \
-            -type f \
-            -name '*.so' \
-            -print
-    )
+    while IFS= read -r -d '' f; do
+        install -m644 "$f" "$pkgdir/usr/include/nss/"
+    done < <(find "$src/dist/public/nss" -maxdepth 1 -type f -name '*.h' -print0)
 
-    test "${#nsslibs[@]}" -gt 0
-
-    for library in "${nsslibs[@]}"; do
-        install -m755 "$library" "$pkgdir$libdir/"
-    done
-
-    #
-    # Install all public NSS headers.
-    #
-
-    mapfile -t nssheaders < <(
-        find "$SRCDIR/dist/public/nss" \
-            -maxdepth 1 \
-            -type f \
-            -name '*.h' \
-            -print
-    )
-
-    test "${#nssheaders[@]}" -gt 0
-
-    for header in "${nssheaders[@]}"; do
-        install -m644 "$header" "$pkgdir$includedir/"
-    done
-
-    #
-    # Install available command-line utilities.
-    #
-
-    for binary in \
-        addbuiltin \
-        atob \
-        btoa \
-        certutil \
-        cmsutil \
-        crlutil \
-        derdump \
-        modutil \
-        nss-policy-check \
-        ocspclnt \
-        oidcalc \
-        p7content \
-        p7env \
-        p7sign \
-        p7verify \
-        pk12util \
-        pp \
-        shlibsign \
-        signtool \
-        signver \
-        ssltap
-    do
-        if [ -x "$DISTDIR/bin/$binary" ]; then
-            install -m755 \
-                "$DISTDIR/bin/$binary" \
-                "$pkgdir/usr/bin/$binary"
+    for f in \
+        addbuiltin atob btoa certutil cmsutil crlutil derdump \
+        modutil nss-policy-check ocspclnt oidcalc p7content \
+        p7env p7sign p7verify pk12util pp shlibsign signtool \
+        signver ssltap; do
+        if [ -x "$dist/bin/$f" ]; then
+            install -m755 "$dist/bin/$f" "$pkgdir/usr/bin/$f"
         fi
     done
 
-    #
-    # Generate pkg-config metadata.
-    #
-
-    sed "$NSSDIR/pkg/pkg-config/nss.pc.in" \
-        -e 's,%prefix%,/usr,g' \
-        -e 's,%exec_prefix%,${prefix},g' \
-        -e "s,%libdir%,$libdir,g" \
-        -e "s,%includedir%,$includedir,g" \
-        -e "s,%NSPR_VERSION%,$nsprver,g" \
-        -e "s,%NSS_VERSION%,$VERSION,g" \
+    # System-prefix-correct NSS development metadata.
+    sed \
+        -e 's|%prefix%|/usr|g' \
+        -e 's|%exec_prefix%|${prefix}|g' \
+        -e 's|%libdir%|${exec_prefix}/lib|g' \
+        -e 's|%includedir%|${prefix}/include/nss|g' \
+        -e "s|%NSPR_VERSION%|$nsprver|g" \
+        -e "s|%NSS_VERSION%|$VERSION|g" \
+        "$nssdir/pkg/pkg-config/nss.pc.in" \
         > "$pkgdir/usr/lib/pkgconfig/nss.pc"
+    ln -s nss.pc "$pkgdir/usr/lib/pkgconfig/mozilla-nss.pc"
 
-    ln -s nss.pc \
-        "$pkgdir/usr/lib/pkgconfig/mozilla-nss.pc"
+    vmajor="$(awk '$2=="NSS_VMAJOR" {print $3;exit}' "$nssdir/lib/nss/nss.h")"
+    vminor="$(awk '$2=="NSS_VMINOR" {print $3;exit}' "$nssdir/lib/nss/nss.h")"
+    vpatch="$(awk '$2=="NSS_VPATCH" {print $3;exit}' "$nssdir/lib/nss/nss.h")"
+    test -n "$vmajor" && test -n "$vminor" && test -n "$vpatch"
 
-    #
-    # Generate nss-config from the packaged NSS version.
-    #
-
-    vmajor="$(
-        awk '$2 == "NSS_VMAJOR" { print $3; exit }' \
-            "$NSSDIR/lib/nss/nss.h"
-    )"
-
-    vminor="$(
-        awk '$2 == "NSS_VMINOR" { print $3; exit }' \
-            "$NSSDIR/lib/nss/nss.h"
-    )"
-
-    vpatch="$(
-        awk '$2 == "NSS_VPATCH" { print $3; exit }' \
-            "$NSSDIR/lib/nss/nss.h"
-    )"
-
-    test -n "$vmajor"
-    test -n "$vminor"
-    test -n "$vpatch"
-
-    sed "$NSSDIR/pkg/pkg-config/nss-config.in" \
-        -e 's,@prefix@,/usr,g' \
-        -e 's,@exec_prefix@,/usr,g' \
-        -e "s,@libdir@,$libdir,g" \
-        -e "s,@includedir@,$includedir,g" \
-        -e "s,@MOD_MAJOR_VERSION@,$vmajor,g" \
-        -e "s,@MOD_MINOR_VERSION@,$vminor,g" \
-        -e "s,@MOD_PATCH_VERSION@,$vpatch,g" \
+    sed \
+        -e 's|@prefix@|/usr|g' \
+        -e "s|@MOD_MAJOR_VERSION@|$vmajor|g" \
+        -e "s|@MOD_MINOR_VERSION@|$vminor|g" \
+        -e "s|@MOD_PATCH_VERSION@|$vpatch|g" \
+        "$nssdir/pkg/pkg-config/nss-config.in" \
         > "$pkgdir/usr/bin/nss-config"
-
     chmod 755 "$pkgdir/usr/bin/nss-config"
 
-    #
-    # Use p11-kit's system trust store.
-    #
+    # Use the system trust store, as supplied by p11-kit.
+    rm -f "$pkgdir/usr/lib/libnssckbi.so"
+    ln -s pkcs11/p11-kit-trust.so "$pkgdir/usr/lib/libnssckbi.so"
 
-    rm -f "$pkgdir$libdir/libnssckbi.so"
-
-    ln -s pkcs11/p11-kit-trust.so \
-        "$pkgdir$libdir/libnssckbi.so"
-
-    #
-    # Validate exactly the runtime files this package promises.
-    #
-
-    for library in \
-        libfreebl3.so \
-        libfreeblpriv3.so \
-        libnss3.so \
-        libnsssysinit.so \
-        libnssutil3.so \
-        libsmime3.so \
-        libsoftokn3.so \
-        libssl3.so
-    do
-        test -f "$pkgdir/usr/lib/$library" || {
-            echo "[ERROR] Library was not staged: $library"
-            return 1
-        }
+    for f in \
+        libfreebl3.so libfreeblpriv3.so libnss3.so \
+        libnsssysinit.so libnssutil3.so libsmime3.so \
+        libsoftokn3.so libssl3.so; do
+        test -f "$pkgdir/usr/lib/$f"
     done
-
-    test -L "$pkgdir/usr/lib/libnssckbi.so"
     test -f "$pkgdir/usr/include/nss/nss.h"
     test -f "$pkgdir/usr/lib/pkgconfig/nss.pc"
-    test -L "$pkgdir/usr/lib/pkgconfig/mozilla-nss.pc"
-    test -x "$pkgdir/usr/bin/nss-config"
     test -x "$pkgdir/usr/bin/certutil"
     test -x "$pkgdir/usr/bin/modutil"
     test -x "$pkgdir/usr/bin/pk12util"
+    test -x "$pkgdir/usr/bin/nss-config"
+    test -L "$pkgdir/usr/lib/libnssckbi.so"
 
-    if [ -f "$NSSDIR/COPYING" ]; then
-        install -Dm644 \
-            "$NSSDIR/COPYING" \
+    if [ -f "$nssdir/COPYING" ]; then
+        install -Dm644 "$nssdir/COPYING" \
             "$pkgdir/usr/share/licenses/$NAME/COPYING"
     fi
 }
-
-
-
-
-# Final audited source digests
-SHA256SUMS=("afab9f82c78bfa3e7e8b4a61ac31922675c58203f67ff385a2714df7fe9bd5c5")

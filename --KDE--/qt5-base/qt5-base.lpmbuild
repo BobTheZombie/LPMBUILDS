@@ -1,0 +1,176 @@
+#!/bin/bash
+# LPM Linux — Qt 5 Base (Qt5/KF5 Wayland compatibility)
+# Last upstream Qt 5.15 open-source maintenance release, May 2026.
+# Qt 5 uses configure/qmake/GNU Make (not Qt 6's CMake/Ninja build).
+# Install tools, headers and plugins in separate Qt5 locations to coexist with Qt6.
+
+NAME="qt5-base"
+VERSION="5.15.19"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Qt 5 core, GUI, widgets, network, D-Bus and XCB platform libraries"
+URL="https://www.qt.io/"
+LICENSE=("LGPL-3.0-only" "GPL-2.0-only" "GPL-3.0-only" "custom")
+
+SOURCE=(
+    "https://download.qt.io/archive/qt/5.15/${VERSION}/submodules/qtbase-everywhere-opensource-src-${VERSION}.tar.xz"
+    "0001-QSslCertificate-remove-manual-parsing-code-for-ASN.1.patch"
+    "0002-Update-sources-to-support-OpenSSL-4.patch"
+)
+SHA256SUMS=(
+    "51e91c73abacab81e64efd01bf95794e79c0e605ad80947a024769f0dd620a32"
+)
+PATCHES=("0001-QSslCertificate-remove-manual-parsing-code-for-ASN.1.patch"
+         "0002-Update-sources-to-support-OpenSSL-4.patch"
+)
+
+REQUIRES=(
+    "glibc"
+    "gcc-libs"
+    "zlib"
+    "pcre2"
+    "double-conversion"
+    "libpng"
+    "libjpeg-turbo"
+    "freetype"
+    "fontconfig"
+    "harfbuzz"
+    "sqlite"
+    "openssl"
+    "dbus"
+    "glib2"
+    "libglvnd"
+    "mesa"
+    "libX11"
+    "libXext"
+    "libXi"
+    "libXrender"
+    "libxcb"
+    "libxkbcommon"
+    "xcb-util"
+    "xcb-util-image"
+    "xcb-util-keysyms"
+    "xcb-util-renderutil"
+    "xcb-util-wm"
+)
+
+BUILD_REQUIRES=(
+    "gcc"
+    "make"
+    "perl"
+    "python"
+    "pkgconf"
+    "cmake"
+    "bison"
+    "flex"
+    "${REQUIRES[@]}"
+)
+
+REQUIRES_PYTHON_DEPENDENCIES=()
+PROVIDES=("qt5-base" "Qt5Core" "Qt5Gui" "Qt5Widgets" "Qt5DBus" "Qt5Network")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+BUILD_OPTIONS=("@--optimize=2" "@--stripping")
+
+_qt5_srcdir() {
+    local root
+    for root in \
+        "$SRCROOT/${NAME}-${VERSION}" \
+        "$SRCROOT/${NAME}-${VERSION}" \
+        "$SRCROOT/qtbase-$VERSION"; do
+        if [[ -f "$root/configure" && -f "$root/qtbase.pro" ]]; then
+            printf '%s\n' "$root"
+            return 0
+        fi
+    done
+    echo "[ERROR] qtbase source tree not found under $SRCROOT" >&2
+    return 1
+}
+
+_qt5_builddir() {
+    printf '%s\n' "$SRCROOT/qt5-base-build"
+}
+
+prepare() {
+    set -euxo pipefail
+    local src
+    src="$(_qt5_srcdir)"
+    test -f "$src/configure"
+    test -f "$src/qtbase.pro"
+    # Qt5's configure supports out-of-source builds.
+    # Clear only its dedicated build directory, never the source checkout.
+    rm -rf "$(_qt5_builddir)"
+}
+
+build() {
+    set -euxo pipefail
+    local src builddir jobs
+    src="$(_qt5_srcdir)"
+    builddir="$(_qt5_builddir)"
+    jobs="${LPM_BUILD_JOBS:-$(nproc)}"
+    [[ "$jobs" =~ ^[1-9][0-9]*$ ]] || {
+        echo '[ERROR] LPM_BUILD_JOBS must be a positive integer' >&2
+        return 1
+    }
+
+    # Qt5 uses GNU Make for the build itself. CMake is still required by
+    # downstream consumers of Qt5's installed Qt5*Config.cmake files.
+    mkdir -p "$builddir"
+    cd "$builddir"
+    "$src/configure" \
+        -opensource -confirm-license \
+        -release -shared \
+        -prefix /usr \
+        -bindir /usr/lib/qt5/bin \
+        -hostbindir /usr/lib/qt5/bin \
+        -libdir /usr/lib \
+        -headerdir /usr/include/qt5 \
+        -archdatadir /usr/lib/qt5 \
+        -libexecdir /usr/lib/qt5/libexec \
+        -plugindir /usr/lib/qt5/plugins \
+        -importdir /usr/lib/qt5/imports \
+        -qmldir /usr/lib/qt5/qml \
+        -datadir /usr/share/qt5 \
+        -docdir /usr/share/doc/qt5 \
+        -translationdir /usr/share/qt5/translations \
+        -sysconfdir /etc/xdg \
+        -nomake tests -nomake examples \
+        -no-pch -no-warnings-are-errors \
+        -system-zlib -system-libpng -system-libjpeg \
+        -system-freetype -system-harfbuzz \
+        -system-pcre -system-doubleconversion \
+        -system-sqlite -sql-sqlite \
+        -dbus-linked -glib -xcb -opengl desktop \
+        -openssl-runtime
+
+    make -j"$jobs"
+}
+
+staging() {
+    set -euxo pipefail
+    local builddir tool
+    builddir="$(_qt5_builddir)"
+
+    # qmake Makefiles honor INSTALL_ROOT for staged installations.
+    make -C "$builddir" INSTALL_ROOT="$pkgdir" install
+
+    # Avoid overwriting Qt 6 executables under /usr/bin; provide
+    # explicitly versioned commands for Qt5-dependent package builds.
+    mkdir -p "$pkgdir/usr/bin"
+    for tool in qmake moc rcc uic qdbuscpp2xml qdbusxml2cpp; do
+        if [[ -x "$pkgdir/usr/lib/qt5/bin/$tool" ]]; then
+            ln -sfn "../lib/qt5/bin/$tool" "$pkgdir/usr/bin/$tool-qt5"
+        fi
+    done
+
+    # Validate artifacts required by KF5 and kwayland-integration.
+    test -f "$pkgdir/usr/lib/qt5/bin/qmake"
+    test -e "$pkgdir/usr/lib/libQt5Core.so.5"
+    test -e "$pkgdir/usr/lib/libQt5Gui.so.5"
+    test -e "$pkgdir/usr/lib/libQt5Widgets.so.5"
+    test -e "$pkgdir/usr/lib/libQt5DBus.so.5"
+    test -f "$pkgdir/usr/lib/cmake/Qt5Core/Qt5CoreConfig.cmake"
+    test -d "$pkgdir/usr/lib/qt5/plugins/platforms"
+}

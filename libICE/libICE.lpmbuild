@@ -1,48 +1,45 @@
 #!/bin/bash
+# X.Org libICE — corrected for LPM's normalized source extraction directory.
 NAME="libICE"
 VERSION="1.1.2"
-RELEASE="1"
+RELEASE="2"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="libICE from X.Org"
+SUMMARY="X11 Inter-Client Exchange library"
 URL="https://www.x.org/"
-LICENSE="MIT"
-
-SOURCE=(
-  "https://www.x.org/releases/individual/lib/${NAME}-${VERSION}.tar.xz"
-)
-
-REQUIRES=(
-  "glibc"
-)
-
-PROVIDES=("libICE")
+LICENSE=("MIT")
+SOURCE=("https://xorg.freedesktop.org/archive/individual/lib/libICE-${VERSION}.tar.xz")
+SHA256SUMS=("974e4ed414225eb3c716985df9709f4da8d22a67a2890066bc6dfc89ad298625")
+PATCHES=()
+REQUIRES=("glibc" "xtrans")
+BUILD_REQUIRES=("gcc" "make" "pkgconf" "xorgproto" "xtrans" "xorg-util-macros")
+PROVIDES=("libice")
 CONFLICTS=()
 OBSOLETES=()
-
-_srcdir="${NAME}-${VERSION}"
+RECOMMENDS=()
+SUGGESTS=()
 
 prepare() {
-  set -euxo pipefail
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
 }
 
 build() {
-  set -euxo pipefail
-  cd "$SRCROOT/$_srcdir"
-  ./configure --prefix=/usr
-  make -j"$(nproc)"
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    ./configure \
+        --prefix=/usr \
+        --libdir=/usr/lib \
+        --sysconfdir=/etc \
+        --disable-static
+    make -j "${LPM_BUILD_JOBS:-$(nproc)}"
 }
-
-check() { true; }
 
 staging() {
-  set -euxo pipefail
-  cd "$SRCROOT/$_srcdir"
-  DESTDIR="$pkgdir" make install
-  [ -f COPYING ] && install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
+    set -euxo pipefail
+    cd "$SRCROOT/${NAME}-${VERSION}"
+    make DESTDIR="$pkgdir" install
+    test -f "$pkgdir/usr/include/X11/ICE/ICE.h"
+    test -f "$pkgdir/usr/lib/pkgconfig/ice.pc"
+    test -L "$pkgdir/usr/lib/libICE.so" -o -f "$pkgdir/usr/lib/libICE.so"
+    find "$pkgdir/usr/lib" -type f -name '*.la' -delete
 }
-
-
-
-
-# Final audited source digests
-SHA256SUMS=("974e4ed414225eb3c716985df9709f4da8d22a67a2890066bc6dfc89ad298625")

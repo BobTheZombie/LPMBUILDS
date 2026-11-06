@@ -1,13 +1,14 @@
 #!/bin/bash
+# Qt Location is a separate Qt module, required by plasma-workspace 6.8.1.
 NAME="qt6-location"
 VERSION="6.12.0"
 RELEASE="1"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="Qt 6 Location APIs and QML modules"
+SUMMARY="Qt 6 Location APIs, mapping services and QML plugins"
 URL="https://doc.qt.io/qt-6/qtlocation-index.html"
 LICENSE=("GPL-3.0-only" "LGPL-3.0-only")
 SOURCE=("https://download.qt.io/archive/qt/6.12/${VERSION}/submodules/qtlocation-everywhere-src-${VERSION}.tar.xz")
-SHA256SUMS=("SKIP") # TODO: verify/pin source digest
+SHA256SUMS=("SKIP") # FIXME: pin upstream hash; not yet verified
 PATCHES=()
 REQUIRES=("qt6-base" "qt6-declarative" "qt6-positioning")
 BUILD_REQUIRES=("cmake" "ninja" "pkgconf" "python" "qt6-base" "qt6-declarative" "qt6-positioning" "qt6-shadertools")
@@ -24,11 +25,21 @@ prepare() {
 build() {
     set -euxo pipefail
     local src="$SRCROOT/${NAME}-${VERSION}"
-    cmake -S "$src" -B "$src/build" -G Ninja         -DCMAKE_BUILD_TYPE=Release         -DCMAKE_INSTALL_PREFIX=/usr         -DCMAKE_INSTALL_LIBDIR=lib         -DBUILD_TESTING=OFF         -DQT_BUILD_TESTS=OFF         -DQT_BUILD_EXAMPLES=OFF
-    cmake --build "$src/build" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+    local builddir="$src/build"
+    # Source requires matching Qt Positioning *Quick* and QuickShapes targets.
+    # Do not silently produce an empty Qt Location package.
+    cmake -S "$src" -B "$builddir" -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DBUILD_TESTING=OFF \
+        -DQT_BUILD_TESTS=OFF \
+        -DQT_BUILD_EXAMPLES=OFF
+    cmake --build "$builddir" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
 }
 staging() {
     set -euxo pipefail
-    DESTDIR="$pkgdir" cmake --install "$SRCROOT/${NAME}-${VERSION}/build"
+    local builddir="$SRCROOT/${NAME}-${VERSION}/build"
+    DESTDIR="$pkgdir" cmake --install "$builddir"
     test -f "$pkgdir/usr/lib/cmake/Qt6Location/Qt6LocationConfig.cmake"
 }

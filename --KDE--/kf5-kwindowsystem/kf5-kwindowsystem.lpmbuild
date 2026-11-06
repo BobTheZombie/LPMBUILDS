@@ -1,0 +1,74 @@
+#!/bin/bash
+# LPM Linux — kf5-kwindowsystem
+# Preserves QWidget/X11 compatibility and installs KF5::WindowSystem.
+NAME="kf5-kwindowsystem"
+VERSION="5.116.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="KDE Frameworks 5 WindowSystem library for legacy Qt5 apps"
+URL="https://invent.kde.org/frameworks/kwindowsystem"
+LICENSE=(
+    "LGPL-2.0-or-later"
+)
+SOURCE=("kwindowsystem::git+https://github.com/KDE/kwindowsystem.git#tag=v5.116.0")
+# Git sources are selected by the named release tag, not a tarball digest.
+SHA256SUMS=()
+PATCHES=()
+REQUIRES=(
+    "qt5-base"
+    "qt5-x11extras"
+    "libX11"
+    "libXfixes"
+    "libxcb"
+    "xcb-util-keysyms"
+    "glibc"
+    "gcc-libs"
+)
+BUILD_REQUIRES=(
+    "qt5-base"
+    "qt5-x11extras"
+    "qt5-tools"
+    "extra-cmake-modules"
+    "cmake"
+    "ninja"
+    "pkgconf"
+    "libX11"
+    "libXfixes"
+    "libxcb"
+    "xcb-util-keysyms"
+    "git"
+)
+REQUIRES_PYTHON_DEPENDENCIES=()
+PROVIDES=()
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+BUILD_OPTIONS=("@--optimize=2" "@--stripping")
+
+prepare() {
+    set -euxo pipefail
+    test -f "$SRCROOT/kwindowsystem/CMakeLists.txt"
+    rm -rf "$SRCROOT/kf5-kwindowsystem-build"
+}
+build() {
+    set -euxo pipefail
+    local src="$SRCROOT/kwindowsystem"
+    local builddir="$SRCROOT/kf5-kwindowsystem-build"
+    cmake -S "$src" -B "$builddir" -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DKDE_INSTALL_LIBDIR=lib \
+        -DQT_MAJOR_VERSION=5 \
+        -DKDE_INSTALL_USE_QT_SYS_PATHS=ON \
+        -DBUILD_TESTING=OFF \
+        -DBUILD_QCH=OFF \
+        -DBUILD_SHARED_LIBS=ON
+    cmake --build "$builddir" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+staging() {
+    set -euxo pipefail
+    DESTDIR="$pkgdir" cmake --install "$SRCROOT/kf5-kwindowsystem-build"
+    test -e "$pkgdir/usr/lib/libKF5WindowSystem.so.5"
+    test -f "$pkgdir/usr/lib/cmake/KF5WindowSystem/KF5WindowSystemConfig.cmake"
+}
