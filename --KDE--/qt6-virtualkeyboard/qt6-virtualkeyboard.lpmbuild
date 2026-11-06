@@ -1,0 +1,58 @@
+#!/bin/bash
+# LPM Linux - qt6-virtualkeyboard 6.12.0
+# Verified upstream release archive. LPM normalizes to $SRCROOT/$NAME-$VERSION.
+NAME="qt6-virtualkeyboard"
+VERSION="6.12.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Qt Virtual Keyboard framework, input methods and QML components"
+URL="https://doc.qt.io/qt-6/qtvirtualkeyboard-index.html"
+LICENSE=("GPL-3.0-only" "Apache-2.0" "BSD-3-Clause")
+SOURCE=("https://download.qt.io/archive/qt/6.12/${VERSION}/submodules/qtvirtualkeyboard-everywhere-src-${VERSION}.tar.xz")
+SHA256SUMS=("2aae3628f4648f86959d7853e7e1f50ee96a7f1bb5497afb62b7deff6c350170")
+PATCHES=()
+REQUIRES=("qt6-base" "qt6-declarative" "qt6-multimedia" "qt6-svg" "hunspell")
+BUILD_REQUIRES=("cmake" "ninja" "pkgconf" "python" "qt6-base" "qt6-declarative" "qt6-multimedia" "qt6-svg" "hunspell")
+REQUIRES_PYTHON_DEPENDENCIES=()
+PROVIDES=()
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+    set -euxo pipefail
+    local src="$SRCROOT/$NAME-$VERSION"
+    test -f "$src/CMakeLists.txt"
+}
+
+build() {
+    set -euxo pipefail
+    local src="$SRCROOT/$NAME-$VERSION"
+    local builddir="$src/build"
+    cmake -S "$src" -B "$builddir" -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DCMAKE_PREFIX_PATH=/usr \
+        -DBUILD_TESTING=OFF \
+        -DQT_BUILD_TESTS=OFF \
+        -DQT_BUILD_EXAMPLES=OFF \
+        -DFEATURE_system_hunspell=ON
+    test -s "$builddir/build.ninja"
+    cmake --build "$builddir" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+
+staging() {
+    set -euxo pipefail
+    local src="$SRCROOT/$NAME-$VERSION"
+    [[ -n "${pkgdir:-}" && "$pkgdir" != / ]] || return 1
+    DESTDIR="$pkgdir" cmake --install "$src/build"
+    test -d "$pkgdir/usr"
+    test -f "$pkgdir/usr/lib/cmake/Qt6VirtualKeyboard/Qt6VirtualKeyboardConfig.cmake"
+    compgen -G "$pkgdir/usr/lib/libQt6VirtualKeyboard.so*" >/dev/null
+    local qmlroot
+    qmlroot="$(qtpaths6 --query QT_INSTALL_QML)"
+    [[ "$qmlroot" == /usr/* && "$qmlroot" != */../* ]] || return 1
+    test -f "$pkgdir$qmlroot/QtQuick/VirtualKeyboard/qmldir"
+}
