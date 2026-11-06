@@ -1,11 +1,11 @@
 #!/bin/bash
 # LPM Linux - KDE Frameworks 6 KCoreAddons 6.31.0
-# Core library and QML plugin; optional Python bindings are disabled.
+# Core library and QML plugin; Python bindings are opt-in pending Shiboken typesystem compatibility.
 
 NAME="kcoreaddons6"
 VERSION="6.31.0"
 BASE="${VERSION%.*}"
-RELEASE="2"
+RELEASE="3"
 ARCH="${ARCH:-x86_64}"
 
 SUMMARY="KDE Frameworks 6 core addons and QML integration"
@@ -63,7 +63,15 @@ build() {
 
     local src="$SRCROOT/$NAME-$VERSION"
     local builddir="$src/build"
+    local python_bindings="${LPM_KCOREADDONS_PYTHON_BINDINGS:-OFF}"
 
+    case "$python_bindings" in
+        ON|OFF) ;;
+        *) echo "[ERROR] LPM_KCOREADDONS_PYTHON_BINDINGS must be ON or OFF" >&2; return 1 ;;
+    esac
+
+    # Shiboken currently cannot resolve QRegularExpression in KStringHandler.
+    # Default to C++/QML; Python bindings can be enabled after toolchain repair.
     cmake -S "$src" -B "$builddir" -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_INSTALL_PREFIX=/usr \
@@ -71,7 +79,7 @@ build() {
         -DCMAKE_PREFIX_PATH=/usr \
         -DBUILD_TESTING=OFF \
         -DBUILD_SHARED_LIBS=ON \
-        -DBUILD_PYTHON_BINDINGS=ON \
+        -DBUILD_PYTHON_BINDINGS="$python_bindings" \
         -DKCOREADDONS_USE_QML=ON \
         -DKDE_INSTALL_USE_QT_SYS_PATHS=ON \
         -DKDE_INSTALL_QMLDIR=lib/qt6/qml
