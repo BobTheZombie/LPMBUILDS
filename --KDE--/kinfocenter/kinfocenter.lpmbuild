@@ -3,7 +3,7 @@
 # Generated 2026-10-25; source digests MUST be locked before building.
 NAME="kinfocenter"
 VERSION="6.8.1"
-RELEASE="2"
+RELEASE="3"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="KDE Plasma 6: kinfocenter"
 URL="https://kde.org"
@@ -80,4 +80,10 @@ staging() {
     DESTDIR="$pkgdir" cmake --install "$builddir"
     test -d "$pkgdir/usr"
     test -n "$(find "$pkgdir/usr" -mindepth 1 -print -quit)"
+    # Wayland KCM ships inside KInfoCenter itself. Its data provider comes
+    # from the separate wayland-utils package (wayland-info).
+    if ! find "$pkgdir/usr" -type f -name 'kcm_wayland.so' -print -quit | grep -q .; then
+        echo "[ERROR] KInfoCenter Wayland KCM was not staged" >&2
+        return 1
+    fi
 }
