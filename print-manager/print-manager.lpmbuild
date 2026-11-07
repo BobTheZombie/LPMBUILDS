@@ -2,7 +2,7 @@
 # LPM Linux: KDE Plasma 6.8.1 printer management frontend
 NAME="print-manager"
 VERSION="6.8.1"
-RELEASE="2"
+RELEASE="3"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="KDE Plasma printer and print-job management"
 URL="https://invent.kde.org/plasma/print-manager"
@@ -31,12 +31,20 @@ prepare() {
     set -euxo pipefail
     local src="$SRCROOT/print-manager-$VERSION"
     test -f "$src/CMakeLists.txt"
-    rm -rf "$src/build"
+    # Keep incremental Ninja outputs between retries.
 }
 
 build() {
     set -euxo pipefail
     local src="$SRCROOT/print-manager-$VERSION"
+    # KCoreAddons' QML plugin must be visible in Qt Base's import tree.
+    local qml_root
+    qml_root="$(qtpaths6 --query QT_INSTALL_QML)"
+    if [[ ! -f "$qml_root/org/kde/coreaddons/qmldir" ]]; then
+        echo "[ERROR] Missing org.kde.coreaddons QML module at $qml_root" >&2
+        echo "[ERROR] Rebuild and reinstall kcoreaddons6 release 4 first." >&2
+        return 1
+    fi
     cmake -S "$src" -B "$src/build" -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_INSTALL_PREFIX=/usr \
