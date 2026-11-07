@@ -5,7 +5,7 @@
 NAME="kcoreaddons6"
 VERSION="6.31.0"
 BASE="${VERSION%.*}"
-RELEASE="3"
+RELEASE="4"
 ARCH="${ARCH:-x86_64}"
 
 SUMMARY="KDE Frameworks 6 core addons and QML integration"
@@ -64,6 +64,14 @@ build() {
     local src="$SRCROOT/$NAME-$VERSION"
     local builddir="$src/build"
     local python_bindings="${LPM_KCOREADDONS_PYTHON_BINDINGS:-OFF}"
+    local qt_qml_dir kde_qml_dir
+
+    qt_qml_dir="$(qtpaths6 --query QT_INSTALL_QML)"
+    case "$qt_qml_dir" in
+        /usr/*) kde_qml_dir="${qt_qml_dir#/usr/}" ;;
+        *) echo "[ERROR] Unexpected QT_INSTALL_QML: $qt_qml_dir" >&2; return 1 ;;
+    esac
+    echo "[INFO] Installing KCoreAddons QML into $qt_qml_dir"
 
     case "$python_bindings" in
         ON|OFF) ;;
@@ -82,7 +90,7 @@ build() {
         -DBUILD_PYTHON_BINDINGS="$python_bindings" \
         -DKCOREADDONS_USE_QML=ON \
         -DKDE_INSTALL_USE_QT_SYS_PATHS=ON \
-        -DKDE_INSTALL_QMLDIR=lib/qt6/qml
+        -DKDE_INSTALL_QMLDIR="$kde_qml_dir"
 
     if [[ ! -f "$builddir/build.ninja" ]]; then
         echo "[ERROR] KCoreAddons Ninja build targets missing" >&2
@@ -98,7 +106,12 @@ staging() {
     local builddir="$SRCROOT/$NAME-$VERSION/build"
     local libdir="$pkgdir/usr/lib"
     local cmakedir="$libdir/cmake/KF6CoreAddons"
-    local qmldir="$libdir/qt6/qml/org/kde/coreaddons"
+    local qt_qml_dir qmldir
+    qt_qml_dir="$(qtpaths6 --query QT_INSTALL_QML)"
+    case "$qt_qml_dir" in
+        /usr/*) qmldir="$pkgdir$qt_qml_dir/org/kde/coreaddons" ;;
+        *) echo "[ERROR] Unexpected QT_INSTALL_QML: $qt_qml_dir" >&2; return 1 ;;
+    esac
 
     DESTDIR="$pkgdir" cmake --install "$builddir"
 
