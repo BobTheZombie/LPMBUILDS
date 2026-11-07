@@ -3,7 +3,7 @@
 # Generated 2026-10-25; source digests MUST be locked before building.
 NAME="print-manager"
 VERSION="6.8.1"
-RELEASE="1"
+RELEASE="2"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="KDE Plasma 6: print-manager"
 URL="https://kde.org"
@@ -31,6 +31,7 @@ BUILD_REQUIRES=(
     "qt6-declarative"
     "kcmutils6"
     "plasma-workspace"
+    "kcoreaddons6"
 )
 REQUIRES_PYTHON_DEPENDENCIES=()
 PROVIDES=()
@@ -48,6 +49,14 @@ build() {
     set -euxo pipefail
     local src="$SRCROOT/$NAME-$VERSION"
     local builddir="$src/build"
+    # KCoreAddons' QML plugin must be visible in Qt Base's import tree.
+    local qml_root
+    qml_root="$(qtpaths6 --query QT_INSTALL_QML)"
+    if [[ ! -f "$qml_root/org/kde/coreaddons/qmldir" ]]; then
+        echo "[ERROR] Missing org.kde.coreaddons QML module at $qml_root" >&2
+        echo "[ERROR] Rebuild and reinstall kcoreaddons6 release 4 first." >&2
+        return 1
+    fi
     cmake -S "$src" -B "$builddir" -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_INSTALL_PREFIX=/usr \
