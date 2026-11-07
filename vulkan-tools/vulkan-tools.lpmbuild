@@ -1,0 +1,36 @@
+#!/bin/bash
+# LPM Linux diagnostics for KDE KInfoCenter
+NAME="vulkan-tools"
+VERSION="1.4.361"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Vulkan diagnostics including vulkaninfo"
+URL="https://github.com/KhronosGroup/Vulkan-Tools"
+LICENSE=("Apache-2.0")
+SOURCE=("https://github.com/KhronosGroup/Vulkan-Tools/archive/refs/tags/v1.4.361.tar.gz")
+SHA256SUMS=("SKIP")
+PATCHES=()
+REQUIRES=("vulkan-loader")
+BUILD_REQUIRES=("cmake" "ninja" "vulkan-headers" "vulkan-loader")
+PROVIDES=("vulkaninfo")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+    set -euxo pipefail
+    test -f "$SRCROOT/$NAME-$VERSION/CMakeLists.txt"
+}
+build() {
+    set -euxo pipefail
+    local src="$SRCROOT/$NAME-$VERSION"
+    cmake -S "$src" -B "$src/build" -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_CUBE=OFF -DBUILD_ICD=OFF -DBUILD_TESTS=OFF -DBUILD_VULKANINFO=ON
+        cmake --build "$src/build" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+staging() {
+    set -euxo pipefail
+    local src="$SRCROOT/$NAME-$VERSION"
+    DESTDIR="$pkgdir" cmake --install "$src/build"
+        test -x "$pkgdir/usr/bin/vulkaninfo"
+}
