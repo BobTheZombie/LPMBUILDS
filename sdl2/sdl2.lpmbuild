@@ -1,6 +1,6 @@
 NAME="sdl2"
 VERSION="2.32.10"
-RELEASE="1"
+RELEASE="2"
 ARCH="${ARCH:-x86_64}"
 
 SUMMARY="Simple DirectMedia Layer"
@@ -33,7 +33,7 @@ REQUIRES=(
 )
 
 BUILD_REQUIRES=(
-    "meson"
+    "cmake"
     "ninja"
     "pkgconf"
     "wayland-protocols"
@@ -59,7 +59,7 @@ prepare() {
 
     cd "$SRCDIR"
 
-    rm -rf "$BUILDDIR"
+    # Preserve the Ninja build tree so interrupted builds can resume.
 }
 
 build() {
@@ -78,6 +78,7 @@ build() {
         -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
         -DSDL_SHARED=ON \
         -DSDL_STATIC=OFF \
+        -DSDL2_DISABLE_SDL2MAIN=OFF \
         -DSDL_TEST=OFF \
         -DSDL_TESTS=OFF \
         -DSDL_INSTALL_TESTS=OFF \
@@ -141,13 +142,16 @@ staging() {
     fi
 
     #
-    # No static library in this package
+    # SDL2main is a static startup shim even when SDL_STATIC=OFF.
+    # Its CMake export SDL2::SDL2main must never reference a missing file.
     #
+    test -f "$pkgdir/usr/lib/libSDL2main.a"
+    test -f "$pkgdir/usr/lib/cmake/SDL2/SDL2mainTargets.cmake"
 
-    find "$pkgdir/usr/lib" \
-        -type f \
-        \( -name 'libSDL2*.a' -o -name '*.la' \) \
-        -delete 2>/dev/null || true
+    # Only remove the optional static copy of the main SDL2 library;
+    # retain libSDL2main.a because the exported CMake target needs it.
+    rm -f "$pkgdir/usr/lib/libSDL2.a"
+    find "$pkgdir/usr/lib" -type f -name '*.la' -delete
 
     #
     # License
