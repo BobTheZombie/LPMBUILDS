@@ -1,0 +1,49 @@
+#!/bin/bash
+# LPM Linux: fwupd firmware management daemon and fwupdmgr CLI
+NAME="fwupd"
+VERSION="2.1.8"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="Firmware update daemon and fwupdmgr for KInfoCenter"
+URL="https://fwupd.org/"
+LICENSE=("LGPL-2.1-or-later")
+SOURCE=("https://github.com/fwupd/fwupd/releases/download/${VERSION}/fwupd-${VERSION}.tar.xz")
+SHA256SUMS=("SKIP") # TODO: replace with verified upstream checksum
+PATCHES=()
+REQUIRES=("glibc" "glib2" "libusb" "libxmlb" "curl" "gnutls" "polkit" "systemd" "libudev" "zlib" "xz" "hwdata")
+BUILD_REQUIRES=("meson" "ninja" "pkgconf" "python" "gettext" "glib2" "libusb" "libxmlb" "curl" "gnutls" "polkit" "systemd" "libudev" "zlib" "xz" "hwdata" "libarchive" "sqlite" "json-glib" "gusb" "libdrm" "efivar")
+PROVIDES=("fwupd" "fwupdmgr")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+    set -euxo pipefail
+    test -f "$SRCROOT/$NAME-$VERSION/meson.build"
+}
+build() {
+    set -euxo pipefail
+    local src="$SRCROOT/$NAME-$VERSION"
+    meson setup "$src/build" "$src" \
+        --prefix=/usr --libdir=lib --libexecdir=lib \
+        --buildtype=release --wrap-mode=nodownload \
+        -Dbuild=all \
+        -Dsystemd=enabled -Dpolkit=enabled \
+        -Dgnutls=enabled -Dopenssl=disabled \
+        -Dlogind=enabled -Dlibdrm=enabled \
+        -Dintrospection=disabled -Ddocs=disabled \
+        -Dman=false -Dtests=false -Dumockdev_tests=disabled \
+        -Dpassim=disabled -Dplugin_modem_manager=disabled \
+        -Dbluez=disabled -Dlibmnl=disabled \
+        -Dvendor_ids_dir=/usr/share/hwdata
+    meson compile -C "$src/build" -j "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+staging() {
+    set -euxo pipefail
+    local src="$SRCROOT/$NAME-$VERSION"
+    DESTDIR="$pkgdir" meson install -C "$src/build" --no-rebuild
+    test -x "$pkgdir/usr/bin/fwupdmgr"
+    # Firmware service is installed in the package root, not started in chroot.
+    test -n "$(find "$pkgdir/usr" -mindepth 1 -print -quit)"
+}
