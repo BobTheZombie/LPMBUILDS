@@ -1,0 +1,36 @@
+#!/bin/bash
+# LPM Linux diagnostics for KDE KInfoCenter
+NAME="libva-utils"
+VERSION="2.24.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="VA-API diagnostics including vainfo"
+URL="https://github.com/intel/libva-utils"
+LICENSE=("MIT")
+SOURCE=("https://github.com/intel/libva-utils/archive/refs/tags/2.24.0.tar.gz")
+SHA256SUMS=("SKIP")
+PATCHES=()
+REQUIRES=("libva" "libdrm")
+BUILD_REQUIRES=("meson" "ninja" "pkgconf" "libva" "libdrm" "wayland" "libX11")
+PROVIDES=("vainfo")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+    set -euxo pipefail
+    test -f "$SRCROOT/$NAME-$VERSION/meson.build"
+}
+build() {
+    set -euxo pipefail
+    local src="$SRCROOT/$NAME-$VERSION"
+    meson setup "$src/build" "$src" --prefix=/usr --libdir=lib --buildtype=release -Ddrm=true -Dwayland=true -Dx11=auto -Dtests=false
+        meson compile -C "$src/build" -j "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+staging() {
+    set -euxo pipefail
+    local src="$SRCROOT/$NAME-$VERSION"
+    DESTDIR="$pkgdir" meson install -C "$src/build" --no-rebuild
+        test -x "$pkgdir/usr/bin/vainfo"
+}
