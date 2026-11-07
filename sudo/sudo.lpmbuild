@@ -1,6 +1,6 @@
 NAME="sudo"
 VERSION="1.9.17p2"
-RELEASE="1"
+RELEASE="2"
 ARCH="x86_64"
 SUMMARY="sudo - execute a command as another user"
 URL="https://www.sudo.ws/"
@@ -14,10 +14,27 @@ PROVIDES=("sudo" "sudoers" "sudoers.so")
 CONFLICTS=()
 OBSOLETES=()
 
-# Build-time notes (not enforced here): autoconf/automake, gcc, make, pkgconf, groff (for man)
+BUILD_REQUIRES=("gcc" "make" "pkgconf" "openssl" "pam" "openldap" "zlib")
+install=$NAME.install
+
+# OpenSSL 1.1+ (and modern compatible libraries) hide ASN1_STRING internals.
+# Sudo 1.9.17p2 accesses that field directly in the iolog SAN IP matcher.
 prepare() {
     set -euxo pipefail
-    cd "$SRCROOT/sudo-${VERSION}"
+    local src="$SRCROOT/sudo-$VERSION"
+    local file="$src/lib/iolog/hostcheck.c"
+    test -f "$file"
+
+    if grep -Fq 'current_name->d.iPAddress->length' "$file"; then
+        sed -i 's/current_name->d\.iPAddress->length/ASN1_STRING_length(current_name->d.iPAddress)/g' "$file"
+    fi
+
+    if grep -Fq 'current_name->d.iPAddress->length' "$file"; then
+        echo "[ERROR] Failed to patch OpenSSL ASN.1 SAN length access" >&2
+        return 1
+    fi
+
+    grep -Fq 'ASN1_STRING_length(current_name->d.iPAddress)' "$file"
 }
 
 build() {
@@ -27,7 +44,6 @@ build() {
     ./configure \
         --prefix=/usr \
         --sysconfdir=/etc \
-        --prefix=/usr \
         --sbindir=/usr/bin \
         --libexecdir=/usr/lib \
         --with-rundir=/run/sudo \
@@ -42,7 +58,7 @@ build() {
         --with-passprompt="[sudo] password for %p: " \
         --with-secure-path-value=/usr/local/sbin:/usr/local/bin:/usr/bin \
         --with-all-insults
-    make -j"$(nproc)"
+    make -j"${LPM_BUILD_JOBS:-$(nproc)}"
 }
 
 staging() {
@@ -52,24 +68,23 @@ staging() {
     make DESTDIR="$pkgdir" install
 
     # Remove sudoers.dist; not needed since LPM manages updates to sudoers
-    rm "$pkgdir/etc/sudoers.dist"
+    rm -f "$pkgdir/etc/sudoers.dist"
 
     # Remove /run/sudo directory; we create it using systemd-tmpfiles
-    rmdir "$pkgdir/run/sudo"
-    rmdir "$pkgdir/run"
+    if [[ -d "$pkgdir/run/sudo" ]]; then rmdir "$pkgdir/run/sudo"; fi
+    if [[ -d "$pkgdir/run" ]]; then rmdir "$pkgdir/run" 2>/dev/null || true; fi
 
     install -Dm644 "$SRCROOT/sudo.pam" "$pkgdir/etc/pam.d/sudo"
     
     # --- Critical!: set correct permissions and ownership on sudo binary ---
-    chmod 4755 "$pkgdir/usr/bin/sudo"
     chown root:root "$pkgdir/usr/bin/sudo"
+    chmod 4755 "$pkgdir/usr/bin/sudo"
 
     # Ensure sudoers file permissions are safe
     chmod 0440 "$pkgdir/etc/sudoers" || true
     chown root:root "$pkgdir/etc/sudoers" || true
     
-install=$NAME.install
-
+    test "$(stat -c '%a:%u:%g' "$pkgdir/usr/bin/sudo")" = "4755:0:0"
 }
 
 
