@@ -3,7 +3,7 @@
 # Generated 2026-10-25; source digests MUST be locked before building.
 NAME="knotifications6"
 VERSION="6.31.0"
-RELEASE="1"
+RELEASE="2"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="KDE Frameworks 6: knotifications"
 URL="https://kde.org"
@@ -47,12 +47,22 @@ build() {
     set -euxo pipefail
     local src="$SRCROOT/$NAME-$VERSION"
     local builddir="$src/build"
+    local python_bindings="${LPM_KNOTIFICATIONS_PYTHON_BINDINGS:-OFF}"
+
+    case "$python_bindings" in
+        ON|OFF) ;;
+        *) echo "[ERROR] LPM_KNOTIFICATIONS_PYTHON_BINDINGS must be ON or OFF" >&2; return 1 ;;
+    esac
+
+    # The installed Shiboken/PySide6 typesystems fail to resolve QObject
+    # and QVariantMap for KNotification wrappers. Native C++ and QML remain.
     cmake -S "$src" -B "$builddir" -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_INSTALL_PREFIX=/usr \
         -DCMAKE_INSTALL_LIBDIR=lib \
         -DBUILD_TESTING=OFF \
         -DBUILD_SHARED_LIBS=ON \
+        -DBUILD_PYTHON_BINDINGS="$python_bindings" \
         -DKDE_INSTALL_USE_QT_SYS_PATHS=ON
     cmake --build "$builddir" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
 }
@@ -61,6 +71,6 @@ staging() {
     set -euxo pipefail
     local builddir="$SRCROOT/$NAME-$VERSION/build"
     DESTDIR="$pkgdir" cmake --install "$builddir"
-    test -d "$pkgdir/usr"
-    test -n "$(find "$pkgdir/usr" -mindepth 1 -print -quit)"
+    test -f "$pkgdir/usr/lib/cmake/KF6Notifications/KF6NotificationsConfig.cmake"
+    find "$pkgdir/usr/lib" -maxdepth 1 -name 'libKF6Notifications.so*' -print -quit | grep -q .
 }
