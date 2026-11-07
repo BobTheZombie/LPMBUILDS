@@ -2,7 +2,7 @@
 # KDE Gear 26.08.2: KIO workers and thumbnail support
 NAME="kio-extras"
 VERSION="26.08.2"
-RELEASE="2"
+RELEASE="3"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="Additional KDE KIO workers, services and thumbnail plugins"
 URL="https://invent.kde.org/network/kio-extras"
@@ -38,6 +38,9 @@ build() {
 staging() {
     set -euxo pipefail
     DESTDIR="$pkgdir" cmake --install "$BUILDROOT/${NAME}-build"
-    test -f "$pkgdir/usr/lib/qt6/plugins/kf6/kio/thumbnail.so"
+    # Qt 6 in LPM installs plugins under /usr/plugins, not /usr/lib/qt6/plugins.
+    for worker in thumbnail.so archive.so sftp.so; do
+        test -f "$pkgdir/usr/plugins/kf6/kio/$worker"
+    done
     test -n "$(find "$pkgdir/usr" -mindepth 1 -print -quit)"
 }
