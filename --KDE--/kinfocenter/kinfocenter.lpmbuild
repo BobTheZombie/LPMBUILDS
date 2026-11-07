@@ -3,7 +3,7 @@
 # Generated 2026-10-25; source digests MUST be locked before building.
 NAME="kinfocenter"
 VERSION="6.8.1"
-RELEASE="1"
+RELEASE="2"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="KDE Plasma 6: kinfocenter"
 URL="https://kde.org"
@@ -23,6 +23,7 @@ REQUIRES=(
     "libksysguard"
     "kio6"
     "plasma-workspace"
+    "wayland-utils" # Supplies wayland-info for the Wayland KCM
 )
 BUILD_REQUIRES=(
     "cmake"
@@ -41,7 +42,17 @@ REQUIRES_PYTHON_DEPENDENCIES=()
 PROVIDES=()
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
+RECOMMENDS=(
+    "libva-utils"        # vainfo: VA-API capabilities
+    "vulkan-tools"       # vulkaninfo
+    "mesa-demos"         # eglinfo and glxinfo
+    "pciutils"           # lspci
+    "fwupd"              # fwupdmgr
+    "clinfo"             # OpenCL hardware information
+    "pipewire"           # multimedia daemon information
+    "dmidecode"          # DMI/SMBIOS details
+    "aha"                # ANSI to HTML conversion
+)
 SUGGESTS=()
 
 prepare() {
