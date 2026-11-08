@@ -1,6 +1,6 @@
 NAME="wasi-libc++"
 VERSION="20.1.6"
-RELEASE="1"
+RELEASE="2"
 ARCH="${ARCH:-x86_64}"
 
 SUMMARY="LLVM C++ standard library targeting WASI"
@@ -212,57 +212,33 @@ staging() {
     test -n "$SHARED_CXX"
 
     #
-    # wasi-libc already provides real wasm32-wasi directories. Do not try
-    # replacing those directories with symlinks. Add compatibility links
-    # for the libc++ payload files individually.
+    # Never stage children of wasm32-wasi. Another WASI package may provide
+    # wasm32-wasi as a symlink to wasm32-wasip1. Installing the former
+    # "wasm32-wasi/c++/v1 -> ../../wasm32-wasip1/c++/v1" in that case
+    # replaces the real v1 directory with a symlink to itself (ELOOP).
+    # wasi-libc alone owns the legacy-target include and library paths.
     #
-
-    LEGACY_LIBDIR="$SYSROOT/lib/wasm32-wasi"
-    mkdir -p "$LEGACY_LIBDIR"
-
-    for FILE in \
-        "$LIBDIR/libc++.a" \
-        "$LIBDIR/libc++experimental.a" \
-        "$LIBDIR"/libc++.so*
-    do
-        if [ ! -e "$FILE" ] && [ ! -L "$FILE" ]; then
-            continue
-        fi
-
-        BASENAME="$(basename "$FILE")"
-
-        if [ ! -e "$LEGACY_LIBDIR/$BASENAME" ] &&
-           [ ! -L "$LEGACY_LIBDIR/$BASENAME" ]; then
-            ln -s "../wasm32-wasip1/$BASENAME" \
-                "$LEGACY_LIBDIR/$BASENAME"
-        fi
-    done
+    test ! -e "$SYSROOT/include/wasm32-wasi"
+    test ! -L "$SYSROOT/include/wasm32-wasi"
+    test ! -e "$SYSROOT/lib/wasm32-wasi"
+    test ! -L "$SYSROOT/lib/wasm32-wasi"
 
     #
-    # Provide the legacy target-specific C++ header location without
-    # interfering with wasi-libc's existing wasm32-wasi headers.
+    # Clang --sysroot and Firefox RLBox expect <sysroot>/include/c++/v1.
+    # Keep one canonical header tree for wasm32-wasip1 and provide an
+    # independent, correctly relative alias outside the target directories.
     #
-
-    LEGACY_CXXDIR="$SYSROOT/include/wasm32-wasi/c++"
-    mkdir -p "$LEGACY_CXXDIR"
-
-    if [ ! -e "$LEGACY_CXXDIR/v1" ] &&
-       [ ! -L "$LEGACY_CXXDIR/v1" ]; then
-        ln -s "../../wasm32-wasip1/c++/v1" \
-            "$LEGACY_CXXDIR/v1"
+    GENERIC_CXXDIR="$SYSROOT/include/c++"
+    mkdir -p "$GENERIC_CXXDIR"
+    if [ -e "$GENERIC_CXXDIR/v1" ] || [ -L "$GENERIC_CXXDIR/v1" ]; then
+        echo "Refusing to overwrite existing libc++ include alias" >&2
+        return 1
     fi
+    ln -s ../wasm32-wasip1/c++/v1 "$GENERIC_CXXDIR/v1"
 
-    #
-    # Validate compatibility paths.
-    #
-
-    test -f "$LEGACY_CXXDIR/v1/iostream"
-    test -f "$LEGACY_LIBDIR/libc++.a"
-    test -f "$LEGACY_LIBDIR/libc++experimental.a"
-
-    if command -v hardlink >/dev/null 2>&1; then
-        hardlink -c "$SYSROOT"
-    fi
+    test -f "$GENERIC_CXXDIR/v1/iostream"
+    test -f "$GENERIC_CXXDIR/v1/vector"
+    test "$(realpath -e "$GENERIC_CXXDIR/v1")" = "$(realpath -e "$INCLUDEDIR")"
 
     install -Dm644 \
         "$SRCROOT/${NAME}-${VERSION}/libcxx/LICENSE.TXT" \
