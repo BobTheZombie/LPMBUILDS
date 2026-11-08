@@ -2,7 +2,7 @@
 # PackageKit 1.4.0 with a real native LPM backend, not the dummy backend.
 NAME="packagekit"
 VERSION="1.4.0"
-RELEASE="3"
+RELEASE="4"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="PackageKit with LPM buildpkg, installpkg, removepkg and binary package transactions"
 URL="https://github.com/PackageKit/PackageKit"
@@ -22,7 +22,7 @@ SHA256SUMS=(
 )
 PATCHES=()
 REQUIRES=("glibc" "glib2" "sqlite" "polkit" "jansson" "systemd" "python" "lpm")
-BUILD_REQUIRES=("meson" "ninja" "pkgconf" "gcc" "glib2" "sqlite" "polkit"
+BUILD_REQUIRES=("meson" "ninja" "pkgconf" "gcc" "binutils" "glib2" "sqlite" "polkit"
                 "jansson" "gettext" "systemd" "python")
 REQUIRES_PYTHON_DEPENDENCIES=()
 PROVIDES=("packagekit-backend-lpm")
@@ -33,29 +33,45 @@ SUGGESTS=()
 
 prepare() {
     set -euxo pipefail
-    local src="$SRCROOT/${NAME}-${VERSION}"
+    local src="$SRCROOT/\${NAME}-\${VERSION}"
+
     test -f "$src/meson.build"
+    test -f "$src/backends/meson.build"
     test -f "$SRCROOT/pk-backend-lpm.c"
     test -f "$SRCROOT/lpmBackend.py"
-    mkdir -p "$src/backends/lpm"
-    cp "$SRCROOT/pk-backend-lpm.c" "$src/backends/lpm/"
-    cp "$SRCROOT/lpmBackend.py" "$src/backends/lpm/"
-    cp "$SRCROOT/lpm-backend-meson.build" "$src/backends/lpm/meson.build"
-    # Register the first-class backend in PackageKit's Meson backend enum.
-    python3 - "$src/meson_options.txt" <<'PY'
+    test -f "$SRCROOT/lpm-backend-meson.build"
+
+    install -Dm644 "$SRCROOT/pk-backend-lpm.c" "$src/backends/lpm/pk-backend-lpm.c"
+    install -Dm755 "$SRCROOT/lpmBackend.py" "$src/backends/lpm/lpmBackend.py"
+    install -Dm644 "$SRCROOT/lpm-backend-meson.build" "$src/backends/lpm/meson.build"
+
+    # PackageKit 1.4.0 builds only backends named in packaging_backend.
+    python3 - "$src/meson_options.txt" "$src/data/config/PackageKit.conf" \
+              "$src/backends/lpm/lpmBackend.py" <<'PY'
 from pathlib import Path
 import sys
-p = Path(sys.argv[1]); txt = p.read_text()
+
+opts, cfg, helper = map(Path, sys.argv[1:4])
+options = opts.read_text()
 needle = "choices : ['alpm',"
-if needle not in txt:
-    raise RuntimeError('PackageKit 1.4.0 backend choices layout changed')
-p.write_text(txt.replace(needle, "choices : ['lpm', 'alpm',", 1))
+if options.count(needle) != 1:
+    raise RuntimeError("Unsupported PackageKit backend option layout")
+opts.write_text(options.replace(needle, "choices : ['lpm', 'alpm',", 1))
+
+# Prevent PackageKit from using auto detection or an old dummy backend.
+config = cfg.read_text()
+needle = "#DefaultBackend=auto"
+if config.count(needle) != 1:
+    raise RuntimeError("Unsupported PackageKit daemon configuration layout")
+cfg.write_text(config.replace(needle, "DefaultBackend=lpm", 1))
+
+compile(helper.read_bytes(), str(helper), "exec")
 PY
 }
 
 build() {
     set -euxo pipefail
-    local src="$SRCROOT/${NAME}-${VERSION}"
+    local src="$SRCROOT/\${NAME}-\${VERSION}"
     meson setup "$src/build" "$src" \
         --prefix=/usr --libdir=lib --buildtype=release --wrap-mode=nodownload \
         -Dpackaging_backend=lpm \
@@ -64,16 +80,43 @@ build() {
         -Dgstreamer_plugin=false -Dgtk_module=false \
         -Dpython_backend=true -Dcron=false \
         -Dbash_command_not_found=false -Dman_pages=false
-    meson compile -C "$src/build" -j "${LPM_BUILD_JOBS:-$(nproc)}"
+
+    # Both the configured option and the actual compiled module are mandatory.
+    meson introspect --buildoptions "$src/build" | python3 -c '
+import json, sys
+options = {opt["name"]: opt["value"] for opt in json.load(sys.stdin)}
+assert options.get("packaging_backend") == ["lpm"], options.get("packaging_backend")
+assert options.get("python_backend") is True, "Python backend disabled"
+'
+    meson introspect --targets "$src/build" | python3 -c '
+import json, sys
+targets = [t for t in json.load(sys.stdin) if t["name"] == "pk_backend_lpm"]
+assert len(targets) == 1, "Missing native LPM backend build target"
+assert targets[0]["installed"], "LPM backend target not marked for installation"
+'
+
+    meson compile -C "$src/build" -j "\${LPM_BUILD_JOBS:-$(nproc)}"
+    test -s "$src/build/backends/lpm/libpk_backend_lpm.so"
 }
 
 staging() {
     set -euxo pipefail
-    local src="$SRCROOT/${NAME}-${VERSION}"
+    local src="$SRCROOT/\${NAME}-\${VERSION}"
+    local backend="$pkgdir/usr/lib/packagekit-backend/libpk_backend_lpm.so"
+    local helper="$pkgdir/usr/share/PackageKit/helpers/lpm/lpmBackend.py"
+    local config="$pkgdir/etc/PackageKit/PackageKit.conf"
+
     DESTDIR="$pkgdir" meson install -C "$src/build" --no-rebuild
+
+    test -s "$backend"
+    readelf -W --dyn-syms "$backend" | grep -Eq '[[:space:]]pk_backend_initialize$'
+    readelf -W --dyn-syms "$backend" | grep -Eq '[[:space:]]pk_backend_get_roles$'
+    test -x "$helper"
+    test -f "$config"
+    grep -Eq '^[[:space:]]*DefaultBackend=lpm[[:space:]]*$' "$config"
+    ! find "$pkgdir/usr/lib/packagekit-backend" -name 'libpk_backend_dummy.so' | grep -q .
     test -f "$pkgdir/usr/share/dbus-1/interfaces/org.freedesktop.PackageKit.xml"
     test -f "$pkgdir/usr/share/dbus-1/interfaces/org.freedesktop.PackageKit.Transaction.xml"
-    test -f "$pkgdir/usr/share/PackageKit/helpers/lpm/lpmBackend.py"
-    grep -q "PK_ROLE_ENUM_INSTALL_FILES" "$src/backends/lpm/pk-backend-lpm.c"
-    test -n "$(find "$pkgdir/usr/lib" -name 'libpk_backend_lpm.so' -print -quit)"
+    test -n "$(find "$pkgdir" -path '*/packagekit/backend.py' -type f -print -quit)"
+    test -n "$(find "$pkgdir" -path '*/packagekit/enums.py' -type f -print -quit)"
 }
