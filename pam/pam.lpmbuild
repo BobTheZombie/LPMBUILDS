@@ -19,7 +19,7 @@ PROVIDES=("pam" "libpam.so" "libpam.so.0")
 STAGE_2_REQUIRES=("systemd" "audit")
 STAGE_2_BUILD_REQUIRES=("audit")
 CONFLICTS=()
-OBSOLETES=()
+OBSOLETES=("pam-bootstrap") # Full PAM supersedes bootstrap-only implementation
 RECOMMENDS=("pam-policy") # Canonical /etc/pam.d policy is separate
 SUGGESTS=()
 BUILD_OPTIONS=("@--stripping" "@--optimize=2")
