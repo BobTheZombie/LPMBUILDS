@@ -1,6 +1,6 @@
 NAME="wasi-libc++abi"
 VERSION="20.1.6"
-RELEASE="1"
+RELEASE="2"
 ARCH="${ARCH:-x86_64}"
 
 SUMMARY="LLVM C++ ABI runtime targeting WASI"
@@ -197,22 +197,14 @@ staging() {
     test -n "$SHARED_ABI"
 
     #
-    # Compatibility with the older wasm32-wasi spelling.
+    # libc++abi owns only its wasm32-wasip1 runtime payload. Do not stage
+    # wasm32-wasi aliases: wasi-libc owns those target directories, and
+    # replacing them with symlinks makes package installation order unsafe.
     #
-    cd "$SYSROOT/lib"
-
-    if [ ! -e wasm32-wasi ]; then
-        ln -s wasm32-wasip1 wasm32-wasi
-    fi
-
-    if [ -d "$SYSROOT/include/wasm32-wasip1" ] &&
-       [ ! -e "$SYSROOT/include/wasm32-wasi" ]; then
-        ln -s wasm32-wasip1 "$SYSROOT/include/wasm32-wasi"
-    fi
-
-    if command -v hardlink >/dev/null 2>&1; then
-        hardlink -c "$SYSROOT"
-    fi
+    test ! -e "$SYSROOT/include/wasm32-wasi"
+    test ! -L "$SYSROOT/include/wasm32-wasi"
+    test ! -e "$SYSROOT/lib/wasm32-wasi"
+    test ! -L "$SYSROOT/lib/wasm32-wasi"
 
     install -Dm644 \
         "$SRCROOT/${NAME}-${VERSION}/libcxxabi/LICENSE.TXT" \
