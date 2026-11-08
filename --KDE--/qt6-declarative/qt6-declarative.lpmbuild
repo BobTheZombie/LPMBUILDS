@@ -6,7 +6,7 @@
 NAME="qt6-declarative"
 VERSION="6.12.0"
 BASE="${VERSION%.*}"
-RELEASE="3"
+RELEASE="4"
 ARCH="${ARCH:-x86_64}"
 
 SUMMARY="Qt 6 Declarative, QML, Qt Quick, and Qt Quick Controls"
@@ -15,11 +15,13 @@ LICENSE=("LGPL-3.0-only AND GPL-3.0-only WITH Qt-GPL-exception-1.0")
 
 SOURCE=(
     "https://download.qt.io/archive/qt/${BASE}/${VERSION}/submodules/qtdeclarative-everywhere-src-${VERSION}.tar.xz"
+    "0001-QTBUG-150769-qquickitemview-unrequestedItems.patch"
 )
 SHA256SUMS=(
     "311f3a2603e1973bb59baef9dfa740a376de713157d4782ee043681e889c9260"
+    "7221e854b1748485e65d6b8f7c2cf01e5be8dfc7315b4f478719634c2b7af1d6"
 )
-PATCHES=()
+PATCHES=("0001-QTBUG-150769-qquickitemview-unrequestedItems.patch")
 
 REQUIRES=(
     "qt6-base"
@@ -29,6 +31,7 @@ BUILD_REQUIRES=(
     "cmake"
     "ninja"
     "pkgconf"
+    "patch"
     "python"
     "perl"
     "qt6-base"
