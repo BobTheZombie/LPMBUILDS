@@ -33,7 +33,7 @@ SUGGESTS=()
 
 prepare() {
     set -euxo pipefail
-    local src="$SRCROOT/\${NAME}-\${VERSION}"
+    local src="$SRCROOT/${NAME}-${VERSION}"
 
     test -f "$src/meson.build"
     test -f "$src/backends/meson.build"
@@ -71,7 +71,7 @@ PY
 
 build() {
     set -euxo pipefail
-    local src="$SRCROOT/\${NAME}-\${VERSION}"
+    local src="$SRCROOT/${NAME}-${VERSION}"
     meson setup "$src/build" "$src" \
         --prefix=/usr --libdir=lib --buildtype=release --wrap-mode=nodownload \
         -Dpackaging_backend=lpm \
@@ -95,13 +95,13 @@ assert len(targets) == 1, "Missing native LPM backend build target"
 assert targets[0]["installed"], "LPM backend target not marked for installation"
 '
 
-    meson compile -C "$src/build" -j "\${LPM_BUILD_JOBS:-$(nproc)}"
+    meson compile -C "$src/build" -j "${LPM_BUILD_JOBS:-$(nproc)}"
     test -s "$src/build/backends/lpm/libpk_backend_lpm.so"
 }
 
 staging() {
     set -euxo pipefail
-    local src="$SRCROOT/\${NAME}-\${VERSION}"
+    local src="$SRCROOT/${NAME}-${VERSION}"
     local backend="$pkgdir/usr/lib/packagekit-backend/libpk_backend_lpm.so"
     local helper="$pkgdir/usr/share/PackageKit/helpers/lpm/lpmBackend.py"
     local config="$pkgdir/etc/PackageKit/PackageKit.conf"
