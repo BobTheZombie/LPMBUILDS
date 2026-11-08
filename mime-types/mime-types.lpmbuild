@@ -1,0 +1,43 @@
+#!/bin/bash
+# LPM Linux - standalone system MIME type mapping database.
+NAME="mime-types"
+VERSION="14.0.0"
+RELEASE="1"
+ARCH="any"
+SUMMARY="Standard MIME types and their filename extension mappings"
+URL="https://salsa.debian.org/debian/media-types"
+LICENSE=("LicenseRef-Public-Domain")
+
+SOURCE=("https://deb.debian.org/debian/pool/main/m/media-types/media-types_${VERSION}.tar.xz")
+SHA256SUMS=("d5877ac8c1fa3661b3c9ace293ae154c844fad686786f085e954c014f7e73f4d")
+PATCHES=()
+REQUIRES=()
+BUILD_REQUIRES=()
+PROVIDES=("mime-types" "media-types")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+    set -euxo pipefail
+    # LPM extracts all source archives into SRCROOT/name-version.
+    test -s "$SRCROOT/${NAME}-${VERSION}/mime.types"
+}
+
+build() {
+    : # Data-only package.
+}
+
+staging() {
+    set -euxo pipefail
+    local src="$SRCROOT/${NAME}-${VERSION}"
+
+    install -Dm644 "$src/mime.types" "$pkgdir/etc/mime.types"
+    if [ -f "$src/debian/copyright" ]; then
+        install -Dm644 "$src/debian/copyright" "$pkgdir/usr/share/licenses/${NAME}/copyright"
+    fi
+    test -s "$pkgdir/etc/mime.types"
+    grep -Eq '^text/plain[[:space:]]' "$pkgdir/etc/mime.types"
+    grep -Eq '^application/json([[:space:]]|$)' "$pkgdir/etc/mime.types"
+}
