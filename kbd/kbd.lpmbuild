@@ -1,6 +1,6 @@
 NAME="kbd"
 VERSION="2.10.0"
-RELEASE="1"
+RELEASE="2"
 ARCH="x86_64"
 SUMMARY="Keytable utilities for Linux console"
 URL="https://kbd-project.org/"
@@ -28,6 +28,13 @@ staging() {
     set -euxo pipefail
     cd "$SRCROOT/kbd-${VERSION}"
     make DESTDIR="$pkgdir" install
+
+    # systemd-vconsole-setup requires the console keyboard and font data.
+    # Fail early if the kbd package is missing either resource family.
+    test -x "$pkgdir/usr/bin/loadkeys"
+    test -x "$pkgdir/usr/bin/setfont"
+    test -n "$(find "$pkgdir/usr/share" -type f -name '*.map*' -print -quit)"
+    test -n "$(find "$pkgdir/usr/share" -type f -name '*.psf*' -print -quit)"
 }
 
 
