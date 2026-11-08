@@ -1,7 +1,7 @@
 #!/bin/bash
 NAME="pam"
 VERSION="1.7.3"
-RELEASE="2"
+RELEASE="3"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="Linux Pluggable Authentication Modules"
 URL="https://github.com/linux-pam/linux-pam"
@@ -20,7 +20,7 @@ STAGE_2_REQUIRES=("systemd" "audit")
 STAGE_2_BUILD_REQUIRES=("audit")
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
+RECOMMENDS=("pam-policy") # Canonical /etc/pam.d policy is separate
 SUGGESTS=()
 BUILD_OPTIONS=("@--stripping" "@--optimize=2")
 if [ "${LPM_BUILD_STAGE:-1}" = 2 ]; then
@@ -54,8 +54,13 @@ staging() {
     set -euxo pipefail
     cd "$SRCROOT/${NAME}-${VERSION}"
     meson install -C build --no-rebuild --destdir "$pkgdir"
-    install -Dm644 "$SRCROOT/system-auth" "$pkgdir/etc/pam.d/system-auth"
-    install -Dm644 "$SRCROOT/system-login" "$pkgdir/etc/pam.d/system-login"
+    # Core PAM supplies vendor fallback policy only. The pam-policy package
+    # owns /etc/pam.d/system-auth and system-login, and administrator edits
+    # must not be replaced when core PAM is upgraded.
+    install -Dm644 "$SRCROOT/system-auth" "$pkgdir/usr/lib/pam.d/system-auth"
+    install -Dm644 "$SRCROOT/system-login" "$pkgdir/usr/lib/pam.d/system-login"
+    test ! -e "$pkgdir/etc/pam.d/system-auth"
+    test ! -e "$pkgdir/etc/pam.d/system-login"
     test -e "$pkgdir/usr/lib/libpam.so.0"
     # These are required by LPM's shared PAM policy and KDE/SDDM.
     # Missing modules must fail packaging, not silently break authentication.
