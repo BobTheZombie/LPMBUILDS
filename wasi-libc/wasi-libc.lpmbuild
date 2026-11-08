@@ -1,6 +1,6 @@
 NAME="wasi-libc"
 VERSION="0+659+2e6fb9d8"
-RELEASE="2"
+RELEASE="3"
 ARCH="${ARCH:-x86_64}"
 
 SUMMARY="WASI libc implementation for WebAssembly"
@@ -161,9 +161,17 @@ staging() {
     test -f "$SYSROOT/lib/wasm32-wasi/libc.a"
     test -f "$SYSROOT/lib/wasm32-wasip1/libc.a"
 
-    if command -v hardlink >/dev/null 2>&1; then
-        hardlink -c "$SYSROOT"
-    fi
+    #
+    # Both WASI spellings are real, independently owned target trees.
+    # Never deduplicate or alias these directories during packaging.
+    #
+    for KIND in include lib; do
+        for TARGET in wasm32-wasi wasm32-wasip1; do
+            test -d "$SYSROOT/$KIND/$TARGET"
+            test ! -L "$SYSROOT/$KIND/$TARGET"
+        done
+    done
+
 
     install -d "$pkgdir/usr/share/licenses/$NAME"
 
