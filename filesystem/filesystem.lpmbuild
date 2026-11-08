@@ -3,7 +3,7 @@
 
 NAME="filesystem"
 VERSION="1.0.0"
-RELEASE="5"
+RELEASE="6"
 ARCH="any"
 SUMMARY="Base filesystem layout and system defaults for RyzenOS"
 URL="https://gitlab.com/lpm-org/packages"
@@ -260,6 +260,16 @@ staging() {
   install -Dm644 \
     "$SRCROOT/issue" \
     "$pkgdir/usr/share/factory/etc/issue"
+
+  # Keep defaults in the factory directory; do not replace local choices.
+  cat > "$pkgdir/usr/share/factory/etc/vconsole.conf" <<'EOF'
+KEYMAP=us
+# FONT is intentionally unset; use the kernel default until chosen explicitly.
+EOF
+  cat > "$pkgdir/usr/share/factory/etc/locale.conf" <<'EOF'
+LANG=C.UTF-8
+EOF
+
 
   install -Dm644 \
     "$SRCROOT/motd" \
