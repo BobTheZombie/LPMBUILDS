@@ -1,6 +1,6 @@
 NAME="wasi-compiler-rt"
 VERSION="20.1.6"
-RELEASE="1"
+RELEASE="2"
 ARCH="${ARCH:-x86_64}"
 
 SUMMARY="Compiler runtime builtins for Clang targeting WASI"
@@ -140,8 +140,10 @@ staging() {
     [ -e wasm32-unknown-wasi ] ||
         ln -s wasm32-unknown-wasip1 wasm32-unknown-wasi
 
-    [ -e wasm32-unknown-wasip2 ] ||
-        ln -s wasm32-unknown-wasip1 wasm32-unknown-wasip2
+    # Do not alias Preview 2 to Preview 1. Their ABIs are not
+    # interchangeable; a genuine wasip2 runtime must be built separately.
+    test ! -e wasm32-unknown-wasip2
+    test ! -L wasm32-unknown-wasip2
 
     install -Dm644 \
         "$SRCROOT/${NAME}-${VERSION}/compiler-rt/LICENSE.TXT" \
