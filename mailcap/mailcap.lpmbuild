@@ -1,6 +1,6 @@
 NAME="mailcap"
 VERSION="2.1.54"
-RELEASE="1"
+RELEASE="2"
 ARCH="any"
 
 SUMMARY="MIME type associations and mailcap database"
@@ -14,7 +14,7 @@ SOURCE=(
 SHA256SUMS=("SKIP")
 PATCHES=()
 
-REQUIRES=()
+REQUIRES=("mime-types")
 
 BUILD_REQUIRES=(
     "make"
@@ -22,7 +22,6 @@ BUILD_REQUIRES=(
 
 PROVIDES=(
     "mailcap"
-    "mime-types"
 )
 
 CONFLICTS=()
@@ -58,16 +57,6 @@ staging() {
     SRCDIR="$SRCROOT/${NAME}-${VERSION}"
 
     cd "$SRCDIR"
-
-    #
-    # MIME type database
-    #
-
-    test -f mime.types
-
-    install -Dm644 \
-        mime.types \
-        "$pkgdir/etc/mime.types"
 
     #
     # mailcap database
@@ -136,12 +125,6 @@ staging() {
     #
     # Sanity checks
     #
-
-    test -s "$pkgdir/etc/mime.types"
-
-    grep -Eq \
-        '^[[:space:]]*text/plain([[:space:]]|$)' \
-        "$pkgdir/etc/mime.types"
 
     echo "==> ${NAME} ${VERSION} staging complete"
 }
