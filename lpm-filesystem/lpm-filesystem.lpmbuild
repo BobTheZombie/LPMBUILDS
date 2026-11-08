@@ -3,7 +3,7 @@
 
 NAME="lpm-filesystem"
 VERSION="1.0.0"
-RELEASE="2"
+RELEASE="3"
 ARCH="any"
 SUMMARY="Filesystem layout and system integration for LPM"
 URL="https://gitlab.com/lpm-org/packages"
@@ -105,6 +105,28 @@ staging() {
   for file in issue motd nsswitch.conf shells profile; do
     install -Dm644 "$SRCROOT/$file" "$pkgdir/usr/share/factory/etc/$file"
   done
+
+  # Defaults for installers and first-boot provisioning. Never overwrite
+  # /etc/{hostname,locale.conf,vconsole.conf} from a package transaction.
+  # systemd-vconsole-setup reads /etc/vconsole.conf on the booted system.
+  cat > "$pkgdir/usr/share/factory/etc/vconsole.conf" <<'EOF'
+# LPM Linux default US virtual-console keyboard
+KEYMAP=us
+# Leave FONT unset: use the kernel's built-in console font unless
+# an installed kbd console font has explicitly been selected.
+EOF
+
+  cat > "$pkgdir/usr/share/factory/etc/locale.conf" <<'EOF'
+# LPM Linux UTF-8 fallback locale (no locale-gen required).
+LANG=C.UTF-8
+EOF
+
+  for file in issue motd vconsole.conf locale.conf; do
+    test -s "$pkgdir/usr/share/factory/etc/$file"
+  done
+  test ! -e "$pkgdir/etc/hostname"
+  test ! -e "$pkgdir/etc/vconsole.conf"
+  test ! -e "$pkgdir/etc/locale.conf"
 }
 SOURCE+=("os-release" "issue" "motd" "nsswitch.conf" "shells" "profile")
 
@@ -112,4 +134,4 @@ SOURCE+=("os-release" "issue" "motd" "nsswitch.conf" "shells" "profile")
 
 
 # Final audited source digests
-SHA256SUMS=("6df45aed073cb862233514aef6fd01e03e39b294fb7a61d9e3fbcf7030315c7a" "570412296567a6a753da590c1fb9a1443032f07a4bd1b681f809e3c0942ba3e5" "e5a49794e0c979c0d08f056ee69272a4f85ee6a12b5a4618f089a1fadaa09b8f" "0269d2495a09e17d289f18e3888c38b5be84e5536fe0607e4656635fce95e9c7" "82dc63288b976f2c5710020a2096b940f146d0dbc2b6d4de92ae89b03c7e7e3c" "dbe8db33b0ee2fc684234190041419b2656b74220a42d26b96e653623bbb4106" "eb7db23c4e4418791c699d09f08508891bd2b22304fe88f591f65b6eecf25837" "3f8ab73b0bae8ba9e3f8aa49f962a8a0c510c89df26cfbe7ea051c7568de7918" "9478df6d7a4d9a18c5b1b51d6094a3e89596196ca3ee2656666bfdeffa026a07" "4ec4e8c524a4f10ca5898ccfaa6d29e7e08aff3a681f6bafbb62e7bec91aa154" "77d933b5ae1a25ec5f57172491830ab6319b28bef5ab24b45c4e5e4db2eb80cd")
+SHA256SUMS=("6df45aed073cb862233514aef6fd01e03e39b294fb7a61d9e3fbcf7030315c7a" "570412296567a6a753da590c1fb9a1443032f07a4bd1b681f809e3c0942ba3e5" "e5a49794e0c979c0d08f056ee69272a4f85ee6a12b5a4618f089a1fadaa09b8f" "0269d2495a09e17d289f18e3888c38b5be84e5536fe0607e4656635fce95e9c7" "82dc63288b976f2c5710020a2096b940f146d0dbc2b6d4de92ae89b03c7e7e3c" "dbe8db33b0ee2fc684234190041419b2656b74220a42d26b96e653623bbb4106" "ea276ac4cd761c569a1047e8069819436e30d25f4a8371fcdb1eb8e69aeac6ee" "ed8a2bf41593bda667f5e9863d6ad8230ce6629201b96f8d8aac78d82178d833" "9478df6d7a4d9a18c5b1b51d6094a3e89596196ca3ee2656666bfdeffa026a07" "4ec4e8c524a4f10ca5898ccfaa6d29e7e08aff3a681f6bafbb62e7bec91aa154" "77d933b5ae1a25ec5f57172491830ab6319b28bef5ab24b45c4e5e4db2eb80cd")
