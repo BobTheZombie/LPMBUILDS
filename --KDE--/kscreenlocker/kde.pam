@@ -1,0 +1,6 @@
+#%PAM-1.0
+# LPM Linux screen unlock: use the same central password policy as login.
+auth       include      system-auth
+account    include      system-auth
+password   include      system-auth
+session    include      system-auth
