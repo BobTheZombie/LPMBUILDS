@@ -2,16 +2,21 @@
 # LPM Linux - KDE Plasma screen locker for KWin Wayland
 NAME="kscreenlocker"
 VERSION="6.8.1"
-RELEASE="1"
+RELEASE="2"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="KDE Plasma screen locking library and greeter"
 URL="https://invent.kde.org/plasma/kscreenlocker"
 LICENSE=("SEE-UPSTREAM")
 SOURCE=("https://download.kde.org/stable/plasma/${VERSION}/kscreenlocker-${VERSION}.tar.xz"
-        "https://gitlab.archlinux.org/archlinux/packaging/packages/kscreenlocker/-/raw/main/kde.pam"
+        "kde.pam"
         "https://gitlab.archlinux.org/archlinux/packaging/packages/kscreenlocker/-/raw/main/kde-fingerprint.pam"
         "https://gitlab.archlinux.org/archlinux/packaging/packages/kscreenlocker/-/raw/main/kde-smartcard.pam")
-SHA256SUMS=("6662370091a5c78427b6207cab7e47762d3cae75b7646ad68d06f305c1300a45")
+SHA256SUMS=(
+    "6662370091a5c78427b6207cab7e47762d3cae75b7646ad68d06f305c1300a45"
+    "4e6eb62c1d416cc653dadfe3748c8eb374aa774d6425662d01686b6f211b9800"
+    "SKIP" # Upstream Arch fingerprint PAM template: pin before stable release
+    "SKIP" # Upstream Arch smartcard PAM template: pin before stable release
+)
 PATCHES=()
 REQUIRES=(
     "glibc" "qt6-base" "qt6-declarative" "pam"
@@ -59,12 +64,23 @@ staging() {
     test -n "${pkgdir:-}" && test "$pkgdir" != "/"
     DESTDIR="$pkgdir" cmake --install "$builddir"
 
-  install -Dm644 "$SRCROOT"/kde.pam "$pkgdir"/usr/lib/pam.d/kde
-  install -Dm644 "$SRCROOT"/kde-fingerprint.pam "$pkgdir"/usr/lib/pam.d/kde-fingerprint
-  install -Dm644 "$SRCROOT"/kde-smartcard.pam "$pkgdir"/usr/lib/pam.d/kde-smartcard
+    install -Dm644 "$SRCROOT/kde.pam" "$pkgdir/usr/lib/pam.d/kde"
+    install -Dm644 "$SRCROOT/kde-fingerprint.pam" "$pkgdir/usr/lib/pam.d/kde-fingerprint"
+    install -Dm644 "$SRCROOT/kde-smartcard.pam" "$pkgdir/usr/lib/pam.d/kde-smartcard"
 
     test -f "$pkgdir/usr/lib/cmake/KScreenLocker/KScreenLockerConfig.cmake"
     compgen -G "$pkgdir/usr/lib/libKScreenLocker.so*" >/dev/null
     # KDE_INSTALL_LIBEXECDIR varies by distribution; verify regardless of placement.
     test -n "$(find "$pkgdir/usr" -type f -name kscreenlocker_greet -print -quit)"
+    # KScreenLocker needs both greeter and PAM worker at runtime.
+    test -n "$(find "$pkgdir/usr" -type f -name kscreenlocker_worker -print -quit)"
+
+    # Check the vendor policy that Linux-PAM will use unless /etc/pam.d/kde
+    # overrides it. Never substitute a permissive PAM policy on failure.
+    test -f "$pkgdir/usr/lib/pam.d/kde"
+    grep -Eq '^[[:space:]]*auth[[:space:]]+include[[:space:]]+system-auth' \
+        "$pkgdir/usr/lib/pam.d/kde"
+    test -f "$pkgdir/usr/lib/pam.d/kde-fingerprint"
+    test -f "$pkgdir/usr/lib/pam.d/kde-smartcard"
+
 }
