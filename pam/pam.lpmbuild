@@ -1,7 +1,7 @@
 #!/bin/bash
 NAME="pam"
 VERSION="1.7.3"
-RELEASE="1"
+RELEASE="2"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="Linux Pluggable Authentication Modules"
 URL="https://github.com/linux-pam/linux-pam"
@@ -58,6 +58,17 @@ staging() {
     install -Dm644 "$SRCROOT/system-login" "$pkgdir/etc/pam.d/system-login"
     test -e "$pkgdir/usr/lib/libpam.so.0"
     test -f "$pkgdir/usr/lib/security/pam_unix.so"
+    # pam_unix's non-root clients (including KScreenLocker) must be able
+    # to verify their OWN password against the root-readable shadow database.
+    # Upstream Meson installs unix_chkpwd as mode 0755; distro packaging must
+    # supply the intended setuid-root privilege (see unix_chkpwd(8)).
+    # Never change /etc/shadow permissions as a workaround.
+    test -f "$pkgdir/usr/bin/unix_chkpwd"
+    chown 0:0 "$pkgdir/usr/bin/unix_chkpwd"
+    chmod 4755 "$pkgdir/usr/bin/unix_chkpwd"
+    test "$(stat -c '%a' "$pkgdir/usr/bin/unix_chkpwd")" = 4755
+    test "$(stat -c '%u:%g' "$pkgdir/usr/bin/unix_chkpwd")" = 0:0
+
     test -f "$pkgdir/usr/include/security/pam_appl.h"
     find "$pkgdir/usr/lib" -type f \( -name '*.a' -o -name '*.la' \) -delete
     install -Dm644 COPYING "$pkgdir/usr/share/licenses/$NAME/COPYING"
