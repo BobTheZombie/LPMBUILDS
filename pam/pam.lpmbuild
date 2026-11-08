@@ -57,7 +57,16 @@ staging() {
     install -Dm644 "$SRCROOT/system-auth" "$pkgdir/etc/pam.d/system-auth"
     install -Dm644 "$SRCROOT/system-login" "$pkgdir/etc/pam.d/system-login"
     test -e "$pkgdir/usr/lib/libpam.so.0"
-    test -f "$pkgdir/usr/lib/security/pam_unix.so"
+    # These are required by LPM's shared PAM policy and KDE/SDDM.
+    # Missing modules must fail packaging, not silently break authentication.
+    local module
+    for module in pam_unix pam_faillock pam_deny pam_permit pam_env \
+                  pam_limits pam_time pam_access pam_shells pam_nologin; do
+        test -f "$pkgdir/usr/lib/security/${module}.so" || {
+            echo "[ERROR] Missing PAM module: ${module}.so" >&2
+            return 1
+        }
+    done
     # pam_unix's non-root clients (including KScreenLocker) must be able
     # to verify their OWN password against the root-readable shadow database.
     # Upstream Meson installs unix_chkpwd as mode 0755; distro packaging must
