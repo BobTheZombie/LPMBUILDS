@@ -1,6 +1,6 @@
 NAME="firefox"
 VERSION="156.0"
-RELEASE="4"
+RELEASE="5"
 ARCH="x86_64"
 
 SUMMARY="Fast, Private & Safe Web Browser"
@@ -167,6 +167,30 @@ prepare() {
     rm -rf "$WASI_TESTDIR"
     mkdir -p "$WASI_TESTDIR"
 
+    #
+    # Mozilla's configure probe uses normal C++ flags and no STL. Verify
+    # that exact default link separately from the real libc++ STL probe.
+    #
+    cat > "$WASI_TESTDIR/configure.cpp" <<'EOF'
+int main() { return 0; }
+EOF
+
+    clang++ \
+        -std=gnu++20 \
+        --target=wasm32-wasi \
+        "$WASI_TESTDIR/configure.cpp" \
+        --sysroot="$WASI_SYSROOT" \
+        -o "$WASI_TESTDIR/configure.wasm"
+
+    test -s "$WASI_TESTDIR/configure.wasm"
+
+    #
+    # Our WASI libc++ and libc++abi are deliberately built with
+    # LIBCXX_ENABLE_EXCEPTIONS=OFF and LIBCXXABI_ENABLE_EXCEPTIONS=OFF.
+    # Compile the STL check with -fno-exceptions so Clang does not emit
+    # __cxa_throw / __cxa_allocate_exception calls into a runtime that
+    # intentionally does not provide C++ exceptions.
+    #
     cat > "$WASI_TESTDIR/test.cpp" <<'EOF'
 #include <vector>
 
@@ -176,9 +200,9 @@ int main() {
 }
 EOF
 
-    # Match Mozilla configure's exact target and default link behavior.
     clang++ \
         -std=gnu++20 \
+        -fno-exceptions \
         --target=wasm32-wasi \
         "$WASI_TESTDIR/test.cpp" \
         --sysroot="$WASI_SYSROOT" \
