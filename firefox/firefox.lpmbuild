@@ -1,6 +1,6 @@
 NAME="firefox"
 VERSION="156.0"
-RELEASE="3"
+RELEASE="4"
 ARCH="x86_64"
 
 SUMMARY="Fast, Private & Safe Web Browser"
@@ -147,6 +147,14 @@ prepare() {
     test -f \
         "$WASI_SYSROOT/lib/wasm32-wasip1/libc++abi.a"
 
+    # Mozilla uses --target=wasm32-wasi for its sandboxed libraries.
+    # Both spellings need libraries; the legacy directory must be real,
+    # not a link to the canonical wasm32-wasip1 directory.
+    test -d "$WASI_SYSROOT/lib/wasm32-wasi"
+    test ! -L "$WASI_SYSROOT/lib/wasm32-wasi"
+    test -f "$WASI_SYSROOT/lib/wasm32-wasi/libc++.a"
+    test -f "$WASI_SYSROOT/lib/wasm32-wasi/libc++abi.a"
+
     test -f \
         "$RESOURCE_DIR/lib/wasm32-unknown-wasip1/libclang_rt.builtins.a"
 
@@ -168,15 +176,12 @@ int main() {
 }
 EOF
 
+    # Match Mozilla configure's exact target and default link behavior.
     clang++ \
-        --target=wasm32-wasip1 \
-        --sysroot="$WASI_SYSROOT" \
-        -stdlib=libc++ \
-        -rtlib=compiler-rt \
-        -unwindlib=none \
-        -fno-exceptions \
+        -std=gnu++20 \
+        --target=wasm32-wasi \
         "$WASI_TESTDIR/test.cpp" \
-        -lc++abi \
+        --sysroot="$WASI_SYSROOT" \
         -o "$WASI_TESTDIR/test.wasm"
 
     test -s "$WASI_TESTDIR/test.wasm"
