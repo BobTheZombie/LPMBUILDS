@@ -43,9 +43,18 @@ Separate source recipes are included for:
 - subtitlecomposer 0.8.2
 - skrooge 26.8.0
 
+- crow-translate 4.1.0
+- drawy 1.0.2
+- hana 1.0.0
+- kgeotag 2.0.0
+- klevernotes 1.3.1
+- komodo 1.6.0
+- kookbook 0.3.0
+- ktimetracker 6.0.0
+
 ## Status and limitations
 
-These are **packaging drafts**, not a claim that all 274 build in one pass.
+These are **packaging drafts**, not a claim that all 282 build in one pass.
 Version/source SHA-256 is checked, but dependency closures, package naming,
 license metadata, source-specific CMake flags, runtime assets, build options,
 plugins and tests need package-by-package validation in a real LPM chroot.

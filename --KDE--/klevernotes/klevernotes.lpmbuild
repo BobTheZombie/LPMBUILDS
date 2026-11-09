@@ -1,0 +1,63 @@
+#!/bin/bash
+# LPM Linux KDE independent app - pinned upstream checksum.
+# Validate dependencies and CMake features in LPM before distribution.
+NAME="klevernotes"
+VERSION="1.3.1"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="KDE Kirigami Markdown notebook"
+URL="https://apps.kde.org/klevernotes/"
+LICENSE=("SEE-UPSTREAM")
+SOURCE=("https://download.kde.org/stable/klevernotes/${VERSION}/klevernotes-${VERSION}.tar.xz")
+SHA256SUMS=("df8c39f534febd8ea92465b71e03df3404bc849ccf44f3200b8a0f29e51fcad4")
+PATCHES=()
+REQUIRES=(
+    "qt6-base"
+    "qt6-declarative"
+    "qt6-svg"
+    "kirigami6"
+    "kirigami-addons"
+    "kconfig6"
+    "ki18n6"
+    "md4c"
+)
+BUILD_REQUIRES=(
+    "cmake"
+    "ninja"
+    "pkgconf"
+    "extra-cmake-modules"
+    "qt6-base"
+    "qt6-declarative"
+    "qt6-svg"
+    "kirigami6"
+    "kirigami-addons"
+    "kconfig6"
+    "ki18n6"
+    "md4c"
+)
+PROVIDES=("${NAME}")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+prepare() {
+    set -euxo pipefail
+    test -f "$SRCROOT/${NAME}-${VERSION}/CMakeLists.txt"
+}
+build() {
+    set -euxo pipefail
+    local src="$SRCROOT/${NAME}-${VERSION}"
+    cmake -S "$src" -B "$src/build" -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DBUILD_TESTING=OFF
+    cmake --build "$src/build" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+check() { :; }
+staging() {
+    set -euxo pipefail
+    DESTDIR="$pkgdir" cmake --install "$SRCROOT/${NAME}-${VERSION}/build"
+    test -d "$pkgdir/usr"
+    test -n "$(find "$pkgdir/usr" -mindepth 1 -print -quit)"
+}
