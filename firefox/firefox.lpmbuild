@@ -1,6 +1,6 @@
 NAME="firefox"
 VERSION="156.0"
-RELEASE="2"
+RELEASE="3"
 ARCH="x86_64"
 
 SUMMARY="Fast, Private & Safe Web Browser"
@@ -97,11 +97,34 @@ prepare() {
     cd "$SRCDIR"
 
     #
-    # Validate the native LLVM toolchain.
+    # Validate the tools Firefox actually builds with. Clang and clang++
+    # must match, but llvm-config may come from a newer LLVM installation;
+    # it is not the compiler driver used by mach.
+    # Let Mozilla's configure check its precise version requirements.
     #
+    CLANG_MAJOR="$(clang -dumpversion | cut -d. -f1)"
+    CLANGXX_MAJOR="$(clang++ -dumpversion | cut -d. -f1)"
+    LLVM_MAJOR="$(llvm-config --version | cut -d. -f1)"
 
-    test "$(clang -dumpversion | cut -d. -f1)" = "20"
-    test "$(llvm-config --version | cut -d. -f1)" = "20"
+    case "$CLANG_MAJOR:$CLANGXX_MAJOR:$LLVM_MAJOR" in
+        *[!0-9:]*|::*|:*|*:)
+            echo "[firefox] Could not determine LLVM tool versions" >&2
+            return 1
+            ;;
+    esac
+
+    if [ "$CLANG_MAJOR" -ne "$CLANGXX_MAJOR" ]; then
+        echo "[firefox] clang and clang++ must use the same major version" >&2
+        return 1
+    fi
+
+    printf '[firefox] Clang %s / Clang++ %s / llvm-config %s\\n' \
+        "$CLANG_MAJOR" "$CLANGXX_MAJOR" "$LLVM_MAJOR"
+
+    if [ "$LLVM_MAJOR" -ne "$CLANG_MAJOR" ]; then
+        printf '[firefox] Note: llvm-config %s differs from Clang %s; checking actual WASI compiler/linker below.\\n' \
+            "$LLVM_MAJOR" "$CLANG_MAJOR" >&2
+    fi
 
     #
     # Validate the complete WASI toolchain required by Firefox RLBox.
