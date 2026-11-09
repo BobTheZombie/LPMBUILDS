@@ -1,0 +1,67 @@
+#!/bin/bash
+# LPM Linux - independently released KDE application
+# Source checksum pinned; runtime/build dependencies need LPM chroot testing.
+NAME="haruna"
+VERSION="1.9.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="KDE MPV/Qt Quick video player"
+URL="https://apps.kde.org/haruna/"
+LICENSE=("SEE-UPSTREAM")
+SOURCE=("https://download.kde.org/stable/haruna/${VERSION}/haruna-${VERSION}.tar.xz")
+SHA256SUMS=("cb8b2a58ff394379d3d60d9b24f30e192df4b850bd9b2449df3a4333403da647")
+PATCHES=()
+REQUIRES=(
+    "qt6-base"
+    "qt6-declarative"
+    "qt6-5compat"
+    "kconfig6"
+    "kcoreaddons6"
+    "ki18n6"
+    "kio6"
+    "kirigami6"
+    "mpvqt"
+)
+BUILD_REQUIRES=(
+    "cmake"
+    "ninja"
+    "pkgconf"
+    "extra-cmake-modules"
+    "qt6-base"
+    "qt6-declarative"
+    "qt6-5compat"
+    "kconfig6"
+    "kcoreaddons6"
+    "ki18n6"
+    "kio6"
+    "kirigami6"
+    "mpvqt"
+    "qt6-shadertools"
+)
+PROVIDES=("${NAME}")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+    set -euxo pipefail
+    test -f "$SRCROOT/${NAME}-${VERSION}/CMakeLists.txt"
+}
+build() {
+    set -euxo pipefail
+    local src="$SRCROOT/${NAME}-${VERSION}"
+    cmake -S "$src" -B "$src/build" -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DBUILD_TESTING=OFF
+    cmake --build "$src/build" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+check() { :; }
+staging() {
+    set -euxo pipefail
+    DESTDIR="$pkgdir" cmake --install "$SRCROOT/${NAME}-${VERSION}/build"
+    test -d "$pkgdir/usr"
+    test -n "$(find "$pkgdir/usr" -mindepth 1 -print -quit)"
+}

@@ -25,9 +25,17 @@ Separate source recipes are included for:
 - kmymoney 5.2.2
 - kdiff3 1.12.6
 
+- haruna 1.9.0
+- kid3 3.10.2
+- kphotoalbum 6.2.0
+- krusader 2.9.0
+- labplot 2.12.1
+- tellico 4.3
+- gcompris 26.2
+
 ## Status and limitations
 
-These are **packaging drafts**, not a claim that all 258 build in one pass.
+These are **packaging drafts**, not a claim that all 265 build in one pass.
 Version/source SHA-256 is checked, but dependency closures, package naming,
 license metadata, source-specific CMake flags, runtime assets, build options,
 plugins and tests need package-by-package validation in a real LPM chroot.

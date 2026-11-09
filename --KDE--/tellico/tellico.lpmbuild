@@ -1,0 +1,71 @@
+#!/bin/bash
+# LPM Linux - independently released KDE application
+# Source checksum pinned; runtime/build dependencies need LPM chroot testing.
+NAME="tellico"
+VERSION="4.3"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="KDE collections and bibliography organizer"
+URL="https://apps.kde.org/tellico/"
+LICENSE=("SEE-UPSTREAM")
+SOURCE=("https://tellico-project.org/files/tellico-${VERSION}.tar.xz")
+SHA256SUMS=("e31ce0ef6f6ee559e18cdacecee5b9e3387b1068edb01751ab21114d693d98bb")
+PATCHES=()
+REQUIRES=(
+    "qt6-base"
+    "qt6-charts"
+    "qt6-webengine"
+    "karchive6"
+    "kconfig6"
+    "kconfigwidgets6"
+    "kcoreaddons6"
+    "ki18n6"
+    "kio6"
+    "libxml2"
+    "libxslt"
+)
+BUILD_REQUIRES=(
+    "cmake"
+    "ninja"
+    "pkgconf"
+    "extra-cmake-modules"
+    "qt6-base"
+    "qt6-charts"
+    "qt6-webengine"
+    "karchive6"
+    "kconfig6"
+    "kconfigwidgets6"
+    "kcoreaddons6"
+    "ki18n6"
+    "kio6"
+    "libxml2"
+    "libxslt"
+    "gettext"
+)
+PROVIDES=("${NAME}")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+    set -euxo pipefail
+    test -f "$SRCROOT/${NAME}-${VERSION}/CMakeLists.txt"
+}
+build() {
+    set -euxo pipefail
+    local src="$SRCROOT/${NAME}-${VERSION}"
+    cmake -S "$src" -B "$src/build" -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DBUILD_TESTING=OFF
+    cmake --build "$src/build" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+check() { :; }
+staging() {
+    set -euxo pipefail
+    DESTDIR="$pkgdir" cmake --install "$SRCROOT/${NAME}-${VERSION}/build"
+    test -d "$pkgdir/usr"
+    test -n "$(find "$pkgdir/usr" -mindepth 1 -print -quit)"
+}

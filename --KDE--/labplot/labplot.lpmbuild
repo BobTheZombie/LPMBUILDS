@@ -1,0 +1,69 @@
+#!/bin/bash
+# LPM Linux - independently released KDE application
+# Source checksum pinned; runtime/build dependencies need LPM chroot testing.
+NAME="labplot"
+VERSION="2.12.1"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="KDE scientific plotting and data analysis"
+URL="https://apps.kde.org/labplot/"
+LICENSE=("SEE-UPSTREAM")
+SOURCE=("https://download.kde.org/stable/labplot/labplot-${VERSION}.tar.xz")
+SHA256SUMS=("e28155bfddf40e5b6f7c4791313556d1e48138044f216f210d515b9f6d6c106a")
+PATCHES=()
+REQUIRES=(
+    "qt6-base"
+    "qt6-svg"
+    "qt6-charts"
+    "karchive6"
+    "kconfig6"
+    "kcoreaddons6"
+    "ki18n6"
+    "kio6"
+    "gsl"
+    "fftw"
+)
+BUILD_REQUIRES=(
+    "cmake"
+    "ninja"
+    "pkgconf"
+    "extra-cmake-modules"
+    "qt6-base"
+    "qt6-svg"
+    "qt6-charts"
+    "karchive6"
+    "kconfig6"
+    "kcoreaddons6"
+    "ki18n6"
+    "kio6"
+    "gsl"
+    "fftw"
+    "gettext"
+)
+PROVIDES=("${NAME}")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+    set -euxo pipefail
+    test -f "$SRCROOT/${NAME}-${VERSION}/CMakeLists.txt"
+}
+build() {
+    set -euxo pipefail
+    local src="$SRCROOT/${NAME}-${VERSION}"
+    cmake -S "$src" -B "$src/build" -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DBUILD_TESTING=OFF
+    cmake --build "$src/build" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+check() { :; }
+staging() {
+    set -euxo pipefail
+    DESTDIR="$pkgdir" cmake --install "$SRCROOT/${NAME}-${VERSION}/build"
+    test -d "$pkgdir/usr"
+    test -n "$(find "$pkgdir/usr" -mindepth 1 -print -quit)"
+}
