@@ -1,14 +1,14 @@
 #!/bin/bash
 # LPM Linux: service/provider definitions for KDE Online Accounts.
 NAME="kaccounts-providers"
-VERSION="26.08.2"
-RELEASE="1"
+VERSION="26.08.3"
+RELEASE="2"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="Online account providers for KAccounts integration"
 URL="https://invent.kde.org/network/kaccounts-providers"
 LICENSE=("GPL-2.0-or-later")
 SOURCE=("https://download.kde.org/stable/release-service/${VERSION}/src/${NAME}-${VERSION}.tar.xz")
-SHA256SUMS=("356e8ebbd6793a2f6231f526277d5d390b897a788cbe09e2e4e5cf352bf0d0ce")
+SHA256SUMS=("bec64fd9f9098969b12136af44c0b9b3a983cfba10a5fd25a035b8e9a09c743b")
 PATCHES=()
 REQUIRES=("kaccounts-integration" "libaccounts-qt" "signond")
 BUILD_REQUIRES=("cmake" "ninja" "pkgconf" "extra-cmake-modules" "qt6-base" "kaccounts-integration" "libaccounts-qt")

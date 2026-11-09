@@ -2,18 +2,16 @@
 # LPM Linux: KDE Plasma 6.8.1 package chain
 # Generated 2026-10-25; source digests MUST be locked before building.
 NAME="kate"
-VERSION="26.08.2"
-RELEASE="1"
+VERSION="26.08.3"
+RELEASE="2"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="KDE Gear application: kate"
 URL="https://kde.org"
 LICENSE=("SEE-UPSTREAM")
 SOURCE=(
-    "https://download.kde.org/stable/release-service/26.08.2/src/kate-26.08.2.tar.xz"
+    "https://download.kde.org/stable/release-service/26.08.3/src/kate-26.08.3.tar.xz"
 )
-SHA256SUMS=(
-    "SKIP"
-)
+SHA256SUMS=("e929ad9dd8aeebb9c6269dbde523b80a7aeedb853855eb326e28fc3f9e6d71c2")
 PATCHES=()
 REQUIRES=(
     "qt6-base"

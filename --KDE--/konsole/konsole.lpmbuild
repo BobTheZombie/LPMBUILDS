@@ -2,18 +2,16 @@
 # LPM Linux: KDE Plasma 6.8.1 package chain
 # Generated 2026-10-25; source digests MUST be locked before building.
 NAME="konsole"
-VERSION="26.08.2"
-RELEASE="1"
+VERSION="26.08.3"
+RELEASE="2"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="KDE Gear application: konsole"
 URL="https://kde.org"
 LICENSE=("SEE-UPSTREAM")
 SOURCE=(
-    "https://download.kde.org/stable/release-service/26.08.2/src/konsole-26.08.2.tar.xz"
+    "https://download.kde.org/stable/release-service/26.08.3/src/konsole-26.08.3.tar.xz"
 )
-SHA256SUMS=(
-    "SKIP"
-)
+SHA256SUMS=("3189d1d048300fbe0628eab001b8ea11bfd6fe4fb6c0bbabc7c5aa0461dad430")
 PATCHES=()
 REQUIRES=(
     "qt6-base"

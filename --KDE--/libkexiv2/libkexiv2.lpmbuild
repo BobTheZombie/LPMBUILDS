@@ -1,14 +1,14 @@
 #!/bin/bash
-# KDE Gear 26.08.2: Qt6 build provides KExiv2Qt6 CMake package.
+# KDE Gear 26.08.3: Qt6 build provides KExiv2Qt6 CMake package.
 NAME="libkexiv2"
-VERSION="26.08.2"
-RELEASE="1"
+VERSION="26.08.3"
+RELEASE="2"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="KDE Qt6 wrapper for Exiv2 image and wallpaper metadata"
 URL="https://invent.kde.org/graphics/libkexiv2"
 LICENSE=("BSD-3-Clause" "GPL-2.0-or-later")
 SOURCE=("https://download.kde.org/stable/release-service/${VERSION}/src/libkexiv2-${VERSION}.tar.xz")
-SHA256SUMS=("a0492337374ae19d9fa73a605451ba10536cfbf53108af7e9bf77defbe7bcd00")
+SHA256SUMS=("7f4a9daa7bc050d8350ee4d5feb207121e31988de0c9883478d9fbde55bed927")
 PATCHES=()
 REQUIRES=("glibc" "qt6-base" "exiv2")
 BUILD_REQUIRES=("cmake" "ninja" "pkgconf" "extra-cmake-modules" "qt6-base" "exiv2")

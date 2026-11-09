@@ -1,14 +1,14 @@
 #!/bin/bash
-# KDE Gear 26.08.2: KIO workers and thumbnail support
+# KDE Gear 26.08.3: KIO workers and thumbnail support
 NAME="kio-extras"
-VERSION="26.08.2"
-RELEASE="3"
+VERSION="26.08.3"
+RELEASE="4"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="Additional KDE KIO workers, services and thumbnail plugins"
 URL="https://invent.kde.org/network/kio-extras"
 LICENSE=("SEE-UPSTREAM")
 SOURCE=("https://download.kde.org/stable/release-service/${VERSION}/src/${NAME}-${VERSION}.tar.xz")
-SHA256SUMS=("b5fc98552eea1f9279fb1f03c7e3ffb36a46ffddd0bf0bba9868331d8c461e6e")
+SHA256SUMS=("5ff1e1091b162cd02c226880a6af93e6908ab32993b420fbe8fc10718e168780")
 PATCHES=()
 REQUIRES=("glibc" "qt6-base" "qt6-svg" "kio6" "solid6" "karchive6" "kconfig6" "kcoreaddons6" "ki18n6" "syntax-highlighting6" "kcmutils6" "kdbusaddons6" "plasma-activities" "plasma-activities-stats")
 BUILD_REQUIRES=("gcc" "cmake" "ninja" "pkgconf" "extra-cmake-modules" "gettext" "qt6-base" "qt6-svg" "kio6" "solid6" "karchive6" "kconfig6" "kcoreaddons6" "ki18n6" "syntax-highlighting6" "kcmutils6" "kdbusaddons6" "plasma-activities" "plasma-activities-stats")

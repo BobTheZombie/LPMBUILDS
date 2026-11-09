@@ -2,18 +2,16 @@
 # LPM Linux: KDE Plasma 6.8.1 package chain
 # Generated 2026-10-25; source digests MUST be locked before building.
 NAME="gwenview"
-VERSION="26.08.2"
-RELEASE="1"
+VERSION="26.08.3"
+RELEASE="2"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="KDE Gear application: gwenview"
 URL="https://kde.org"
 LICENSE=("SEE-UPSTREAM")
 SOURCE=(
-    "https://download.kde.org/stable/release-service/26.08.2/src/gwenview-26.08.2.tar.xz"
+    "https://download.kde.org/stable/release-service/26.08.3/src/gwenview-26.08.3.tar.xz"
 )
-SHA256SUMS=(
-    "SKIP"
-)
+SHA256SUMS=("14cd907c8290e49450e2e26dd894854eaed3a7d5dc383c744ab7cc4728ea2bee")
 PATCHES=()
 REQUIRES=(
     "qt6-base"

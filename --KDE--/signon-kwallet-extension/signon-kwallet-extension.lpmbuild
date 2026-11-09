@@ -1,14 +1,14 @@
 #!/bin/bash
 # LPM Linux: SignOn credential storage through KDE Wallet.
 NAME="signon-kwallet-extension"
-VERSION="26.08.2"
-RELEASE="1"
+VERSION="26.08.3"
+RELEASE="2"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="KWallet storage extension for the SignOn framework"
 URL="https://invent.kde.org/network/signon-kwallet-extension"
 LICENSE=("LGPL-2.0-or-later")
 SOURCE=("https://download.kde.org/stable/release-service/${VERSION}/src/${NAME}-${VERSION}.tar.xz")
-SHA256SUMS=("bc5cd2cc79683cee25e7f8ad5b405e00494cfebc97f543c3e1185b8caf1d88f1")
+SHA256SUMS=("e80090087eddc7f823ac5647e290288e890bd6d2372aaeaa24ff17cecd0480a9")
 PATCHES=()
 REQUIRES=("glibc" "qt6-base" "kwallet6" "signond")
 BUILD_REQUIRES=("cmake" "ninja" "pkgconf" "extra-cmake-modules" "qt6-base" "kwallet6" "signond")
