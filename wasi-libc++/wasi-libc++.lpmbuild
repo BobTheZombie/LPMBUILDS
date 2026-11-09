@@ -1,6 +1,6 @@
 NAME="wasi-libc++"
 VERSION="20.1.6"
-RELEASE="3"
+RELEASE="4"
 ARCH="${ARCH:-x86_64}"
 
 SUMMARY="LLVM C++ standard library targeting WASI"
@@ -214,8 +214,8 @@ staging() {
     #
     # Firefox RLBox uses --target=wasm32-wasi. This is WASI Preview 1,
     # compatible with wasm32-wasip1, but Clang searches a different
-    # library directory for the former spelling. Provide *file-level*
-    # links only; never alias wasm32-wasi directories or c++/v1.
+    # library directory for the former spelling. Provide *file-level* copies;
+    # never alias wasm32-wasi directories or c++/v1.
     # Directory aliases previously created a self-referential v1 tree.
     #
     test ! -e "$SYSROOT/include/wasm32-wasi"
@@ -232,8 +232,10 @@ staging() {
         BASENAME="${FILE##*/}"
         test ! -e "$LEGACY_LIBDIR/$BASENAME"
         test ! -L "$LEGACY_LIBDIR/$BASENAME"
-        ln -s "../wasm32-wasip1/$BASENAME" "$LEGACY_LIBDIR/$BASENAME"
+        # A real archive avoids LPM installer symlink chmod/order issues.
+        install -Dm644 "$FILE" "$LEGACY_LIBDIR/$BASENAME"
         test -f "$LEGACY_LIBDIR/$BASENAME"
+        test ! -L "$LEGACY_LIBDIR/$BASENAME"
     done
     test -f "$LEGACY_LIBDIR/libc++.a"
 
