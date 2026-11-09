@@ -1,0 +1,69 @@
+#!/bin/bash
+# LPM Linux - independent KDE application (outside KDE Gear release cadence)
+# Source version and SHA256 verified against KDE or distribution release metadata.
+# Dependency closure and compilation require LPM chroot validation.
+NAME="digikam"
+VERSION="9.1.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="KDE photo collection and RAW processing suite"
+URL="https://apps.kde.org/digikam/"
+LICENSE=("SEE-UPSTREAM")
+SOURCE=("https://download.kde.org/stable/digikam/${VERSION}/digiKam-${VERSION}.tar.xz")
+SHA256SUMS=("a7309191e9a4787853cb3ac4136e4f8d7c044b40338dc42c7e422c37625b72e1")
+PATCHES=()
+REQUIRES=(
+    "qt6-base"
+    "qt6-declarative"
+    "qt6-svg"
+    "kconfig6"
+    "kcoreaddons6"
+    "kio6"
+    "exiv2"
+    "libraw"
+    "opencv"
+    "ffmpeg"
+)
+BUILD_REQUIRES=(
+    "cmake"
+    "ninja"
+    "pkgconf"
+    "extra-cmake-modules"
+    "qt6-base"
+    "qt6-declarative"
+    "qt6-svg"
+    "kconfig6"
+    "kcoreaddons6"
+    "kio6"
+    "exiv2"
+    "libraw"
+    "opencv"
+    "boost"
+    "gettext"
+)
+PROVIDES=("${NAME}")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+prepare() {
+    set -euxo pipefail
+    test -f "$SRCROOT/${NAME}-${VERSION}/CMakeLists.txt"
+}
+build() {
+    set -euxo pipefail
+    local src="$SRCROOT/${NAME}-${VERSION}"
+    cmake -S "$src" -B "$src/build" -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DBUILD_TESTING=OFF
+    cmake --build "$src/build" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+check() { :; }
+staging() {
+    set -euxo pipefail
+    DESTDIR="$pkgdir" cmake --install "$SRCROOT/${NAME}-${VERSION}/build"
+    test -d "$pkgdir/usr"
+    test -n "$(find "$pkgdir/usr" -mindepth 1 -print -quit)"
+}

@@ -1,0 +1,76 @@
+#!/bin/bash
+# LPM Linux - independent KDE application (outside KDE Gear release cadence)
+# Source version and SHA256 verified against KDE or distribution release metadata.
+# Dependency closure and compilation require LPM chroot validation.
+NAME="krita"
+VERSION="6.0.4.1"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="KDE digital painting and illustration application"
+URL="https://apps.kde.org/krita/"
+LICENSE=("SEE-UPSTREAM")
+SOURCE=("https://download.kde.org/stable/krita/${VERSION}/krita-${VERSION}.tar.xz")
+SHA256SUMS=("bd0568754417ffca0ef60448d1cc7fb153658af1fb9796f027fa7e69b69098df")
+PATCHES=()
+REQUIRES=(
+    "qt6-base"
+    "qt6-declarative"
+    "qt6-svg"
+    "kcoreaddons6"
+    "kconfig6"
+    "ki18n6"
+    "kio6"
+    "exiv2"
+    "eigen3"
+    "lcms2"
+    "libraw"
+    "quazip-qt6"
+    "fftw"
+)
+BUILD_REQUIRES=(
+    "cmake"
+    "ninja"
+    "pkgconf"
+    "extra-cmake-modules"
+    "qt6-base"
+    "qt6-declarative"
+    "qt6-svg"
+    "kcoreaddons6"
+    "kconfig6"
+    "ki18n6"
+    "kio6"
+    "exiv2"
+    "eigen3"
+    "lcms2"
+    "libraw"
+    "quazip-qt6"
+    "fftw"
+    "boost"
+    "zlib"
+)
+PROVIDES=("${NAME}")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+prepare() {
+    set -euxo pipefail
+    test -f "$SRCROOT/${NAME}-${VERSION}/CMakeLists.txt"
+}
+build() {
+    set -euxo pipefail
+    local src="$SRCROOT/${NAME}-${VERSION}"
+    cmake -S "$src" -B "$src/build" -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DBUILD_TESTING=OFF
+    cmake --build "$src/build" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+check() { :; }
+staging() {
+    set -euxo pipefail
+    DESTDIR="$pkgdir" cmake --install "$SRCROOT/${NAME}-${VERSION}/build"
+    test -d "$pkgdir/usr"
+    test -n "$(find "$pkgdir/usr" -mindepth 1 -print -quit)"
+}

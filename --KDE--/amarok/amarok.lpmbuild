@@ -1,0 +1,68 @@
+#!/bin/bash
+# LPM Linux - independent KDE application (outside KDE Gear release cadence)
+# Source version and SHA256 verified against KDE or distribution release metadata.
+# Dependency closure and compilation require LPM chroot validation.
+NAME="amarok"
+VERSION="3.3.3"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="KDE music player and collection manager"
+URL="https://apps.kde.org/amarok/"
+LICENSE=("SEE-UPSTREAM")
+SOURCE=("https://download.kde.org/stable/amarok/${VERSION}/amarok-${VERSION}.tar.xz")
+SHA256SUMS=("68e9e83d7d8c0cbdd470958e768815f573d61f3ce32be7bc1b87fb56d622436e")
+PATCHES=()
+REQUIRES=(
+    "qt6-base"
+    "qt6-declarative"
+    "qt6-svg"
+    "kconfig6"
+    "kcoreaddons6"
+    "ki18n6"
+    "kio6"
+    "phonon-qt6"
+    "taglib"
+    "ffmpeg"
+)
+BUILD_REQUIRES=(
+    "cmake"
+    "ninja"
+    "pkgconf"
+    "extra-cmake-modules"
+    "qt6-base"
+    "qt6-declarative"
+    "qt6-svg"
+    "kconfig6"
+    "kcoreaddons6"
+    "ki18n6"
+    "kio6"
+    "phonon-qt6"
+    "taglib"
+    "gettext"
+)
+PROVIDES=("${NAME}")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+prepare() {
+    set -euxo pipefail
+    test -f "$SRCROOT/${NAME}-${VERSION}/CMakeLists.txt"
+}
+build() {
+    set -euxo pipefail
+    local src="$SRCROOT/${NAME}-${VERSION}"
+    cmake -S "$src" -B "$src/build" -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DBUILD_TESTING=OFF
+    cmake --build "$src/build" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+check() { :; }
+staging() {
+    set -euxo pipefail
+    DESTDIR="$pkgdir" cmake --install "$SRCROOT/${NAME}-${VERSION}/build"
+    test -d "$pkgdir/usr"
+    test -n "$(find "$pkgdir/usr" -mindepth 1 -print -quit)"
+}
