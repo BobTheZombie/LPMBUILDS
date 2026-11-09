@@ -118,11 +118,11 @@ prepare() {
         return 1
     fi
 
-    printf '[firefox] Clang %s / Clang++ %s / llvm-config %s\\n' \
+    printf '[firefox] Clang %s / Clang++ %s / llvm-config %s\n' \
         "$CLANG_MAJOR" "$CLANGXX_MAJOR" "$LLVM_MAJOR"
 
     if [ "$LLVM_MAJOR" -ne "$CLANG_MAJOR" ]; then
-        printf '[firefox] Note: llvm-config %s differs from Clang %s; checking actual WASI compiler/linker below.\\n' \
+        printf '[firefox] Note: llvm-config %s differs from Clang %s; checking actual WASI compiler/linker below.\n' \
             "$LLVM_MAJOR" "$CLANG_MAJOR" >&2
     fi
 
