@@ -28,6 +28,7 @@ BUILD_REQUIRES=(
     "meson"
     "ninja"
     "pkgconf"
+    "python"
     "qt6-base"
     "qt6-declarative"
     "pam"
