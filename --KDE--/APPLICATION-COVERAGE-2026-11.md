@@ -60,9 +60,12 @@ Separate source recipes are included for:
 - smb4k 4.0.7
 - vvave 4.0.2
 
+- kommit 1.8.1
+- kst 3.0.0
+
 ## Status and limitations
 
-These are **packaging drafts**, not a claim that all 289 build in one pass.
+These are **packaging drafts**, not a claim that all 291 build in one pass.
 Version/source SHA-256 is checked, but dependency closures, package naming,
 license metadata, source-specific CMake flags, runtime assets, build options,
 plugins and tests need package-by-package validation in a real LPM chroot.

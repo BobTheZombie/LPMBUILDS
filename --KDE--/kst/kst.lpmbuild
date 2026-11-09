@@ -1,0 +1,57 @@
+#!/bin/bash
+# LPM Linux independent KDE application; hash pinned to upstream archive.
+# Full dependency validation is required in LPM.
+NAME="kst"
+VERSION="3.0.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="KDE large dataset scientific plotting program"
+URL="https://apps.kde.org/kst/"
+LICENSE=("SEE-UPSTREAM")
+SOURCE=("https://invent.kde.org/graphics/kst-plot/-/archive/${VERSION}/kst-plot-${VERSION}.tar.gz")
+SHA256SUMS=("c9c96030585d833fbb0344b7e67109f2343dfe98be6a3a5d4d55a19963d7316a")
+PATCHES=()
+REQUIRES=(
+    "qt6-base"
+    "gsl"
+    "cfitsio"
+    "fftw"
+    "zlib"
+)
+BUILD_REQUIRES=(
+    "cmake"
+    "ninja"
+    "pkgconf"
+    "extra-cmake-modules"
+    "qt6-base"
+    "gsl"
+    "cfitsio"
+    "fftw"
+    "zlib"
+)
+PROVIDES=("${NAME}")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+prepare() {
+    set -euxo pipefail
+    test -f "$SRCROOT/${NAME}-${VERSION}/CMakeLists.txt"
+}
+build() {
+    set -euxo pipefail
+    local src="$SRCROOT/${NAME}-${VERSION}"
+    cmake -S "$src" -B "$src/build" -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DBUILD_TESTING=OFF
+    cmake --build "$src/build" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+check() { :; }
+staging() {
+    set -euxo pipefail
+    DESTDIR="$pkgdir" cmake --install "$SRCROOT/${NAME}-${VERSION}/build"
+    test -d "$pkgdir/usr"
+    test -n "$(find "$pkgdir/usr" -mindepth 1 -print -quit)"
+}

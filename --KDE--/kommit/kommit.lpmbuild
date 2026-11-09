@@ -1,0 +1,63 @@
+#!/bin/bash
+# LPM Linux independent KDE application; hash pinned to upstream archive.
+# Full dependency validation is required in LPM.
+NAME="kommit"
+VERSION="1.8.1"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="KDE Git graphical user interface"
+URL="https://apps.kde.org/kommit/"
+LICENSE=("SEE-UPSTREAM")
+SOURCE=("https://invent.kde.org/sdk/kommit/-/archive/v${VERSION}/kommit-v${VERSION}.tar.bz2")
+SHA256SUMS=("d7ea7de896176f0546a64f4b41fa017ef61dc9bafd0cd01b0405088ef2b6b39c")
+PATCHES=()
+REQUIRES=(
+    "qt6-base"
+    "qt6-charts"
+    "kconfig6"
+    "kcoreaddons6"
+    "ki18n6"
+    "kio6"
+    "syntax-highlighting6"
+    "git"
+)
+BUILD_REQUIRES=(
+    "cmake"
+    "ninja"
+    "pkgconf"
+    "extra-cmake-modules"
+    "qt6-base"
+    "qt6-charts"
+    "kconfig6"
+    "kcoreaddons6"
+    "ki18n6"
+    "kio6"
+    "syntax-highlighting6"
+    "git"
+)
+PROVIDES=("${NAME}")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+prepare() {
+    set -euxo pipefail
+    test -f "$SRCROOT/${NAME}-${VERSION}/CMakeLists.txt"
+}
+build() {
+    set -euxo pipefail
+    local src="$SRCROOT/${NAME}-${VERSION}"
+    cmake -S "$src" -B "$src/build" -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DBUILD_TESTING=OFF
+    cmake --build "$src/build" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+check() { :; }
+staging() {
+    set -euxo pipefail
+    DESTDIR="$pkgdir" cmake --install "$SRCROOT/${NAME}-${VERSION}/build"
+    test -d "$pkgdir/usr"
+    test -n "$(find "$pkgdir/usr" -mindepth 1 -print -quit)"
+}
