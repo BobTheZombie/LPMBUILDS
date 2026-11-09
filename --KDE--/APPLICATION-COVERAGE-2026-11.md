@@ -33,9 +33,19 @@ Separate source recipes are included for:
 - tellico 4.3
 - gcompris 26.2
 
+- calligraplan 4.0.1
+- glaxnimate 0.6.0
+- marknote 1.6.0
+- liquidshell 1.10.1
+- rkward 0.8.3
+- rsibreak 0.13.0
+- ruqola 2.9.0
+- subtitlecomposer 0.8.2
+- skrooge 26.8.0
+
 ## Status and limitations
 
-These are **packaging drafts**, not a claim that all 265 build in one pass.
+These are **packaging drafts**, not a claim that all 274 build in one pass.
 Version/source SHA-256 is checked, but dependency closures, package naming,
 license metadata, source-specific CMake flags, runtime assets, build options,
 plugins and tests need package-by-package validation in a real LPM chroot.

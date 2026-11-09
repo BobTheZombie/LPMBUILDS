@@ -1,0 +1,61 @@
+#!/bin/bash
+# LPM Linux - KDE independently versioned application
+# SHA256 pinned; full dependency closure requires chroot validation.
+NAME="rsibreak"
+VERSION="0.13.0"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="KDE repetitive strain injury break reminder"
+URL="https://apps.kde.org/rsibreak/"
+LICENSE=("SEE-UPSTREAM")
+SOURCE=("https://download.kde.org/stable/rsibreak/0.13/rsibreak-${VERSION}.tar.xz")
+SHA256SUMS=("6ab2ce09c57d0fe5178308ea95f87debbe55ae98cfb37424922ade2593bad120")
+PATCHES=()
+REQUIRES=(
+    "qt6-base"
+    "kconfig6"
+    "kcoreaddons6"
+    "kcolorscheme6"
+    "ki18n6"
+    "kio6"
+    "kidletime6"
+)
+BUILD_REQUIRES=(
+    "cmake"
+    "ninja"
+    "pkgconf"
+    "extra-cmake-modules"
+    "qt6-base"
+    "kconfig6"
+    "kcoreaddons6"
+    "kcolorscheme6"
+    "ki18n6"
+    "kio6"
+    "kidletime6"
+)
+PROVIDES=("${NAME}")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+prepare() {
+    set -euxo pipefail
+    test -f "$SRCROOT/${NAME}-${VERSION}/CMakeLists.txt"
+}
+build() {
+    set -euxo pipefail
+    local src="$SRCROOT/${NAME}-${VERSION}"
+    cmake -S "$src" -B "$src/build" -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DBUILD_TESTING=OFF
+    cmake --build "$src/build" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+check() { :; }
+staging() {
+    set -euxo pipefail
+    DESTDIR="$pkgdir" cmake --install "$SRCROOT/${NAME}-${VERSION}/build"
+    test -d "$pkgdir/usr"
+    test -n "$(find "$pkgdir/usr" -mindepth 1 -print -quit)"
+}
