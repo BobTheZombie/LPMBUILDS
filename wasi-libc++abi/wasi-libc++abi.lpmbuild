@@ -1,6 +1,6 @@
 NAME="wasi-libc++abi"
 VERSION="20.1.6"
-RELEASE="2"
+RELEASE="3"
 ARCH="${ARCH:-x86_64}"
 
 SUMMARY="LLVM C++ ABI runtime targeting WASI"
@@ -197,14 +197,29 @@ staging() {
     test -n "$SHARED_ABI"
 
     #
-    # libc++abi owns only its wasm32-wasip1 runtime payload. Do not stage
-    # wasm32-wasi aliases: wasi-libc owns those target directories, and
-    # replacing them with symlinks makes package installation order unsafe.
+    # LLVM's wasm32-wasip1 libc++abi is ABI-compatible with wasm32-wasi
+    # (both WASI Preview 1). Clang uses the latter directory when Firefox
+    # configures RLBox, so expose only the library files there.
+    # Never alias wasm32-wasi directories: they belong to wasi-libc.
     #
     test ! -e "$SYSROOT/include/wasm32-wasi"
     test ! -L "$SYSROOT/include/wasm32-wasi"
-    test ! -e "$SYSROOT/lib/wasm32-wasi"
-    test ! -L "$SYSROOT/lib/wasm32-wasi"
+
+    LEGACY_LIBDIR="$SYSROOT/lib/wasm32-wasi"
+    mkdir -p "$LEGACY_LIBDIR"
+    test ! -L "$LEGACY_LIBDIR"
+
+    for FILE in "$LIBDIR/libc++abi.a" "$LIBDIR"/libc++abi.so*; do
+        if [ ! -e "$FILE" ] && [ ! -L "$FILE" ]; then
+            continue
+        fi
+        BASENAME="${FILE##*/}"
+        test ! -e "$LEGACY_LIBDIR/$BASENAME"
+        test ! -L "$LEGACY_LIBDIR/$BASENAME"
+        ln -s "../wasm32-wasip1/$BASENAME" "$LEGACY_LIBDIR/$BASENAME"
+        test -f "$LEGACY_LIBDIR/$BASENAME"
+    done
+    test -f "$LEGACY_LIBDIR/libc++abi.a"
 
     install -Dm644 \
         "$SRCROOT/${NAME}-${VERSION}/libcxxabi/LICENSE.TXT" \
