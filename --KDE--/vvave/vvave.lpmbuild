@@ -1,0 +1,57 @@
+#!/bin/bash
+# LPM Linux KDE app - pin upstream tarball SHA256.
+# Source-specific features and full dependencies require chroot validation.
+NAME="vvave"
+VERSION="4.0.2"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="MauiKit cross-platform music player"
+URL="https://apps.kde.org/vvave/"
+LICENSE=("SEE-UPSTREAM")
+SOURCE=("https://download.kde.org/stable/maui/vvave/${VERSION}/vvave-${VERSION}.tar.xz")
+SHA256SUMS=("be0e143787252c8028b9c593ca294d4586f93ecdb8cdcd5c797845ceb8eee44f")
+PATCHES=()
+REQUIRES=(
+    "qt6-base"
+    "qt6-declarative"
+    "qt6-multimedia"
+    "mauikit"
+    "taglib"
+)
+BUILD_REQUIRES=(
+    "cmake"
+    "ninja"
+    "pkgconf"
+    "extra-cmake-modules"
+    "qt6-base"
+    "qt6-declarative"
+    "qt6-multimedia"
+    "mauikit"
+    "taglib"
+)
+PROVIDES=("${NAME}")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+prepare() {
+    set -euxo pipefail
+    test -f "$SRCROOT/${NAME}-${VERSION}/CMakeLists.txt"
+}
+build() {
+    set -euxo pipefail
+    local src="$SRCROOT/${NAME}-${VERSION}"
+    cmake -S "$src" -B "$src/build" -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DBUILD_TESTING=OFF
+    cmake --build "$src/build" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+check() { :; }
+staging() {
+    set -euxo pipefail
+    DESTDIR="$pkgdir" cmake --install "$SRCROOT/${NAME}-${VERSION}/build"
+    test -d "$pkgdir/usr"
+    test -n "$(find "$pkgdir/usr" -mindepth 1 -print -quit)"
+}

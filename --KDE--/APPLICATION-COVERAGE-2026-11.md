@@ -52,9 +52,17 @@ Separate source recipes are included for:
 - kookbook 0.3.0
 - ktimetracker 6.0.0
 
+- heaptrack 1.5.0
+- index-fm 4.0.2
+- kaidan 0.16.0
+- kodaskanna 0.2.3
+- optiimage 1.0.0
+- smb4k 4.0.7
+- vvave 4.0.2
+
 ## Status and limitations
 
-These are **packaging drafts**, not a claim that all 282 build in one pass.
+These are **packaging drafts**, not a claim that all 289 build in one pass.
 Version/source SHA-256 is checked, but dependency closures, package naming,
 license metadata, source-specific CMake flags, runtime assets, build options,
 plugins and tests need package-by-package validation in a real LPM chroot.
