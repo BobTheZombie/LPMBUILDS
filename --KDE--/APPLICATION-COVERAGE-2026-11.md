@@ -79,6 +79,20 @@ Therefore 252 source entries are not the same thing as every application on
 apps.kde.org. Continue catalog-to-package mapping for remaining independent
 projects before claiming complete website coverage.
 
+## Remaining independently released app work
+
+The KDE website is broader than KDE Gear and also includes mobile,
+pre-release, historical Qt5/KF5 projects, and multiple application listings
+produced by a single source package. The 291 included source recipes are
+not a claim of exhaustive website coverage.
+
+Examples of independently released desktop projects still requiring
+a verified archive/recipe include Hash-o-matic, KAIChat, Nota and Rolisteam.
+Other website entries must be audited for whether their source is already
+included, their current Qt/KF requirements, and whether a stable Linux
+source release exists. Do not install unsigned/unverified archives merely
+to satisfy a numeric coverage count.
+
 ## Upstream source references
 - https://kde.org/info/releases-26.08.3/
 - https://download.kde.org/stable/release-service/26.08.3/src/
