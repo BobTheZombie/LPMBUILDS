@@ -1,0 +1,57 @@
+#!/bin/bash
+# LPM Linux / KDE Gear 26.08.3 - source-verified recipe.
+# Build dependency closure remains subject to validation on LPM.
+NAME="libgravatar"
+VERSION="26.08.3"
+RELEASE="1"
+ARCH="${ARCH:-x86_64}"
+SUMMARY="KDE Gear package: libgravatar"
+URL="https://apps.kde.org/"
+LICENSE=("SEE-UPSTREAM")
+SOURCE=("https://download.kde.org/stable/release-service/${VERSION}/src/${NAME}-${VERSION}.tar.xz")
+SHA256SUMS=("264a7e7bbd66067c7613367143ff13705682d6381864c85991634a9f993fddac")
+PATCHES=()
+REQUIRES=(
+    "qt6-base"
+    "kcoreaddons6"
+    "kconfig6"
+    "ki18n6"
+    "kio6"
+)
+BUILD_REQUIRES=(
+    "cmake"
+    "ninja"
+    "pkgconf"
+    "extra-cmake-modules"
+    "qt6-base"
+    "qt6-declarative"
+    "qt6-svg"
+)
+PROVIDES=("${NAME}")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+prepare() {
+    set -euxo pipefail
+    test -f "$SRCROOT/${NAME}-${VERSION}/CMakeLists.txt"
+}
+build() {
+    set -euxo pipefail
+    local src="$SRCROOT/${NAME}-${VERSION}"
+    cmake -S "$src" -B "$src/build" -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DBUILD_TESTING=OFF \
+        -DKDE_INSTALL_USE_QT_SYS_PATHS=ON
+    cmake --build "$src/build" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+}
+check() { :; }
+staging() {
+    set -euxo pipefail
+    DESTDIR="$pkgdir" cmake --install "$SRCROOT/${NAME}-${VERSION}/build"
+    test -d "$pkgdir/usr"
+    test -n "$(find "$pkgdir/usr" -mindepth 1 -print -quit)"
+}
