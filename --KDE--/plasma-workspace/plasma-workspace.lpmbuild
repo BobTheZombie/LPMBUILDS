@@ -20,6 +20,17 @@ SHA256SUMS=(
     "e2abb7e5b5fc8d59fe369d3ab4ea776e10684af0fb1a8a3275e9df64eff97d20"
 )
 PATCHES=()
+# Aurora is an explicit, version-pinned build-time variant; the default build
+# remains upstream Plasma. The LPM patch executor applies this with patch -p1
+# before prepare(). All source and shared-library ABI semantics are preserved.
+if [[ "${LPM_AURORA_PATCHSET:-0}" == "1" ]]; then
+    [[ "$VERSION" == "6.8.1" ]] || {
+        echo "[ERROR] Aurora 0.4 OSD patch is pinned to Plasma 6.8.1" >&2
+        exit 1
+    }
+    RELEASE="7"
+    PATCHES=("0001-aurora-0.4-glass-osd.patch")
+fi
 
 REQUIRES=(
     "glibc" "dbus" "libudev" "wayland" "zlib" "icu"
