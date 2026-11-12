@@ -1,0 +1,35 @@
+--- a/shell/qml/Osd.qml
++++ b/shell/qml/Osd.qml
+@@ -28,3 +28,29 @@
+-    mainItem: OsdItem {
+-        id: osd
+-    }
++    // Aurora v0.4: translucent rounded OSD. The existing OsdItem
++    // retains keyboard volume/brightness handling, signals and aliases.
++    // Decoration is painted using Qt Quick's existing scene graph.
++    mainItem: Rectangle {
++        id: auroraSurface
++        implicitWidth: osd.implicitWidth + 36
++        implicitHeight: osd.implicitHeight + 26
++        radius: 18
++        color: "#db1b1d39"
++        border.width: 1
++        border.color: "#a4a7b7ff"
++        antialiasing: true
++
++        Rectangle {
++            anchors.fill: parent
++            anchors.margins: 2
++            radius: 16
++            color: "transparent"
++            border.width: 1
++            border.color: "#4079bbff"
++        }
++
++        OsdItem {
++            id: osd
++            anchors.centerIn: parent
++            width: Math.max(implicitWidth, auroraSurface.width - 36)
++            height: implicitHeight
++        }
++    }
