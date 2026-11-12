@@ -1,10 +1,10 @@
 #!/bin/bash
 # LPM Aurora v0.1 — staged, build-time Plasma 6 customization.
 NAME="plasma-aurora"
-VERSION="0.2.0"
+VERSION="0.3.0"
 RELEASE="1"
 ARCH="any"
-SUMMARY="Aurora Glass Plasma 6 style and KWin backdrop blur with centered dock"
+SUMMARY="Aurora Glass Plasma 6 style, KWin blur, and animated task dock"
 URL="https://github.com/BobTheZombie/LPMBUILDS"
 LICENSE=("MIT")
 SOURCE=()
@@ -28,7 +28,8 @@ staging() {
     local style="$pkgdir/usr/share/plasma/desktoptheme/org.lpm.aurora"
     local look="$pkgdir/usr/share/plasma/look-and-feel/org.lpm.aurora.desktop"
     local colors="$pkgdir/usr/share/color-schemes/Aurora.colors"
-    install -d "$style/widgets" "$style/translucent/widgets" "$style/solid/widgets" "$look/contents/layouts" "$(dirname "$colors")"
+    local applet="$pkgdir/usr/share/plasma/plasmoids/org.lpm.aurora.dock"
+    install -d "$style/widgets" "$style/translucent/widgets" "$style/solid/widgets" "$look/contents/layouts" "$(dirname "$colors")" "$applet/contents/ui" "$applet/contents/config"
 
     cat > "$style/metadata.json" <<'EOF'
 {
@@ -39,7 +40,7 @@ staging() {
     "Description": "Sapphire-violet translucent Plasma panel style for LPM",
     "Category": "Plasma Theme",
     "License": "MIT",
-    "Version": "0.2.0",
+    "Version": "0.3.0",
     "EnabledByDefault": true
   },
   "X-Plasma-API": "6.0"
@@ -220,7 +221,7 @@ EOF
     "Name": "Aurora",
     "Description": "LPM Aurora Glass desktop and centered dock",
     "License": "MIT",
-    "Version": "0.2.0"
+    "Version": "0.3.0"
   }
 }
 EOF
@@ -247,10 +248,267 @@ dock.lengthMode = "fit";
 dock.height = Math.round(gridUnit * 3);
 dock.hiding = "dodgewindows";
 dock.addWidget("org.kde.plasma.kickoff");
-dock.addWidget("org.kde.plasma.icontasks");
+dock.addWidget("org.lpm.aurora.dock");
 dock.addWidget("org.kde.plasma.systemtray");
 dock.addWidget("org.kde.plasma.digitalclock");
 EOF
+
+    # Plasma 6.8 task data stays under KWin/TaskManager, no shell polling.
+    # Qt Quick scene-graph animations are disabled when reduceMotion is set.
+    cat > "$applet/metadata.json" <<'AURORA_APPLET_JSON'
+{
+  "KPackageStructure": "Plasma/Applet",
+  "X-Plasma-API-Minimum-Version": "6.0",
+  "KPlugin": {
+    "Id": "org.lpm.aurora.dock",
+    "Name": "Aurora Animated Dock",
+    "Description": "Spring-driven application task dock for LPM Plasma 6",
+    "Icon": "preferences-desktop-icons",
+    "Category": "Windows and Tasks",
+    "License": "MIT",
+    "Version": "0.3.0"
+  }
+}
+AURORA_APPLET_JSON
+
+    cat > "$applet/contents/config/main.xml" <<'AURORA_CONFIG_XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<kcfg xmlns="http://www.kde.org/standards/kcfg/1.0"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="http://www.kde.org/standards/kcfg/1.0 http://www.kde.org/standards/kcfg/1.0/kcfg.xsd">
+  <kcfgfile name=""/>
+  <group name="General">
+    <entry name="reduceMotion" type="Bool"><default>false</default></entry>
+    <entry name="magnification" type="Double"><default>1.38</default></entry>
+    <entry name="iconSize" type="Int"><default>42</default></entry>
+    <entry name="showGlow" type="Bool"><default>true</default></entry>
+  </group>
+</kcfg>
+AURORA_CONFIG_XML
+
+    cat > "$applet/contents/config/config.qml" <<'AURORA_CONFIG_QML'
+import QtQuick
+import org.kde.plasma.configuration
+
+ConfigModel {
+    ConfigCategory {
+        name: i18n("Motion")
+        icon: "preferences-desktop-effects"
+        source: "configMotion.qml"
+    }
+}
+AURORA_CONFIG_QML
+
+    cat > "$applet/contents/ui/configMotion.qml" <<'AURORA_CONFIG_MOTION'
+import QtQuick
+import QtQuick.Controls as Controls
+import QtQuick.Layouts
+
+Item {
+    id: config
+    property alias cfg_reduceMotion: noMotion.checked
+    property alias cfg_showGlow: glow.checked
+    property alias cfg_magnification: scale.value
+    property alias cfg_iconSize: iconSize.value
+
+    implicitWidth: 360
+    implicitHeight: layout.implicitHeight
+
+    ColumnLayout {
+        id: layout
+        anchors.fill: parent
+        spacing: 14
+
+        Controls.CheckBox {
+            id: noMotion
+            text: i18n("Reduce motion (disable magnification and 3D tilt)")
+        }
+        Controls.CheckBox {
+            id: glow
+            text: i18n("Active and hover glow")
+        }
+        Controls.Label { text: i18n("Hover magnification") }
+        Controls.Slider {
+            id: scale
+            from: 1
+            to: 1.8
+            stepSize: 0.05
+            Layout.fillWidth: true
+        }
+        Controls.Label { text: i18n("Icon size") }
+        Controls.Slider {
+            id: iconSize
+            from: 28
+            to: 64
+            stepSize: 2
+            Layout.fillWidth: true
+        }
+    }
+}
+AURORA_CONFIG_MOTION
+
+    cat > "$applet/contents/ui/main.qml" <<'AURORA_TASK_QML'
+import QtQuick
+import QtQuick.Layouts
+import org.kde.plasma.plasmoid
+import org.kde.plasma.core as PlasmaCore
+import org.kde.taskmanager as TaskManager
+import org.kde.kirigami as Kirigami
+
+PlasmoidItem {
+    id: root
+    readonly property int baseIconSize: Math.max(28, Math.min(64, Plasmoid.configuration.iconSize))
+    readonly property bool motionOff: Plasmoid.configuration.reduceMotion
+    readonly property real peakScale: motionOff ? 1 : Math.max(1, Math.min(1.8, Plasmoid.configuration.magnification))
+    readonly property bool glowEnabled: Plasmoid.configuration.showGlow
+    property int hoveredIndex: -1
+    readonly property int slotSize: baseIconSize + 18
+
+    // Always keep this as a panel applet. The source model owns window
+    // activation/launching, never a CLI spawning process.
+    preferredRepresentation: fullRepresentation
+    backgroundHints: PlasmaCore.Types.NoBackground
+
+    implicitWidth: tasks.count * slotSize + 18
+    implicitHeight: slotSize + (motionOff ? 8 : 26)
+
+    TaskManager.TasksModel {
+        id: tasks
+        sortMode: TaskManager.TasksModel.SortManual
+        groupMode: TaskManager.TasksModel.GroupDisabled
+        separateLaunchers: false
+        launchInPlace: true
+        filterByCurrentVirtualDesktop: false
+        filterByScreen: false
+        // Launchers use KDE's TaskManager URLs; actual task/window entries
+        // are supplied and updated by Plasma and KWin.
+        launcherList: [
+            "applications:org.kde.dolphin.desktop",
+            "applications:org.kde.konsole.desktop",
+            "applications:org.mozilla.firefox.desktop"
+        ]
+    }
+
+    fullRepresentation: Item {
+        implicitWidth: root.implicitWidth
+        implicitHeight: root.implicitHeight
+
+        Row {
+            id: strip
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.bottom: parent.bottom
+            height: root.slotSize + (root.motionOff ? 8 : 26)
+            spacing: 0
+
+            Repeater {
+                model: tasks
+
+                delegate: Item {
+                    id: tile
+                    required property int index
+                    required property var model
+                    readonly property bool activeTask: Boolean(model.IsActive)
+                    readonly property bool attention: Boolean(model.IsDemandingAttention)
+                    readonly property real distance: root.hoveredIndex < 0 ? 99 : Math.abs(root.hoveredIndex - index)
+                    readonly property real weight: distance === 0 ? 1 : (distance === 1 ? 0.34 : 0)
+                    readonly property real targetScale: 1 + (root.peakScale - 1) * weight
+
+                    width: root.slotSize
+                    height: strip.height
+                    z: mouse.containsMouse ? 100 : (tile.activeTask ? 10 : 0)
+
+                    Item {
+                        id: visual
+                        width: root.baseIconSize
+                        height: root.baseIconSize
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        anchors.bottom: parent.bottom
+                        anchors.bottomMargin: 11
+
+                        transformOrigin: Item.Bottom
+                        scale: tile.targetScale
+                        y: root.motionOff ? 0 : -Math.round((tile.targetScale - 1) * 18)
+                        opacity: 1
+
+                        transform: Rotation {
+                            origin.x: visual.width / 2
+                            origin.y: visual.height
+                            axis { x: 1; y: 0; z: 0 }
+                            angle: root.motionOff ? 0 : (mouse.containsMouse ? -9 : 0)
+                            Behavior on angle {
+                                enabled: !root.motionOff
+                                NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
+                            }
+                        }
+
+                        Behavior on scale {
+                            enabled: !root.motionOff
+                            SpringAnimation {
+                                spring: 4.4
+                                damping: 0.32
+                                mass: 1.0
+                                epsilon: 0.006
+                                modulus: 0
+                            }
+                        }
+
+                        Behavior on y {
+                            enabled: !root.motionOff
+                            NumberAnimation { duration: 170; easing.type: Easing.OutCubic }
+                        }
+
+                        Rectangle {
+                            anchors.centerIn: parent
+                            width: parent.width * 1.2
+                            height: parent.height * 1.2
+                            radius: width / 2
+                            color: "#806abaff"
+                            opacity: root.glowEnabled && (mouse.containsMouse || tile.activeTask) ? 0.24 : 0
+                            Behavior on opacity { NumberAnimation { duration: root.motionOff ? 0 : 180 } }
+                        }
+
+                        Kirigami.Icon {
+                            id: taskIcon
+                            anchors.fill: parent
+                            source: tile.model.decoration
+                            smooth: true
+                        }
+                    }
+
+                    Rectangle {
+                        width: tile.activeTask ? 22 : 5
+                        height: 3
+                        radius: height / 2
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        anchors.bottom: parent.bottom
+                        anchors.bottomMargin: 3
+                        color: tile.attention ? "#ffb974" : "#a5baff"
+                        opacity: tile.activeTask || tile.attention ? 1 : 0.25
+                        Behavior on width { NumberAnimation { duration: root.motionOff ? 0 : 150 } }
+                    }
+
+                    MouseArea {
+                        id: mouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        acceptedButtons: Qt.LeftButton | Qt.MiddleButton
+                        onEntered: root.hoveredIndex = tile.index
+                        onExited: { if (root.hoveredIndex === tile.index) root.hoveredIndex = -1 }
+                        onClicked: point => {
+                            const modelIndex = tasks.makeModelIndex(tile.index);
+                            if (point.button === Qt.MiddleButton) {
+                                tasks.requestNewInstance(modelIndex);
+                            } else {
+                                tasks.requestActivate(modelIndex);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+AURORA_TASK_QML
 
     python3 - "$style/metadata.json" "$look/metadata.json" <<'EOF'
 import json, sys, xml.etree.ElementTree as ET
@@ -329,5 +587,8 @@ for filename in sys.argv[1:]:
 PY_CHECK
     test -s "$style/plasmarc"
     test -x "$helper"
-    echo "[OK] Aurora 0.2 KWin blur integration staged into $pkgdir"
+    test -s "$applet/metadata.json"
+    test -s "$applet/contents/ui/main.qml"
+    test -s "$applet/contents/config/main.xml"
+    echo "[OK] Aurora 0.3 animated dock staged into $pkgdir"
 }
