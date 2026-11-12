@@ -1,11 +1,11 @@
-# LPM Plasma Aurora — patchset 0.2
+# LPM Plasma Aurora — patchset 0.3
 
 Aurora is the LPM Linux visual patchset for KDE Plasma 6. Development is
 **build-time**, not a shell script rewriting a user's files after installation.
 The first deliverable is a separately versioned LPM package and an opt-in global
 theme, keeping upstream Plasma and KWin binaries intact.
 
-## Versions 0.1 and 0.2 deliverables
+## Version 0.3 deliverables (including 0.1–0.2)
 
 - Sapphire-violet semi-transparent Plasma panel 9-slice SVG
 - High-opacity fallback for adaptive panel opacity
@@ -13,12 +13,16 @@ theme, keeping upstream Plasma and KWin binaries intact.
 - Selectable Plasma Style: **Aurora Glass**
 - Selectable Global Theme: **Aurora**
 - Opt-in bottom, centered, fit-content task dock layout
-- Uses the installed icons-only task manager; does not monkey-patch its QML
+- Uses KDE TaskManager window and launcher model; does not monkey-patch its QML
 - All assets written to LPM's `$pkgdir` during `staging()`; no user-home writes
 - v0.2 compositor-aware `[BlurBehindEffect]` preferences in the theme `plasmarc`
 - v0.2 nine-slice `mask-*` geometry for rounded KWin blur clipping
 - v0.2 separate translucent and solid SVG panels for compositor fallback
 - Optional `aurora-kwin-effects apply|status|restore` helper; opt-in only
+- A separate Plasma 6 applet `org.lpm.aurora.dock` using KDE `TaskManager.TasksModel`
+- Spring-based hover scaling, adjacent-item response, lift and perspective tilt
+- Active task glow and running indicator, middle-click new application instance
+- User-configurable magnification, icon size, glow and reduced-motion mode
 
 Build from the LPMBUILDS checkout:
 
@@ -48,9 +52,9 @@ Planned follow-ons, independently guarded by upstream tag:
 
 1. **0.2 compositor blur integration** — now implemented using Plasma's
    theme hooks and SVG alpha masks; KWin must already support the effect.
-2. **0.3 Aurora task manager** — spring animations, parallax icon lift,
-   perspective transform, active glow and hover response; configurable and
-   reduced-motion aware, using Qt Quick Scene Graph rather than CPU polling.
+2. **0.3 Aurora task manager** — implemented as a separate applet with
+   spring-driven hover, 3D tilt, glow and motion preferences; not yet
+   full parity with KDE’s built-in icons-only task manager.
 3. **0.4 Aurora launcher and OSD** — matching glass/lighting and accessible
    contrast, no changes to core shell permissions or applet protocols.
 4. **0.5 System integration** — defaults for *new* accounts via an explicitly
@@ -99,3 +103,49 @@ settings. Aurora remains usable without blur.
 **Future work:** tighter KWin-side effect controls, per-panel blur radius,
 performance measurement on Renoir integrated graphics, and an automated
 non-destructive restore workflow.
+
+## Aurora animated dock (0.3)
+
+Plasma recognizes **Aurora Animated Dock** as the applet
+`org.lpm.aurora.dock`. You can add it manually to an existing panel without
+replacing the rest of the desktop. Selecting Aurora's *desktop layout* creates
+a new centered panel with the applet, launcher, system tray and clock.
+This is optional and can replace prior panel layout when explicitly selected.
+
+The dock is a real KDE task-model frontend, not a list of launch buttons:
+`org.kde.taskmanager.TasksModel` supplies tasks, launchers, active state,
+and application icons. Left-click activates a task (or starts a launcher);
+middle-click requests a new instance. It uses Qt Quick's scene-graph
+transforms and spring animations, without shell polling or an animation loop.
+
+Settings in the widget's **Motion** configuration page:
+
+- **Reduced motion:** disables magnification, lift and perspective tilt
+- **Hover magnification:** default 1.38x (range 1.0–1.8)
+- **Icon size:** default 42 px (range 28–64)
+- **Glow:** optional highlight for active and hovered tasks
+
+The applet ships default launchers for Dolphin, Konsole and Firefox;
+missing desktop files won't launch until installed. Unlike KDE's stock
+task manager, the initial v0.3 applet does **not yet** implement the full
+context menu, drag/drop task reordering, pinned-launcher editing, previews,
+or group popups. Task grouping is disabled so activation always targets one
+window. Use the original KDE icons-only task manager when those features
+are required.
+
+**Plasma API compatibility:** the QML model is part of Plasma's task manager
+implementation and may change across releases. This package targets the
+LPM Plasma 6.8.1 stack and needs a runtime smoke test before general use.
+
+Recommended smoke-test procedure in a test account:
+
+```sh
+python3 -m pytest tests/test_plasma_aurora.py -q
+lpm buildpkg --KDE--/plasma-aurora/plasma-aurora.lpmbuild
+# After installing the resulting .zst through LPM:
+kpackagetool6 --type Plasma/Applet --list | grep -i aurora
+```
+
+Then add **Aurora Animated Dock** to a panel and verify task activation,
+new-instance launching, hover, Wayland animation smoothness and reduced
+motion. KDE's full icons-only task manager remains separately available.
