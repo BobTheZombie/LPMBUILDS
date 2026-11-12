@@ -1,10 +1,10 @@
 #!/bin/bash
 # LPM Aurora v0.1 — staged, build-time Plasma 6 customization.
 NAME="plasma-aurora"
-VERSION="0.3.0"
+VERSION="0.4.0"
 RELEASE="1"
 ARCH="any"
-SUMMARY="Aurora Glass Plasma 6 style, KWin blur, and animated task dock"
+SUMMARY="Aurora Glass Plasma 6 style, animated dock and searchable launcher"
 URL="https://github.com/BobTheZombie/LPMBUILDS"
 LICENSE=("MIT")
 SOURCE=()
@@ -29,7 +29,8 @@ staging() {
     local look="$pkgdir/usr/share/plasma/look-and-feel/org.lpm.aurora.desktop"
     local colors="$pkgdir/usr/share/color-schemes/Aurora.colors"
     local applet="$pkgdir/usr/share/plasma/plasmoids/org.lpm.aurora.dock"
-    install -d "$style/widgets" "$style/translucent/widgets" "$style/solid/widgets" "$look/contents/layouts" "$(dirname "$colors")" "$applet/contents/ui" "$applet/contents/config"
+    local launcher="$pkgdir/usr/share/plasma/plasmoids/org.lpm.aurora.launcher"
+    install -d "$style/widgets" "$style/translucent/widgets" "$style/solid/widgets" "$look/contents/layouts" "$(dirname "$colors")" "$applet/contents/ui" "$applet/contents/config" "$launcher/contents/ui"
 
     cat > "$style/metadata.json" <<'EOF'
 {
@@ -40,7 +41,7 @@ staging() {
     "Description": "Sapphire-violet translucent Plasma panel style for LPM",
     "Category": "Plasma Theme",
     "License": "MIT",
-    "Version": "0.3.0",
+    "Version": "0.4.0",
     "EnabledByDefault": true
   },
   "X-Plasma-API": "6.0"
@@ -221,7 +222,7 @@ EOF
     "Name": "Aurora",
     "Description": "LPM Aurora Glass desktop and centered dock",
     "License": "MIT",
-    "Version": "0.3.0"
+    "Version": "0.4.0"
   }
 }
 EOF
@@ -247,7 +248,7 @@ dock.alignment = "center";
 dock.lengthMode = "fit";
 dock.height = Math.round(gridUnit * 3);
 dock.hiding = "dodgewindows";
-dock.addWidget("org.kde.plasma.kickoff");
+dock.addWidget("org.lpm.aurora.launcher");
 dock.addWidget("org.lpm.aurora.dock");
 dock.addWidget("org.kde.plasma.systemtray");
 dock.addWidget("org.kde.plasma.digitalclock");
@@ -266,7 +267,7 @@ EOF
     "Icon": "preferences-desktop-icons",
     "Category": "Windows and Tasks",
     "License": "MIT",
-    "Version": "0.3.0"
+    "Version": "0.4.0"
   }
 }
 AURORA_APPLET_JSON
@@ -510,6 +511,212 @@ PlasmoidItem {
 }
 AURORA_TASK_QML
 
+    # Aurora 0.4 launcher: live KDE KRunner/Kicker model, no shell
+    # execution or external process polling. Optional Plasma applet.
+    cat > "$launcher/metadata.json" <<'AURORA_LAUNCHER_JSON'
+{
+  "KPackageStructure": "Plasma/Applet",
+  "X-Plasma-API-Minimum-Version": "6.0",
+  "KPlugin": {
+    "Id": "org.lpm.aurora.launcher",
+    "Name": "Aurora Launcher",
+    "Description": "Searchable blue-violet launcher powered by KDE KRunner",
+    "Icon": "start-here-kde",
+    "Category": "Application Launchers",
+    "License": "MIT",
+    "Version": "0.4.0"
+  }
+}
+AURORA_LAUNCHER_JSON
+
+    cat > "$launcher/contents/ui/main.qml" <<'AURORA_LAUNCHER_QML'
+import QtQuick
+import QtQuick.Layouts
+import QtQuick.Controls as Controls
+import org.kde.plasma.plasmoid
+import org.kde.plasma.core as PlasmaCore
+import org.kde.plasma.private.kicker as Kicker
+import org.kde.kirigami as Kirigami
+
+PlasmoidItem {
+    id: root
+    Plasmoid.icon: "start-here-kde"
+    preferredRepresentation: compactRepresentation
+    implicitWidth: Kirigami.Units.iconSizes.medium + 12
+    implicitHeight: Kirigami.Units.iconSizes.medium + 12
+    readonly property bool reducedMotion: Kirigami.Settings.tabletMode
+        || Qt.styleHints.reducedMotion
+
+    Kicker.RunnerModel {
+        id: searchModel
+        appletInterface: root
+        mergeResults: true
+        query: search.text
+    }
+
+    compactRepresentation: MouseArea {
+        implicitWidth: root.implicitWidth
+        implicitHeight: root.implicitHeight
+        hoverEnabled: true
+        Accessible.role: Accessible.Button
+        Accessible.name: i18n("Open Aurora Launcher")
+        onClicked: root.expanded = !root.expanded
+        Kirigami.Icon {
+            anchors.fill: parent
+            anchors.margins: 7
+            source: "start-here-kde"
+        }
+    }
+
+    fullRepresentation: Item {
+        implicitWidth: Math.max(370, Kirigami.Units.gridUnit * 23)
+        implicitHeight: Math.max(470, Kirigami.Units.gridUnit * 27)
+
+        Rectangle {
+            anchors.fill: parent
+            radius: 22
+            color: "#ed191b38"
+            border.width: 1
+            border.color: "#829dcced"
+        }
+
+        ColumnLayout {
+            anchors.fill: parent
+            anchors.margins: 18
+            spacing: 12
+
+            RowLayout {
+                Layout.fillWidth: true
+                Kirigami.Icon {
+                    source: "start-here-kde"
+                    Layout.preferredWidth: 28
+                    Layout.preferredHeight: 28
+                }
+                Controls.Label {
+                    text: i18n("Aurora")
+                    font.pixelSize: 22
+                    font.bold: true
+                    color: "#e7eafe"
+                }
+                Item { Layout.fillWidth: true }
+                Controls.ToolButton {
+                    text: "×"
+                    Accessible.name: i18n("Close launcher")
+                    onClicked: root.expanded = false
+                }
+            }
+
+            Controls.TextField {
+                id: search
+                Layout.fillWidth: true
+                placeholderText: i18n("Search applications, files and actions…")
+                selectByMouse: true
+                onAccepted: {
+                    if (results.count > 0) results.activateCurrent()
+                }
+                Keys.onEscapePressed: root.expanded = false
+            }
+
+            Controls.Label {
+                text: search.text.length ? i18n("Results") : i18n("Type to search")
+                color: "#aab9ed"
+            }
+
+            ListView {
+                id: results
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                clip: true
+                model: searchModel
+                currentIndex: count > 0 ? 0 : -1
+                spacing: 5
+                keyNavigationWraps: true
+
+                function activateCurrent() {
+                    if (currentIndex < 0) return;
+                    // KDE owns the activation; no command string is executed
+                    // by the Aurora applet.
+                    searchModel.trigger(currentIndex, "", null);
+                    root.expanded = false;
+                }
+
+                delegate: Rectangle {
+                    id: resultItem
+                    required property int index
+                    required property var model
+                    width: results.width
+                    height: 54
+                    radius: 12
+                    color: mouse.containsMouse || ListView.isCurrentItem
+                        ? "#775d9cd1" : "#332e3760"
+                    border.color: mouse.containsMouse ? "#a3aaff" : "#00000000"
+                    border.width: 1
+
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: 12
+                        anchors.rightMargin: 12
+                        spacing: 12
+                        Kirigami.Icon {
+                            source: resultItem.model.decoration
+                            Layout.preferredWidth: 30
+                            Layout.preferredHeight: 30
+                        }
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 2
+                            Controls.Label {
+                                text: String(resultItem.model.display || "")
+                                color: "#f3f4ff"
+                                elide: Text.ElideRight
+                                Layout.fillWidth: true
+                            }
+                            Controls.Label {
+                                text: String(resultItem.model.description || "")
+                                color: "#aebce1"
+                                elide: Text.ElideRight
+                                Layout.fillWidth: true
+                                font.pixelSize: 11
+                                visible: text.length > 0
+                            }
+                        }
+                    }
+
+                    MouseArea {
+                        id: mouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        onClicked: {
+                            results.currentIndex = resultItem.index;
+                            results.activateCurrent();
+                        }
+                    }
+                }
+
+                Controls.Label {
+                    anchors.centerIn: parent
+                    text: i18n("Start typing to find an application")
+                    visible: !search.text.length
+                    color: "#aebce1"
+                }
+            }
+        }
+
+        Connections {
+            target: root
+            function onExpandedChanged() {
+                if (root.expanded) {
+                    search.forceActiveFocus();
+                    search.selectAll();
+                } else {
+                    search.text = "";
+                }
+            }
+        }
+    }
+}
+AURORA_LAUNCHER_QML
+
     python3 - "$style/metadata.json" "$look/metadata.json" <<'EOF'
 import json, sys, xml.etree.ElementTree as ET
 for path in sys.argv[1:]:
@@ -590,5 +797,7 @@ PY_CHECK
     test -s "$applet/metadata.json"
     test -s "$applet/contents/ui/main.qml"
     test -s "$applet/contents/config/main.xml"
-    echo "[OK] Aurora 0.3 animated dock staged into $pkgdir"
+    test -s "$launcher/metadata.json"
+    test -s "$launcher/contents/ui/main.qml"
+    echo "[OK] Aurora 0.4 animated dock and KRunner launcher staged into $pkgdir"
 }
