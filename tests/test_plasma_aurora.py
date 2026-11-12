@@ -1,4 +1,4 @@
-"""Aurora 0.3 recipe staging smoke tests, no KDE runtime required."""
+"""Aurora 0.4 recipe staging and source-patch smoke tests, no KDE runtime required."""
 import json
 import os
 from pathlib import Path
@@ -67,3 +67,71 @@ def test_animated_dock_is_staged_with_taskmanager_backend(tmp_path):
     layout = (Path(env["pkgdir"]) /
         "usr/share/plasma/look-and-feel/org.lpm.aurora.desktop/contents/layouts/org.kde.plasma.desktop-layout.js").read_text()
     assert 'dock.addWidget("org.lpm.aurora.dock")' in layout
+
+
+def test_aurora_launcher_metadata_qml_and_layout(tmp_path):
+    env = os.environ.copy()
+    env["pkgdir"] = str(tmp_path / "stage")
+    subprocess.run(
+        ["bash", "-c", 'source "$1"; staging', "aurora-test", str(RECIPE)],
+        env=env, check=True, capture_output=True, text=True,
+    )
+    stage = Path(env["pkgdir"])
+    launcher = stage / "usr/share/plasma/plasmoids/org.lpm.aurora.launcher"
+    meta = json.loads((launcher / "metadata.json").read_text())
+    assert meta["KPlugin"]["Id"] == "org.lpm.aurora.launcher"
+    qml = (launcher / "contents/ui/main.qml").read_text()
+    assert "Kicker.RunnerModel" in qml
+    assert "searchModel.trigger(currentIndex" in qml
+    assert "onAccepted:" in qml
+    assert "Accessible.name" in qml
+    assert "Controls.TextField" in qml
+    layout = (stage / "usr/share/plasma/look-and-feel/"
+             "org.lpm.aurora.desktop/contents/layouts/"
+             "org.kde.plasma.desktop-layout.js").read_text()
+    assert 'dock.addWidget("org.lpm.aurora.launcher")' in layout
+    assert 'dock.addWidget("org.lpm.aurora.dock")' in layout
+
+
+def test_aurora_osd_patch_applies_to_plasma_681_fixture(tmp_path):
+    source = tmp_path / "source"
+    target = source / "shell/qml/Osd.qml"
+    target.parent.mkdir(parents=True)
+    target.write_text(
+        "\n" * 27 + "    mainItem: OsdItem {\n"
+        "        id: osd\n"
+        "    }\n"
+        "}\n"
+    )
+    patch = (ROOT / "--KDE--/plasma-workspace/"
+             "0001-aurora-0.4-glass-osd.patch")
+    for dry in (True, False):
+        args = ["patch", "-p1", "--batch", "--forward"]
+        if dry:
+            args.append("--dry-run")
+        subprocess.run(
+            args + ["-i", str(patch)], cwd=source,
+            check=True, capture_output=True, text=True,
+        )
+    actual = target.read_text()
+    assert "mainItem: Rectangle" in actual
+    assert "OsdItem {" in actual
+    assert "id: osd" in actual
+    assert "radius: 18" in actual
+
+
+def test_aurora_osd_is_opt_in_for_plasma_681():
+    workspace = ROOT / "--KDE--/plasma-workspace/plasma-workspace.lpmbuild"
+    subprocess.run(["bash", "-n", str(workspace)], check=True)
+    def metadata(enabled):
+        env = os.environ.copy()
+        env["LPM_AURORA_PATCHSET"] = enabled
+        return subprocess.run(
+            ["bash", "-c",
+             'source "$1"; declare -p PATCHES; printf "RELEASE=%s\n" "$RELEASE"',
+             "aurora-test", str(workspace)],
+            check=True, capture_output=True, text=True, env=env,
+        ).stdout
+    assert 'PATCHES=()' in metadata("0")
+    assert "0001-aurora-0.4-glass-osd.patch" in metadata("1")
+    assert "RELEASE=7" in metadata("1")
