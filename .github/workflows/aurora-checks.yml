@@ -1,0 +1,27 @@
+name: Aurora Plasma patchset checks
+
+on:
+  pull_request:
+    paths:
+      - '--KDE--/plasma-aurora/**'
+      - 'tests/test_plasma_aurora.py'
+      - '.github/workflows/aurora-checks.yml'
+  push:
+    paths:
+      - '--KDE--/plasma-aurora/**'
+      - 'tests/test_plasma_aurora.py'
+      - '.github/workflows/aurora-checks.yml'
+
+jobs:
+  stage-and-lint:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Bash syntax
+        run: bash -n -- '--KDE--/plasma-aurora/plasma-aurora.lpmbuild'
+      - name: Install Python test runner
+        run: python3 -m pip install --disable-pip-version-check pytest
+      - name: Stage and inspect the package
+        run: python3 -m pytest tests/test_plasma_aurora.py -q
