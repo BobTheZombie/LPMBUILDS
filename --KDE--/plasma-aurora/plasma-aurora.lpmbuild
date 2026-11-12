@@ -544,8 +544,6 @@ PlasmoidItem {
     preferredRepresentation: compactRepresentation
     implicitWidth: Kirigami.Units.iconSizes.medium + 12
     implicitHeight: Kirigami.Units.iconSizes.medium + 12
-    readonly property bool reducedMotion: Kirigami.Settings.tabletMode
-        || Qt.styleHints.reducedMotion
 
     Kicker.RunnerModel {
         id: searchModel
