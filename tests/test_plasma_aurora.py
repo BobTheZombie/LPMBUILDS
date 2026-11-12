@@ -1,4 +1,4 @@
-"""Aurora 0.2 recipe staging smoke tests, no KDE runtime required."""
+"""Aurora 0.3 recipe staging smoke tests, no KDE runtime required."""
 import json
 import os
 from pathlib import Path
@@ -39,3 +39,31 @@ def test_staged_aurora_theme_and_compositor_opt_in(tmp_path):
     assert os.access(helper, os.X_OK)
     subprocess.run(["sh", "-n", str(helper)], check=True)
     assert not (root / "etc/xdg/kwinrc").exists()
+
+
+def test_animated_dock_is_staged_with_taskmanager_backend(tmp_path):
+    env = os.environ.copy()
+    env["pkgdir"] = str(tmp_path / "stage")
+    subprocess.run(
+        ["bash", "-c", 'source "$1"; staging', "aurora-test", str(RECIPE)],
+        env=env, check=True, capture_output=True, text=True,
+    )
+    base = Path(env["pkgdir"]) / "usr/share/plasma/plasmoids/org.lpm.aurora.dock"
+    meta = json.loads((base / "metadata.json").read_text())
+    assert meta["KPackageStructure"] == "Plasma/Applet"
+    assert meta["X-Plasma-API-Minimum-Version"] == "6.0"
+    qml = (base / "contents/ui/main.qml").read_text()
+    assert "TaskManager.TasksModel" in qml
+    assert "tasks.requestActivate(modelIndex)" in qml
+    assert "tasks.requestNewInstance(modelIndex)" in qml
+    assert "SpringAnimation" in qml
+    assert "Kirigami.Icon" in qml
+    assert 'motionOff: Plasmoid.configuration.reduceMotion' in qml
+    config = ET.parse(base / "contents/config/main.xml")
+    entries = {node.get("name") for node in config.getroot().iter() if node.tag.endswith("entry")}
+    assert {"reduceMotion", "showGlow", "magnification", "iconSize"} <= entries
+    assert (base / "contents/config/config.qml").is_file()
+    assert (base / "contents/ui/configMotion.qml").is_file()
+    layout = (Path(env["pkgdir"]) /
+        "usr/share/plasma/look-and-feel/org.lpm.aurora.desktop/contents/layouts/org.kde.plasma.desktop-layout.js").read_text()
+    assert 'dock.addWidget("org.lpm.aurora.dock")' in layout
