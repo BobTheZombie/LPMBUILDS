@@ -1,10 +1,10 @@
 #!/bin/bash
 # LPM Aurora v0.1 — staged, build-time Plasma 6 customization.
 NAME="plasma-aurora"
-VERSION="0.1.0"
+VERSION="0.2.0"
 RELEASE="1"
 ARCH="any"
-SUMMARY="Aurora Glass Plasma 6 style, colors, and opt-in centered dock"
+SUMMARY="Aurora Glass Plasma 6 style and KWin backdrop blur with centered dock"
 URL="https://github.com/BobTheZombie/LPMBUILDS"
 LICENSE=("MIT")
 SOURCE=()
@@ -28,7 +28,7 @@ staging() {
     local style="$pkgdir/usr/share/plasma/desktoptheme/org.lpm.aurora"
     local look="$pkgdir/usr/share/plasma/look-and-feel/org.lpm.aurora.desktop"
     local colors="$pkgdir/usr/share/color-schemes/Aurora.colors"
-    install -d "$style/widgets" "$style/solid/widgets" "$look/contents/layouts" "$(dirname "$colors")"
+    install -d "$style/widgets" "$style/translucent/widgets" "$style/solid/widgets" "$look/contents/layouts" "$(dirname "$colors")"
 
     cat > "$style/metadata.json" <<'EOF'
 {
@@ -39,7 +39,7 @@ staging() {
     "Description": "Sapphire-violet translucent Plasma panel style for LPM",
     "Category": "Plasma Theme",
     "License": "MIT",
-    "Version": "0.1.0",
+    "Version": "0.2.0",
     "EnabledByDefault": true
   },
   "X-Plasma-API": "6.0"
@@ -78,6 +78,47 @@ EOF
   <rect id="hint-right-margin" x="88" y="24" width="8" height="1" fill="white"/>
 </svg>
 EOF
+
+    # Generate an alpha mask from the existing corner geometry. KWin's
+    # compositor uses these masks to clip the blurred area to the panel shape.
+    python3 - "$style/widgets/panel-background.svg" <<'PY_MASK'
+import sys
+import xml.etree.ElementTree as ET
+ET.register_namespace("", "http://www.w3.org/2000/svg")
+path = sys.argv[1]
+tree = ET.parse(path)
+root = tree.getroot()
+names = ("topleft", "top", "topright", "left", "center",
+         "right", "bottomleft", "bottom", "bottomright")
+by_id = {elem.get("id"): elem for elem in root.iter()}
+for name in names:
+    if name not in by_id:
+        raise SystemExit("Missing panel slice: " + name)
+    original = by_id[name]
+    copy = ET.SubElement(root, original.tag, dict(original.attrib))
+    copy.set("id", "mask-" + name)
+    copy.set("fill", "#000000")
+    copy.set("fill-opacity", "1")
+    copy.set("stroke", "none")
+    copy.attrib.pop("stroke-width", None)
+tree.write(path, encoding="utf-8", xml_declaration=True)
+PY_MASK
+
+    # Plasma 6 honors these preferences when requesting blur from KWin.
+    # It does not enable blur globally or bypass accessibility settings.
+    cat > "$style/plasmarc" <<'EOF'
+[Settings]
+FallbackTheme=default
+
+[BlurBehindEffect]
+enabled=true
+
+[ContrastEffect]
+enabled=false
+EOF
+
+    cp "$style/widgets/panel-background.svg" \
+        "$style/translucent/widgets/panel-background.svg"
 
     # When adaptive opacity becomes opaque, preserve legibility.
     sed -e 's/stop-opacity="\.48"/stop-opacity=".96"/g' \
@@ -179,7 +220,7 @@ EOF
     "Name": "Aurora",
     "Description": "LPM Aurora Glass desktop and centered dock",
     "License": "MIT",
-    "Version": "0.1.0"
+    "Version": "0.2.0"
   }
 }
 EOF
@@ -225,5 +266,68 @@ identifiers = {e.get("id") for e in root.iter()}
 assert {"topleft", "top", "topright", "left", "center", "right",
         "bottomleft", "bottom", "bottomright"} <= identifiers
 EOF
-    echo "[OK] Aurora v0.1 staged into $pkgdir"
+    # Explicit opt-in KWin blur tuning. No autostart or automatic mutation of
+    # user kwinrc, so KDE's upstream settings remain authoritative.
+    local helper="$pkgdir/usr/bin/aurora-kwin-effects"
+    install -d "$(dirname "$helper")"
+    cat > "$helper" <<'EOF'
+#!/bin/sh
+set -eu
+command -v kwriteconfig6 >/dev/null 2>&1 || {
+    echo "Missing kwriteconfig6" >&2; exit 1;
+}
+config_dir="$HOME/.config"
+if [ -n "$XDG_CONFIG_HOME" ]; then config_dir="$XDG_CONFIG_HOME"; fi
+config="$config_dir/kwinrc"
+backup="$config_dir/kwinrc.aurora-before-0.2"
+refresh() {
+    if command -v qdbus6 >/dev/null 2>&1; then
+        qdbus6 org.kde.KWin /KWin reconfigure >/dev/null 2>&1 || true
+    fi
+}
+case "$1" in
+apply)
+    mkdir -p "$config_dir"
+    if [ ! -e "$backup" ]; then
+        if [ -e "$config" ]; then cp -p "$config" "$backup"; else : > "$backup"; fi
+    fi
+    kwriteconfig6 --file kwinrc --group Plugins --key blurEnabled true
+    kwriteconfig6 --file kwinrc --group Effect-blur --key BlurStrength 4
+    kwriteconfig6 --file kwinrc --group Effect-blur --key NoiseStrength 0
+    refresh
+    echo "Aurora blur enabled; requires active KWin compositor"
+    ;;
+status)
+    if command -v kreadconfig6 >/dev/null 2>&1; then
+        kreadconfig6 --file kwinrc --group Plugins --key blurEnabled
+        kreadconfig6 --file kwinrc --group Effect-blur --key BlurStrength
+    fi
+    ;;
+restore)
+    echo "Aurora backup: $backup"
+    echo "Review it before restoring to avoid overwriting recent changes."
+    ;;
+*)
+    echo "Usage: aurora-kwin-effects {apply|status|restore}" >&2
+    exit 2
+    ;;
+esac
+EOF
+    chmod 0755 "$helper"
+
+    python3 - "$style/widgets/panel-background.svg" \
+        "$style/translucent/widgets/panel-background.svg" \
+        "$style/solid/widgets/panel-background.svg" <<'PY_CHECK'
+import sys
+import xml.etree.ElementTree as ET
+parts = ("topleft", "top", "topright", "left", "center",
+         "right", "bottomleft", "bottom", "bottomright")
+needed = set(parts) | {"mask-" + p for p in parts}
+for filename in sys.argv[1:]:
+    ids = {node.get("id") for node in ET.parse(filename).getroot().iter()}
+    assert needed <= ids, f"invalid FrameSvg masks in {filename}"
+PY_CHECK
+    test -s "$style/plasmarc"
+    test -x "$helper"
+    echo "[OK] Aurora 0.2 KWin blur integration staged into $pkgdir"
 }
