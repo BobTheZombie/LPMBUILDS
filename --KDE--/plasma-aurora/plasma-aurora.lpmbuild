@@ -277,7 +277,7 @@ command -v kwriteconfig6 >/dev/null 2>&1 || {
     echo "Missing kwriteconfig6" >&2; exit 1;
 }
 config_dir="$HOME/.config"
-if [ -n "$XDG_CONFIG_HOME" ]; then config_dir="$XDG_CONFIG_HOME"; fi
+if [ -n "${XDG_CONFIG_HOME:-}" ]; then config_dir="$XDG_CONFIG_HOME"; fi
 config="$config_dir/kwinrc"
 backup="$config_dir/kwinrc.aurora-before-0.2"
 refresh() {
@@ -285,7 +285,7 @@ refresh() {
         qdbus6 org.kde.KWin /KWin reconfigure >/dev/null 2>&1 || true
     fi
 }
-case "$1" in
+case "${1:-}" in
 apply)
     mkdir -p "$config_dir"
     if [ ! -e "$backup" ]; then
