@@ -1,11 +1,11 @@
-# LPM Plasma Aurora — patchset 0.3
+# LPM Plasma Aurora — patchset 0.4
 
 Aurora is the LPM Linux visual patchset for KDE Plasma 6. Development is
 **build-time**, not a shell script rewriting a user's files after installation.
 The first deliverable is a separately versioned LPM package and an opt-in global
 theme, keeping upstream Plasma and KWin binaries intact.
 
-## Version 0.3 deliverables (including 0.1–0.2)
+## Version 0.4 deliverables (including 0.1–0.3)
 
 - Sapphire-violet semi-transparent Plasma panel 9-slice SVG
 - High-opacity fallback for adaptive panel opacity
@@ -23,6 +23,8 @@ theme, keeping upstream Plasma and KWin binaries intact.
 - Spring-based hover scaling, adjacent-item response, lift and perspective tilt
 - Active task glow and running indicator, middle-click new application instance
 - User-configurable magnification, icon size, glow and reduced-motion mode
+- New org.lpm.aurora.launcher applet backed by KDE KRunner search
+- Version-pinned optional Plasma 6.8.1 source patch for sapphire-violet volume/brightness OSD
 
 Build from the LPMBUILDS checkout:
 
@@ -55,8 +57,7 @@ Planned follow-ons, independently guarded by upstream tag:
 2. **0.3 Aurora task manager** — implemented as a separate applet with
    spring-driven hover, 3D tilt, glow and motion preferences; not yet
    full parity with KDE’s built-in icons-only task manager.
-3. **0.4 Aurora launcher and OSD** — matching glass/lighting and accessible
-   contrast, no changes to core shell permissions or applet protocols.
+3. **0.4 Aurora launcher and OSD** — source implementation committed, runtime testing pending.
 4. **0.5 System integration** — defaults for *new* accounts via an explicitly
    selected LPM profile, not an unconditional overwrite of existing users.
 
@@ -149,3 +150,21 @@ kpackagetool6 --type Plasma/Applet --list | grep -i aurora
 Then add **Aurora Animated Dock** to a panel and verify task activation,
 new-instance launching, hover, Wayland animation smoothness and reduced
 motion. KDE's full icons-only task manager remains separately available.
+
+## 0.4 Search Launcher
+
+The new Aurora Launcher (org.lpm.aurora.launcher) is a separate Plasma applet. It uses KDE's Kicker RunnerModel, not shell commands, to search and launch applications. The popup displays matching results, icons and descriptions. Click or press Enter to activate a selected result; Escape closes the popup. The Aurora global-theme layout selects it, but installation never overwrites existing user panels. Stock Kickoff remains installed.
+
+## 0.4 Opt-in KWin/Plasma OSD styling
+
+A version-pinned patch for Plasma Workspace 6.8.1 changes shell/qml/Osd.qml by wrapping the existing OsdItem in a rounded translucent violet Rectangle, preserving its signal aliases, progress bar, volume and brightness controls. It is applied at source build time only, not by modifying installed QML after packaging. Build an Aurora-patched Workspace with:
+
+```sh
+LPM_AURORA_PATCHSET=1 lpm buildpkg --KDE--/plasma-workspace/plasma-workspace.lpmbuild
+```
+
+That sets RELEASE=7 and declares PATCHES=(0001-aurora-0.4-glass-osd.patch). Normal Workspace builds do not enable the patch. The patch must be ported and reviewed before any change to Plasma 6.8.1. Real KWin backdrop blur for OSD windows is dependent on compositor handling; this initial source patch guarantees only rounded translucent tinted styling, not sampled backdrop blur.
+
+## Verification
+
+Staging and syntax tests, plus a dry-run/application test for the Workspace source patch, have been added to tests/test_plasma_aurora.py. They have not been run in this session. A live Plasma 6.8.1 test is needed to verify Kicker model result activation, launcher focus, and OSD readability before merging the draft PR.
