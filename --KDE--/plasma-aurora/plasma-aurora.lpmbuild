@@ -1,0 +1,229 @@
+#!/bin/bash
+# LPM Aurora v0.1 — staged, build-time Plasma 6 customization.
+NAME="plasma-aurora"
+VERSION="0.1.0"
+RELEASE="1"
+ARCH="any"
+SUMMARY="Aurora Glass Plasma 6 style, colors, and opt-in centered dock"
+URL="https://github.com/BobTheZombie/LPMBUILDS"
+LICENSE=("MIT")
+SOURCE=()
+SHA256SUMS=()
+PATCHES=()
+REQUIRES=("plasma-workspace" "plasma-desktop" "libplasma")
+BUILD_REQUIRES=()
+REQUIRES_PYTHON_DEPENDENCIES=()
+PROVIDES=("plasma-aurora-style")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=("breeze" "kwin")
+SUGGESTS=()
+
+prepare() { :; }
+build() { :; }
+
+staging() {
+    set -euo pipefail
+    test -n "$pkgdir" && test "$pkgdir" != /
+    local style="$pkgdir/usr/share/plasma/desktoptheme/org.lpm.aurora"
+    local look="$pkgdir/usr/share/plasma/look-and-feel/org.lpm.aurora.desktop"
+    local colors="$pkgdir/usr/share/color-schemes/Aurora.colors"
+    install -d "$style/widgets" "$style/solid/widgets" "$look/contents/layouts" "$(dirname "$colors")"
+
+    cat > "$style/metadata.json" <<'EOF'
+{
+  "KPackageStructure": "Plasma/Theme",
+  "KPlugin": {
+    "Id": "org.lpm.aurora",
+    "Name": "Aurora Glass",
+    "Description": "Sapphire-violet translucent Plasma panel style for LPM",
+    "Category": "Plasma Theme",
+    "License": "MIT",
+    "Version": "0.1.0",
+    "EnabledByDefault": true
+  },
+  "X-Plasma-API": "6.0"
+}
+EOF
+
+    # Plasma's FrameSvg engine renders and stretches these nine slices.
+    # Gradient tint gives a glass-like surface; live backdrop blur is provided
+    # by KWin when enabled, not by a static SVG filter.
+    cat > "$style/widgets/panel-background.svg" <<'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">
+  <defs>
+    <linearGradient id="glass" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#527ed5" stop-opacity=".48"/>
+      <stop offset=".55" stop-color="#503d97" stop-opacity=".53"/>
+      <stop offset="1" stop-color="#7545b7" stop-opacity=".60"/>
+    </linearGradient>
+    <linearGradient id="edge" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#d3eaff" stop-opacity=".74"/>
+      <stop offset="1" stop-color="#baacff" stop-opacity=".26"/>
+    </linearGradient>
+  </defs>
+  <path id="topleft" d="M24 0H24V24H0C0 10.75 10.75 0 24 0Z" fill="url(#glass)" stroke="url(#edge)" stroke-width="1"/>
+  <rect id="top" x="24" y="0" width="48" height="24" fill="url(#glass)"/>
+  <path id="topright" d="M72 0C85.25 0 96 10.75 96 24H72Z" fill="url(#glass)" stroke="url(#edge)" stroke-width="1"/>
+  <rect id="left" x="0" y="24" width="24" height="48" fill="url(#glass)"/>
+  <rect id="center" x="24" y="24" width="48" height="48" fill="url(#glass)"/>
+  <rect id="right" x="72" y="24" width="24" height="48" fill="url(#glass)"/>
+  <path id="bottomleft" d="M0 72H24V96C10.75 96 0 85.25 0 72Z" fill="url(#glass)" stroke="url(#edge)" stroke-width="1"/>
+  <rect id="bottom" x="24" y="72" width="48" height="24" fill="url(#glass)"/>
+  <path id="bottomright" d="M72 72H96C96 85.25 85.25 96 72 96Z" fill="url(#glass)" stroke="url(#edge)" stroke-width="1"/>
+  <rect id="hint-top-margin" x="24" y="0" width="1" height="8" fill="white"/>
+  <rect id="hint-bottom-margin" x="24" y="88" width="1" height="8" fill="white"/>
+  <rect id="hint-left-margin" x="0" y="24" width="8" height="1" fill="white"/>
+  <rect id="hint-right-margin" x="88" y="24" width="8" height="1" fill="white"/>
+</svg>
+EOF
+
+    # When adaptive opacity becomes opaque, preserve legibility.
+    sed -e 's/stop-opacity="\.48"/stop-opacity=".96"/g' \
+        -e 's/stop-opacity="\.53"/stop-opacity=".96"/g' \
+        -e 's/stop-opacity="\.60"/stop-opacity=".96"/g' \
+        "$style/widgets/panel-background.svg" > "$style/solid/widgets/panel-background.svg"
+
+    cat > "$colors" <<'EOF'
+[General]
+Name=Aurora
+ColorScheme=Aurora
+
+[Colors:Window]
+BackgroundNormal=22,24,46
+BackgroundAlternate=32,34,63
+ForegroundNormal=236,242,255
+ForegroundInactive=160,170,201
+ForegroundActive=145,185,255
+ForegroundLink=130,175,255
+ForegroundVisited=202,158,255
+ForegroundNegative=255,115,143
+ForegroundNeutral=255,193,110
+ForegroundPositive=120,224,184
+DecorationFocus=135,165,255
+DecorationHover=181,127,255
+
+[Colors:View]
+BackgroundNormal=26,28,51
+BackgroundAlternate=36,37,67
+ForegroundNormal=236,242,255
+ForegroundInactive=160,170,201
+ForegroundActive=145,185,255
+ForegroundLink=130,175,255
+ForegroundVisited=202,158,255
+ForegroundNegative=255,115,143
+ForegroundNeutral=255,193,110
+ForegroundPositive=120,224,184
+DecorationFocus=135,165,255
+DecorationHover=181,127,255
+
+[Colors:Button]
+BackgroundNormal=44,46,80
+BackgroundAlternate=55,52,93
+ForegroundNormal=236,242,255
+ForegroundInactive=160,170,201
+ForegroundActive=145,185,255
+ForegroundLink=130,175,255
+ForegroundVisited=202,158,255
+ForegroundNegative=255,115,143
+ForegroundNeutral=255,193,110
+ForegroundPositive=120,224,184
+DecorationFocus=135,165,255
+DecorationHover=181,127,255
+
+[Colors:Selection]
+BackgroundNormal=100,89,187
+BackgroundAlternate=84,112,200
+ForegroundNormal=255,255,255
+ForegroundInactive=230,233,247
+ForegroundActive=255,255,255
+ForegroundLink=230,234,255
+ForegroundVisited=255,223,255
+ForegroundNegative=255,200,213
+ForegroundNeutral=255,230,198
+ForegroundPositive=188,248,222
+DecorationFocus=178,171,255
+DecorationHover=178,171,255
+
+[Colors:Tooltip]
+BackgroundNormal=36,38,68
+BackgroundAlternate=48,47,82
+ForegroundNormal=236,242,255
+ForegroundInactive=160,170,201
+ForegroundActive=145,185,255
+ForegroundLink=130,175,255
+ForegroundVisited=202,158,255
+ForegroundNegative=255,115,143
+ForegroundNeutral=255,193,110
+ForegroundPositive=120,224,184
+DecorationFocus=135,165,255
+DecorationHover=181,127,255
+
+[WM]
+activeBackground=36,38,68
+activeForeground=236,242,255
+inactiveBackground=27,29,52
+inactiveForeground=160,170,201
+activeBlend=53,48,97
+inactiveBlend=31,32,53
+activeFrame=112,105,192
+inactiveFrame=59,56,97
+EOF
+
+    cat > "$look/metadata.json" <<'EOF'
+{
+  "KPackageStructure": "Plasma/LookAndFeel",
+  "KPlugin": {
+    "Id": "org.lpm.aurora.desktop",
+    "Name": "Aurora",
+    "Description": "LPM Aurora Glass desktop and centered dock",
+    "License": "MIT",
+    "Version": "0.1.0"
+  }
+}
+EOF
+
+    cat > "$look/contents/defaults" <<'EOF'
+[plasmarc][Theme]
+name=org.lpm.aurora
+
+[kdeglobals][General]
+ColorScheme=Aurora
+
+[kdeglobals][KDE]
+widgetStyle=Breeze
+EOF
+
+    # Opt-in through Global Theme -> Desktop and window layout.
+    # The package never touches user configuration during installation.
+    cat > "$look/contents/layouts/org.kde.plasma.desktop-layout.js" <<'EOF'
+/* Aurora dock: Plasma 6 scripting API */
+var dock = new Panel();
+dock.location = "bottom";
+dock.alignment = "center";
+dock.lengthMode = "fit";
+dock.height = Math.round(gridUnit * 3);
+dock.hiding = "dodgewindows";
+dock.addWidget("org.kde.plasma.kickoff");
+dock.addWidget("org.kde.plasma.icontasks");
+dock.addWidget("org.kde.plasma.systemtray");
+dock.addWidget("org.kde.plasma.digitalclock");
+EOF
+
+    python3 - "$style/metadata.json" "$look/metadata.json" <<'EOF'
+import json, sys, xml.etree.ElementTree as ET
+for path in sys.argv[1:]:
+    with open(path, encoding="utf-8") as f:
+        assert json.load(f)["KPlugin"]["Id"]
+EOF
+    python3 - "$style/widgets/panel-background.svg" <<'EOF'
+import sys, xml.etree.ElementTree as ET
+root = ET.parse(sys.argv[1]).getroot()
+ns = "{http://www.w3.org/2000/svg}"
+identifiers = {e.get("id") for e in root.iter()}
+assert {"topleft", "top", "topright", "left", "center", "right",
+        "bottomleft", "bottom", "bottomright"} <= identifiers
+EOF
+    echo "[OK] Aurora v0.1 staged into $pkgdir"
+}
