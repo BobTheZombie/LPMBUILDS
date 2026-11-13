@@ -25,7 +25,7 @@ def read_metadata(profile=None):
         env["LPM_KWIN_PROFILE"] = profile
     return subprocess.run(
         ["bash", "-c",
-         'source "$1"; printf "RELEASE=%s\n" "$RELEASE"; '
+         'source "$1" || exit $?; printf "RELEASE=%s\n" "$RELEASE"; '
          'printf "PROFILE=%s\n" "$KWIN_LPM_PROFILE"; '
          'declare -p PATCHES', "test", str(RECIPE)],
         env=env, capture_output=True, text=True,
