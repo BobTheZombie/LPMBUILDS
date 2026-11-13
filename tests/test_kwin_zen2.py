@@ -57,7 +57,7 @@ def test_optimized_recipe_preserves_abi_and_recovery():
     text = RECIPE.read_text(encoding="utf-8")
     assert "-march=znver2" in text
     assert "-mtune=znver2" in text
-    assert "-O3" in text
+    assert "-O2" in text
     assert "-fno-omit-frame-pointer" in text
     assert "CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELWITHDEBINFO:BOOL" in text
     assert "-DBUILD_SHARED_LIBS=ON" in text
