@@ -13,7 +13,9 @@ unavailable on older processors.
   frame pointers, original KWin source. Works as a recovery build.
 - `zen2` (explicit, release 4): `-O3 -g`, Zen 2 architecture and tuning,
   `-fno-plt`, frame pointers, CMake IPO/LTO, and two source patches.
-  Serial Ninja link jobs avoid simultaneous memory-hungry LTO links.
+  Use lower LPM_BUILD_JOBS on RAM-constrained hardware: Ninja's job pool
+  must be defined by CMake's GLOBAL JOB_POOLS property, and this recipe
+  intentionally does not refer to an undefined custom link pool.
   ABI-facing KWin interfaces, KDE plugin APIs, X11 support, Wayland
   protocols, color transforms, and lock-screen support are unchanged.
 
