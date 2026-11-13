@@ -124,14 +124,14 @@ build() {
     fi
 
     # QT_INSTALL_QML on LPM Qt6 6.12.0 is /usr/qml.
-    # Link job pool serializes memory-heavy GCC LTO link steps.
+    # Ninja link pools require a GLOBAL JOB_POOLS property; do not set a
+    # CMAKE_JOB_POOL_LINK value without defining its pool in the project.
+    # LPM_BUILD_JOBS controls the build's total parallelism.
     cmake -S "$src" -B "$builddir" -G Ninja \
         -DCMAKE_BUILD_TYPE=RelWithDebInfo \
         -DCMAKE_C_FLAGS_RELWITHDEBINFO="$build_flags" \
         -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="$build_flags" \
         -DCMAKE_INTERPROCEDURAL_OPTIMIZATION_RELWITHDEBINFO:BOOL="$ipo" \
-        -DCMAKE_JOB_POOLS:STRING='link_pool=1' \
-        -DCMAKE_JOB_POOL_LINK:STRING='link_pool' \
         -DCMAKE_INSTALL_PREFIX=/usr \
         -DCMAKE_INSTALL_LIBDIR=lib \
         -DKDE_INSTALL_USE_QT_SYS_PATHS=ON \
