@@ -1,8 +1,8 @@
 #!/bin/bash
-# LPM Linux - KDE Plasma 6.8.1 KWin, debug-symbol-enabled recovery build.
+# LPM Linux - KDE Plasma 6.8.1 KWin: default debuggable build, optional Ryzen Zen 2 tune.
 # Intended to diagnose recurrent kwin_wayland SIGSEGV on LPM / Qt 6.12.
 # LPM extracts into $SRCROOT/$NAME-$VERSION, stages via $pkgdir.
-# This recipe does NOT claim to fix the crash without a backtrace.
+# The optimized profile is opt-in. It does NOT claim to fix a compositor crash.
 
 NAME="kwin"
 VERSION="6.8.1"
@@ -17,6 +17,28 @@ SOURCE=(
 # Retained from the supplied LPMBuild. Verify upstream before publication.
 SHA256SUMS=("f3d725f81061c1ba97fdef8aeb2101a5c5e03c77f11e9a2abaa1dfed4489d3b6")
 PATCHES=()
+
+# Separately versioned build-time profile. Default stays 6.8.1-3
+# so an unstable tuned compositor can be reverted.
+KWIN_LPM_PROFILE="${LPM_KWIN_PROFILE:-debug}"
+case "$KWIN_LPM_PROFILE" in
+    debug) ;;
+    zen2)
+        if [[ "$VERSION" != "6.8.1" || "$ARCH" != "x86_64" ]]; then
+            echo "[ERROR] Zen 2 patchset requires KWin 6.8.1 x86_64" >&2
+            return 1 2>/dev/null || exit 1
+        fi
+        RELEASE="4"
+        PATCHES=(
+            "0001-kwin-blur-cache-clip-transforms.patch"
+            "0002-kwin-blur-share-kawase-projection.patch"
+        )
+        ;;
+    *)
+        echo "[ERROR] Unknown LPM_KWIN_PROFILE: $KWIN_LPM_PROFILE (debug|zen2)" >&2
+        return 1 2>/dev/null || exit 1
+        ;;
+esac
 
 REQUIRES=(
     "qt6-base" "qt6-declarative" "qt6-5compat" "qt6-svg"
@@ -84,14 +106,33 @@ build() {
         return 1
     }
 
+    # Recovery baseline and an optional Zen 2 source/compile optimization.
+    # Avoid -Ofast/-ffast-math: KWin geometry and HDR need IEEE semantics.
+    # No dynamic linker, KWin plugin ABI or global compositor setting changes.
+    local build_flags='-O2 -g -DNDEBUG -fno-omit-frame-pointer'
+    local ipo='OFF'
+    if [[ "$KWIN_LPM_PROFILE" == "zen2" ]]; then
+        local compiler="${CXX:-c++}"
+        if ! printf 'int main() { return 0; }\n' | "$compiler" -x c++ -fsyntax-only -march=znver2 -mtune=znver2 -; then
+            echo '[ERROR] Compiler does not support Zen 2 tuning flags' >&2
+            return 1
+        fi
+        build_flags='-O3 -g -DNDEBUG -fno-omit-frame-pointer -fno-plt -march=znver2 -mtune=znver2'
+        ipo='ON'
+        echo '[KWin] Zen 2 profile: -O3, full debug info, -fno-plt, LTO'
+        echo '[KWin] Build targets Zen 2-class x86_64 CPUs, not portable x86_64'
+    fi
+
     # QT_INSTALL_QML on LPM Qt6 6.12.0 is /usr/qml.
     # ECM respects Qt install paths with KDE_INSTALL_USE_QT_SYS_PATHS=ON.
-    # RelWithDebInfo preserves useful symbols and O2 performance.
-    # IMPORTANT: LPM must NOT strip debugging sections afterward.
+    # Serialize link steps to cap memory use during GCC LTO.
     cmake -S "$src" -B "$builddir" -G Ninja \
         -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-        -DCMAKE_C_FLAGS_RELWITHDEBINFO='-O2 -g -DNDEBUG -fno-omit-frame-pointer' \
-        -DCMAKE_CXX_FLAGS_RELWITHDEBINFO='-O2 -g -DNDEBUG -fno-omit-frame-pointer' \
+        -DCMAKE_C_FLAGS_RELWITHDEBINFO="$build_flags" \
+        -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="$build_flags" \
+        -DCMAKE_INTERPROCEDURAL_OPTIMIZATION_RELWITHDEBINFO:BOOL="$ipo" \
+        -DCMAKE_JOB_POOLS:STRING='link_pool=1' \
+        -DCMAKE_JOB_POOL_LINK:STRING='link_pool' \
         -DCMAKE_INSTALL_PREFIX=/usr \
         -DCMAKE_INSTALL_LIBDIR=lib \
         -DKDE_INSTALL_USE_QT_SYS_PATHS=ON \
@@ -112,6 +153,43 @@ build() {
         echo '[ERROR] Debuggable build type was not applied' >&2
         return 1
     }
+    if [[ "$KWIN_LPM_PROFILE" == "zen2" ]]; then
+        grep -q '^CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELWITHDEBINFO:BOOL=ON
+}
+
+staging() {
+    set -euxo pipefail
+    local builddir="$SRCROOT/$NAME-$VERSION/build"
+    [[ -n "${pkgdir:-}" && "$pkgdir" != / ]] || {
+        echo '[ERROR] Invalid LPM staging destination' >&2
+        return 1
+    }
+    DESTDIR="$pkgdir" cmake --install "$builddir"
+
+    [[ -f "$pkgdir/usr/lib/cmake/KWin/KWinConfig.cmake" ]] || {
+        echo '[ERROR] Missing KWin CMake export' >&2
+        return 1
+    }
+    [[ -x "$pkgdir/usr/bin/kwin_wayland" ]] || {
+        echo '[ERROR] Missing staged kwin_wayland' >&2
+        return 1
+    }
+    # readelf checks source debug info BEFORE LPM's archive/stripping phase.
+    if command -v readelf >/dev/null 2>&1; then
+        if ! readelf -S "$pkgdir/usr/bin/kwin_wayland" | grep -q '\.debug_info'; then
+            echo '[WARN] No .debug_info in staged kwin_wayland; inspect debug flags/stripping' >&2
+        fi
+    fi
+    echo "[OK] KWin $VERSION-$RELEASE ($KWIN_LPM_PROFILE) staged; preserve .debug_* sections"
+} "$builddir/CMakeCache.txt" || {
+            echo '[ERROR] LTO configuration not applied' >&2
+            return 1
+        }
+        grep -q -- '-march=znver2' "$builddir/CMakeCache.txt" || {
+            echo '[ERROR] Zen 2 CMake flags not applied' >&2
+            return 1
+        }
+    fi
     cmake --build "$builddir" --parallel "$jobs"
 }
 
