@@ -1,6 +1,6 @@
 # KWin 6.8.1 / LPM Zen 2 optimization experiment
 
-**Status: build-time experimental variant, not an installed compositor.**
+**Status: source-patch-validated build recipe; no full KWin build or runtime installation verified.**
 
 This is specifically for the LPM Linux Plasma 6.8.1 stack, GCC 16, Qt 6.12
 and Ryzen 5 4500U (Zen 2 / AMD Renoir). Do not distribute the tuned package
@@ -9,9 +9,9 @@ unavailable on older processors.
 
 ## Build profiles
 
-- `debug` (default, release 3): original `RelWithDebInfo`, `-O2 -g`,
+- `debug` (explicit fallback, release 3): original `RelWithDebInfo`, `-O2 -g`,
   frame pointers, original KWin source. Works as a recovery build.
-- `zen2` (explicit, release 4): `-O3 -g`, Zen 2 architecture and tuning,
+- `zen2` (default, release 4): `-O3 -g`, Zen 2 architecture and tuning,
   `-fno-plt`, frame pointers, CMake IPO/LTO, and two source patches.
   Use lower LPM_BUILD_JOBS on RAM-constrained hardware: Ninja's job pool
   must be defined by CMake's GLOBAL JOB_POOLS property, and this recipe
@@ -65,9 +65,10 @@ LPM_BUILD_JOBS=4 LPM_KWIN_PROFILE=zen2 \
   lpm buildpkg ./--KDE--/kwin/kwin.lpmbuild
 ```
 
-Do **not** accidentally build the default debug profile: check the output
-for `KWin Zen 2 profile` and the resulting KWin package version
-`6.8.1-4`. The build must pass before replacing the installed compositor.
+The default profile is now Zen 2; check build output for the active profile
+and the resulting `kwin-6.8.1-4` package identity before installation.
+The `debug` profile remains accessible with `LPM_KWIN_PROFILE=debug`.
+The build must pass before replacing the installed compositor.
 
 Retain an installable copy of the existing **6.8.1-3** package first.
 The fallback must include the entire KWin package, not just the
@@ -79,14 +80,14 @@ The fallback must include the entire KWin package, not just the
 graphical session or login greeter is running is unsafe. Plan a console-only
 boot and ensure a verified fallback KWin package is available offline.
 
-1. Copy the existing 6.8.1-3 `.lpminstall` package to a known safe folder
+1. Copy the existing 6.8.1-3 `.zst` package to a known safe folder
    outside disposable build directories (e.g. `/root/kwin-recovery/`).
 2. Enable a recovery console with
    `systemctl enable getty@tty3.service`, then
    `systemctl set-default multi-user.target` and `reboot`.
 3. Log in on a text console. Confirm PLM/SDDM and any KWin session have
    stopped (`pgrep -a kwin_wayland`). Install the built 6.8.1-4 package
-   through `lpm installpkg /absolute/path/to/kwin-6.8.1-4*.lpminstall`,
+   through `lpm installpkg /absolute/path/to/kwin-6.8.1-4.x86_64.zst --verify`,
    replacing the example path with the *actual file*.
 4. Check package integrity, `ldd -r /usr/bin/kwin_wayland` for missing
    libraries, and `systemctl status plmd` before testing.
@@ -96,7 +97,7 @@ boot and ensure a verified fallback KWin package is available offline.
    `systemctl set-default graphical.target`.
 
 **Rollback** from the recovery TTY: stop PLM and SDDM; reinstall the saved
-KWin 6.8.1-3 package through `lpm installpkg /full/path/to/saved.lpminstall`;
+KWin 6.8.1-3 package through `lpm installpkg /full/path/to/saved.zst --verify`;
 verify library resolution; then start PLM (or SDDM). Do not remove
 the fallback package until multiple successful cold boots.
 
