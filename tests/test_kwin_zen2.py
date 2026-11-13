@@ -97,3 +97,10 @@ def test_blur_optimizations_apply_to_exact_upstream_681():
         assert result.count("offscreenProjectionMatrix.ortho(") == 1
         assert "m_downsamplePass.mvpMatrixLocation, offscreenProjectionMatrix" in result
         assert "m_upsamplePass.mvpMatrixLocation, offscreenProjectionMatrix" in result
+
+
+def test_no_undefined_ninja_link_pool():
+    """Regression guard: CMake does not define pools via CMAKE_JOB_POOLS."""
+    recipe = RECIPE.read_text(encoding="utf-8")
+    assert "-DCMAKE_JOB_POOLS" not in recipe
+    assert "-DCMAKE_JOB_POOL_LINK" not in recipe
