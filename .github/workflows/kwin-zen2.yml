@@ -1,0 +1,41 @@
+name: KWin 6.8.1 Zen2 source patch validation
+
+on:
+  push:
+    paths:
+      - '--KDE--/kwin/**'
+      - 'tests/test_kwin_zen2.py'
+      - '.github/workflows/kwin-zen2.yml'
+  pull_request:
+    paths:
+      - '--KDE--/kwin/**'
+      - 'tests/test_kwin_zen2.py'
+      - '.github/workflows/kwin-zen2.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  patch-and-recipe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout LPMBUILDS
+        uses: actions/checkout@v4
+        with:
+          path: lpm
+      - name: Checkout exact KWin 6.8.1 upstream release
+        uses: actions/checkout@v4
+        with:
+          repository: KDE/kwin
+          ref: v6.8.1
+          path: upstream-kwin
+          persist-credentials: false
+      - name: Verify KWin release tag
+        run: git -C upstream-kwin describe --exact-match --tags | grep -Fx v6.8.1
+      - name: Install smoke test dependencies
+        run: python3 -m pip install --user pytest
+      - name: Validate recipe and apply patches in order
+        env:
+          KWIN_UPSTREAM_TREE: ${{ github.workspace }}/upstream-kwin
+        working-directory: lpm
+        run: python3 -m pytest -q tests/test_kwin_zen2.py

@@ -1,0 +1,64 @@
+--- a/src/plugins/blur/blur.cpp
++++ b/src/plugins/blur/blur.cpp
+@@ -579,23 +579,43 @@
+     const auto opacity = w->opacity() * data.opacity();
+ 
+-    // Get the effective shape that will be actually blurred. It's possible that all of it will be clipped.
+-    QList<RectF> effectiveShape;
+-    effectiveShape.reserve(blurShape.rects().size());
+-    if (deviceRegion != Region::infinite()) {
+-        for (const Rect &clipRect : deviceRegion.rects()) {
+-            const RectF deviceClipRect = clipRect.translated(-deviceBackgroundRect.topLeft());
+-            for (const RectF &shapeRect : blurShape.rects()) {
+-                const RectF deviceShapeRect = shapeRect.translated(-backgroundRect.topLeft()).scaled(viewport.scale()).rounded();
+-                if (const RectF intersected = deviceClipRect.intersected(deviceShapeRect); !intersected.isEmpty()) {
+-                    effectiveShape.append(intersected);
+-                }
+-            }
+-        }
+-    } else {
+-        for (const RectF &rect : blurShape.rects()) {
+-            effectiveShape.append(rect.translated(-backgroundRect.topLeft()).scaled(viewport.scale()).rounded());
+-        }
+-    }
++    // KWin / LPM: preserve clipping order while avoiding the same expensive
++    // shape transformation for every damage rectangle. The common one-clip
++    // case retains the allocation-free upstream path.
++    const auto &shapeRects = blurShape.rects();
++    QList<RectF> effectiveShape;
++    effectiveShape.reserve(shapeRects.size());
++    if (deviceRegion != Region::infinite()) {
++        const auto clipRects = deviceRegion.rects();
++        if (clipRects.size() <= 1) {
++            for (const Rect &clipRect : clipRects) {
++                const RectF deviceClipRect = clipRect.translated(-deviceBackgroundRect.topLeft());
++                for (const RectF &shapeRect : shapeRects) {
++                    const RectF deviceShapeRect = shapeRect.translated(-backgroundRect.topLeft()).scaled(viewport.scale()).rounded();
++                    if (const RectF intersected = deviceClipRect.intersected(deviceShapeRect); !intersected.isEmpty()) {
++                        effectiveShape.append(intersected);
++                    }
++                }
++            }
++        } else {
++            QList<RectF> deviceShapeRects;
++            deviceShapeRects.reserve(shapeRects.size());
++            for (const RectF &shapeRect : shapeRects) {
++                deviceShapeRects.append(shapeRect.translated(-backgroundRect.topLeft()).scaled(viewport.scale()).rounded());
++            }
++            for (const Rect &clipRect : clipRects) {
++                const RectF deviceClipRect = clipRect.translated(-deviceBackgroundRect.topLeft());
++                for (const RectF &deviceShapeRect : deviceShapeRects) {
++                    if (const RectF intersected = deviceClipRect.intersected(deviceShapeRect); !intersected.isEmpty()) {
++                        effectiveShape.append(intersected);
++                    }
++                }
++            }
++        }
++    } else {
++        for (const RectF &rect : shapeRects) {
++            effectiveShape.append(rect.translated(-backgroundRect.topLeft()).scaled(viewport.scale()).rounded());
++        }
++    }
+     if (effectiveShape.isEmpty()) {
+         return;
+     }
