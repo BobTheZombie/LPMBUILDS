@@ -93,7 +93,7 @@ def test_blur_optimizations_apply_to_exact_upstream_681():
         result = staged.read_text(encoding="utf-8")
         assert "deviceShapeRects.reserve(shapeRects.size())" in result
         assert "const auto clipRects = deviceRegion.rects()" in result
-        assert "const auto &deviceShapeRect : deviceShapeRects" in result
+        assert "for (const RectF &deviceShapeRect : deviceShapeRects)" in result
         assert result.count("offscreenProjectionMatrix.ortho(") == 1
         assert "m_downsamplePass.mvpMatrixLocation, offscreenProjectionMatrix" in result
         assert "m_upsamplePass.mvpMatrixLocation, offscreenProjectionMatrix" in result
