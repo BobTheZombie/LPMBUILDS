@@ -107,7 +107,7 @@ build() {
     }
 
     # Default stays RelWithDebInfo (-O2 with full debug info).
-    # Zen2 enables CPU-specific codegen, -O3 and CMake IPO/LTO.
+    # Zen2 enables CPU-specific codegen and CMake IPO/LTO at -O2.
     # Avoid fast-math: KWin geometry, color precision and HDR rely on
     # reproducible floating-point behavior and ABI-safe plugin contracts.
     local build_flags='-O2 -g -DNDEBUG -fno-omit-frame-pointer'
@@ -118,9 +118,9 @@ build() {
             echo '[ERROR] Compiler does not support Zen 2 code generation' >&2
             return 1
         fi
-        build_flags='-O3 -g -DNDEBUG -fno-omit-frame-pointer -fno-plt -march=znver2 -mtune=znver2'
+        build_flags='-O2 -g -DNDEBUG -fno-omit-frame-pointer -fno-plt -march=znver2 -mtune=znver2'
         ipo='ON'
-        echo '[KWin] Zen 2 -O3 + IPO/LTO source-patched build'
+        echo '[KWin] Zen 2 -O2 + IPO/LTO source-patched build'
     fi
 
     # QT_INSTALL_QML on LPM Qt6 6.12.0 is /usr/qml.
