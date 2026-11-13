@@ -1,14 +1,14 @@
 #!/bin/bash
-# LPM Linux - KDE Plasma 6.8.1 KWin, debuggable default with optional Zen 2 performance profile.
+# LPM Linux - KDE Plasma 6.8.1 KWin; Zen 2 variant replaces standard kwin.
 # Intended to diagnose recurrent kwin_wayland SIGSEGV on LPM / Qt 6.12.
 # LPM extracts into $SRCROOT/$NAME-$VERSION, stages via $pkgdir.
-# The optional optimized profile must be evaluated on actual Wayland hardware.
+# Optimized variant requires KWin/PLM Wayland runtime validation before rollout.
 
 NAME="kwin"
 VERSION="6.8.1"
-RELEASE="3"
+RELEASE="4"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="KDE Plasma 6 KWin Wayland compositor (debuggable build)"
+SUMMARY="KDE Plasma 6 KWin Wayland compositor tuned for AMD Zen 2"
 URL="https://invent.kde.org/plasma/kwin"
 LICENSE=("SEE-UPSTREAM")
 SOURCE=(
@@ -18,11 +18,13 @@ SOURCE=(
 SHA256SUMS=("f3d725f81061c1ba97fdef8aeb2101a5c5e03c77f11e9a2abaa1dfed4489d3b6")
 PATCHES=()
 
-# Opt-in CPU-specific build; default remains the original 6.8.1-3
-# recovery package. LPM will apply the source patches before prepare().
-KWIN_LPM_PROFILE="${LPM_KWIN_PROFILE:-debug}"
+# Default variant is 6.8.1-4 (zen2); use LPM_KWIN_PROFILE=debug
+# for the original 6.8.1-3 source and compiler flags.
+KWIN_LPM_PROFILE="${LPM_KWIN_PROFILE:-zen2}"
 case "$KWIN_LPM_PROFILE" in
-    debug) ;;
+    debug)
+        RELEASE="3"
+        ;;
     zen2)
         if [[ "$VERSION" != "6.8.1" || "$ARCH" != "x86_64" ]]; then
             echo "[ERROR] KWin Zen 2 requires version 6.8.1 on x86_64" >&2
