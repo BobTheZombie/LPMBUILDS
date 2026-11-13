@@ -1,4 +1,4 @@
-"""Smoke checks for the opt-in Ryzen KWin variant.
+"""Smoke checks for the KWin Ryzen default variant and debug fallback.
 
 For actual upstream patch validation:
 KWIN_UPSTREAM_TREE=/path/to/KDE/kwin-v6.8.1 pytest -q tests/test_kwin_zen2.py
@@ -36,9 +36,16 @@ def test_recipe_shell_and_profile_selection():
     subprocess.run(["bash", "-n", str(RECIPE)], check=True)
     base = read_metadata()
     assert base.returncode == 0, base.stderr
-    assert "RELEASE=3" in base.stdout
-    assert "PROFILE=debug" in base.stdout
-    assert 'PATCHES=()' in base.stdout
+    assert "RELEASE=4" in base.stdout
+    assert "PROFILE=zen2" in base.stdout
+    for patch in PATCHES:
+        assert patch in base.stdout
+
+    debug = read_metadata("debug")
+    assert debug.returncode == 0, debug.stderr
+    assert "RELEASE=3" in debug.stdout
+    assert "PROFILE=debug" in debug.stdout
+    assert 'PATCHES=()' in debug.stdout
 
     fast = read_metadata("zen2")
     assert fast.returncode == 0, fast.stderr
