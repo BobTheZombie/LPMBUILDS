@@ -1,19 +1,19 @@
 #!/bin/bash
 # LPM Aurora v0.1 — staged, build-time Plasma 6 customization.
 NAME="plasma-aurora"
-VERSION="0.1.0"
+VERSION="0.2.0"
 RELEASE="1"
 ARCH="any"
-SUMMARY="Aurora Glass Plasma 6 style, colors, and opt-in centered dock"
+SUMMARY="Aurora Glass Plasma 6 global theme, centered dock, and opt-in profiles"
 URL="https://github.com/BobTheZombie/LPMBUILDS"
 LICENSE=("MIT")
 SOURCE=()
 SHA256SUMS=()
 PATCHES=()
-REQUIRES=("plasma-workspace" "plasma-desktop" "libplasma")
+REQUIRES=("plasma-workspace" "plasma-desktop" "libplasma" "python")
 BUILD_REQUIRES=()
 REQUIRES_PYTHON_DEPENDENCIES=()
-PROVIDES=("plasma-aurora-style")
+PROVIDES=("plasma-aurora-style" "plasma-aurora-profiles")
 CONFLICTS=()
 OBSOLETES=()
 RECOMMENDS=("breeze" "kwin")
@@ -39,7 +39,7 @@ staging() {
     "Description": "Sapphire-violet translucent Plasma panel style for LPM",
     "Category": "Plasma Theme",
     "License": "MIT",
-    "Version": "0.1.0",
+    "Version": "0.2.0",
     "EnabledByDefault": true
   },
   "X-Plasma-API": "6.0"
@@ -179,7 +179,7 @@ EOF
     "Name": "Aurora",
     "Description": "LPM Aurora Glass desktop and centered dock",
     "License": "MIT",
-    "Version": "0.1.0"
+    "Version": "0.2.0"
   }
 }
 EOF
@@ -225,5 +225,136 @@ identifiers = {e.get("id") for e in root.iter()}
 assert {"topleft", "top", "topright", "left", "center", "right",
         "bottomleft", "bottom", "bottomright"} <= identifiers
 EOF
-    echo "[OK] Aurora v0.1 staged into $pkgdir"
+    # Install an opt-in user-controlled profile helper. No changes to /home or
+    # KWin settings occur during packaging or installation.
+    install -d "$pkgdir/usr/bin"
+    cat > "$pkgdir/usr/bin/aurora-profile" <<'AURORA_PROFILE_PY'
+#!/usr/bin/env python3
+"""Opt-in, reversible Plasma Aurora appearance/performance presets."""
+import argparse
+import json
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+
+KEYS = [
+    ("kwinrc", "Plugins", "blurEnabled"),
+    ("kwinrc", "Plugins", "contrastEnabled"),
+    ("kdeglobals", "KDE", "AnimationDurationFactor"),
+]
+PROFILES = {
+    "performance": ["false", "false", "0.7"],
+    "balanced": ["true", "true", "0.85"],
+    "ultra": ["true", "true", "1.1"],
+}
+UNSET = "__AURORA_UNSET_62C5FE9D__"
+
+def utility(name):
+    found = shutil.which(name)
+    if not found:
+        raise RuntimeError("Required KDE command unavailable: " + name)
+    return found
+
+def read(config, group, key):
+    return subprocess.check_output(
+        [utility("kreadconfig6"), "--file", config, "--group", group,
+         "--key", key, "--default", UNSET], text=True
+    ).rstrip("\n")
+
+def write(config, group, key, value):
+    cmd = [utility("kwriteconfig6"), "--file", config,
+           "--group", group, "--key", key]
+    cmd.extend(["--delete"] if value == UNSET else [value])
+    subprocess.run(cmd, check=True)
+
+def refresh_kwin():
+    dbus = shutil.which("qdbus6") or shutil.which("qdbus")
+    if dbus:
+        subprocess.run([dbus, "org.kde.KWin", "/KWin", "reconfigure"],
+                       check=False, stdout=subprocess.DEVNULL,
+                       stderr=subprocess.DEVNULL)
+
+def main():
+    parser = argparse.ArgumentParser(description="Plasma Aurora opt-in presets")
+    parser.add_argument("action", choices=[*PROFILES, "restore", "status"])
+    parser.add_argument("--dry-run", action="store_true")
+    options = parser.parse_args()
+    if os.geteuid() == 0:
+        parser.error("Run as your regular Plasma user, not root")
+
+    folder = Path(os.environ.get("XDG_STATE_HOME", str(Path.home() / ".local/state")))
+    state_dir = folder / "plasma-aurora"
+    state_file = state_dir / "profile-backup.json"
+    saved = json.loads(state_file.read_text()) if state_file.exists() else None
+
+    if options.action == "status":
+        print("Aurora preset:", saved["profile"] if saved else "none")
+        for config, group, key in KEYS:
+            print(f"{config}/{group}/{key}: {read(config, group, key)}")
+        return
+
+    if options.action == "restore":
+        if not saved:
+            print("No Aurora preset backup found")
+            return
+        for i, (config, group, key) in enumerate(KEYS):
+            current = read(config, group, key)
+            if current != saved["applied"][i]:
+                print(f"Preserving manually modified {config}/{group}/{key}")
+                continue
+            if not options.dry_run:
+                write(config, group, key, saved["original"][i])
+        if not options.dry_run:
+            state_file.unlink()
+            refresh_kwin()
+        print("Restore complete" if not options.dry_run else "Restore preview complete")
+        return
+
+    values = PROFILES[options.action]
+    if saved:
+        changes = [
+            f"{config}/{group}/{key}"
+            for i, (config, group, key) in enumerate(KEYS)
+            if read(config, group, key) != saved["applied"][i]
+        ]
+        if changes:
+            raise RuntimeError("Manual changes detected; run 'aurora-profile restore' "
+                               "before switching presets: " + ", ".join(changes))
+        original = saved["original"]
+    else:
+        original = [read(*item) for item in KEYS]
+    print("Setting Aurora preset:", options.action)
+    if options.dry_run:
+        for item, value in zip(KEYS, values):
+            print("/".join(item), "=", value)
+        return
+    state_dir.mkdir(parents=True, exist_ok=True)
+    state_dir.chmod(0o700)
+    temp = state_file.with_suffix(".tmp")
+    temp.write_text(json.dumps({"profile": options.action,
+                                "original": original, "applied": values}, indent=2))
+    temp.chmod(0o600)
+    os.replace(temp, state_file)
+    for item, value in zip(KEYS, values):
+        write(*item, value)
+    refresh_kwin()
+    print("Preset applied. Use 'aurora-profile restore' to undo.")
+
+if __name__ == "__main__":
+    try:
+        main()
+    except (RuntimeError, OSError, ValueError, json.JSONDecodeError,
+            subprocess.CalledProcessError) as exc:
+        print("Aurora preset error:", exc, file=sys.stderr)
+        sys.exit(1)
+AURORA_PROFILE_PY
+    chmod 0755 "$pkgdir/usr/bin/aurora-profile"
+    python3 - "$pkgdir/usr/bin/aurora-profile" <<'AURORA_VALIDATE_PY'
+import ast, pathlib, sys
+ast.parse(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+AURORA_VALIDATE_PY
+
+    echo "[OK] Aurora v0.2 staged into $pkgdir"
 }
