@@ -1,0 +1,11 @@
+[plasmarc][Theme]
+name=org.lpm.aurora
+
+[kdeglobals][General]
+ColorScheme=Aurora
+
+[kdeglobals][Icons]
+Theme=PlasmaAurora
+
+[kdeglobals][KDE]
+widgetStyle=Breeze

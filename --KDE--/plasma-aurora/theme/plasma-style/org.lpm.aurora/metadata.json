@@ -1,0 +1,13 @@
+{
+  "KPackageStructure": "Plasma/Theme",
+  "KPlugin": {
+    "Id": "org.lpm.aurora",
+    "Name": "Aurora Glass",
+    "Description": "Sapphire-violet translucent Plasma panel style for LPM",
+    "Category": "Plasma Theme",
+    "License": "MIT",
+    "Version": "0.3.0",
+    "EnabledByDefault": true
+  },
+  "X-Plasma-API": "6.0"
+}
