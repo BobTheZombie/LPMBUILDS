@@ -23,6 +23,12 @@ from packagekit.enums import *
 STATE = Path(os.environ.get('LPM_STATE_DIR', '/var/lib/lpm'))
 VALID_NAME = re.compile(r'^[a-zA-Z0-9][a-zA-Z0-9+_.-]*$')
 VERSION = re.compile(r'^(\d+)(?:\.(\d+))?(?:\.(\d+))?(?:[-+~].*)?$')
+FLATPAK_PREFIX = 'flatpak:'
+FLATPAK_REMOTE = 'flathub'
+FLATPAK_APP_ID = re.compile(
+    r'^[A-Za-z_][A-Za-z0-9_-]*(?:\.[A-Za-z0-9_-]+){1,}'
+    r'(?:/[A-Za-z0-9_]+/[A-Za-z0-9_.-]+)?$'
+)
 
 
 def version_key(value):
@@ -197,6 +203,51 @@ def names_from_ids(ids, available, inst, *, must_installed=False):
     return list(dict.fromkeys(names))
 
 
+
+def flatpak_pkgid(app, installed_state=False):
+    """Virtual PackageKit reference, never a native LPM package ID."""
+    if not FLATPAK_APP_ID.fullmatch(app):
+        raise ValueError('Invalid Flatpak application ID')
+    origin = 'installed:flathub' if installed_state else FLATPAK_REMOTE
+    return get_package_id(FLATPAK_PREFIX + app, '0', 'noarch', origin)
+
+
+def flatpak_id_app(package_id):
+    """Reject spoofed virtual package IDs before invoking LPM."""
+    parts = split_package_id(package_id)
+    if len(parts) != 4 or not parts[0].startswith(FLATPAK_PREFIX):
+        raise ValueError('Not a Flatpak PackageKit ID')
+    app = parts[0][len(FLATPAK_PREFIX):]
+    if not FLATPAK_APP_ID.fullmatch(app):
+        raise ValueError('Invalid Flatpak application ID')
+    if package_id not in (flatpak_pkgid(app), flatpak_pkgid(app, True)):
+        raise ValueError('Stale or unsupported Flatpak PackageKit ID')
+    return app, package_id == flatpak_pkgid(app, True)
+
+
+def flatpak_status(app, *, installed_only=False):
+    """Read-only probe; all install/update/remove operations go through LPM."""
+    if not FLATPAK_APP_ID.fullmatch(app):
+        return False
+    command = (
+        ['/usr/bin/flatpak', 'info', '--system', '--show-origin', app]
+        if installed_only
+        else ['/usr/bin/flatpak', 'remote-info', '--system', FLATPAK_REMOTE, app]
+    )
+    try:
+        result = subprocess.run(
+            command, stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE if installed_only else subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL, check=False, timeout=30,
+        )
+        # Never present unrelated system remotes as Flathub installations.
+        return result.returncode == 0 and (
+            not installed_only or result.stdout.decode('utf-8', errors='replace').strip() == FLATPAK_REMOTE
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+
+
 class LPMBackend(PackageKitBaseBackend):
     def __init__(self, argv):
         super().__init__(argv)
@@ -223,18 +274,84 @@ class LPMBackend(PackageKitBaseBackend):
             if predicate(item):
                 self._emit(item, is_installed)
 
+    def _resolve_flatpak(self, filters, values):
+        # Only explicit flatpak:app IDs. Do not merge Flathub catalogs into
+        # native PackageKit searches (Discover uses its own Flatpak plugin).
+        self.status(STATUS_QUERY)
+        for raw in dict.fromkeys(values):
+            app = raw.split(';', 1)[0]
+            if not app.startswith(FLATPAK_PREFIX):
+                continue
+            app = app[len(FLATPAK_PREFIX):]
+            if not FLATPAK_APP_ID.fullmatch(app):
+                continue
+            is_installed = flatpak_status(app, installed_only=True)
+            if ('installed' in filters and not is_installed or
+                    'not-installed' in filters and is_installed):
+                continue
+            if not is_installed and not flatpak_status(app):
+                continue
+            self.package(flatpak_pkgid(app, is_installed),
+                         INFO_INSTALLED if is_installed else INFO_AVAILABLE,
+                         'Flathub Flatpak application')
+
+    def _flatpak_transaction(self, operation, ids):
+        """Use LPM for a wholly Flatpak PackageKit transaction.
+
+        Native and Flatpak operations cannot be atomically rolled back together.
+        """
+        apps = []
+        for value in ids:
+            try:
+                app, installed_id = flatpak_id_app(value)
+            except ValueError as err:
+                self.error(ERROR_PACKAGE_NOT_FOUND, safe(err))
+                return
+            if operation == 'install':
+                if installed_id or not flatpak_status(app):
+                    self.error(ERROR_PACKAGE_NOT_FOUND,
+                               'Flatpak application unavailable from Flathub: ' + app)
+                    return
+            elif not flatpak_status(app, installed_only=True):
+                self.error(ERROR_PACKAGE_NOT_FOUND,
+                           'System Flatpak application not installed: ' + app)
+                return
+            if operation == 'remove' and not installed_id:
+                self.error(ERROR_PACKAGE_NOT_FOUND, 'Expected installed Flatpak ID')
+                return
+            apps.append(app)
+        if not apps:
+            return
+        self.status({'install': STATUS_INSTALL, 'remove': STATUS_REMOVE,
+                     'update': STATUS_UPDATE}[operation])
+        subcommand = 'remove' if operation == 'remove' else operation
+        self._run_transaction(['/usr/bin/lpm', 'flatpak', subcommand,
+                               '--system', '--yes', *dict.fromkeys(apps)])
+
     def get_packages(self, filters):
         self._packages(filters)
 
     def search_name(self, filters, terms):
+        if any(t.startswith(FLATPAK_PREFIX) for t in terms):
+            self._resolve_flatpak(filters, terms)
+            return
         needles = [t.lower() for t in terms if t]
         self._packages(filters, lambda x: all(n in x['name'].lower() for n in needles))
 
     def search_details(self, filters, terms):
+        if any(t.startswith(FLATPAK_PREFIX) for t in terms):
+            self._resolve_flatpak(filters, terms)
+            return
         needles = [t.lower() for t in terms if t]
         self._packages(filters, lambda x: all(n in (x['name']+' '+x.get('summary','')).lower() for n in needles))
 
     def resolve(self, filters, values):
+        if any(value.startswith(FLATPAK_PREFIX) for value in values):
+            if not all(value.startswith(FLATPAK_PREFIX) for value in values):
+                self.error(ERROR_NOT_SUPPORTED, 'Cannot mix native and Flatpak identifiers')
+                return
+            self._resolve_flatpak(filters, values)
+            return
         names = set(v.split(';')[0] for v in values)
         self._packages(filters, lambda x: x['name'] in names)
 
@@ -243,6 +360,19 @@ class LPMBackend(PackageKitBaseBackend):
         inst = installed()
         remote = available_packages()
         for value in ids:
+            if value.startswith(FLATPAK_PREFIX):
+                try:
+                    app, is_installed = flatpak_id_app(value)
+                except ValueError as err:
+                    self.error(ERROR_PACKAGE_NOT_FOUND, safe(err), exit=False)
+                    continue
+                if not flatpak_status(app, installed_only=is_installed):
+                    self.error(ERROR_PACKAGE_NOT_FOUND, 'Flatpak reference unavailable', exit=False)
+                    continue
+                self.details(value, 'Flathub Flatpak application', 'unknown',
+                             GROUP_UNKNOWN, 'Sandboxed application from Flathub',
+                             'https://flathub.org/apps/' + app, None)
+                continue
             parts = split_package_id(value)
             if len(parts) != 4:
                 self.error(ERROR_PACKAGE_NOT_FOUND, 'Bad package ID', exit=False)
@@ -281,6 +411,15 @@ class LPMBackend(PackageKitBaseBackend):
         return True
 
     def _transaction(self, subcommand, ids, *, require_installed=False):
+        if any(value.startswith(FLATPAK_PREFIX) for value in ids):
+            if not all(value.startswith(FLATPAK_PREFIX) for value in ids):
+                self.error(ERROR_NOT_SUPPORTED,
+                           'Cannot mix LPM and Flatpak in one PackageKit transaction')
+                return
+            operation = {'install': 'install', 'removepkg': 'remove',
+                         'upgrade': 'update'}[subcommand]
+            self._flatpak_transaction(operation, ids)
+            return
         available = available_packages() if not require_installed else catalog()
         inst = installed()
         try:
