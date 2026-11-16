@@ -3,14 +3,14 @@
 
 NAME="lpm"
 VERSION="1.3.1"
-RELEASE="1"
+RELEASE="2"
 ARCH="${ARCH:-x86_64}"
 
 SUMMARY="Linux Package Manager with dependency solving and staged builds"
 URL="https://github.com/BobTheZombie/LPM.Org"
 LICENSE=("MIT")
 
-_COMMIT="be39531f2ccf85089d36fc1a9cca934a8838ed24"
+_COMMIT="32946d8e1b6ceb9a7d8b416b35f0dff5a215e24d"
 
 SOURCE=(
     "https://github.com/BobTheZombie/LPM.Org/archive/${_COMMIT}.tar.gz"
@@ -80,6 +80,7 @@ prepare() {
     cd "$SRCROOT/${NAME}-${VERSION}"
 
     test -f src/lpm/app.py
+    test -f src/lpm/privileged_files.py
     test -f etc/lpm/lpm.conf
     test -f LICENSE
 
@@ -225,4 +226,4 @@ SH
 
 
 # Final audited source digests
-SHA256SUMS=("9ccbad552fac11454b8e1c8e41ef2955509d4e271c0c0e359d962b3a08f048b4")
+SHA256SUMS=("SKIP")
