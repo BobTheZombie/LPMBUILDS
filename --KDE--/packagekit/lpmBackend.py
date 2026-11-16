@@ -26,7 +26,7 @@ VERSION = re.compile(r'^(\d+)(?:\.(\d+))?(?:\.(\d+))?(?:[-+~].*)?$')
 FLATPAK_PREFIX = 'flatpak:'
 FLATPAK_REMOTE = 'flathub'
 FLATPAK_APP_ID = re.compile(
-    r'^[A-Za-z_][A-Za-z0-9_-]*(?:\\.[A-Za-z0-9_-]+){1,}'
+    r'^[A-Za-z_][A-Za-z0-9_-]*(?:\.[A-Za-z0-9_-]+){1,}'
     r'(?:/[A-Za-z0-9_]+/[A-Za-z0-9_.-]+)?$'
 )
 
