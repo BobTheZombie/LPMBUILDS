@@ -16,7 +16,7 @@ SOURCE=(
     "https://github.com/BobTheZombie/LPM.Org/archive/${_COMMIT}.tar.gz"
 )
 
-SHA256SUMS=("SKIP")
+SHA256SUMS=("fd2472e45f6d61c641f9850934d3c89d272cd27470b35dc9cc2a06a1b89a0a91")
 PATCHES=()
 
 REQUIRES=(
@@ -220,10 +220,4 @@ SH
         "$pkgdir/usr/lib/lpm/lpm.bin" buildpkg --help >/dev/null
         "$pkgdir/usr/lib/lpm/lpm.bin" rebuild-stage2 --help >/dev/null
     )
-}
-
-
-
-
-# Final audited source digests
-SHA256SUMS=("SKIP")
+}\n
