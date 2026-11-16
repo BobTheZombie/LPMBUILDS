@@ -3,8 +3,8 @@
   "KPlugin": {
     "Id": "org.lpm.aurora.desktop",
     "Name": "Aurora",
-    "Description": "LPM Aurora Glass desktop and centered dock",
+    "Description": "LPM Plasma Aurora glass desktop with centered dock",
     "License": "MIT",
-    "Version": "0.3.0"
+    "Version": "0.4.0"
   }
 }
