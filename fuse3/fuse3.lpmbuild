@@ -1,15 +1,15 @@
 #!/bin/bash
-# libfuse 3.18.3, prerequisite for kio-fuse; does NOT replace FUSE2.
+# libfuse 3.18.3. Stage without privileged device creation; LPM restores
+# fusermount3 setuid only from a signature-verified fuse3 package.
 NAME="fuse3"
 VERSION="3.18.3"
-RELEASE="1"
+RELEASE="2"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="FUSE 3 userspace filesystem library and mount helpers"
+SUMMARY="FUSE 3 userspace filesystem library and privileged mount helper"
 URL="https://github.com/libfuse/libfuse"
 LICENSE=("LGPL-2.1-or-later" "GPL-2.0-or-later")
-SOURCE=("https://github.com/libfuse/libfuse/archive/refs/tags/fuse-${VERSION}.tar.gz")
-# Pin this GitHub archive checksum after validating the downloaded bytes.
-SHA256SUMS=("SKIP")
+SOURCE=("https://github.com/libfuse/libfuse/releases/download/fuse-${VERSION}/fuse-${VERSION}.tar.gz")
+SHA256SUMS=("bcd19582c5e30f7fe45dd86a5540e998590aa01903afc7ebcbeea6c8ac5421ee")
 PATCHES=()
 REQUIRES=("glibc")
 BUILD_REQUIRES=("gcc" "meson" "ninja" "pkgconf" "python")
@@ -19,23 +19,49 @@ CONFLICTS=()
 OBSOLETES=()
 RECOMMENDS=()
 SUGGESTS=()
+
 prepare() {
     set -euxo pipefail
     test -f "$SRCROOT/${NAME}-${VERSION}/meson.build"
 }
+
 build() {
     set -euxo pipefail
     local src="$SRCROOT/${NAME}-${VERSION}"
     local builddir="$BUILDROOT/${NAME}-build"
     meson setup "$builddir" "$src" \
-      --prefix=/usr --libdir=lib --buildtype=release --wrap-mode=nodownload \
-      -Dtests=false -Dexamples=false -Dutils=true \
-      -Dinitscriptdir= -Duseroot=false -Denable-io-uring=false
+        --prefix=/usr --libdir=lib --sysconfdir=/etc \
+        --buildtype=release --wrap-mode=nodownload \
+        -Dtests=false -Dexamples=false -Dutils=true \
+        -Dinitscriptdir= \
+        -Dudevrulesdir=/usr/lib/udev/rules.d \
+        -Duseroot=false \
+        -Denable-io-uring=false
+
+    # useroot=false is intentional for staging: upstream's helper would
+    # otherwise chown/mknod inside DESTDIR and require privileged builders.
+    # The only elevated mode is declared explicitly during staged packaging.
     meson compile -C "$builddir" -j "${LPM_BUILD_JOBS:-$(nproc)}"
 }
+
 staging() {
     set -euxo pipefail
     DESTDIR="$pkgdir" meson install -C "$BUILDROOT/${NAME}-build" --no-rebuild
+
+    local helper="$pkgdir/usr/bin/fusermount3"
+    local udev="$pkgdir/usr/lib/udev/rules.d/99-fuse3.rules"
+
     test -f "$pkgdir/usr/lib/pkgconfig/fuse3.pc"
     test -n "$(find "$pkgdir/usr/lib" -maxdepth 1 -name 'libfuse3.so*' -print -quit)"
+    test -f "$helper"
+    test ! -L "$helper"
+
+    # The signed LPM manifest records 4755/root:root for this exact path.
+    # NEVER setuid a script or symlink, and do not create /dev/fuse in pkgdir.
+    chmod 4755 "$helper"
+    test "$(stat -c '%a' "$helper")" = 4755
+    test -f "$udev"
+    grep -q 'KERNEL=="fuse"' "$udev"
+    test -f "$pkgdir/etc/fuse.conf"
+    test ! -e "$pkgdir/dev/fuse"
 }
