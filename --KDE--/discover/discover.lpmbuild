@@ -1,70 +1,76 @@
 #!/bin/bash
-# LPM Linux: KDE Plasma 6.8.1 package chain
-# Generated 2026-10-25; source digests MUST be locked before building.
+# LPM Linux Discover 6.8.1: native LPM PackageKit + Flathub Flatpak backends.
+# Both plugins are mandatory. Fail instead of silently shipping an incomplete Discover.
 NAME="discover"
 VERSION="6.8.1"
-RELEASE="1"
+RELEASE="2"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="KDE Plasma 6: discover"
-URL="https://kde.org"
-LICENSE=("SEE-UPSTREAM")
-SOURCE=(
-    "https://download.kde.org/stable/plasma/6.8.1/discover-6.8.1.tar.xz"
-)
-SHA256SUMS=(
-    "SKIP"
-)
+SUMMARY="KDE Discover with native LPM and Flathub software sources"
+URL="https://invent.kde.org/plasma/discover"
+LICENSE=("GPL-2.0-or-later")
+SOURCE=("https://download.kde.org/stable/plasma/${VERSION}/discover-${VERSION}.tar.xz")
+SHA256SUMS=("SKIP")
 PATCHES=()
 REQUIRES=(
-    "qt6-base"
-    "qt6-declarative"
-    "knewstuff6"
-    "kio6"
-    "kcmutils6"
-    "plasma-workspace"
+    "qt6-base" "qt6-declarative"
+    "knewstuff6" "kio6" "kcmutils6" "plasma-workspace"
+    "kirigami-addons" "qcoro" "AppStream"
+    "packagekit" "packagekit-qt6"
+    "flatpak" "flatpak-flathub"
 )
 BUILD_REQUIRES=(
-    "cmake"
-    "ninja"
-    "pkgconf"
-    "extra-cmake-modules"
-    "qt6-base"
-    "qt6-declarative"
-    "knewstuff6"
-    "kio6"
-    "kcmutils6"
-    "plasma-workspace"
+    "cmake" "ninja" "pkgconf" "extra-cmake-modules"
+    "qt6-base" "qt6-declarative"
+    "knewstuff6" "kio6" "kcmutils6" "plasma-workspace"
+    "kirigami-addons" "qcoro" "AppStream"
+    "packagekit" "packagekit-qt6" "flatpak"
 )
 REQUIRES_PYTHON_DEPENDENCIES=()
 PROVIDES=()
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=()
+RECOMMENDS=("flatpak-kcm")
 SUGGESTS=()
 
 prepare() {
     set -euxo pipefail
-    test -f "$SRCROOT/$NAME-$VERSION/CMakeLists.txt"
+    local src="$SRCROOT/$NAME-$VERSION"
+    test -f "$src/CMakeLists.txt"
+    pkgconf --exists 'flatpak >= 0.11.8'
+    pkgconf --exists 'appstream'
+    # packagekitqt6 and AppStreamQt are required by the CMake configure below.
 }
 
 build() {
     set -euxo pipefail
     local src="$SRCROOT/$NAME-$VERSION"
-    local builddir="$src/build"
+    local builddir="$BUILDROOT/$NAME-build"
     cmake -S "$src" -B "$builddir" -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_INSTALL_PREFIX=/usr \
         -DCMAKE_INSTALL_LIBDIR=lib \
         -DBUILD_TESTING=OFF \
         -DBUILD_SHARED_LIBS=ON \
-        -DKDE_INSTALL_USE_QT_SYS_PATHS=ON
+        -DKDE_INSTALL_USE_QT_SYS_PATHS=ON \
+        -DBUILD_FlatpakBackend=ON \
+        -DBUILD_PackageKitBackend=ON \
+        -DCMAKE_REQUIRE_FIND_PACKAGE_packagekitqt6=ON \
+        -DCMAKE_REQUIRE_FIND_PACKAGE_AppStreamQt=ON
+
+    grep -q '^BUILD_FlatpakBackend:BOOL=ON$' "$builddir/CMakeCache.txt"
+    grep -q '^BUILD_PackageKitBackend:BOOL=ON$' "$builddir/CMakeCache.txt"
     cmake --build "$builddir" --parallel "${LPM_BUILD_JOBS:-$(nproc)}"
+
+    test -n "$(find "$builddir" -type f -name 'flatpak-backend.so' -print -quit)"
+    test -n "$(find "$builddir" -type f -name 'packagekit-backend.so' -print -quit)"
 }
 
 staging() {
     set -euxo pipefail
-    local builddir="$SRCROOT/$NAME-$VERSION/build"
+    local builddir="$BUILDROOT/$NAME-build"
     DESTDIR="$pkgdir" cmake --install "$builddir"
-    test -d "$pkgdir/usr"
-    test -n "$(find "$pkgdir/usr" -mindepth 1 -print -quit)"
+
+    test -n "$(find "$pkgdir/usr" -type f -name 'flatpak-backend.so' -print -quit)"
+    test -n "$(find "$pkgdir/usr" -type f -name 'packagekit-backend.so' -print -quit)"
+    test -n "$(find "$pkgdir/usr" -type f -name 'FlatpakNotifier.so' -print -quit)"
 }
