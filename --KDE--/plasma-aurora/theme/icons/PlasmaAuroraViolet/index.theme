@@ -1,0 +1,40 @@
+[Icon Theme]
+Name=Plasma Aurora Violet
+Comment=Original Aurora vector icon collection, with Breeze fallback
+Inherits=PlasmaAurora,breeze-dark,breeze,hicolor
+Directories=scalable/actions,scalable/apps,scalable/categories,scalable/places,scalable/status
+
+[scalable/actions]
+Size=64
+Context=Actions
+Type=Scalable
+MinSize=16
+MaxSize=256
+
+[scalable/apps]
+Size=64
+Context=Applications
+Type=Scalable
+MinSize=16
+MaxSize=256
+
+[scalable/categories]
+Size=64
+Context=Categories
+Type=Scalable
+MinSize=16
+MaxSize=256
+
+[scalable/places]
+Size=64
+Context=Places
+Type=Scalable
+MinSize=16
+MaxSize=256
+
+[scalable/status]
+Size=64
+Context=Status
+Type=Scalable
+MinSize=16
+MaxSize=256

@@ -28,6 +28,12 @@ bash -c 'source "$1"; staging' bash "$work/lpm-plasma-aurora.lpmbuild"
 
 test -s "$pkgdir/usr/share/wallpapers/PlasmaAurora/contents/images/2560x1440.png"
 test -x "$pkgdir/usr/bin/aurora-profile"
+test -s "$pkgdir/usr/share/plasma/desktoptheme/org.lpm.aurora/widgets/listitem.svg"
+test -s "$pkgdir/usr/share/plasma/desktoptheme/org.lpm.aurora/widgets/tasks.svg"
+test -s "$pkgdir/usr/share/plasma/desktoptheme/org.lpm.aurora/widgets/viewitem.svg"
+test -s "$pkgdir/usr/share/icons/PlasmaAurora/scalable/categories/applications-development.svg"
+test -s "$pkgdir/usr/share/icons/PlasmaAurora/scalable/actions/system-reboot.svg"
+test -s "$pkgdir/usr/share/icons/PlasmaAuroraViolet/index.theme"
 
 # Development override still resolves to the checked-out theme.
 AURORA_THEME_DIR="$PWD/theme" \

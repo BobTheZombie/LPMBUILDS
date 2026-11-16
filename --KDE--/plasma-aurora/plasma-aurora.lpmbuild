@@ -1,19 +1,19 @@
 #!/bin/bash
-# LPM Linux Plasma Aurora v0.3.0 — source-controlled KDE Plasma 6 Global Theme.
+# LPM Linux Plasma Aurora v0.4.0 — glass state fixes and extended icon packs.
 # LPM can build this by package name: its Git SOURCE supplies all theme assets,
 # even when the recipe itself was fetched into /tmp/lpm-plasma-aurora.lpmbuild.
 NAME="plasma-aurora"
-VERSION="0.3.0"
-RELEASE="2"
+VERSION="0.4.0"
+RELEASE="1"
 ARCH="any"
-SUMMARY="Complete Aurora Glass Global Theme, color scheme, icon accents, wallpaper and opt-in performance profiles"
+SUMMARY="Aurora Glass Global Theme, transparent Kickoff/task states, two icon packs and performance profiles"
 URL="https://github.com/BobTheZombie/LPMBUILDS/tree/main/--KDE--/plasma-aurora"
 LICENSE=("MIT")
-# Pin a *known* source commit containing the complete 0.3.0 theme assets.
+# Pin the source commit containing the 0.4.0 theme assets (before this recipe update).
 # Supported by LPM's git+URL#commit= parser; alias stages at $SRCROOT/aurora-src.
 # Do not use /tmp/lpm-plasma-aurora.lpmbuild's dirname for source resolution.
 # Bump the commit and RELEASE together whenever the tracked theme changes.
-_AURORA_SOURCE_COMMIT="32d42ce6d6c4b46eea2e92d65e4c15b66eae6382"
+_AURORA_SOURCE_COMMIT="2bf2a062cbd85e60256e803d929e8c05e35649fa"
 SOURCE=(
     "aurora-src::git+https://github.com/BobTheZombie/LPMBUILDS.git#commit=${_AURORA_SOURCE_COMMIT}"
 )
@@ -51,6 +51,9 @@ prepare() {
     }
     test -f "$src/tools/generate_wallpaper.py"
     test -f "$src/tools/validate_stage.py"
+    test -f "$src/plasma-style/org.lpm.aurora/widgets/listitem.svg"
+    test -f "$src/plasma-style/org.lpm.aurora/widgets/tasks.svg"
+    test -f "$src/icons/PlasmaAuroraViolet/index.theme"
     echo "[OK] Plasma Aurora assets found at $src"
 }
 build() { :; }
@@ -67,6 +70,7 @@ staging() {
     cp -a "$src/global-theme/org.lpm.aurora.desktop" "$share/plasma/look-and-feel/"
     cp -a "$src/plasma-style/org.lpm.aurora" "$share/plasma/desktoptheme/"
     cp -a "$src/icons/PlasmaAurora" "$share/icons/"
+    cp -a "$src/icons/PlasmaAuroraViolet" "$share/icons/"
     cp -a "$src/wallpapers/PlasmaAurora" "$share/wallpapers/"
     install -m 0644 "$src/color-schemes/Aurora.colors" "$share/color-schemes/Aurora.colors"
     install -m 0755 "$src/scripts/aurora-profile" "$pkgdir/usr/bin/aurora-profile"

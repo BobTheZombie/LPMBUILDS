@@ -1,6 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
-<defs><linearGradient id="halo" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#6dcaff"/><stop offset=".52" stop-color="#a579ff"/><stop offset="1" stop-color="#593cb9"/></linearGradient></defs>
-<circle cx="64" cy="64" r="54" fill="#111630" stroke="url(#halo)" stroke-width="4"/>
-<path d="M31 90 58 34 Q64 24 70 34 L98 90 H80 L69 67 H57 L47 90Z" fill="url(#halo)"/>
-<path d="M64 19 Q84 42 109 48" stroke="#b9d7ff" stroke-width="5" stroke-linecap="round" fill="none" opacity=".75"/>
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+<defs><linearGradient id="aurora-stroke" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#7fe1ff"/><stop offset=".55" stop-color="#9f9dff"/><stop offset="1" stop-color="#7ea8ff"/></linearGradient></defs>
+<g fill="none" stroke="url(#aurora-stroke)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"><path d="m64 20 14 28 31 4-22 22 5 32-28-15-28 15 5-32-22-22 31-4z"/></g>
 </svg>

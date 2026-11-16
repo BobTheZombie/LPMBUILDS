@@ -1,8 +1,29 @@
 [Icon Theme]
 Name=Plasma Aurora
-Comment=Aurora accents with Breeze fallback
+Comment=Original Aurora vector icon collection, with Breeze fallback
 Inherits=breeze-dark,breeze,hicolor
-Directories=scalable/places,scalable/apps
+Directories=scalable/actions,scalable/apps,scalable/categories,scalable/places,scalable/status
+
+[scalable/actions]
+Size=64
+Context=Actions
+Type=Scalable
+MinSize=16
+MaxSize=256
+
+[scalable/apps]
+Size=64
+Context=Applications
+Type=Scalable
+MinSize=16
+MaxSize=256
+
+[scalable/categories]
+Size=64
+Context=Categories
+Type=Scalable
+MinSize=16
+MaxSize=256
 
 [scalable/places]
 Size=64
@@ -11,9 +32,9 @@ Type=Scalable
 MinSize=16
 MaxSize=256
 
-[scalable/apps]
+[scalable/status]
 Size=64
-Context=Applications
+Context=Status
 Type=Scalable
 MinSize=16
 MaxSize=256
