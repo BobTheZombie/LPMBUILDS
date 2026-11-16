@@ -1,0 +1,54 @@
+name: FUSE3 and Flatpak filesystem recipes
+
+on:
+  push:
+    paths:
+      - "fuse3/fuse3.lpmbuild"
+      - "ostree/ostree.lpmbuild"
+      - "flatpak/flatpak.lpmbuild"
+      - ".github/workflows/fuse-ostree-recipes.yml"
+  pull_request:
+    paths:
+      - "fuse3/fuse3.lpmbuild"
+      - "ostree/ostree.lpmbuild"
+      - "flatpak/flatpak.lpmbuild"
+      - ".github/workflows/fuse-ostree-recipes.yml"
+
+jobs:
+  recipes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate recipe shell syntax and safety invariants
+        run: |
+          bash -n fuse3/fuse3.lpmbuild
+          bash -n ostree/ostree.lpmbuild
+          bash -n flatpak/flatpak.lpmbuild
+          grep -q -- '-Duseroot=false' fuse3/fuse3.lpmbuild
+          grep -q 'chmod 4755' fuse3/fuse3.lpmbuild
+          grep -q -- '-Dudevrulesdir=/usr/lib/udev/rules.d' fuse3/fuse3.lpmbuild
+          grep -q -- '--enable-rofiles-fuse' ostree/ostree.lpmbuild
+          grep -q 'test -x "$pkgdir/usr/libexec/revokefs-fuse"' flatpak/flatpak.lpmbuild
+      - name: Install FUSE build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y meson ninja-build pkg-config gcc libudev-dev
+      - name: Build and stage actual FUSE 3.18.3
+        shell: bash
+        run: |
+          set -euxo pipefail
+          export SRCROOT="$RUNNER_TEMP/sources"
+          export BUILDROOT="$RUNNER_TEMP/builds"
+          export pkgdir="$RUNNER_TEMP/staged-fuse3"
+          mkdir -p "$SRCROOT" "$BUILDROOT" "$pkgdir"
+          source ./fuse3/fuse3.lpmbuild
+          curl -fL --retry 3 \
+            "https://github.com/libfuse/libfuse/releases/download/fuse-${VERSION}/fuse-${VERSION}.tar.gz" \
+            -o "$RUNNER_TEMP/fuse.tar.gz"
+          printf '%s  %s\n' "${SHA256SUMS[0]}" "$RUNNER_TEMP/fuse.tar.gz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/fuse.tar.gz" -C "$SRCROOT"
+          mv "$SRCROOT/fuse-${VERSION}" "$SRCROOT/fuse3-${VERSION}"
+          prepare
+          build
+          staging
+          stat -c '%a %u:%g %n' "$pkgdir/usr/bin/fusermount3"
