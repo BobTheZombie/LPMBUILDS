@@ -19,6 +19,7 @@ jobs:
         shell: bash
         run: |
           set -euxo pipefail
+          bash -n ./lpm/lpm.lpmbuild
           source ./lpm/lpm.lpmbuild
           curl -fL --retry 3 "https://github.com/BobTheZombie/LPM.Org/archive/${_COMMIT}.tar.gz" \
             -o "$RUNNER_TEMP/lpm-source.tar.gz"
