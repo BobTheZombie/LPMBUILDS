@@ -1,129 +1,132 @@
-# Plasma Aurora 0.3.0 — LPM Linux KDE Plasma 6 Global Theme
+# Plasma Aurora 0.4.0 — KDE Plasma 6 Global Theme for LPM Linux
 
-Plasma Aurora is an installable, tracked-asset KDE Plasma 6 Global Theme
-for LPM Linux. The LPBUILD installs **real files from a pinned Git source**,
-rather than synthesizing metadata and SVGs in the shell. This supports
-both local checkout builds and LPM's package-name remote LPBUILD resolution.
+Plasma Aurora is an installable, tracked-asset Plasma Style, Global Theme, wallpaper,
+and two original SVG icon collections for LPM Linux. It provides a floating,
+centered Plasma dock layout and opt-in, reversible performance profiles.
 
-## Build and install on LPM Linux
+## 0.4.0 improvements: clear Kickoff and dock item backgrounds
 
-Use the remote package-name build directly on LPM Linux:
+Aurora now ships these Plasma Style assets with the KDE-documented FrameSvg
+IDs instead of relying entirely on inherited default theme states:
+
+| File | Visual intent |
+| --- | --- |
+| `widgets/listitem.svg` | Transparent idle Kickoff list rows; light cyan hover, violet pressed |
+| `widgets/viewitem.svg` | Transparent idle result tiles, soft selection highlight |
+| `widgets/tasks.svg` | Transparent idle/minimized task backgrounds; restrained focus/hover/attention |
+| `widgets/button.svg` | Reduced button and toolbutton backgrounds |
+| `widgets/menubaritem.svg` | Gentle mouse hover, no idle box |
+| `widgets/tabbar.svg` | Light active tab treatment, including Kickoff footer tab regions |
+
+The original Aurora glass panel and dialog backgrounds remain intact. These
+are **style assets**, not QML patches or a replacement for KWin. A live Plasma
+6.8 session must still confirm which rectangles are painted by the active
+widget/theme versus hardcoded application QML.
+
+### Original icon packs
+
+- **PlasmaAurora** — 83 additional cyan-to-violet vector icons in
+  `scalable/categories`, `scalable/apps`, `scalable/actions`,
+  `scalable/places`, and `scalable/status`, plus the original Aurora logo.
+  The theme has `breeze-dark,breeze,hicolor` fallbacks for unprovided icons.
+- **PlasmaAuroraViolet** — an optional 20-icon violet-accent variant,
+  inheriting all of PlasmaAurora and then Breeze.
+  
+Both packs are installed. Aurora Global Theme selects **PlasmaAurora** by
+default. To use the violet alternate, select **Plasma Aurora Violet** under
+System Settings → Colors & Themes → Icons.
+
+Coverage includes Kickoff categories (Development, Graphics, Internet, System,
+Utilities), app identities (Discover, Dolphin, Konsole, Kate, Settings),
+power/session actions (Sleep, Restart, Shutdown, Logout, Lock), places, and
+common system status icons.
+
+This artwork is original SVG vector art. It avoids full opaque icon tiles.
+Apps that do not have an Aurora override keep their installed Breeze or hicolor
+icons.
+
+## Build by package name (no local checkout required)
 
 ```bash
 lpm buildpkg plasma-aurora
 ```
 
-Or use the recipe checked out from GitHub:
+LPM resolves the remote recipe, then clones an **exact source commit** from
+`BobTheZombie/LPMBUILDS` into `$SRCROOT/aurora-src`. The recipe always
+stages from:
+
+```text
+$SRCROOT/aurora-src/--KDE--/plasma-aurora/theme
+```
+
+The 0.4.0-1 LPBUILD pins source commit
+`2bf2a062cbd85e60256e803d929e8c05e35649fa`, which contains all 0.4.0
+icon/style assets before the recipe update. This is intentional and ensures
+the package does not accidentally build a moving `main` branch snapshot.
+
+To build from the checked-out recipe instead:
 
 ```bash
 lpm buildpkg ./--KDE--/plasma-aurora/plasma-aurora.lpmbuild
 ```
 
-LPM fetches the recipe into a temporary location if building by package
-name. The recipe declares `SOURCE` as a **Git source pinned to the
-Aurora 0.3.0 asset commit** (`32d42ce6d6c4b46eea2e92d65e4c15b66eae6382`).
-LPM clones that source into `$SRCROOT/aurora-src`. It is intentionally
-independent of `/tmp/lpm-plasma-aurora.lpmbuild` and its directory.
-
-The Git commit hash fixes asset contents; `SHA256SUMS=("SKIP")` is expected
-for a Git source because it is **not** a downloaded tar archive. LPM needs
-the `git` build dependency and network access for an uncached clone.
-
-Install the resulting **0.3.0-2** signed `.lpminstall` artifact with
-`lpm installpkg /path/to/plasma-aurora-0.3.0-2.any.lpminstall`,
-replacing the example path with LPM's actual output. Once you publish
-the binary package to LPM's repository, `lpm install plasma-aurora`
-can install it from the binary index.
-
-For deliberate local development, `AURORA_THEME_DIR` still supports an
-absolute path to the checked-out `theme/` folder. Normal package builds
-do **not** require this override or a checkout beside the recipe.
-
-## What is installed
-
-- `/usr/share/plasma/look-and-feel/org.lpm.aurora.desktop/` — Global Theme
-  metadata, defaults, opt-in dock layout, generated PNG preview.
-- `/usr/share/plasma/desktoptheme/org.lpm.aurora/` — Aurora Glass Plasma Style,
-  panel/widget/dialog SVGs, solid opacity fallback and color palette.
-- `/usr/share/color-schemes/Aurora.colors` — Aurora KDE dark color scheme.
-- `/usr/share/icons/PlasmaAurora/` — accent icons with Breeze fallback.
-- `/usr/share/wallpapers/PlasmaAurora/` — original vector wallpaper source
-  plus generated 2560×1440 PNG and 960×540 screenshot.
-- `/usr/bin/aurora-profile` — opt-in reversible KWin effects/animations utility.
-
-No per-user files or KWin binaries are modified when installing this package.
-All staged files are owned by the `plasma-aurora` LPM package.
-
-## Apply
-
-Log into Plasma 6, then open **System Settings → Colors & Themes → Global Theme**,
-select **Aurora**, and optionally apply the desktop layout. **Applying a desktop
-layout replaces your panel arrangement.** Save
-`~/.config/plasma-org.kde.plasma.desktop-appletsrc` first if you need it.
-
-The panel layout uses KDE's own Kickoff, icons-only task manager, tray, clock,
-and Show Desktop. After applying, enable **Floating** in Plasma's panel editor
-if not enabled automatically. KWin Blur must be supported and enabled for
-real backdrop blur; SVG translucency by itself is not live blur.
-
-## Optional performance configuration
-
-Run as a non-root desktop user:
+Install the signed `.lpminstall` generated by LPM, using its actual output path:
 
 ```bash
-aurora-profile status
-aurora-profile balanced
-aurora-profile performance
-aurora-profile ultra
-aurora-profile restore
+lpm installpkg /path/to/plasma-aurora-0.4.0-1.any.lpminstall
 ```
 
-The helper stores a rollback record for
-`kwinrc/[Plugins]/blurEnabled`, `kwinrc/[Plugins]/contrastEnabled`,
-and `kdeglobals/[KDE]/AnimationDurationFactor`. It does not alter the CPU
-governor, GPU clocks, system services, kernel settings or KWin binary.
-`restore` preserves manually edited keys. Run `restore` before uninstalling
-if you've applied a profile.
-
-## Staging and tests
-
-The recipe's `staging()` function copies every tracked theme component from
-`$SRCROOT/aurora-src/--KDE--/plasma-aurora/theme` to `$pkgdir`, runs the
-deterministic stdlib-only PNG generator, and invokes
-`tools/validate_stage.py` to verify package IDs, 9-slice SVG elements,
-icons, layout and actual generated PNG file headers.
-
-The wallpaper PNGs are created **at package build time**; the editable
-vector source and standard-library renderer are checked into Git.
-A C++ compiler, ImageMagick, Pillow or host-side Meson are not needed for
-this asset-only LPBUILD. Python 3 and Git are declared build dependencies;
-Python 3 is also a runtime dependency for `aurora-profile`.
-
-### Regression test
-
-From an LPMBUILDS checkout, run:
+Run the local staging smoke test from `LPMBUILDS`:
 
 ```bash
 bash ./--KDE--/plasma-aurora/smoke-test.sh
 ```
 
-The smoke test creates a fake `$SRCROOT/aurora-src` with symlinked
-theme assets, copies the recipe into a separate temporary location,
-and invokes prepare, build, and staging in separate shells. This
-simulates the exact `/tmp/lpm-plasma-aurora.lpmbuild` failure mode
-without fetching from GitHub. It checks the generated PNG, executable
-profile helper, and staged package structure.
+This test stages the actual package from a fake remote recipe in `/tmp`,
+validates required 9-slice SVG IDs, parses **all installed icon SVGs**, checks
+both freedesktop icon-theme indexes, and validates generated wallpaper PNGs.
+It does not substitute for a live KDE session test.
 
-If an older cached recipe still prints
-`Missing Aurora assets: /tmp/theme`, refresh the remote LPBUILD
-to the **0.3.0-2** recipe. That message is from version 0.3.0-1.
+## Apply
 
-## Current scope
+Open System Settings → Colors & Themes → Global Theme → **Aurora**. Apply
+the included dock layout only if you want to replace your current panels;
+back up `~/.config/plasma-org.kde.plasma.desktop-appletsrc` first.
 
-This is a complete distributable first-generation Aurora **theme package**,
-not the planned future Aurora KWin source-patch suite. Custom 3D dock icon
-magnification and custom shader effects are not implemented. Runtime testing
-on LPM Linux Plasma 6.8.x Wayland and AMD Renoir remains required.
+Choose **Plasma Aurora** or **Plasma Aurora Violet** in the Icons section.
+After a theme upgrade, log out and back in if Plasma is still caching old
+theme assets. Avoid forcing a session restart while work is unsaved.
+
+## Optional performance profiles
+
+Run the following as your **normal desktop user**:
+
+```bash
+aurora-profile status
+aurora-profile performance
+aurora-profile balanced
+aurora-profile ultra
+aurora-profile restore
+```
+
+The helper changes only user KConfig values for KWin blur/contrast and
+animation duration. It saves original values and preserves manually changed
+settings on restore. Package installation alone never changes user settings.
+
+## Package contents
+
+- `/usr/share/plasma/look-and-feel/org.lpm.aurora.desktop/`
+- `/usr/share/plasma/desktoptheme/org.lpm.aurora/`
+- `/usr/share/color-schemes/Aurora.colors`
+- `/usr/share/icons/PlasmaAurora/`
+- `/usr/share/icons/PlasmaAuroraViolet/`
+- `/usr/share/wallpapers/PlasmaAurora/`
+- `/usr/bin/aurora-profile`
+
+All files are staged under `$pkgdir` for LPM ownership tracking. Nothing is
+written to users' home directories by the package install itself.
+
+Custom 3D taskbar animations and GPU shaders are still future development.
 
 ## License
 
