@@ -3,12 +3,12 @@ name: LPM PackageKit Flatpak bridge tests
 on:
   push:
     paths:
-      - "--KDE--/packagekit/**"
+      - "./--KDE--/packagekit/**"
       - "tests/test_packagekit_flatpak.py"
       - ".github/workflows/lpm-packagekit-flatpak.yml"
   pull_request:
     paths:
-      - "--KDE--/packagekit/**"
+      - "./--KDE--/packagekit/**"
       - "tests/test_packagekit_flatpak.py"
       - ".github/workflows/lpm-packagekit-flatpak.yml"
 
@@ -21,11 +21,11 @@ jobs:
         with:
           python-version: "3.12"
       - name: Compile Python PackageKit helper
-        run: python -m py_compile --KDE--/packagekit/lpmBackend.py
+        run: python -m py_compile ./--KDE--/packagekit/lpmBackend.py
       - name: Verify routed PackageKit and Flatpak transactions
         run: python -m unittest discover -s tests -p test_packagekit_flatpak.py -v
       - name: Verify helper digest pinned in package recipe
         run: |
-          expected="$(sed -n '/^SHA256SUMS=(/,/^)/p' --KDE--/packagekit/packagekit.lpmbuild | grep -E '^[[:space:]]+"[0-9a-f]{64}"' | sed -n '3s/[^0-9a-f]//gp')"
-          actual="$(sha256sum --KDE--/packagekit/lpmBackend.py | cut -d ' ' -f 1)"
+          expected="$(sed -n '/^SHA256SUMS=(/,/^)/p' ./--KDE--/packagekit/packagekit.lpmbuild | grep -E '^[[:space:]]+"[0-9a-f]{64}"' | sed -n '3s/[^0-9a-f]//gp')"
+          actual="$(sha256sum ./--KDE--/packagekit/lpmBackend.py | cut -d ' ' -f 1)"
           test "$actual" = "$expected"
