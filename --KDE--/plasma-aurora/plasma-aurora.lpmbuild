@@ -1,18 +1,27 @@
 #!/bin/bash
 # LPM Linux Plasma Aurora v0.3.0 — source-controlled KDE Plasma 6 Global Theme.
-# Build from the LPMBUILDS checkout. LPM stages assets into $pkgdir.
+# LPM can build this by package name: its Git SOURCE supplies all theme assets,
+# even when the recipe itself was fetched into /tmp/lpm-plasma-aurora.lpmbuild.
 NAME="plasma-aurora"
 VERSION="0.3.0"
-RELEASE="1"
+RELEASE="2"
 ARCH="any"
 SUMMARY="Complete Aurora Glass Global Theme, color scheme, icon accents, wallpaper and opt-in performance profiles"
 URL="https://github.com/BobTheZombie/LPMBUILDS/tree/main/--KDE--/plasma-aurora"
 LICENSE=("MIT")
-SOURCE=()
-SHA256SUMS=()
+# Pin a *known* source commit containing the complete 0.3.0 theme assets.
+# Supported by LPM's git+URL#commit= parser; alias stages at $SRCROOT/aurora-src.
+# Do not use /tmp/lpm-plasma-aurora.lpmbuild's dirname for source resolution.
+# Bump the commit and RELEASE together whenever the tracked theme changes.
+_AURORA_SOURCE_COMMIT="32d42ce6d6c4b46eea2e92d65e4c15b66eae6382"
+SOURCE=(
+    "aurora-src::git+https://github.com/BobTheZombie/LPMBUILDS.git#commit=${_AURORA_SOURCE_COMMIT}"
+)
+# Git's commit object ID fixes the source revision; no tarball checksum applies.
+SHA256SUMS=("SKIP")
 PATCHES=()
 REQUIRES=("plasma-workspace" "plasma-desktop" "libplasma" "breeze" "kwin" "python")
-BUILD_REQUIRES=("python")
+BUILD_REQUIRES=("python" "git")
 REQUIRES_PYTHON_DEPENDENCIES=()
 PROVIDES=("plasma-aurora-style" "plasma-aurora-profiles")
 CONFLICTS=()
@@ -20,23 +29,37 @@ OBSOLETES=()
 RECOMMENDS=()
 SUGGESTS=()
 
-# Resolved while LPM sources this lpmbuild: independent of its chroot/build cwd.
-_AURORA_RECIPE_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
-AURORA_THEME_DIR="${AURORA_THEME_DIR:-${_AURORA_RECIPE_DIR}/theme}"
+# Each LPM build phase runs in a fresh shell; resolve paths inside each phase.
+# AURORA_THEME_DIR optionally overrides the default for local development.
+_aurora_theme_dir() {
+    if [[ -n "${AURORA_THEME_DIR:-}" ]]; then
+        printf '%s\n' "$AURORA_THEME_DIR"
+    else
+        : "${SRCROOT:?LPM must provide SRCROOT to build Plasma Aurora}"
+        printf '%s\n' "$SRCROOT/aurora-src/--KDE--/plasma-aurora/theme"
+    fi
+}
 
 prepare() {
-    test -r "$AURORA_THEME_DIR/global-theme/org.lpm.aurora.desktop/metadata.json" || {
-        echo "[ERROR] Missing Aurora assets: $AURORA_THEME_DIR" >&2
-        echo "Build from your LPMBUILDS checkout or set AURORA_THEME_DIR" >&2
+    local src
+    src="$(_aurora_theme_dir)"
+    test -r "$src/global-theme/org.lpm.aurora.desktop/metadata.json" || {
+        echo "[ERROR] Missing Plasma Aurora source assets: $src" >&2
+        echo "Expected LPM to fetch SOURCE into $SRCROOT/aurora-src." >&2
+        echo "Check the Git checkout above or set AURORA_THEME_DIR for local testing." >&2
         return 1
     }
+    test -f "$src/tools/generate_wallpaper.py"
+    test -f "$src/tools/validate_stage.py"
+    echo "[OK] Plasma Aurora assets found at $src"
 }
 build() { :; }
 
 staging() {
     set -euo pipefail
     test -n "${pkgdir:-}" && test "$pkgdir" != /
-    local src="$AURORA_THEME_DIR"
+    local src
+    src="$(_aurora_theme_dir)"
     local share="$pkgdir/usr/share"
     test -r "$src/global-theme/org.lpm.aurora.desktop/metadata.json"
     install -d "$share/plasma/look-and-feel" "$share/plasma/desktoptheme" \
