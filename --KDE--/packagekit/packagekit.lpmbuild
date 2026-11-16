@@ -2,9 +2,9 @@
 # PackageKit 1.4.0 with a real native LPM backend, not the dummy backend.
 NAME="packagekit"
 VERSION="1.4.0"
-RELEASE="4"
+RELEASE="5"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="PackageKit with LPM buildpkg, installpkg, removepkg and binary package transactions"
+SUMMARY="PackageKit backend for native LPM packages and explicitly requested Flathub refs"
 URL="https://github.com/PackageKit/PackageKit"
 LICENSE=("LGPL-2.1-or-later" "GPL-2.0-or-later")
 SOURCE=(
@@ -17,11 +17,12 @@ SOURCE=(
 SHA256SUMS=(
     "09164faec92ad38dcec248339f7fc83c7a74e484e0a4105ebce3a3a41b172364"
     "ad513dac8b8e0b230fec863712428f334169591a3e7cc30e1b0f3eae5e93bfd1"
-    "b8ca0e62efef88f395f44848d2558c4764bea66c3792c5d9f0242a975cf0e157"
+    "2bd14fe0aba789603d6bf1016e7e43efb727106f0c7dc21a01d457dd1dc0b752"
     "73da54be7310271e859c9f4e5f058491ecdd7a93ad16bf41e750acbb30b366d5"
 )
 PATCHES=()
-REQUIRES=("glibc" "glib2" "sqlite" "polkit" "jansson" "systemd" "python" "lpm")
+REQUIRES=("glibc" "glib2" "sqlite" "polkit" "jansson" "systemd" "python" "lpm"
+          "flatpak" "flatpak-flathub")
 BUILD_REQUIRES=("meson" "ninja" "pkgconf" "gcc" "binutils" "glib2" "sqlite" "polkit"
                 "jansson" "gettext" "systemd" "python")
 REQUIRES_PYTHON_DEPENDENCIES=()
