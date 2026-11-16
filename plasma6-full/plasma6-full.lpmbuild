@@ -6,7 +6,7 @@
 
 NAME="plasma6-full"
 VERSION="6.8.1"
-RELEASE="4"
+RELEASE="5"
 ARCH="any"
 SUMMARY="Complete KDE Plasma 6 Wayland desktop, Qt 6, Frameworks 6, and KDE applications"
 URL="https://kde.org/plasma-desktop/"
@@ -126,6 +126,8 @@ REQUIRES=(
     "AppStream"
     "packagekit"
     "packagekit-qt6"
+    "flatpak"
+    "flatpak-flathub"
     "accountsservice"
     "appmenu-gtk-module"
     "bluez"
