@@ -1,360 +1,60 @@
 #!/bin/bash
-# LPM Aurora v0.1 — staged, build-time Plasma 6 customization.
+# LPM Linux Plasma Aurora v0.3.0 — source-controlled KDE Plasma 6 Global Theme.
+# Build from the LPMBUILDS checkout. LPM stages assets into $pkgdir.
 NAME="plasma-aurora"
-VERSION="0.2.0"
+VERSION="0.3.0"
 RELEASE="1"
 ARCH="any"
-SUMMARY="Aurora Glass Plasma 6 global theme, centered dock, and opt-in profiles"
-URL="https://github.com/BobTheZombie/LPMBUILDS"
+SUMMARY="Complete Aurora Glass Global Theme, color scheme, icon accents, wallpaper and opt-in performance profiles"
+URL="https://github.com/BobTheZombie/LPMBUILDS/tree/main/--KDE--/plasma-aurora"
 LICENSE=("MIT")
 SOURCE=()
 SHA256SUMS=()
 PATCHES=()
-REQUIRES=("plasma-workspace" "plasma-desktop" "libplasma" "python")
-BUILD_REQUIRES=()
+REQUIRES=("plasma-workspace" "plasma-desktop" "libplasma" "breeze" "kwin" "python")
+BUILD_REQUIRES=("python")
 REQUIRES_PYTHON_DEPENDENCIES=()
 PROVIDES=("plasma-aurora-style" "plasma-aurora-profiles")
 CONFLICTS=()
 OBSOLETES=()
-RECOMMENDS=("breeze" "kwin")
+RECOMMENDS=()
 SUGGESTS=()
 
-prepare() { :; }
+# Resolved while LPM sources this lpmbuild: independent of its chroot/build cwd.
+_AURORA_RECIPE_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+AURORA_THEME_DIR="${AURORA_THEME_DIR:-${_AURORA_RECIPE_DIR}/theme}"
+
+prepare() {
+    test -r "$AURORA_THEME_DIR/global-theme/org.lpm.aurora.desktop/metadata.json" || {
+        echo "[ERROR] Missing Aurora assets: $AURORA_THEME_DIR" >&2
+        echo "Build from your LPMBUILDS checkout or set AURORA_THEME_DIR" >&2
+        return 1
+    }
+}
 build() { :; }
 
 staging() {
     set -euo pipefail
-    test -n "$pkgdir" && test "$pkgdir" != /
-    local style="$pkgdir/usr/share/plasma/desktoptheme/org.lpm.aurora"
-    local look="$pkgdir/usr/share/plasma/look-and-feel/org.lpm.aurora.desktop"
-    local colors="$pkgdir/usr/share/color-schemes/Aurora.colors"
-    install -d "$style/widgets" "$style/solid/widgets" "$look/contents/layouts" "$(dirname "$colors")"
+    test -n "${pkgdir:-}" && test "$pkgdir" != /
+    local src="$AURORA_THEME_DIR"
+    local share="$pkgdir/usr/share"
+    test -r "$src/global-theme/org.lpm.aurora.desktop/metadata.json"
+    install -d "$share/plasma/look-and-feel" "$share/plasma/desktoptheme" \
+        "$share/color-schemes" "$share/icons" "$share/wallpapers" "$pkgdir/usr/bin"
+    cp -a "$src/global-theme/org.lpm.aurora.desktop" "$share/plasma/look-and-feel/"
+    cp -a "$src/plasma-style/org.lpm.aurora" "$share/plasma/desktoptheme/"
+    cp -a "$src/icons/PlasmaAurora" "$share/icons/"
+    cp -a "$src/wallpapers/PlasmaAurora" "$share/wallpapers/"
+    install -m 0644 "$src/color-schemes/Aurora.colors" "$share/color-schemes/Aurora.colors"
+    install -m 0755 "$src/scripts/aurora-profile" "$pkgdir/usr/bin/aurora-profile"
 
-    cat > "$style/metadata.json" <<'EOF'
-{
-  "KPackageStructure": "Plasma/Theme",
-  "KPlugin": {
-    "Id": "org.lpm.aurora",
-    "Name": "Aurora Glass",
-    "Description": "Sapphire-violet translucent Plasma panel style for LPM",
-    "Category": "Plasma Theme",
-    "License": "MIT",
-    "Version": "0.2.0",
-    "EnabledByDefault": true
-  },
-  "X-Plasma-API": "6.0"
-}
-EOF
+    # Ship real PNG wallpaper + preview, generated deterministically at build time.
+    python3 "$src/tools/generate_wallpaper.py" \
+        "$share/wallpapers/PlasmaAurora/contents/images/2560x1440.png" \
+        "$share/wallpapers/PlasmaAurora/contents/screenshot.png" \
+        "$share/plasma/look-and-feel/org.lpm.aurora.desktop/contents/previews/preview.png"
 
-    # Plasma's FrameSvg engine renders and stretches these nine slices.
-    # Gradient tint gives a glass-like surface; live backdrop blur is provided
-    # by KWin when enabled, not by a static SVG filter.
-    cat > "$style/widgets/panel-background.svg" <<'EOF'
-<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">
-  <defs>
-    <linearGradient id="glass" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#527ed5" stop-opacity=".48"/>
-      <stop offset=".55" stop-color="#503d97" stop-opacity=".53"/>
-      <stop offset="1" stop-color="#7545b7" stop-opacity=".60"/>
-    </linearGradient>
-    <linearGradient id="edge" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#d3eaff" stop-opacity=".74"/>
-      <stop offset="1" stop-color="#baacff" stop-opacity=".26"/>
-    </linearGradient>
-  </defs>
-  <path id="topleft" d="M24 0H24V24H0C0 10.75 10.75 0 24 0Z" fill="url(#glass)" stroke="url(#edge)" stroke-width="1"/>
-  <rect id="top" x="24" y="0" width="48" height="24" fill="url(#glass)"/>
-  <path id="topright" d="M72 0C85.25 0 96 10.75 96 24H72Z" fill="url(#glass)" stroke="url(#edge)" stroke-width="1"/>
-  <rect id="left" x="0" y="24" width="24" height="48" fill="url(#glass)"/>
-  <rect id="center" x="24" y="24" width="48" height="48" fill="url(#glass)"/>
-  <rect id="right" x="72" y="24" width="24" height="48" fill="url(#glass)"/>
-  <path id="bottomleft" d="M0 72H24V96C10.75 96 0 85.25 0 72Z" fill="url(#glass)" stroke="url(#edge)" stroke-width="1"/>
-  <rect id="bottom" x="24" y="72" width="48" height="24" fill="url(#glass)"/>
-  <path id="bottomright" d="M72 72H96C96 85.25 85.25 96 72 96Z" fill="url(#glass)" stroke="url(#edge)" stroke-width="1"/>
-  <rect id="hint-top-margin" x="24" y="0" width="1" height="8" fill="white"/>
-  <rect id="hint-bottom-margin" x="24" y="88" width="1" height="8" fill="white"/>
-  <rect id="hint-left-margin" x="0" y="24" width="8" height="1" fill="white"/>
-  <rect id="hint-right-margin" x="88" y="24" width="8" height="1" fill="white"/>
-</svg>
-EOF
-
-    # When adaptive opacity becomes opaque, preserve legibility.
-    sed -e 's/stop-opacity="\.48"/stop-opacity=".96"/g' \
-        -e 's/stop-opacity="\.53"/stop-opacity=".96"/g' \
-        -e 's/stop-opacity="\.60"/stop-opacity=".96"/g' \
-        "$style/widgets/panel-background.svg" > "$style/solid/widgets/panel-background.svg"
-
-    cat > "$colors" <<'EOF'
-[General]
-Name=Aurora
-ColorScheme=Aurora
-
-[Colors:Window]
-BackgroundNormal=22,24,46
-BackgroundAlternate=32,34,63
-ForegroundNormal=236,242,255
-ForegroundInactive=160,170,201
-ForegroundActive=145,185,255
-ForegroundLink=130,175,255
-ForegroundVisited=202,158,255
-ForegroundNegative=255,115,143
-ForegroundNeutral=255,193,110
-ForegroundPositive=120,224,184
-DecorationFocus=135,165,255
-DecorationHover=181,127,255
-
-[Colors:View]
-BackgroundNormal=26,28,51
-BackgroundAlternate=36,37,67
-ForegroundNormal=236,242,255
-ForegroundInactive=160,170,201
-ForegroundActive=145,185,255
-ForegroundLink=130,175,255
-ForegroundVisited=202,158,255
-ForegroundNegative=255,115,143
-ForegroundNeutral=255,193,110
-ForegroundPositive=120,224,184
-DecorationFocus=135,165,255
-DecorationHover=181,127,255
-
-[Colors:Button]
-BackgroundNormal=44,46,80
-BackgroundAlternate=55,52,93
-ForegroundNormal=236,242,255
-ForegroundInactive=160,170,201
-ForegroundActive=145,185,255
-ForegroundLink=130,175,255
-ForegroundVisited=202,158,255
-ForegroundNegative=255,115,143
-ForegroundNeutral=255,193,110
-ForegroundPositive=120,224,184
-DecorationFocus=135,165,255
-DecorationHover=181,127,255
-
-[Colors:Selection]
-BackgroundNormal=100,89,187
-BackgroundAlternate=84,112,200
-ForegroundNormal=255,255,255
-ForegroundInactive=230,233,247
-ForegroundActive=255,255,255
-ForegroundLink=230,234,255
-ForegroundVisited=255,223,255
-ForegroundNegative=255,200,213
-ForegroundNeutral=255,230,198
-ForegroundPositive=188,248,222
-DecorationFocus=178,171,255
-DecorationHover=178,171,255
-
-[Colors:Tooltip]
-BackgroundNormal=36,38,68
-BackgroundAlternate=48,47,82
-ForegroundNormal=236,242,255
-ForegroundInactive=160,170,201
-ForegroundActive=145,185,255
-ForegroundLink=130,175,255
-ForegroundVisited=202,158,255
-ForegroundNegative=255,115,143
-ForegroundNeutral=255,193,110
-ForegroundPositive=120,224,184
-DecorationFocus=135,165,255
-DecorationHover=181,127,255
-
-[WM]
-activeBackground=36,38,68
-activeForeground=236,242,255
-inactiveBackground=27,29,52
-inactiveForeground=160,170,201
-activeBlend=53,48,97
-inactiveBlend=31,32,53
-activeFrame=112,105,192
-inactiveFrame=59,56,97
-EOF
-
-    cat > "$look/metadata.json" <<'EOF'
-{
-  "KPackageStructure": "Plasma/LookAndFeel",
-  "KPlugin": {
-    "Id": "org.lpm.aurora.desktop",
-    "Name": "Aurora",
-    "Description": "LPM Aurora Glass desktop and centered dock",
-    "License": "MIT",
-    "Version": "0.2.0"
-  }
-}
-EOF
-
-    cat > "$look/contents/defaults" <<'EOF'
-[plasmarc][Theme]
-name=org.lpm.aurora
-
-[kdeglobals][General]
-ColorScheme=Aurora
-
-[kdeglobals][KDE]
-widgetStyle=Breeze
-EOF
-
-    # Opt-in through Global Theme -> Desktop and window layout.
-    # The package never touches user configuration during installation.
-    cat > "$look/contents/layouts/org.kde.plasma.desktop-layout.js" <<'EOF'
-/* Aurora dock: Plasma 6 scripting API */
-var dock = new Panel();
-dock.location = "bottom";
-dock.alignment = "center";
-dock.lengthMode = "fit";
-dock.height = Math.round(gridUnit * 3);
-dock.hiding = "dodgewindows";
-dock.addWidget("org.kde.plasma.kickoff");
-dock.addWidget("org.kde.plasma.icontasks");
-dock.addWidget("org.kde.plasma.systemtray");
-dock.addWidget("org.kde.plasma.digitalclock");
-EOF
-
-    python3 - "$style/metadata.json" "$look/metadata.json" <<'EOF'
-import json, sys, xml.etree.ElementTree as ET
-for path in sys.argv[1:]:
-    with open(path, encoding="utf-8") as f:
-        assert json.load(f)["KPlugin"]["Id"]
-EOF
-    python3 - "$style/widgets/panel-background.svg" <<'EOF'
-import sys, xml.etree.ElementTree as ET
-root = ET.parse(sys.argv[1]).getroot()
-ns = "{http://www.w3.org/2000/svg}"
-identifiers = {e.get("id") for e in root.iter()}
-assert {"topleft", "top", "topright", "left", "center", "right",
-        "bottomleft", "bottom", "bottomright"} <= identifiers
-EOF
-    # Install an opt-in user-controlled profile helper. No changes to /home or
-    # KWin settings occur during packaging or installation.
-    install -d "$pkgdir/usr/bin"
-    cat > "$pkgdir/usr/bin/aurora-profile" <<'AURORA_PROFILE_PY'
-#!/usr/bin/env python3
-"""Opt-in, reversible Plasma Aurora appearance/performance presets."""
-import argparse
-import json
-import os
-from pathlib import Path
-import shutil
-import subprocess
-import sys
-
-KEYS = [
-    ("kwinrc", "Plugins", "blurEnabled"),
-    ("kwinrc", "Plugins", "contrastEnabled"),
-    ("kdeglobals", "KDE", "AnimationDurationFactor"),
-]
-PROFILES = {
-    "performance": ["false", "false", "0.7"],
-    "balanced": ["true", "true", "0.85"],
-    "ultra": ["true", "true", "1.1"],
-}
-UNSET = "__AURORA_UNSET_62C5FE9D__"
-
-def utility(name):
-    found = shutil.which(name)
-    if not found:
-        raise RuntimeError("Required KDE command unavailable: " + name)
-    return found
-
-def read(config, group, key):
-    return subprocess.check_output(
-        [utility("kreadconfig6"), "--file", config, "--group", group,
-         "--key", key, "--default", UNSET], text=True
-    ).rstrip("\n")
-
-def write(config, group, key, value):
-    cmd = [utility("kwriteconfig6"), "--file", config,
-           "--group", group, "--key", key]
-    cmd.extend(["--delete"] if value == UNSET else [value])
-    subprocess.run(cmd, check=True)
-
-def refresh_kwin():
-    dbus = shutil.which("qdbus6") or shutil.which("qdbus")
-    if dbus:
-        subprocess.run([dbus, "org.kde.KWin", "/KWin", "reconfigure"],
-                       check=False, stdout=subprocess.DEVNULL,
-                       stderr=subprocess.DEVNULL)
-
-def main():
-    parser = argparse.ArgumentParser(description="Plasma Aurora opt-in presets")
-    parser.add_argument("action", choices=[*PROFILES, "restore", "status"])
-    parser.add_argument("--dry-run", action="store_true")
-    options = parser.parse_args()
-    if os.geteuid() == 0:
-        parser.error("Run as your regular Plasma user, not root")
-
-    folder = Path(os.environ.get("XDG_STATE_HOME", str(Path.home() / ".local/state")))
-    state_dir = folder / "plasma-aurora"
-    state_file = state_dir / "profile-backup.json"
-    saved = json.loads(state_file.read_text()) if state_file.exists() else None
-
-    if options.action == "status":
-        print("Aurora preset:", saved["profile"] if saved else "none")
-        for config, group, key in KEYS:
-            print(f"{config}/{group}/{key}: {read(config, group, key)}")
-        return
-
-    if options.action == "restore":
-        if not saved:
-            print("No Aurora preset backup found")
-            return
-        for i, (config, group, key) in enumerate(KEYS):
-            current = read(config, group, key)
-            if current != saved["applied"][i]:
-                print(f"Preserving manually modified {config}/{group}/{key}")
-                continue
-            if not options.dry_run:
-                write(config, group, key, saved["original"][i])
-        if not options.dry_run:
-            state_file.unlink()
-            refresh_kwin()
-        print("Restore complete" if not options.dry_run else "Restore preview complete")
-        return
-
-    values = PROFILES[options.action]
-    if saved:
-        changes = [
-            f"{config}/{group}/{key}"
-            for i, (config, group, key) in enumerate(KEYS)
-            if read(config, group, key) != saved["applied"][i]
-        ]
-        if changes:
-            raise RuntimeError("Manual changes detected; run 'aurora-profile restore' "
-                               "before switching presets: " + ", ".join(changes))
-        original = saved["original"]
-    else:
-        original = [read(*item) for item in KEYS]
-    print("Setting Aurora preset:", options.action)
-    if options.dry_run:
-        for item, value in zip(KEYS, values):
-            print("/".join(item), "=", value)
-        return
-    state_dir.mkdir(parents=True, exist_ok=True)
-    state_dir.chmod(0o700)
-    temp = state_file.with_suffix(".tmp")
-    temp.write_text(json.dumps({"profile": options.action,
-                                "original": original, "applied": values}, indent=2))
-    temp.chmod(0o600)
-    os.replace(temp, state_file)
-    for item, value in zip(KEYS, values):
-        write(*item, value)
-    refresh_kwin()
-    print("Preset applied. Use 'aurora-profile restore' to undo.")
-
-if __name__ == "__main__":
-    try:
-        main()
-    except (RuntimeError, OSError, ValueError, json.JSONDecodeError,
-            subprocess.CalledProcessError) as exc:
-        print("Aurora preset error:", exc, file=sys.stderr)
-        sys.exit(1)
-AURORA_PROFILE_PY
-    chmod 0755 "$pkgdir/usr/bin/aurora-profile"
-    python3 - "$pkgdir/usr/bin/aurora-profile" <<'AURORA_VALIDATE_PY'
-import ast, pathlib, sys
-ast.parse(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
-AURORA_VALIDATE_PY
-
-    echo "[OK] Aurora v0.2 staged into $pkgdir"
+    # Verify the exact staged payload, not just the repository source.
+    python3 "$src/tools/validate_stage.py" "$pkgdir"
+    echo "[OK] Plasma Aurora ${VERSION} fully staged into $pkgdir"
 }

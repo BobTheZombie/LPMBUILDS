@@ -1,0 +1,19 @@
+[Icon Theme]
+Name=Plasma Aurora
+Comment=Aurora accents with Breeze fallback
+Inherits=breeze-dark,breeze,hicolor
+Directories=scalable/places,scalable/apps
+
+[scalable/places]
+Size=64
+Context=Places
+Type=Scalable
+MinSize=16
+MaxSize=256
+
+[scalable/apps]
+Size=64
+Context=Applications
+Type=Scalable
+MinSize=16
+MaxSize=256

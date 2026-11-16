@@ -1,0 +1,10 @@
+{
+  "KPackageStructure": "Plasma/LookAndFeel",
+  "KPlugin": {
+    "Id": "org.lpm.aurora.desktop",
+    "Name": "Aurora",
+    "Description": "LPM Aurora Glass desktop and centered dock",
+    "License": "MIT",
+    "Version": "0.3.0"
+  }
+}
