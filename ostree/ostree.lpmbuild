@@ -1,16 +1,21 @@
-# Upstream v2026.4 still has open GHSA-7cgc-gp99-6jmm decompression cap issue; track advisory.
-# LPM Linux source build: ostree
+#!/bin/bash
+# libostree 2026.4 with explicit FUSE3-backed rofiles-fuse support.
+# Upstream GHSA-7cgc-gp99-6jmm is being monitored; do not disable checksum
+# or GPG validation for any OSTree/Flatpak transactions.
 NAME="ostree"
 VERSION="2026.4"
-RELEASE="1"
+RELEASE="2"
 ARCH="${ARCH:-x86_64}"
-SUMMARY="OSTree content-addressed object store and libostree"
+SUMMARY="OSTree content-addressed object store, libostree and rofiles-fuse"
 URL="https://github.com/ostreedev/ostree"
 LICENSE=("LGPL-2.1-or-later")
-SOURCE=("https://github.com/ostreedev/ostree/releases/download/v2026.4/libostree-2026.4.tar.xz")
+SOURCE=("https://github.com/ostreedev/ostree/releases/download/v${VERSION}/libostree-${VERSION}.tar.xz")
 SHA256SUMS=("b26c9016eb03bb4ee52cc00c642d56e00fc79ae7faac6bf4aa317d7451339ef7")
 PATCHES=()
-BUILD_REQUIRES=("gcc" "make" "pkgconf" "glib2" "curl" "gpgme" "libarchive" "libcap" "systemd" "xz" "zlib")
+BUILD_REQUIRES=(
+    "gcc" "make" "pkgconf" "glib2" "curl" "gpgme" "libarchive"
+    "libcap" "systemd" "xz" "zlib" "fuse3" "e2fsprogs"
+)
 REQUIRES=("glib2" "curl" "gpgme" "libarchive" "libcap" "libsoup3" "fuse3" "systemd")
 PROVIDES=("ostree" "libostree")
 CONFLICTS=()
@@ -19,21 +24,33 @@ RECOMMENDS=()
 SUGGESTS=()
 
 prepare() {
-  set -euo pipefail
-  cd "$SRCROOT/${NAME}-${VERSION}"
-  :
+    set -euxo pipefail
+    local src="$SRCROOT/${NAME}-${VERSION}"
+    test -x "$src/configure"
+    pkgconf --exists 'fuse3 >= 3.1.1'
+    pkgconf --exists 'gio-unix-2.0'
 }
 
 build() {
-  set -euo pipefail
-  cd "$SRCROOT/${NAME}-${VERSION}"
-  ./configure --prefix=/usr --libdir=/usr/lib --disable-static \
-    --with-curl --with-gpgme --without-selinux --with-mkinitcpio --disable-man
-  make -j "${LPM_BUILD_JOBS:-6}"
+    set -euxo pipefail
+    local src="$SRCROOT/${NAME}-${VERSION}"
+    cd "$src"
+    ./configure --prefix=/usr --libdir=/usr/lib --disable-static \
+        --with-curl --with-gpgme --without-selinux --with-mkinitcpio \
+        --enable-rofiles-fuse --disable-man
+    grep -E '^#define FUSE_USE_VERSION 31$' config.h || \
+        grep -q '^FUSE3_CFLAGS *=' Makefile
+    make -j "${LPM_BUILD_JOBS:-6}"
+    test -x "$src/rofiles-fuse"
 }
 
 staging() {
-  set -euo pipefail
-  cd "$SRCROOT/${NAME}-${VERSION}"
-  make DESTDIR="$pkgdir" install
+    set -euxo pipefail
+    local src="$SRCROOT/${NAME}-${VERSION}"
+    cd "$src"
+    make DESTDIR="$pkgdir" install
+    test -x "$pkgdir/usr/bin/ostree"
+    test -x "$pkgdir/usr/bin/rofiles-fuse"
+    test -f "$pkgdir/usr/lib/pkgconfig/ostree-1.pc"
+    test -n "$(find "$pkgdir/usr/lib" -maxdepth 1 -name 'libostree-1.so*' -print -quit)"
 }
