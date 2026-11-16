@@ -23,6 +23,12 @@ from packagekit.enums import *
 STATE = Path(os.environ.get('LPM_STATE_DIR', '/var/lib/lpm'))
 VALID_NAME = re.compile(r'^[a-zA-Z0-9][a-zA-Z0-9+_.-]*$')
 VERSION = re.compile(r'^(\d+)(?:\.(\d+))?(?:\.(\d+))?(?:[-+~].*)?$')
+FLATPAK_PREFIX = 'flatpak:'
+FLATPAK_REMOTE = 'flathub'
+FLATPAK_APP_ID = re.compile(
+    r'^[A-Za-z_][A-Za-z0-9_-]*(?:\\.[A-Za-z0-9_-]+){1,}'
+    r'(?:/[A-Za-z0-9_]+/[A-Za-z0-9_.-]+)?$'
+)
 
 
 def version_key(value):
@@ -195,6 +201,45 @@ def names_from_ids(ids, available, inst, *, must_installed=False):
             raise ValueError(f'Stale or mismatched package ID: {name}')
         names.append(name)
     return list(dict.fromkeys(names))
+
+
+
+def flatpak_pkgid(app, installed_state=False):
+    """Virtual PackageKit reference, never a native LPM package ID."""
+    if not FLATPAK_APP_ID.fullmatch(app):
+        raise ValueError('Invalid Flatpak application ID')
+    origin = 'installed:flathub' if installed_state else FLATPAK_REMOTE
+    return get_package_id(FLATPAK_PREFIX + app, '0', 'noarch', origin)
+
+
+def flatpak_id_app(package_id):
+    """Reject spoofed virtual package IDs before invoking LPM."""
+    parts = split_package_id(package_id)
+    if len(parts) != 4 or not parts[0].startswith(FLATPAK_PREFIX):
+        raise ValueError('Not a Flatpak PackageKit ID')
+    app = parts[0][len(FLATPAK_PREFIX):]
+    if not FLATPAK_APP_ID.fullmatch(app):
+        raise ValueError('Invalid Flatpak application ID')
+    if package_id not in (flatpak_pkgid(app), flatpak_pkgid(app, True)):
+        raise ValueError('Stale or unsupported Flatpak PackageKit ID')
+    return app, package_id == flatpak_pkgid(app, True)
+
+
+def flatpak_status(app, *, installed_only=False):
+    """Read-only probe; all install/update/remove operations go through LPM."""
+    if not FLATPAK_APP_ID.fullmatch(app):
+        return False
+    command = (
+        ['/usr/bin/flatpak', 'info', '--system', app] if installed_only
+        else ['/usr/bin/flatpak', 'remote-info', '--system', FLATPAK_REMOTE, app]
+    )
+    try:
+        return subprocess.run(
+            command, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL, check=False, timeout=30,
+        ).returncode == 0
+    except (OSError, subprocess.TimeoutExpired):
+        return False
 
 
 class LPMBackend(PackageKitBaseBackend):
