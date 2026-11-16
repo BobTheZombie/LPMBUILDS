@@ -174,7 +174,7 @@ class PackageKitFlatpakTests(unittest.TestCase):
                           "org.mozilla.firefox"])
         self.assertEqual(runner.call_args.kwargs["stdout"], self.m.subprocess.PIPE)
         with mock.patch.object(self.m.subprocess, "run",
-                               return_value=types.SimpleNamespace(returncode=0, stdout=b"flathub\\n")):
+                               return_value=types.SimpleNamespace(returncode=0, stdout=b"flathub\n")):
             self.assertTrue(self.m.flatpak_status("org.mozilla.firefox", installed_only=True))
 
     def test_unsupported_flags_rejected(self):
