@@ -165,6 +165,18 @@ class PackageKitFlatpakTests(unittest.TestCase):
             check=False, timeout=30,
         )
 
+    def test_installed_probe_rejects_non_flathub_origin(self):
+        with mock.patch.object(self.m.subprocess, "run",
+                               return_value=types.SimpleNamespace(returncode=0, stdout=b"other\\n")) as runner:
+            self.assertFalse(self.m.flatpak_status("org.mozilla.firefox", installed_only=True))
+        self.assertEqual(runner.call_args.args[0],
+                         ["/usr/bin/flatpak", "info", "--system", "--show-origin",
+                          "org.mozilla.firefox"])
+        self.assertEqual(runner.call_args.kwargs["stdout"], self.m.subprocess.PIPE)
+        with mock.patch.object(self.m.subprocess, "run",
+                               return_value=types.SimpleNamespace(returncode=0, stdout=b"flathub\\n")):
+            self.assertTrue(self.m.flatpak_status("org.mozilla.firefox", installed_only=True))
+
     def test_unsupported_flags_rejected(self):
         with mock.patch.object(self.m, "run_lpm") as command:
             self.backend.install_packages(["simulate"], [self.m.flatpak_pkgid("org.kde.krita")])
