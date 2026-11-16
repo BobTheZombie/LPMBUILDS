@@ -220,4 +220,4 @@ SH
         "$pkgdir/usr/lib/lpm/lpm.bin" buildpkg --help >/dev/null
         "$pkgdir/usr/lib/lpm/lpm.bin" rebuild-stage2 --help >/dev/null
     )
-}\n
+}
