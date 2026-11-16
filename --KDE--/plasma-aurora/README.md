@@ -1,64 +1,91 @@
-# LPM Plasma Aurora — patchset 0.1
+# LPM Plasma Aurora — Global Theme 0.2
 
-Aurora is the LPM Linux visual patchset for KDE Plasma 6. Development is
-**build-time**, not a shell script rewriting a user's files after installation.
-The first deliverable is a separately versioned LPM package and an opt-in global
-theme, keeping upstream Plasma and KWin binaries intact.
+Plasma Aurora is the native, **build-time staged** visual theme for KDE Plasma 6
+on LPM Linux. It does not replace or patch KWin at runtime.
 
-## Version 0.1 deliverable
+## Version 0.2 deliverables
 
-- Sapphire-violet semi-transparent Plasma panel 9-slice SVG
-- High-opacity fallback for adaptive panel opacity
-- Aurora dark KDE color scheme
-- Selectable Plasma Style: **Aurora Glass**
-- Selectable Global Theme: **Aurora**
-- Opt-in bottom, centered, fit-content task dock layout
-- Uses the installed icons-only task manager; does not monkey-patch its QML
-- All assets written to LPM's `$pkgdir` during `staging()`; no user-home writes
+- Original sapphire/violet semi-transparent Plasma Style panel assets
+- Solid/high-opacity fallback and matching KDE dark color scheme
+- Selectable Plasma Style **Aurora Glass**
+- Selectable KDE Global Theme **Aurora** (`org.lpm.aurora.desktop`)
+- Optional, centered, fit-content dock layout, using upstream Plasma widgets
+- **New:** `aurora-profile` with reversible Performance, Balanced, and Ultra presets
+- Staged installation into `$pkgdir`, with **no user-home writes** on package install
 
-Build from the LPMBUILDS checkout:
+## Build and install
 
 ```sh
 lpm buildpkg --KDE--/plasma-aurora/plasma-aurora.lpmbuild
 ```
 
-Then install the resulting signed package with `lpm installpkg` (or publish it
-to the official binary repository and use `lpm install plasma-aurora`).
+Install the resulting signed package with `lpm installpkg` or, once published
+to the binary repository, use `lpm install plasma-aurora`.
 
-Select **Aurora Glass** under System Settings > Colors & Themes > Plasma Style.
-Select **Aurora** under Global Theme to apply its color/style combination.
-Select the *desktop layout* only if you intend to replace your existing panels;
-applying layouts may replace current panel configuration.
+In **System Settings → Colors & Themes**, select **Aurora** under Global Theme.
+Apply the desktop layout only if you want to replace your existing panels.
+Selecting a Global Theme does not automatically enable the profile helper.
 
-## Boundaries and next phases
+## Opt-in performance profiles
 
-v0.1 is a real, staged KDE theme, **not yet** a KWin blur or 3D animation patch.
-Translucent SVG fill is not the same as GPU backdrop blur. The actual blur effect
-depends on KWin composition and effect settings. A floating dock also needs
-the panel's floating option enabled in Plasma's panel editor; the first
-layout script does not promise to override its internal floating state.
+Run these **as your regular desktop user**, never with sudo:
 
-Planned follow-ons, independently guarded by upstream tag:
+```sh
+aurora-profile status
+aurora-profile balanced
+aurora-profile performance
+aurora-profile ultra
+aurora-profile restore
+```
 
-1. **0.2 KWin backdrop blur** — tested blur regions and rounded floating panels,
-   with GPU-safe fallbacks and reduced-effects mode.
-2. **0.3 Aurora task manager** — spring animations, parallax icon lift,
-   perspective transform, active glow and hover response; configurable and
-   reduced-motion aware, using Qt Quick Scene Graph rather than CPU polling.
-3. **0.4 Aurora launcher and OSD** — matching glass/lighting and accessible
-   contrast, no changes to core shell permissions or applet protocols.
-4. **0.5 System integration** — defaults for *new* accounts via an explicitly
-   selected LPM profile, not an unconditional overwrite of existing users.
+`--dry-run` is supported for preset and restore operations. Presets adjust only
+three user KConfig keys: `kwinrc/[Plugins]/blurEnabled`,
+`kwinrc/[Plugins]/contrastEnabled`, and
+`kdeglobals/[KDE]/AnimationDurationFactor`.
 
-The patchset must never replace Plasma's QML or KWin binaries at runtime.
-Future upstream source patches should live beside the exact matching
-`plasma-workspace`, `plasma-desktop` or `kwin` recipe, with strict patch
-application, build-time gating and clear version bumps.
+- **Performance:** blur off, background contrast off, shorter animation duration
+- **Balanced:** blur and contrast on, responsive animation duration
+- **Ultra:** blur and contrast on, slightly longer animation duration
 
-## Validation
+The first preset stores original values under
+`${XDG_STATE_HOME:-~/.local/state}/plasma-aurora/profile-backup.json`
+with owner-only permissions. `restore` will not overwrite keys manually
+modified since Aurora last applied its settings. Profile switches refuse to
+overwrite manually changed keys. The profile helper never changes CPU
+governors, kernel parameters, GPU clocks, services, KWin binaries, or global
+machine configuration.
 
-The package staging function validates JSON metadata and SVG element IDs.
-**Not yet tested** in an actual LPM chroot, KPackage loader, or running Plasma
-6.8.1 session. Before production: run `bash -n` on the recipe, stage the
-package and inspect the resulting archive; apply the theme in a non-critical
-test user session; verify KWin blur and panel scaling visually.
+**Important:** The profile values are design defaults, not a measured speedup.
+Actual blur and animation performance requires live Plasma/KWin testing.
+
+## Scope and limitations
+
+- A translucent SVG is not backdrop blur; real blur is provided by KWin.
+- The dock uses the upstream icons-only task manager, with no 3D magnification
+  or custom task manager implementation yet.
+- The layout does not guarantee that Plasma's internal floating-panel state
+  is enabled; it can be set in the panel editor.
+- This package does not yet contain the separate high-resolution wallpaper,
+  extra icon assets, or custom GPU KWin shaders from the portable Aurora
+  prototype; those should be imported as tracked assets in a follow-up update.
+- Tests validate metadata/SVG at staging time and parse the Python helper.
+  An actual LPM chroot package build and Plasma 6.8 Wayland session test remain
+  outstanding.
+
+## Roadmap
+
+1. Track the reusable Global Theme assets directly in LPMBUILDS instead of
+   maintaining a monolithic inline recipe
+2. Add original wallpaper, icon resources, and compatible window decorations
+3. Develop a separately opt-in QML task manager with reduced-motion support
+4. Benchmark and separately package Ryzen/KWin source-level optimizations
+5. Test on LPM Linux bare metal (Plasma 6.8.x, AMD Renoir, Wayland)
+
+## Project principles
+
+Aurora is entirely **opt-in**; package installation must never rewrite
+a user's existing plasma-appletsrc or other account settings. Keep the
+same package name and KDE plugin IDs through iterative releases so upgrades
+remain compatible.
+
+License: MIT.
