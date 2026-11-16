@@ -230,14 +230,20 @@ def flatpak_status(app, *, installed_only=False):
     if not FLATPAK_APP_ID.fullmatch(app):
         return False
     command = (
-        ['/usr/bin/flatpak', 'info', '--system', app] if installed_only
+        ['/usr/bin/flatpak', 'info', '--system', '--show-origin', app]
+        if installed_only
         else ['/usr/bin/flatpak', 'remote-info', '--system', FLATPAK_REMOTE, app]
     )
     try:
-        return subprocess.run(
-            command, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+        result = subprocess.run(
+            command, stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE if installed_only else subprocess.DEVNULL,
             stderr=subprocess.DEVNULL, check=False, timeout=30,
-        ).returncode == 0
+        )
+        # Never present unrelated system remotes as Flathub installations.
+        return result.returncode == 0 and (
+            not installed_only or result.stdout.decode('utf-8', errors='replace').strip() == FLATPAK_REMOTE
+        )
     except (OSError, subprocess.TimeoutExpired):
         return False
 
