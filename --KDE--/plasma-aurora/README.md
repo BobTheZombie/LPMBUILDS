@@ -9,7 +9,7 @@ rather than synthesizing its metadata and SVGs in the shell.
 Clone or update your LPMBUILDS checkout and run from its root:
 
 ```bash
-lpm buildpkg --KDE--/plasma-aurora/plasma-aurora.lpmbuild
+lpm buildpkg ./--KDE--/plasma-aurora/plasma-aurora.lpmbuild
 ```
 
 Install the resulting signed `.lpminstall` artifact with
