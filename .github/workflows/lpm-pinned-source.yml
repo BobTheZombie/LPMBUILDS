@@ -1,0 +1,32 @@
+name: Pinned LPM source archive
+
+on:
+  push:
+    paths:
+      - "lpm/lpm.lpmbuild"
+      - ".github/workflows/lpm-pinned-source.yml"
+  pull_request:
+    paths:
+      - "lpm/lpm.lpmbuild"
+      - ".github/workflows/lpm-pinned-source.yml"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check pinned source archive and privilege code
+        shell: bash
+        run: |
+          set -euxo pipefail
+          bash -n ./lpm/lpm.lpmbuild
+          source ./lpm/lpm.lpmbuild
+          curl -fL --retry 3 "https://github.com/BobTheZombie/LPM.Org/archive/${_COMMIT}.tar.gz" \
+            -o "$RUNNER_TEMP/lpm-source.tar.gz"
+          actual="$(sha256sum "$RUNNER_TEMP/lpm-source.tar.gz" | cut -d ' ' -f 1)"
+          echo "LPM_SOURCE_SHA256=$actual"
+          if [ "${SHA256SUMS[0]}" != SKIP ]; then
+            test "${SHA256SUMS[0]}" = "$actual"
+          fi
+          tar -tzf "$RUNNER_TEMP/lpm-source.tar.gz" | grep '/src/lpm/privileged_files.py$'
+          tar -tzf "$RUNNER_TEMP/lpm-source.tar.gz" | grep '/src/lpm/app.py$'
