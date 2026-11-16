@@ -4,7 +4,7 @@
 
 NAME="flatpak"
 VERSION="1.18.4"
-RELEASE="2"
+RELEASE="3"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="Flatpak sandbox and application distribution framework"
 URL="https://flatpak.org"
@@ -56,6 +56,8 @@ prepare() {
     test -x /usr/bin/bwrap
     test -x /usr/bin/xdg-dbus-proxy
     test -x /usr/bin/fusermount3
+    pkgconf --exists "fuse3 >= 3.1.1"
+    pkgconf --exists "ostree-1"
 }
 
 build() {
@@ -98,10 +100,83 @@ staging() {
     DESTDIR="$pkgdir" meson install -C "$builddir" --no-rebuild
 
     test -x "$pkgdir/usr/bin/flatpak"
+    test -x "$pkgdir/usr/libexec/revokefs-fuse"
     test -f "$pkgdir/usr/lib/pkgconfig/flatpak.pc"
     test -f "$pkgdir/usr/lib/systemd/system/flatpak-system-helper.service"
     test -f "$pkgdir/usr/share/dbus-1/system-services/org.freedesktop.Flatpak.SystemHelper.service"
     test -f "$pkgdir/usr/lib/sysusers.d/flatpak.conf"
 
     find "$pkgdir/usr/lib" -type f -name '*.la' -delete
+
+    # Read-only runtime diagnostics; do not chmod a live system from a
+    # Flatpak recipe. The signed fuse3 package handles fusermount3 modes.
+    install -d -m 0755 "$pkgdir/usr/libexec/lpm"
+    cat > "$pkgdir/usr/libexec/lpm/flatpak-fuse-check" <<'FUSE_DIAGNOSTICS'
+#!/bin/sh
+# LPM Linux: report Flatpak/OSTree/FUSE installation prerequisites.
+# No automatic privilege changes, no FUSE mounts, no destructive cleanup.
+set -u
+failed=0
+bad() { printf 'FAIL: %s\n' "$1"; failed=1; }
+good() { printf 'OK: %s\n' "$1"; }
+
+if command -v fusermount3 >/dev/null 2>&1; then
+    helper="$(command -v fusermount3)"
+    mode="$(stat -c '%a' "$helper" 2>/dev/null || true)"
+    owner="$(stat -c '%u:%g' "$helper" 2>/dev/null || true)"
+    if [ "$mode" = 4755 ] && [ "$owner" = 0:0 ]; then
+        good "fusermount3 root:root 4755"
+    else
+        bad "fusermount3 $helper has mode=$mode owner=$owner (expected 4755 root:root)"
+    fi
+    if command -v findmnt >/dev/null 2>&1; then
+        options="$(findmnt -n -T "$helper" -o OPTIONS 2>/dev/null || true)"
+        case ",$options," in
+            *,nosuid,*) bad "helper filesystem is mounted nosuid" ;;
+            *) good "helper filesystem does not report nosuid" ;;
+        esac
+    fi
+else
+    bad "fusermount3 missing"
+fi
+
+if [ -c /dev/fuse ]; then
+    if [ -r /dev/fuse ] && [ -w /dev/fuse ]; then
+        good "/dev/fuse is readable and writable"
+    else
+        bad "current user cannot access /dev/fuse"
+    fi
+else
+    bad "/dev/fuse character device unavailable"
+fi
+
+if [ -x /usr/libexec/revokefs-fuse ]; then
+    good "revokefs-fuse installed"
+else
+    bad "Flatpak revokefs-fuse helper missing"
+fi
+if command -v rofiles-fuse >/dev/null 2>&1; then
+    good "OSTree rofiles-fuse installed"
+else
+    bad "OSTree rofiles-fuse missing"
+fi
+
+if [ "$(stat -c '%a' /var/tmp 2>/dev/null || true)" = 1777 ]; then
+    good "/var/tmp permissions 1777"
+else
+    bad "/var/tmp should be mode 1777"
+fi
+
+if command -v flatpak >/dev/null 2>&1; then
+    flatpak --version
+    flatpak remotes --system || bad "Flatpak system remotes unavailable"
+fi
+
+if [ "$failed" -ne 0 ]; then
+    printf '\nInspect FUSE permissions, device access and mount flags.\n' >&2
+fi
+exit "$failed"
+FUSE_DIAGNOSTICS
+    chmod 0755 "$pkgdir/usr/libexec/lpm/flatpak-fuse-check"
+    test -x "$pkgdir/usr/libexec/lpm/flatpak-fuse-check"
 }
