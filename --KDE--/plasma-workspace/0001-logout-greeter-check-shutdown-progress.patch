@@ -14,7 +14,7 @@ Subject: [PATCH] Plasma: do not block logout on idle shutdown D-Bus owner
  #include <QDebug>
  #include <QScreen>
  
-@@ -46,13 +48,24 @@
+@@ -44,13 +46,24 @@
  
  void Greeter::init()
  {
