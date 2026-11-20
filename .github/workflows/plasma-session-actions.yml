@@ -24,7 +24,10 @@ jobs:
           patch = pathlib.Path("--KDE--/plasma-workspace/0001-logout-greeter-check-shutdown-progress.patch").read_bytes()
           hashes = re.findall(r'"([a-f0-9]{64})"', recipe)
           assert hashlib.sha256(patch).hexdigest() in hashes, "Patch SHA256 mismatch"
-          assert 'RELEASE="7"' in recipe
+          assert 'RELEASE="8"' in recipe
+          assert 'KDE_PAM_SERVICE="kde"' in recipe
+          assert '"pam" "pam-policy"' in recipe
+          assert 'test ! -e "$pkgdir/usr/lib/pam.d/${KDE_PAM_SERVICE}"' in recipe
           assert 'org.kde.LogoutPrompt' in recipe and 'org.kde.Shutdown' in recipe
           PY
       - name: Download precise KDE Plasma 6.8.1 source files
