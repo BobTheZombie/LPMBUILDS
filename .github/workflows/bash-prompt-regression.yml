@@ -1,0 +1,44 @@
+name: Konsole Bash prompt regression
+
+on:
+  push:
+    paths:
+      - "bash/system.bashrc"
+      - "bash/dot.bashrc"
+      - "bash/bash.lpmbuild"
+      - ".github/workflows/bash-prompt-regression.yml"
+  pull_request:
+    paths:
+      - "bash/system.bashrc"
+      - "bash/dot.bashrc"
+      - "bash/bash.lpmbuild"
+      - ".github/workflows/bash-prompt-regression.yml"
+
+jobs:
+  bash-prompt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check shell syntax and audited source digests
+        run: |
+          bash -n bash/system.bashrc bash/dot.bashrc bash/bash.lpmbuild
+          source bash/bash.lpmbuild
+          test "${SHA256SUMS[1]}" = "$(sha256sum bash/system.bashrc | awk '{print $1}')"
+          test "${SHA256SUMS[3]}" = "$(sha256sum bash/dot.bashrc | awk '{print $1}')"
+      - name: Verify malformed PS1 recovery and valid custom prompts
+        env:
+          TERM: xterm-256color
+        run: |
+          bash --noprofile --norc -ic '
+            source "$1"
+            PS1="\\\\[\\\\e[1;35m\\\\]\\\\u@\\\\h"
+            __lpm_repair_prompt
+            [[ "$PS1" == "\[\e[1;35m\]"* ]] || exit 1
+            [[ "$PS1" != *"\\\\["* ]] || exit 2
+            expected="$PS1"
+            __lpm_repair_prompt
+            [[ "$PS1" == "$expected" ]] || exit 3
+            PS1="custom > "
+            __lpm_repair_prompt
+            [[ "$PS1" == "custom > " ]] || exit 4
+          ' _ "$PWD/bash/system.bashrc"
