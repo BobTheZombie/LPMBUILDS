@@ -1,0 +1,93 @@
+From: LPM Linux <lpm-linux@users.noreply.github.com>
+Subject: [PATCH] Plasma: do not block logout on idle shutdown D-Bus owner
+
+--- a/logout-greeter/greeter.cpp
++++ b/logout-greeter/greeter.cpp
+@@ -10,7 +10,9 @@
+ #include "greeter.h"
+ 
+ #include <PlasmaQuick/PlasmaQuick>
+-#include <QApplication>
++#include <QApplication>
++#include <QDBusMessage>
++#include <QDBusReply>
+ #include <QDebug>
+ #include <QScreen>
+ 
+@@ -44,13 +46,24 @@
+ 
+ void Greeter::init()
+ {
+-    // If we're already shutting down we don't need another prompt,
+-    // just reply to the dbus message and exit
+-    if (QDBusConnection::sessionBus().interface()->isServiceRegistered(u"org.kde.Shutdown"_s)) {
+-        qCWarning(LOGOUT_GREETER) << "org.kde.Shutdown D-Bus service is already registered; quitting";
+-        QApplication::quit();
+-        return;
+-    }
++    // A D-Bus owner is not proof that shutdown has started. An idle
++    // plasma-shutdown may retain org.kde.Shutdown after a failed or cancelled
++    // request; refusing the dialog here makes all Plasma power actions inert.
++    if (QDBusConnection::sessionBus().interface()->isServiceRegistered(u"org.kde.Shutdown"_s)) {
++        const auto message = QDBusMessage::createMethodCall(u"org.kde.Shutdown"_s,
++                                                            u"/Shutdown"_s,
++                                                            u"org.kde.Shutdown"_s,
++                                                            u"isLogoutInProgress"_s);
++        const QDBusReply<bool> reply = QDBusConnection::sessionBus().call(message, QDBus::Block, 1500);
++        if (reply.isValid() && reply.value()) {
++            qCWarning(LOGOUT_GREETER) << "A Plasma logout is in progress; not opening another prompt";
++            QApplication::quit();
++            return;
++        }
++        if (!reply.isValid()) {
++            qCWarning(LOGOUT_GREETER) << "Unable to check shutdown progress; allowing logout prompt:" << reply.error().message();
++        }
++    }
+ 
+     if (!m_windowed) {
+         // Quit if we lost focus or failed to gain it after 3 seconds
+--- a/startkde/plasma-shutdown/shutdown.h
++++ b/startkde/plasma-shutdown/shutdown.h
+@@ -18,8 +18,9 @@
+     Shutdown(QObject *parent = nullptr);
+     void logout();
+     void logoutAndShutdown();
+-    void logoutAndReboot();
+-    void saveSession();
++    void logoutAndReboot();
++    void saveSession();
++    bool isLogoutInProgress() const;
+ private Q_SLOTS:
+     void logoutCancelled();
+     void logoutComplete();
+--- a/startkde/plasma-shutdown/shutdown.cpp
++++ b/startkde/plasma-shutdown/shutdown.cpp
+@@ -22,8 +22,13 @@
+     QDBusConnection::sessionBus().registerService(QStringLiteral("org.kde.Shutdown"));
+ }
+ 
+-void Shutdown::logout()
+-{
++bool Shutdown::isLogoutInProgress() const
++{
++    return m_shutdownType != KWorkSpace::ShutdownTypeNone;
++}
++
++void Shutdown::logout()
++{
+     startLogout(KWorkSpace::ShutdownTypeLogout);
+ }
+ 
+--- a/startkde/plasma-shutdown/org.kde.Shutdown.xml
++++ b/startkde/plasma-shutdown/org.kde.Shutdown.xml
+@@ -4,6 +4,9 @@
+     <method name="logout"/>
+     <method name="logoutAndShutdown"/>
+     <method name="logoutAndReboot"/>
+-    <method name="saveSession"/>
++    <method name="saveSession"/>
++    <method name="isLogoutInProgress">
++      <arg name="inProgress" type="b" direction="out"/>
++    </method>
+ </interface>
+ </node>

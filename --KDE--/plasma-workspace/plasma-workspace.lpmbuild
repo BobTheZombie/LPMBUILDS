@@ -7,7 +7,7 @@
 
 NAME="plasma-workspace"
 VERSION="6.8.1"
-RELEASE="6"
+RELEASE="7"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="KDE Plasma workspace, Wayland session, and software integration"
 URL="https://invent.kde.org/plasma/plasma-workspace"
@@ -15,14 +15,16 @@ LICENSE=("SEE-UPSTREAM")
 
 SOURCE=(
     "https://download.kde.org/stable/plasma/${VERSION}/${NAME}-${VERSION}.tar.xz"
+    "0001-logout-greeter-check-shutdown-progress.patch"
 )
 SHA256SUMS=(
     "e2abb7e5b5fc8d59fe369d3ab4ea776e10684af0fb1a8a3275e9df64eff97d20"
+    "0d2761c0ded2aea8d9d06146d8b380763158abf8598da6111f4850bc2090fe49"
 )
-PATCHES=()
+PATCHES=("0001-logout-greeter-check-shutdown-progress.patch")
 
 REQUIRES=(
-    "glibc" "dbus" "libudev" "wayland" "zlib" "icu"
+    "glibc" "dbus" "systemd" "libudev" "wayland" "zlib" "icu"
     "qt6-base" "qt6-declarative" "qt6-location" "qt6-positioning"
     "qt6-svg" "qt6-shadertools" "qt6-wayland"
     "kwin" "libplasma" "kwayland" "plasma-activities"
@@ -157,4 +159,33 @@ staging() {
     test -d "$pkgdir/usr"
     test -n "$(find "$pkgdir/usr" -mindepth 1 -print -quit)"
     test -f "$pkgdir/usr/lib/sddm/sddm.conf.d/plasma-wayland.conf"
+    # Ensure both user D-Bus activation entries and their programs are shipped.
+    # Without them the Plasma launcher can silently ignore all power actions.
+    local service activation exec target binary
+    for binary in ksmserver ksmserver-logout-greeter plasma-shutdown; do
+        test -n "$(find "$pkgdir/usr" -type f -name "$binary" -print -quit)" || {
+            echo "[ERROR] Missing KDE session manager binary: $binary" >&2
+            return 1
+        }
+    done
+    for service in org.kde.LogoutPrompt org.kde.Shutdown; do
+        activation="$pkgdir/usr/share/dbus-1/services/$service.service"
+        test -s "$activation" || {
+            echo "[ERROR] Missing KDE D-Bus activation: $activation" >&2
+            return 1
+        }
+        grep -Fxq "Name=$service" "$activation"
+        exec="$(sed -n 's/^Exec=//p' "$activation" | head -n1)"
+        case "$exec" in
+            /usr/*) ;;
+            *) echo "[ERROR] Invalid $service Exec=$exec" >&2; return 1 ;;
+        esac
+        target="${exec%% *}"
+        test -x "$pkgdir$target" || {
+            echo "[ERROR] $service activation executable missing: $target" >&2
+            return 1
+        }
+    done
+    grep -Fq 'isLogoutInProgress' "$SRCROOT/$NAME-$VERSION/startkde/plasma-shutdown/org.kde.Shutdown.xml"
+
 }
