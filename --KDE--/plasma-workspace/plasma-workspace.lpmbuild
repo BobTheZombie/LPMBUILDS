@@ -7,7 +7,7 @@
 
 NAME="plasma-workspace"
 VERSION="6.8.1"
-RELEASE="7"
+RELEASE="8"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="KDE Plasma workspace, Wayland session, and software integration"
 URL="https://invent.kde.org/plasma/plasma-workspace"
@@ -23,8 +23,14 @@ SHA256SUMS=(
 )
 PATCHES=("0001-logout-greeter-check-shutdown-progress.patch")
 
+# KDE PAM service used by KScreenLocker. Plasma-workspace does not configure
+# screen-lock PAM itself: kscreenlocker builds with
+# -DKSCREENLOCKER_PAM_SERVICE=kde and owns /usr/lib/pam.d/kde.
+# Never install the same PAM file from two packages.
+KDE_PAM_SERVICE="kde"
+
 REQUIRES=(
-    "glibc" "dbus" "systemd" "libudev" "wayland" "zlib" "icu"
+    "glibc" "dbus" "systemd" "pam" "pam-policy" "libudev" "wayland" "zlib" "icu"
     "qt6-base" "qt6-declarative" "qt6-location" "qt6-positioning"
     "qt6-svg" "qt6-shadertools" "qt6-wayland"
     "kwin" "libplasma" "kwayland" "plasma-activities"
@@ -98,6 +104,20 @@ SUGGESTS=()
 prepare() {
     set -euxo pipefail
     test -f "$SRCROOT/$NAME-$VERSION/CMakeLists.txt"
+
+    # Fail early if kscreenlocker (a declared dependency) did not provide KDE's
+    # actual PAM service. /etc/pam.d/kde may override vendor policy at runtime;
+    # it is NOT a substitute for shipping the vendor service correctly.
+    local kde_pam_file="/usr/lib/pam.d/${KDE_PAM_SERVICE}"
+    if [[ ! -s "$kde_pam_file" ]]; then
+        echo "[ERROR] KDE PAM service missing: $kde_pam_file" >&2
+        echo "[HINT] Rebuild/install kscreenlocker, which provides the kde PAM service." >&2
+        return 1
+    fi
+    if ! grep -Eq '^[[:space:]]*auth[[:space:]]+include[[:space:]]+system-(auth|login)([[:space:]]|$)' "$kde_pam_file"; then
+        echo "[ERROR] KDE PAM service is not wired to LPM's central PAM policy: $kde_pam_file" >&2
+        return 1
+    fi
     # Validate the native PackageKit LPM backend; the dummy backend alone
     # would satisfy the Qt binding but would not install LPM packages.
     test -f /usr/lib/cmake/packagekitqt6/packagekitqt6-config.cmake
@@ -159,6 +179,13 @@ staging() {
     test -d "$pkgdir/usr"
     test -n "$(find "$pkgdir/usr" -mindepth 1 -print -quit)"
     test -f "$pkgdir/usr/lib/sddm/sddm.conf.d/plasma-wayland.conf"
+
+    # The KDE PAM policy belongs to kscreenlocker, not plasma-workspace.
+    # Check the dependency without copying a second, conflicting policy file.
+    test ! -e "$pkgdir/usr/lib/pam.d/${KDE_PAM_SERVICE}" || {
+        echo "[ERROR] Duplicate kde PAM policy in plasma-workspace package" >&2
+        return 1
+    }
     # Ensure both user D-Bus activation entries and their programs are shipped.
     # Without them the Plasma launcher can silently ignore all power actions.
     local service activation exec target binary
