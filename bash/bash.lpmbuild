@@ -176,7 +176,9 @@ check() {
 
     # Regression: shell startup files must parse, repair the historical
     # doubled-backslash prompt, and preserve valid user-defined prompts.
-    "$SRCDIR/bash" -n "$SRCROOT/system.bashrc" "$SRCROOT/dot.bashrc"
+    for bashrc_file in "$SRCROOT/system.bashrc" "$SRCROOT/dot.bashrc"; do
+        "$SRCDIR/bash" -n "$bashrc_file"
+    done
     TERM=xterm-256color "$SRCDIR/bash" --noprofile --norc -ic '
         source "$1"
         PS1="\\\\[\\\\e[1;35m\\\\]\\\\u@\\\\h"
