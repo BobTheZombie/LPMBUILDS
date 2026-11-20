@@ -1,0 +1,58 @@
+name: Plasma logout and power actions
+
+on:
+  push:
+    paths:
+      - "--KDE--/plasma-workspace/**"
+      - ".github/workflows/plasma-session-actions.yml"
+  pull_request:
+    paths:
+      - "--KDE--/plasma-workspace/**"
+      - ".github/workflows/plasma-session-actions.yml"
+
+jobs:
+  upstream-patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate recipe and patch syntax
+        run: |
+          bash -n --KDE--/plasma-workspace/plasma-workspace.lpmbuild
+          python3 - <<'PY'
+          import hashlib, pathlib, re
+          recipe = pathlib.Path("--KDE--/plasma-workspace/plasma-workspace.lpmbuild").read_text()
+          patch = pathlib.Path("--KDE--/plasma-workspace/0001-logout-greeter-check-shutdown-progress.patch").read_bytes()
+          hashes = re.findall(r'"([a-f0-9]{64})"', recipe)
+          assert hashlib.sha256(patch).hexdigest() in hashes, "Patch SHA256 mismatch"
+          assert 'RELEASE="7"' in recipe
+          assert 'org.kde.LogoutPrompt' in recipe and 'org.kde.Shutdown' in recipe
+          PY
+      - name: Download precise KDE Plasma 6.8.1 source files
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in \
+            logout-greeter/greeter.cpp \
+            startkde/plasma-shutdown/shutdown.h \
+            startkde/plasma-shutdown/shutdown.cpp \
+            startkde/plasma-shutdown/org.kde.Shutdown.xml; do
+            install -d "$(dirname "$RUNNER_TEMP/src/$file")"
+            curl --fail --show-error --silent --location \
+              "https://raw.githubusercontent.com/KDE/plasma-workspace/v6.8.1/$file" \
+              -o "$RUNNER_TEMP/src/$file"
+          done
+      - name: Confirm patch applies with no fuzz
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/src"
+          patch --dry-run --fuzz=0 -p1 < "$GITHUB_WORKSPACE/--KDE--/plasma-workspace/0001-logout-greeter-check-shutdown-progress.patch"
+          patch --fuzz=0 -p1 < "$GITHUB_WORKSPACE/--KDE--/plasma-workspace/0001-logout-greeter-check-shutdown-progress.patch"
+          python3 - <<'PY'
+          import pathlib
+          import xml.etree.ElementTree as ET
+          xml = ET.parse("startkde/plasma-shutdown/org.kde.Shutdown.xml")
+          assert xml.find(".//method[@name='isLogoutInProgress']") is not None
+          cpp = pathlib.Path("logout-greeter/greeter.cpp").read_text()
+          assert 'reply.isValid() && reply.value()' in cpp
+          assert "already registered; quitting" not in cpp
+          PY
