@@ -19,7 +19,7 @@ SOURCE=(
 )
 SHA256SUMS=(
     "e2abb7e5b5fc8d59fe369d3ab4ea776e10684af0fb1a8a3275e9df64eff97d20"
-    "5642ce6a89b52e247642ea408f95fa7cf554a318599ff984850a81419e38d861"
+    "0d2761c0ded2aea8d9d06146d8b380763158abf8598da6111f4850bc2090fe49"
 )
 PATCHES=("0001-logout-greeter-check-shutdown-progress.patch")
 
