@@ -80,7 +80,7 @@ Subject: [PATCH] Plasma: do not block logout on idle shutdown D-Bus owner
  
 --- a/startkde/plasma-shutdown/org.kde.Shutdown.xml
 +++ b/startkde/plasma-shutdown/org.kde.Shutdown.xml
-@@ -4,7 +4,10 @@
+@@ -4,6 +4,9 @@
      <method name="logout"/>
      <method name="logoutAndShutdown"/>
      <method name="logoutAndReboot"/>
@@ -91,4 +91,3 @@ Subject: [PATCH] Plasma: do not block logout on idle shutdown D-Bus owner
 +    </method>
  </interface>
  </node>
- 
