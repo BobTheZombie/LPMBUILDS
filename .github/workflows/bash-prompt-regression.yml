@@ -21,7 +21,9 @@ jobs:
       - uses: actions/checkout@v4
       - name: Check shell syntax and audited source digests
         run: |
-          bash -n bash/system.bashrc bash/dot.bashrc bash/bash.lpmbuild
+          for f in bash/system.bashrc bash/dot.bashrc bash/bash.lpmbuild; do
+            bash -n "$f"
+          done
           source bash/bash.lpmbuild
           test "${SHA256SUMS[1]}" = "$(sha256sum bash/system.bashrc | awk '{print $1}')"
           test "${SHA256SUMS[3]}" = "$(sha256sum bash/dot.bashrc | awk '{print $1}')"
