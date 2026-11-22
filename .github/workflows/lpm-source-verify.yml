@@ -1,0 +1,32 @@
+name: Validate pinned LPM source digest
+
+on:
+  push:
+    paths:
+      - "lpm/lpm.lpmbuild"
+      - ".github/workflows/lpm-source-verify.yml"
+  pull_request:
+    paths:
+      - "lpm/lpm.lpmbuild"
+      - ".github/workflows/lpm-source-verify.yml"
+
+jobs:
+  source-integrity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download exact pinned commit and verify SHA-256
+        shell: bash
+        run: |
+          set -euo pipefail
+          commit=$(sed -n 's/^_COMMIT="\([0-9a-f]*\)"/\1/p' lpm/lpm.lpmbuild)
+          expected=$(sed -n 's/^SHA256SUMS=("\([0-9a-f]*\)")/\1/p' lpm/lpm.lpmbuild)
+          test "${#commit}" -eq 40
+          test "${#expected}" -eq 64
+          curl --fail --location --silent --show-error --retry 3 \
+            "https://github.com/BobTheZombie/LPM.Org/archive/${commit}.tar.gz" \
+            -o "$RUNNER_TEMP/lpm-src.tar.gz"
+          actual=$(sha256sum "$RUNNER_TEMP/lpm-src.tar.gz" | cut -d' ' -f1)
+          echo "ACTUAL_SHA256=${actual}"
+          echo "EXPECTED_SHA256=${expected}"
+          test "$actual" = "$expected"
