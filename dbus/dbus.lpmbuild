@@ -2,7 +2,7 @@
 # LPM: bootstrap D-Bus, then rebuild against systemd.
 NAME="dbus"
 VERSION="1.16.2"
-RELEASE="3"
+RELEASE="4"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="Message bus system (reference implementation)"
 URL="https://dbus.freedesktop.org/"
@@ -46,7 +46,9 @@ _build_dbus() {
         -Dsystemd_system_unitdir=/usr/lib/systemd/system \
         -Dsystemd_user_unitdir=/usr/lib/systemd/user \
         -Ddbus_user=dbus -Druntime_dir=/run \
-        -Dtraditional_activation=false \
+        # Keep Exec= activation for services without a SystemdService= entry.
+        # Required for stage-1 bootstrap and third-party desktop components.
+        -Dtraditional_activation=true \
         -Dselinux=disabled -Dapparmor=disabled -Dlibaudit=disabled \
         -Dx11_autolaunch=disabled -Dmodular_tests=disabled \
         -Dinstalled_tests=false -Dintrusive_tests=false \
@@ -69,6 +71,21 @@ check() {
     build/bus/dbus-daemon --version > build/.lpm-version
     grep -Fq "D-Bus Message Bus Daemon ${VERSION}" build/.lpm-version
     rm -f build/.lpm-version
+
+    # Guard against silently shipping another dbus-daemon without fallback
+    # activation. Plasma's logout greeter depends on this when no systemd
+    # activation unit is provided by the package.
+    python3 - <<'PY_VERIFY_ACTIVATION'
+import json
+import subprocess
+
+options = json.loads(subprocess.check_output(
+    ["meson", "introspect", "--buildoptions", "build"], text=True
+))
+traditional = next((opt for opt in options if opt["name"] == "traditional_activation"), None)
+if traditional is None or traditional["value"] is not True:
+    raise SystemExit("D-Bus traditional activation must be enabled")
+PY_VERIFY_ACTIVATION
 }
 
 staging() {
