@@ -37,6 +37,8 @@ prepare() {
 _build_dbus() {
     set -euxo pipefail
     cd "$SRCROOT/${NAME}-${VERSION}"
+    # Keep Exec= activation for services without a SystemdService= entry.
+    # Required for stage-1 bootstrap and third-party desktop components.
     meson setup build \
         --prefix=/usr --libdir=lib --libexecdir=libexec \
         --sysconfdir=/etc --localstatedir=/var \
@@ -46,8 +48,6 @@ _build_dbus() {
         -Dsystemd_system_unitdir=/usr/lib/systemd/system \
         -Dsystemd_user_unitdir=/usr/lib/systemd/user \
         -Ddbus_user=dbus -Druntime_dir=/run \
-        # Keep Exec= activation for services without a SystemdService= entry.
-        # Required for stage-1 bootstrap and third-party desktop components.
         -Dtraditional_activation=true \
         -Dselinux=disabled -Dapparmor=disabled -Dlibaudit=disabled \
         -Dx11_autolaunch=disabled -Dmodular_tests=disabled \
