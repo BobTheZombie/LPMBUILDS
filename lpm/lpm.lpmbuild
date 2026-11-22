@@ -3,20 +3,20 @@
 
 NAME="lpm"
 VERSION="1.3.1"
-RELEASE="3"
+RELEASE="4"
 ARCH="${ARCH:-x86_64}"
 
 SUMMARY="Linux Package Manager with dependency solving and staged builds"
 URL="https://github.com/BobTheZombie/LPM.Org"
 LICENSE=("MIT")
 
-_COMMIT="53a2d84807335d7aa90c32a13b13f48341ca6952"
+_COMMIT="da14876a0c76b724dbbbf32ef8ea450cfc6bdbe3"
 
 SOURCE=(
     "https://github.com/BobTheZombie/LPM.Org/archive/${_COMMIT}.tar.gz"
 )
 
-SHA256SUMS=("1074586e70a690717f168cee2eb2f4398e8a6dc2ba47e2bc8404e7cadb76a964")
+SHA256SUMS=("0000000000000000000000000000000000000000000000000000000000000000")
 PATCHES=()
 
 REQUIRES=(
