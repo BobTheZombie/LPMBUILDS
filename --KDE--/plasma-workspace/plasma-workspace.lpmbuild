@@ -7,7 +7,7 @@
 
 NAME="plasma-workspace"
 VERSION="6.8.1"
-RELEASE="8"
+RELEASE="9"
 ARCH="${ARCH:-x86_64}"
 SUMMARY="KDE Plasma workspace, Wayland session, and software integration"
 URL="https://invent.kde.org/plasma/plasma-workspace"
@@ -188,7 +188,7 @@ staging() {
     }
     # Ensure both user D-Bus activation entries and their programs are shipped.
     # Without them the Plasma launcher can silently ignore all power actions.
-    local service activation exec target binary
+    local service activation exec target binary unit description
     for binary in ksmserver ksmserver-logout-greeter plasma-shutdown; do
         test -n "$(find "$pkgdir/usr" -type f -name "$binary" -print -quit)" || {
             echo "[ERROR] Missing KDE session manager binary: $binary" >&2
@@ -212,6 +212,46 @@ staging() {
             echo "[ERROR] $service activation executable missing: $target" >&2
             return 1
         }
+
+        # LPM builds dbus-daemon with traditional activation disabled. KDE's
+        # generated service files have Exec= but no SystemdService=, so the
+        # session bus cannot launch these two programs on demand.
+        case "$service" in
+            org.kde.LogoutPrompt)
+                unit="plasma-dbus-logout-prompt.service"
+                description="KDE Plasma logout confirmation dialog"
+                ;;
+            org.kde.Shutdown)
+                unit="plasma-dbus-shutdown.service"
+                description="KDE Plasma session shutdown controller"
+                ;;
+            *)
+                echo "[ERROR] Unexpected Plasma D-Bus service: $service" >&2
+                return 1
+                ;;
+        esac
+
+        if grep -q '^SystemdService=' "$activation"; then
+            sed -i "s/^SystemdService=.*/SystemdService=$unit/" "$activation"
+        else
+            printf 'SystemdService=%s\n' "$unit" >> "$activation"
+        fi
+
+        # Do not enable these units at login. D-Bus starts them when called.
+        install -d "$pkgdir/usr/lib/systemd/user"
+        cat > "$pkgdir/usr/lib/systemd/user/$unit" <<EOF
+[Unit]
+Description=$description
+
+[Service]
+Type=dbus
+BusName=$service
+ExecStart=$exec
+EOF
+        grep -Fxq "SystemdService=$unit" "$activation"
+        grep -Fxq "Type=dbus" "$pkgdir/usr/lib/systemd/user/$unit"
+        grep -Fxq "BusName=$service" "$pkgdir/usr/lib/systemd/user/$unit"
+        grep -Fxq "ExecStart=$exec" "$pkgdir/usr/lib/systemd/user/$unit"
     done
     grep -Fq 'isLogoutInProgress' "$SRCROOT/$NAME-$VERSION/startkde/plasma-shutdown/org.kde.Shutdown.xml"
 

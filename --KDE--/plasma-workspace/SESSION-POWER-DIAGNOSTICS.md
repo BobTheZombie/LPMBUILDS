@@ -1,9 +1,27 @@
 # LPM Linux: Plasma 6.8.1 shutdown / reboot / logout repair
 
-Plasma 6.8.1-7 patches the logout greeter to query the shutdown state
+Plasma 6.8.1-9 patches the logout greeter to query the shutdown state
 rather than treating mere org.kde.Shutdown name ownership as logout in progress.
 The recipe also verifies both D-Bus activation files and their binaries.
+Release 9 also fixes D-Bus activation on LPM's dbus-daemon build, which
+disables traditional activation. Its session service files now contain:
+
+- org.kde.LogoutPrompt: SystemdService=plasma-dbus-logout-prompt.service
+- org.kde.Shutdown: SystemdService=plasma-dbus-shutdown.service
+
+The corresponding Type=dbus systemd **user** units are staged under
+/usr/lib/systemd/user. They are on-demand and must not be manually enabled.
 No polkit rules or permission bypasses are installed.
+
+If the journal says "SystemdService not configured and dbus was compiled with
+--disable-traditional-activation", install the updated plasma-workspace
+package and start a fresh graphical login session. Confirm these entries:
+
+```sh
+grep -H '^SystemdService=' /usr/share/dbus-1/services/org.kde.{LogoutPrompt,Shutdown}.service
+systemctl --user cat plasma-dbus-logout-prompt.service plasma-dbus-shutdown.service
+```
+
 
 ## Check from a running desktop session (do not use sudo)
 

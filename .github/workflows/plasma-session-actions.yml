@@ -24,12 +24,47 @@ jobs:
           patch = pathlib.Path("--KDE--/plasma-workspace/0001-logout-greeter-check-shutdown-progress.patch").read_bytes()
           hashes = re.findall(r'"([a-f0-9]{64})"', recipe)
           assert hashlib.sha256(patch).hexdigest() in hashes, "Patch SHA256 mismatch"
-          assert 'RELEASE="8"' in recipe
+          assert 'RELEASE="9"' in recipe
           assert 'KDE_PAM_SERVICE="kde"' in recipe
           assert '"pam" "pam-policy"' in recipe
           assert 'test ! -e "$pkgdir/usr/lib/pam.d/${KDE_PAM_SERVICE}"' in recipe
           assert 'org.kde.LogoutPrompt' in recipe and 'org.kde.Shutdown' in recipe
+          assert 'unit="plasma-dbus-logout-prompt.service"' in recipe
+          assert 'unit="plasma-dbus-shutdown.service"' in recipe
+          assert 'SystemdService=%s' in recipe
+          assert 'Type=dbus' in recipe and 'BusName=$service' in recipe
+          assert 'ExecStart=$exec' in recipe
           PY
+      - name: Smoke test D-Bus / systemd activation files staged by recipe
+        shell: bash
+        run: |
+          set -euo pipefail
+          export SRCROOT="$RUNNER_TEMP/plasma-src"
+          export pkgdir="$RUNNER_TEMP/plasma-stage"
+          mkdir -p "$SRCROOT/plasma-workspace-6.8.1/startkde/plasma-shutdown"
+          printf 'isLogoutInProgress\n' > "$SRCROOT/plasma-workspace-6.8.1/startkde/plasma-shutdown/org.kde.Shutdown.xml"
+          cmake() {
+            test "$1" = "--install"
+            install -d "$DESTDIR/usr/libexec" "$DESTDIR/usr/lib/sddm/sddm.conf.d" "$DESTDIR/usr/share/dbus-1/services"
+            touch "$DESTDIR/usr/lib/sddm/sddm.conf.d/plasma-wayland.conf"
+            for exe in ksmserver ksmserver-logout-greeter plasma-shutdown; do
+              install -m755 /usr/bin/true "$DESTDIR/usr/libexec/$exe"
+            done
+            printf '[D-BUS Service]\nName=org.kde.LogoutPrompt\nExec=/usr/libexec/ksmserver-logout-greeter\n' \
+              > "$DESTDIR/usr/share/dbus-1/services/org.kde.LogoutPrompt.service"
+            printf '[D-BUS Service]\nName=org.kde.Shutdown\nExec=/usr/libexec/plasma-shutdown\n' \
+              > "$DESTDIR/usr/share/dbus-1/services/org.kde.Shutdown.service"
+          }
+          source "./--KDE--/plasma-workspace/plasma-workspace.lpmbuild"
+          staging
+          for name in org.kde.LogoutPrompt org.kde.Shutdown; do
+            case "$name" in
+              org.kde.LogoutPrompt) unit=plasma-dbus-logout-prompt.service ;;
+              org.kde.Shutdown) unit=plasma-dbus-shutdown.service ;;
+            esac
+            grep -Fx "SystemdService=$unit" "$pkgdir/usr/share/dbus-1/services/$name.service"
+            grep -Fx "BusName=$name" "$pkgdir/usr/lib/systemd/user/$unit"
+          done
       - name: Download precise KDE Plasma 6.8.1 source files
         shell: bash
         run: |
