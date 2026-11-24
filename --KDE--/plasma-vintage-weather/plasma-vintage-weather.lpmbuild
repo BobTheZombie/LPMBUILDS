@@ -1,0 +1,51 @@
+#!/bin/bash
+# LPM Linux — Aurora Vintage Weather 1.0.0, native Plasma 6 plasmoid.
+NAME="plasma-vintage-weather"
+VERSION="1.0.0"
+RELEASE="1"
+ARCH="any"
+SUMMARY="Antique analog clock and live animated weather widget for KDE Plasma 6"
+URL="https://github.com/BobTheZombie/LPMBUILDS/tree/main/--KDE--/plasma-vintage-weather"
+LICENSE=("MIT")
+# Explicitly pinned assets; source stage works even if LPM fetches this recipe into /tmp.
+SOURCE=("vintage-weather-src::git+https://github.com/BobTheZombie/LPMBUILDS.git#commit=2a85dcabdb778e5ad8a4762012068476083f0cc7")
+SHA256SUMS=("SKIP")
+PATCHES=()
+REQUIRES=("plasma-workspace" "qt6-declarative")
+BUILD_REQUIRES=("git")
+PROVIDES=("plasma-vintage-weather")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=()
+
+_weather_source_dir() {
+    : "${SRCROOT:?LPM must set SRCROOT}"
+    printf '%s\n' "$SRCROOT/vintage-weather-src/--KDE--/plasma-vintage-weather"
+}
+prepare() {
+    local src
+    src="$(_weather_source_dir)"
+    test -r "$src/package/metadata.json" || { echo "[ERROR] Missing vintage weather widget assets: $src" >&2; return 1; }
+    test -r "$src/package/contents/ui/main.qml"
+    test -r "$src/package/contents/ui/AntiqueClock.qml"
+    test -r "$src/package/contents/ui/WeatherScene.qml"
+}
+build() { :; }
+check() {
+    local src
+    src="$(_weather_source_dir)"
+    python3 "$src/tests/static-check.py"
+}
+staging() {
+    set -euo pipefail
+    : "${pkgdir:?LPM must set pkgdir}"
+    test "$pkgdir" != /
+    local src dest
+    src="$(_weather_source_dir)/package"
+    dest="$pkgdir/usr/share/plasma/plasmoids/org.lpm.vintageweather"
+    install -d "$dest"
+    cp -a "$src/metadata.json" "$src/contents" "$dest/"
+    test -s "$dest/contents/ui/main.qml"
+    test -s "$dest/metadata.json"
+}
