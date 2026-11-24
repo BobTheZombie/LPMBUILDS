@@ -2,17 +2,17 @@
 # LPM Linux — Aurora Vintage Weather 1.0.0, native Plasma 6 plasmoid.
 NAME="plasma-vintage-weather"
 VERSION="1.0.0"
-RELEASE="1"
+RELEASE="2"
 ARCH="any"
 SUMMARY="Antique analog clock and live animated weather widget for KDE Plasma 6"
 URL="https://github.com/BobTheZombie/LPMBUILDS/tree/main/--KDE--/plasma-vintage-weather"
 LICENSE=("MIT")
 # Explicitly pinned assets; source stage works even if LPM fetches this recipe into /tmp.
-SOURCE=("vintage-weather-src::git+https://github.com/BobTheZombie/LPMBUILDS.git#commit=2a85dcabdb778e5ad8a4762012068476083f0cc7")
+SOURCE=("vintage-weather-src::git+https://github.com/BobTheZombie/LPMBUILDS.git#commit=6b1c440683b53f620e2562cae7518b1acfce897a")
 SHA256SUMS=("SKIP")
 PATCHES=()
 REQUIRES=("plasma-workspace" "qt6-declarative")
-BUILD_REQUIRES=("git")
+BUILD_REQUIRES=("git" "python")
 PROVIDES=("plasma-vintage-weather")
 CONFLICTS=()
 OBSOLETES=()
