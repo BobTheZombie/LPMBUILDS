@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kcfg xmlns="http://www.kde.org/standards/kcfg/1.0">
+  <kcfgfile name=""/>
+  <group name="General">
+    <entry name="location" type="String"><default>Watervliet, Michigan</default></entry>
+    <entry name="countryCode" type="String"><default>US</default></entry>
+    <entry name="temperatureUnit" type="String"><default>fahrenheit</default></entry>
+    <entry name="refreshMinutes" type="Int"><default>20</default></entry>
+    <entry name="animations" type="Bool"><default>true</default></entry>
+    <entry name="showSeconds" type="Bool"><default>true</default></entry>
+    <entry name="use24Hour" type="Bool"><default>false</default></entry>
+  </group>
+</kcfg>

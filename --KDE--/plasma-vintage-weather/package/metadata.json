@@ -1,0 +1,14 @@
+{
+  "KPlugin": {
+    "Id": "org.lpm.vintageweather",
+    "Name": "Aurora Vintage Weather",
+    "Description": "Antique analog clock and cinematic animated weather for Plasma 6",
+    "Icon": "weather-clear",
+    "Category": "Date and Time",
+    "Version": "1.0.0",
+    "License": "MIT",
+    "Website": "https://github.com/BobTheZombie/LPMBUILDS"
+  },
+  "KPackageStructure": "Plasma/Applet",
+  "X-Plasma-API-Minimum-Version": "6.0"
+}
