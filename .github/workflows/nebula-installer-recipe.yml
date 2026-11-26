@@ -1,0 +1,45 @@
+name: Nebula installer recipe validation
+
+on:
+  pull_request:
+    paths:
+      - 'nebula-installer/**'
+      - '.github/workflows/nebula-installer-recipe.yml'
+  push:
+    branches: [feat/nebula-graphical-installer-package]
+    paths:
+      - 'nebula-installer/**'
+      - '.github/workflows/nebula-installer-recipe.yml'
+
+jobs:
+  stage:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out LPM recipes
+        uses: actions/checkout@v4
+      - name: Check out pinned Nebula installer source
+        uses: actions/checkout@v4
+        with:
+          repository: BobTheZombie/Nebula-Installer
+          ref: 5094889685280609055a8e7df3932d2963a8e73e
+          path: source/nebula-src
+      - name: Set up Python 3.14
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+      - name: Check LPM recipe syntax and stage into a disposable directory
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n nebula-installer/nebula-installer.lpmbuild
+          export SRCROOT="$GITHUB_WORKSPACE/source"
+          export pkgdir="$RUNNER_TEMP/nebula-stage"
+          mkdir -p "$pkgdir"
+          source nebula-installer/nebula-installer.lpmbuild
+          prepare
+          build
+          check
+          staging
+          test -x "$pkgdir/usr/bin/nebula-installer"
+          test -s "$pkgdir/usr/share/applications/org.lpm.NebulaInstaller.desktop"
+          find "$pkgdir/usr/lib" -name graphical_backend.py -print -quit | grep graphical_backend.py
