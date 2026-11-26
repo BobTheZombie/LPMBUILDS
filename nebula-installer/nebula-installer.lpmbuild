@@ -1,0 +1,83 @@
+#!/bin/bash
+# LPM Linux Nebula Installer — Qt frontend + authorized polkit worker.
+NAME="nebula-installer"
+VERSION="0.2.0"
+RELEASE="1"
+ARCH="any"
+SUMMARY="LPM Linux graphical OS installer with repository and source modes"
+URL="https://github.com/BobTheZombie/Nebula-Installer"
+LICENSE=("MIT")
+_NEBULA_COMMIT="5094889685280609055a8e7df3932d2963a8e73e"
+SOURCE=("nebula-src::git+https://github.com/BobTheZombie/Nebula-Installer.git#commit=${_NEBULA_COMMIT}")
+SHA256SUMS=("SKIP")
+PATCHES=()
+REQUIRES=("python>=3.14" "pyside6" "openssl" "polkit" "lpm" "shadow" "util-linux")
+BUILD_REQUIRES=("python" "git")
+REQUIRES_PYTHON_DEPENDENCIES=()
+PROVIDES=("nebula-installer")
+CONFLICTS=()
+OBSOLETES=()
+RECOMMENDS=()
+SUGGESTS=("polkit-kde-agent-1")
+
+_source() {
+    : "${SRCROOT:?LPM must set SRCROOT}"
+    printf '%s\n' "$SRCROOT/nebula-src"
+}
+prepare() {
+    set -euo pipefail
+    local src
+    src="$(_source)"
+    test -r "$src/LICENSE"
+    test -r "$src/nebula_installer/graphical_ui.py"
+    test -r "$src/nebula_installer/graphical_backend.py"
+    test -r "$src/assets/org.lpm.NebulaInstaller.desktop"
+}
+build() { :; }
+check() {
+    set -euo pipefail
+    local src
+    src="$(_source)"
+    python3 - "$src" <<'PY'
+from pathlib import Path
+import sys
+files = sorted((Path(sys.argv[1]) / "nebula_installer").rglob("*.py"))
+assert files
+for path in files:
+    compile(path.read_text(encoding="utf-8"), str(path), "exec")
+print("Nebula: validated", len(files), "modules")
+PY
+}
+staging() {
+    set -euo pipefail
+    : "${pkgdir:?LPM must set pkgdir}"
+    test "$pkgdir" != /
+    local src purelib
+    src="$(_source)"
+    purelib="$(python3 - <<'PY'
+import sysconfig
+print(sysconfig.get_path("purelib", vars={"base": "/usr", "platbase": "/usr"}))
+PY
+)"
+    case "$purelib" in /usr/lib/*/site-packages|/usr/lib64/*/site-packages) ;; *)
+      echo "[ERROR] Unexpected Python site-packages: $purelib" >&2; return 1 ;;
+    esac
+    install -dm755 "$pkgdir$purelib" "$pkgdir/usr/bin" \
+      "$pkgdir/usr/share/applications" "$pkgdir/usr/share/doc/nebula-installer" \
+      "$pkgdir/usr/share/licenses/nebula-installer"
+    cp -a "$src/nebula_installer" "$pkgdir$purelib/"
+    find "$pkgdir$purelib/nebula_installer" -type d -name __pycache__ -prune -exec rm -rf {} +
+    install -m644 "$src/assets/org.lpm.NebulaInstaller.desktop" \
+      "$pkgdir/usr/share/applications/org.lpm.NebulaInstaller.desktop"
+    install -m644 "$src/README.md" "$pkgdir/usr/share/doc/nebula-installer/README.md"
+    install -m644 "$src/LICENSE" "$pkgdir/usr/share/licenses/nebula-installer/LICENSE"
+    cat > "$pkgdir/usr/bin/nebula-installer" <<'SH'
+#!/usr/bin/python3
+from nebula_installer.__main__ import main
+if __name__ == "__main__":
+    main()
+SH
+    chmod 0755 "$pkgdir/usr/bin/nebula-installer"
+    test -r "$pkgdir$purelib/nebula_installer/graphical_ui.py"
+    test -x "$pkgdir/usr/bin/nebula-installer"
+}
